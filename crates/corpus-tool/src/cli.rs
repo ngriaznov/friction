@@ -33,6 +33,11 @@ enum Command {
     HoldoutCheck(commands::holdout_check::Args),
     /// Clean an incoming raw-doc directory into the corpus layout.
     Clean(commands::clean::Args),
+    /// Ingest incoming human-corpus docs + metadata into the manifest.
+    Ingest(commands::ingest::Args),
+    /// Remove one or more docs: drops the manifest record and corpus
+    /// file, leaving the raw original under `corpus/incoming/` in place.
+    Remove(commands::remove::Args),
     /// Generate the LLM corpus via Ollama.
     Generate(commands::generate::Args),
 }
@@ -60,6 +65,8 @@ pub fn run() -> anyhow::Result<()> {
         Command::Seal(args) => commands::seal::run(&args),
         Command::HoldoutCheck(args) => commands::holdout_check::run(&args),
         Command::Clean(args) => commands::clean::run(&args),
+        Command::Ingest(args) => commands::ingest::run(&args),
+        Command::Remove(args) => commands::remove::run(&args),
         Command::Generate(args) => {
             let outcome = commands::generate::run(&args)?;
             if outcome.any_models_skipped() {

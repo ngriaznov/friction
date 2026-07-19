@@ -8,7 +8,10 @@ use clap::Args as ClapArgs;
 
 use crate::hashing::word_count;
 
-const MIN_WORDS: usize = 300;
+/// Docs under this many words (after cleaning) are dropped. Shared with
+/// `ingest`, which applies the identical cleaning pipeline to incoming
+/// human-corpus fragments.
+pub(crate) const MIN_WORDS: usize = 300;
 
 /// Arguments for `corpus-tool clean`.
 #[derive(Debug, ClapArgs)]
@@ -84,7 +87,7 @@ pub fn run(args: &Args) -> anyhow::Result<()> {
 
 /// Decodes to UTF-8 (lossily, if the source isn't valid UTF-8) and
 /// normalizes all line endings to LF.
-fn normalize(raw: &[u8]) -> String {
+pub(crate) fn normalize(raw: &[u8]) -> String {
     let text = String::from_utf8_lossy(raw);
     text.replace("\r\n", "\n").replace('\r', "\n")
 }
@@ -92,7 +95,7 @@ fn normalize(raw: &[u8]) -> String {
 /// Strips badge-image-wall and standalone HTML nav/footer/layout tag
 /// lines, then collapses the resulting blank-line runs and trims leading
 /// and trailing blank lines. Markdown prose lines are left untouched.
-fn strip_boilerplate(text: &str) -> String {
+pub(crate) fn strip_boilerplate(text: &str) -> String {
     let mut out_lines: Vec<&str> = Vec::new();
     for line in text.lines() {
         if is_badge_line(line) || is_html_wrapper_line(line) {

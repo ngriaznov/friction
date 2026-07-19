@@ -4,3 +4,5 @@
 # OS noise
 .DS_Store
 Thumbs.db
+/corpus-staging
+/corpus/incoming/

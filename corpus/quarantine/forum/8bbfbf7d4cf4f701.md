@@ -1,0 +1,90 @@
+## When in Doubt, Throw it Out!
+
+You cannot always see or smell bacterial contamination. Mold that appears to be growing only on the surface may grow invisible roots into softer foods. Do not rely on a visual inspection or &quot;smell test&quot; to tell you whether or not a food is safe. It&#39;s not worth the risk - food poisoning can be much, much worse than an upset stomach.
+
+## The Danger Zone
+
+  * Per [the USDA guidelines][1], **potentially hazardous food that stays in the temperature &quot;danger zone&quot;, 40-140 &#176;F (4-60 &#176;C), for more than 2 hours should be discarded. For temperatures above 90&#176;F (32&#176;C), the limit is 1 hour.**&lt;a
+href=&quot;https://cooking.stackexchange.com/questions/34670/how-do-i-know-if-food-left-at-room-temperature-is-still-safe-to-eat#canon-footnote-1&quot;&gt;&lt;sup&gt;*&lt;/sup&gt;&lt;/a&gt;
+
+  * [Potentially hazardous][2] foods are those foods that spoil most easily, such as unshelled eggs, raw meats, fish, shell fish, dairy products, almost all cooked foods.
+
+  * This time is *cumulative*, so it includes time bringing the food home from the grocery store, time before cooking, time after cooking, and so on.   The reason is that while cooking may destroy bacteria or other pathogens, it doesn&#39;t always destroy the toxins that they have produced.
+
+  * In general, regarding perishable foods like meat, most dairy, unshelled eggs and [shell eggs (in the US)](https://cooking.stackexchange.com/a/2947/3649), cooked casseroles, and so on:  if the food (or its perishable components) have been at room temperature for more than two hours, you should discard that food.
+
+  * To avoid the danger zone, keep cooked food hot until ready to eat, then refrigerate immediately. Separate large items into smaller containers to help them to cool more quickly. If you’re defrosting something, do it in the fridge or under cold running water.
+
+  * If you can be certain that the food was not in the danger zone, then yes, it is safe. For example, if you left a large chunk of frozen meat out and it is still frozen solid (including the surface) when you come back to it, it was not in the danger zone.
+
+## Why is it so strict? / Why didn&#39;t I get sick?
+
+These guidelines are about making *sure* you don&#39;t get a foodborne illness, i.e. reducing the risk to where it&#39;s so small as to not be an issue. So if you break the rules, e.g. eating food that&#39;s been left at room temperature for 8 hours, that doesn&#39;t mean you *will* get sick, just that you&#39;re taking a risk.
+
+## Why does cooking not completely &quot;reset the clock&quot;?
+
+  * **Some bacteria leave behind harmful protein toxins that cannot be &quot;killed&quot; (denatured) by cooking.** Cooking food is only effective against live organisms, not their toxic waste products. Spoiled food cannot be cooked back to safety and *must* be discarded.
+
+  * **Cooking is pasteurization, not sterilization.** [Pasteurization][3] means killing *most* microbes, so as to render the food safe for human consumption.  [Sterilization][4] methods (e.g. pressure-canning and irradiation) are the only safe methods for longer-term room-temperature storage. Otherwise, the danger zone rules always apply.
+
+  * Even sterilized food can only *remain* sterile under an airtight seal, e.g. when properly canned or vacuum-sealed. Once it is opened, it is no longer sterile. Air contains countless bacteria and molds, and their spores, which will readily re-colonize any suitable environment they encounter. Cooked food tends to be an ideal medium for growth.
+
+## What can I leave out longer?
+
+For foods that aren&#39;t potentially hazardous as described above, there&#39;s no solid rule, but things are generally safe for much longer than the 2 hours given above. For example, things which are sold at room temperature (e.g. fresh produce, bread, or cookies) are most likely safe at least all day or overnight if not for days or even months. You can find guidelines for common things at [StillTasty][5].
+
+## Regulation and Risks
+
+Follow the guidelines set out by reputable regulatory agencies, **especially** when serving others. Local organizations include:
+
+  * [FDA Food Code][6] (USDA)
+  * [CFIA][7] (Canada)
+  * [Food Standards Agency][8] (UK)
+
+Other regulatory sources apply in other parts of the word, but major food safety organizations usually agree in essence (if not in complete detail) on most issues.
+
+Failure to follow reputable guidelines is irresponsible if you are serving guests, and failure to follow your specific local codes is likely to be illegal if you are serving customers.
+
+Health codes tend to be very conservative, to fully protect the community.    You have the right to take risks on yourself by ignoring their recommendations, but please do not risk the safety of others.
+
+## Again, When in Doubt...
+
+Once again, if you suspect spoilage or contamination, *please, **throw it out.***
+
+&lt;sub&gt;&lt;a name=&quot;canon-footnote-1&quot;&gt;*&lt;/a&gt; Note: this is the USDA&#39;s rule. Other agencies may have variations on it. Additionally, government agencies generally make very conservative recommendations - they&#39;re trying to make sure that *no one* who follows the rules gets sick. Breaking the rules means maybe taking on some risk. That&#39;s up to you - just remember, eventually someone gets unlucky, and food poisoning is not fun.&lt;/sub&gt;
+
+## Helpful Resources
+
+* [Wikipedia: Food Safety][9]
+* [USDA Fact Sheet][10]
+* [Still Tasty][11] - has information on storage methods/times for almost every food.
+
+## Further Reading/Frequently Asked
+
+* [Why is it dangerous to eat meat which has been left out and then cooked?][12]
+* [How long can I store a food in the pantry, refrigerator, or freezer?][13]
+* [What Do I Need To Know About Temperature and Food Safety?][14]
+* [Is there a problem with defrosting meat on the counter?][15]
+* [How long can cooked food be safely stored at room/warm temperature?][16]
+* [Is it safe to cook a steak that was left out (raw) for 7 hours?][17]
+* [How long can eggs be unrefrigerated before becoming unsafe to eat?][18]
+* [Should I refrigerate eggs?](https://cooking.stackexchange.com/questions/1672/should-i-refrigerate-eggs)
+
+  [1]: https://www.fsis.usda.gov/wps/portal/fsis/topics/food-safety-education/get-answers/food-safety-fact-sheets/safe-food-handling/danger-zone-40-f-140-f/CT_Index
+  [2]: http://en.wikipedia.org/wiki/Potentially_Hazardous_Food
+  [3]: http://en.wikipedia.org/wiki/Pasteurization
+  [4]: http://en.wikipedia.org/wiki/Sterilization_(microbiology)#Foods
+  [5]: http://www.stilltasty.com/
+  [6]: http://www.fda.gov/Food/GuidanceRegulation/RetailFoodProtection/FoodCode/default.htm
+  [7]: http://www.inspection.gc.ca/about-the-cfia/acts-and-regulations/eng/1299846777345/1299847442232
+  [8]: http://www.food.gov.uk/enforcement/regulation/#.UbybmfnVB8F
+  [9]: http://en.wikipedia.org/wiki/Food_safety
+  [10]: http://www.fsis.usda.gov/wps/portal/fsis/topics/food-safety-education/get-answers/food-safety-fact-sheets
+  [11]: http://stilltasty.com
+  [12]: https://cooking.stackexchange.com/questions/12992
+  [13]: https://cooking.stackexchange.com/q/21068/41
+  [14]: https://cooking.stackexchange.com/questions/2642
+  [15]: https://cooking.stackexchange.com/questions/3472
+  [16]: https://cooking.stackexchange.com/questions/17528
+  [17]: https://cooking.stackexchange.com/q/15557/41
+  [18]: https://cooking.stackexchange.com/questions/14775/how-long-can-eggs-be-unrefrigerated-before-becoming-unsafe-to-eat

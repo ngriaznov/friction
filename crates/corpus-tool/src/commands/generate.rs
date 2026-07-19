@@ -262,8 +262,10 @@ fn derive_doc_id(model: &str, prompt_id: &str, seed: u64, temperature: f64) -> S
     sha256_hex(input.as_bytes())[..16].to_string()
 }
 
-/// Parses a `--genre` filter value against the frozen genre set.
-fn parse_genre(raw: &str) -> anyhow::Result<Genre> {
+/// Parses a genre value against the frozen genre set. Shared with
+/// `ingest`, which parses the `genre` field of incoming metadata
+/// fragments the same way.
+pub(crate) fn parse_genre(raw: &str) -> anyhow::Result<Genre> {
     match raw.to_ascii_lowercase().as_str() {
         "docs" => Ok(Genre::Docs),
         "blog" => Ok(Genre::Blog),

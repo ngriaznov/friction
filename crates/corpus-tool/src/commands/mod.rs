@@ -11,6 +11,8 @@
 pub mod clean;
 pub mod generate;
 pub mod holdout_check;
+pub mod ingest;
+pub mod remove;
 pub mod seal;
 pub mod split;
 pub mod stats;

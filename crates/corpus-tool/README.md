@@ -105,6 +105,31 @@ or `license` exactly equal to `"personal-attestation"`.
   written) and reported. This command does not touch the manifest — it
   only produces cleaned `.md` files; adding manifest entries for them is
   a separate, manual curation step.
+- **`ingest`** — `--incoming <dir> --corpus-dir <dir>`: folds
+  collector-supplied raw human-corpus candidates into the real corpus.
+  Reads every `<dir>/<genre>/*.md` file plus its `<dir>/meta-*.jsonl`
+  metadata fragments (`file`, `genre`, `source`, `license`,
+  `license_evidence`, `provenance_evidence`, `title` — one JSON object per
+  doc), applies the identical cleaning transform as `clean`, drops docs
+  that fall under 300 words after cleaning (reported, not written),
+  normalizes the license to a small canonical set (`MIT`, `Apache-2.0`,
+  `BSD-2-Clause`, `BSD-3-Clause`, `CC-BY-4.0`, `CC-BY-3.0`, `CC0-1.0`,
+  `PD`, `CC-BY-SA-3.0`, `CC-BY-SA-4.0`), and writes each survivor under
+  its layout-correct path (`class: human`; quarantined automatically when
+  the license is CC-BY-SA, per `corpus_layout`) with a full manifest
+  record (`lang: "en"`, `split: null`, `style_prompted: false`,
+  `provenance_evidence` from the fragment). A fragment is refused (listed
+  in the run summary, not ingested) if its license, `license_evidence`, or
+  `provenance_evidence` is missing/empty, its license doesn't normalize,
+  its genre isn't one of the fixed five, its source `.md` file is
+  missing, or another fragment already claims the same `file`. Each doc's
+  id is the first 16 hex characters of `sha256(source)` — stable across
+  reruns — with a deterministic fallback (mixing in the fragment's own
+  file path) on the rare case where two fragments share one `source`
+  (e.g. several essays pulled from one anthology page). Reruns are
+  incremental: a fragment whose id is already in the manifest is skipped
+  without touching the filesystem again. Does not delete or move
+  `--incoming` — it's a read-only input.
 - **`generate`** — generates the `llm` corpus
   against a local [Ollama](https://ollama.com) server. See "Generating
   the LLM corpus" below.
