@@ -1,0 +1,22 @@
+[package]
+name = "friction-core"
+version = "0.1.0"
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+
+[lints]
+workspace = true
+
+[features]
+## Enables `serde::Serialize`/`Deserialize` on `MetricVector` and `Envelope`
+## so `friction-packs` can (de)serialize envelope bands to/from TOML.
+serde = ["dep:serde"]
+
+[dependencies]
+thiserror = { workspace = true }
+serde = { workspace = true, optional = true }
+
+[dev-dependencies]
+serde_json = { workspace = true }

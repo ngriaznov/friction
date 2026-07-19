@@ -1,0 +1,16 @@
+[package]
+name = "friction-cli"
+version = "0.1.0"
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+
+[[bin]]
+name = "friction"
+path = "src/main.rs"
+
+[lints]
+workspace = true
+
+[dependencies]

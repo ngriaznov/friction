@@ -1,0 +1,73 @@
+# corpus/genconfig.toml — LLM corpus generation configuration, consumed
+# by `cargo run -p corpus-tool -- generate`.
+#
+# See crates/corpus-tool/README.md ("generate" section) for the full job
+# planning algorithm this config drives.
+
+# Fixed additive seed base: combined with a stable hash of
+# (model, prompt_id, slice) to derive each job's `seed`. Never change this
+# once docs have been committed under it — doing so changes every
+# derived seed and doc id.
+base_seed = 424242
+
+[ollama]
+endpoint = "http://localhost:11434"
+# Cap on options.num_predict for /api/generate. Prompts in corpus/prompts
+# ask for up to ~1000 words (~1300 tokens for English); this leaves
+# headroom without letting a run away completion burn unbounded time.
+num_predict = 1536
+# Per-request timeout; small models on modest hardware can take a while
+# for a long completion.
+request_timeout_secs = 300
+
+# Model matrix: Qwen2.5 7B-instruct, Gemma-class 4B/9B, Llama-class
+# 8B/3B, plus one locally present 3B-tier model (granite4.1:3b). Order is
+# significant — it is the deterministic round-robin order jobs are
+# assigned to models within a genre (see `plan_genre_jobs` in
+# crates/corpus-tool/src/commands/generate.rs). A model not currently
+# pulled in the local Ollama is skipped at generation time with a
+# warning, not an error (see README).
+[[models]]
+name = "qwen2.5:7b-instruct"
+
+[[models]]
+name = "gemma2:9b"
+
+[[models]]
+name = "gemma3:4b"
+
+[[models]]
+name = "llama3.1:8b"
+
+[[models]]
+name = "llama3.2:3b"
+
+[[models]]
+name = "granite4.1:3b"
+
+# Temperature 0.7 by default; a temperature-0.2 slice (the more
+# uniform, harder-to-detect case) covering at least `low_fraction` of
+# docs per genre.
+[temperature]
+default = 0.7
+low = 0.2
+low_fraction = 0.2
+
+# A small slice generated WITH a "sound human" instruction
+# appended to the prompt, labeled `style_prompted: true` in the manifest,
+# to test robustness against prompt-level evasion. Every other job passes
+# its prompt verbatim, with no system or style prompt at all.
+[style_prompted]
+fraction = 0.10
+instruction = "As you write this, make it sound human, natural, not AI-generated."
+
+# Per-genre target doc count for the llm corpus. Sized so that,
+# run with the full 6-model matrix above, every (class=llm, genre) cell
+# clears the >= 60 doc minimum: 66 = 11 prompts x 6 models exactly, so a
+# full-matrix run gives every one of those 11 prompts an even 6-model
+# turn with no partial row. A --model or --genre filter (or a matrix with
+# fewer models actually pulled) naturally yields fewer docs per run;
+# `generate` is incremental — rerun it with other models/filters
+# to top up a cell over time.
+[targets]
+docs_per_genre = 66

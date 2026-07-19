@@ -1,0 +1,246 @@
+# Generation prompts for genre "docs".
+#
+# Each prompt elicits ONE self-contained technical documentation page in the
+# register of pre-2022 permissively-licensed GitHub project docs: how-to
+# guides, tutorials, and reference/concept pages for invented (fictional but
+# plausible) software, tools, hardware, and systems. No style instructions
+# are included — the default model register is what we want to
+# capture; the style_prompted slice is added mechanically elsewhere.
+#
+# Target output length is stated per prompt (300-1200 words) so generated
+# docs land in the corpus-wide 300-2000-word band.
+
+[[prompts]]
+id = "docs-001"
+text = "Write a getting-started guide for a command-line tool called `dedupe-shots` that finds and removes duplicate photos across a local photo library using perceptual hashing. Cover installation, a basic scan command, and how to preview matches before deleting anything. Target about 500 words."
+topic = "photo-dedup-cli"
+
+[[prompts]]
+id = "docs-002"
+text = "Write a reference page documenting the configuration file format for a static site generator called Thistle. Explain the supported top-level keys (title, base_url, theme, output_dir), the syntax for per-page front matter overrides, and give two complete example config files. Target about 650 words."
+topic = "static-site-generator-config"
+
+[[prompts]]
+id = "docs-003"
+text = "Write a how-to guide explaining how to set up automatic database backups for a self-hosted note-taking app called Corkboard, including cron scheduling, where backups are stored, and how to restore from a backup file. Target about 550 words."
+topic = "corkboard-backup-howto"
+
+[[prompts]]
+id = "docs-004"
+text = "Write a conceptual overview explaining how the caching layer works in a Python ORM library called Ledgerline, covering query result caching, cache invalidation on writes, and the difference between per-request and process-level cache scopes. Target about 700 words."
+topic = "orm-caching-concepts"
+
+[[prompts]]
+id = "docs-005"
+text = "Write a tutorial walking through building a simple webhook receiver in Node.js using a middleware library called Hookline, from installing the package to verifying an incoming signature and responding with a 200 status. Target about 800 words."
+topic = "webhook-receiver-tutorial"
+
+[[prompts]]
+id = "docs-006"
+text = "Write a troubleshooting guide for a home 3D printer firmware called MoltenPath, covering three common problems: layer shifting mid-print, nozzle clogs, and bed adhesion failures, with diagnostic steps and fixes for each. Target about 600 words."
+topic = "3d-printer-firmware-troubleshooting"
+
+[[prompts]]
+id = "docs-007"
+text = "Write a reference document listing and explaining the keyboard shortcuts available in a terminal-based text editor called Quillfeather, grouped by category: navigation, editing, search, and window management. Target about 450 words."
+topic = "terminal-editor-shortcuts"
+
+[[prompts]]
+id = "docs-008"
+text = "Write a how-to guide on configuring a reverse proxy with a lightweight load balancer called Wharfgate to route traffic to three backend services based on URL path prefix, including a sample config file and a note on health checks. Target about 700 words."
+topic = "reverse-proxy-routing"
+
+[[prompts]]
+id = "docs-009"
+text = "Write a beginner's tutorial for home brewers explaining how to use a fermentation-tracking mobile app called Barmwatch to log a batch of beer, set temperature alerts, and export a brew log as a PDF. Target about 550 words."
+topic = "homebrew-tracking-app-tutorial"
+
+[[prompts]]
+id = "docs-010"
+text = "Write a reference page documenting the REST API endpoints of a task-queue service called Ratchet, covering how to enqueue a job, check job status, and cancel a pending job, with example curl requests and JSON responses. Target about 900 words."
+topic = "task-queue-api-reference"
+
+[[prompts]]
+id = "docs-011"
+text = "Write a how-to guide for amateur radio operators explaining how to program channel memories into a handheld transceiver using a desktop utility called ChirpLine, including connecting the programming cable and uploading a memory file. Target about 500 words."
+topic = "ham-radio-programming-howto"
+
+[[prompts]]
+id = "docs-012"
+text = "Write a conceptual page explaining the branching model recommended for a version control wrapper tool called Driftline, covering feature branches, release branches, and how the tool's `driftline sync` command differs from a plain git rebase. Target about 750 words."
+topic = "vcs-branching-model"
+
+[[prompts]]
+id = "docs-013"
+text = "Write a tutorial for hobby electronics builders showing how to wire and read a soil-moisture sensor with an Arduino-compatible board using a library called SoilSense, including the wiring diagram description, example sketch, and calibration steps. Target about 650 words."
+topic = "soil-moisture-sensor-tutorial"
+
+[[prompts]]
+id = "docs-014"
+text = "Write a reference document explaining the plugin API for a note-taking application called Corkboard, covering the lifecycle hooks (on_load, on_save, on_note_open), the permissions manifest format, and a minimal example plugin. Target about 850 words."
+topic = "note-app-plugin-api"
+
+[[prompts]]
+id = "docs-015"
+text = "Write a how-to guide for setting up continuous integration for a Rust project using a CI runner called Millwheel, including the YAML pipeline syntax, caching cargo dependencies between runs, and publishing test results. Target about 700 words."
+topic = "rust-ci-setup"
+
+[[prompts]]
+id = "docs-016"
+text = "Write a troubleshooting guide for a home network mesh router system called Fernbridge, covering weak signal between nodes, devices not roaming to the closest node, and firmware update failures. Target about 600 words."
+topic = "mesh-router-troubleshooting"
+
+[[prompts]]
+id = "docs-017"
+text = "Write a tutorial explaining how to bake sourdough bread using a fermentation-schedule app called Levain Log to plan feeding times, bulk ferment duration, and bake day timing, aimed at a home baker who has never used a starter before. Target about 600 words."
+topic = "sourdough-scheduling-app-tutorial"
+
+[[prompts]]
+id = "docs-018"
+text = "Write a reference page documenting the query language used by a log analysis tool called Cinderquery, covering field filters, time-range syntax, aggregation functions, and three worked example queries. Target about 800 words."
+topic = "log-query-language-reference"
+
+[[prompts]]
+id = "docs-019"
+text = "Write a how-to guide for setting up two-factor authentication on a self-hosted password manager called Latchkey, covering enabling TOTP, generating backup codes, and recovering access if a phone is lost. Target about 500 words."
+topic = "password-manager-2fa-howto"
+
+[[prompts]]
+id = "docs-020"
+text = "Write a conceptual overview of the garbage collection strategy used by a small scripting language runtime called Emberscript, explaining generational collection, when a stop-the-world pause can occur, and how to tune the young-generation size. Target about 750 words."
+topic = "scripting-runtime-gc-concepts"
+
+[[prompts]]
+id = "docs-021"
+text = "Write a tutorial for woodworkers on calibrating a CNC router using a control application called Sawline, covering setting work-zero, running a test cut, and adjusting steps-per-millimeter for accuracy. Target about 650 words."
+topic = "cnc-router-calibration-tutorial"
+
+[[prompts]]
+id = "docs-022"
+text = "Write a reference document describing the file format used by a spreadsheet-alternative tool called Gridleaf, covering the binary header, sheet metadata section, and cell-encoding scheme, aimed at developers writing a compatible parser. Target about 900 words."
+topic = "spreadsheet-file-format-reference"
+
+[[prompts]]
+id = "docs-023"
+text = "Write a how-to guide for birdwatchers explaining how to submit and tag sightings in a citizen-science logging app called Featherlog, including adding a photo, tagging species and location, and syncing offline entries. Target about 500 words."
+topic = "birdwatching-app-howto"
+
+[[prompts]]
+id = "docs-024"
+text = "Write a tutorial explaining how to deploy a static blog to a content delivery network using a deployment tool called Ferrycart, covering the initial `ferrycart init` command, environment variables for the CDN token, and rolling back a bad deploy. Target about 700 words."
+topic = "static-blog-deployment-tutorial"
+
+[[prompts]]
+id = "docs-025"
+text = "Write a reference page for the CLI flags of a code formatter called Straightline, covering line-width, indent-style, the ignore-file syntax, and how to run it in check-only mode for CI. Target about 500 words."
+topic = "code-formatter-cli-reference"
+
+[[prompts]]
+id = "docs-026"
+text = "Write a how-to guide for home astronomers on aligning a computerized telescope mount using a companion app called Starwake, covering the two-star alignment procedure and troubleshooting a mount that won't find the second star. Target about 600 words."
+topic = "telescope-mount-alignment-howto"
+
+[[prompts]]
+id = "docs-027"
+text = "Write a conceptual page explaining the consistency model of a distributed key-value store called Anvildb, covering quorum reads and writes, how the tunable consistency level trades off latency, and what happens during a network partition. Target about 850 words."
+topic = "distributed-kv-store-consistency"
+
+[[prompts]]
+id = "docs-028"
+text = "Write a tutorial for beekeepers explaining how to use a hive-monitoring app called Combwatch to log weekly inspections, track queen status, and set a reminder for mite treatment. Target about 550 words."
+topic = "beekeeping-app-tutorial"
+
+[[prompts]]
+id = "docs-029"
+text = "Write a how-to guide for setting up email notifications from a self-hosted uptime monitor called Pulsecheck, covering SMTP configuration, alert thresholds, and how to silence a flapping check temporarily. Target about 550 words."
+topic = "uptime-monitor-email-setup"
+
+[[prompts]]
+id = "docs-030"
+text = "Write a reference document for the template syntax used by an email-generation library called Postmark Lite (unrelated to any commercial product), covering variable interpolation, conditional blocks, loops over lists, and partial includes. Target about 800 words."
+topic = "email-template-syntax-reference"
+
+[[prompts]]
+id = "docs-031"
+text = "Write a tutorial for hobby knitters on using a pattern-generator tool called Woolgauge to compute stitch counts for a custom sweater size, covering entering gauge swatch measurements and adjusting for a different yarn weight. Target about 500 words."
+topic = "knitting-pattern-generator-tutorial"
+
+[[prompts]]
+id = "docs-032"
+text = "Write a how-to guide for configuring rate limiting in an API gateway called Tollbooth, covering per-client limits, burst allowances, and how to return a custom 429 response body. Target about 650 words."
+topic = "api-gateway-rate-limiting"
+
+[[prompts]]
+id = "docs-033"
+text = "Write a troubleshooting guide for a home espresso machine's companion temperature-control mod called Brewtemp, covering erratic readings from the PID probe, the machine not reaching set temperature, and firmware not accepting a profile upload. Target about 600 words."
+topic = "espresso-pid-mod-troubleshooting"
+
+[[prompts]]
+id = "docs-034"
+text = "Write a reference page documenting the annotation syntax used by a Java dependency-injection framework called Sprocket, covering @Provide, @Inject, and @Scope annotations with a short worked example wiring three classes together. Target about 750 words."
+topic = "java-di-framework-annotations"
+
+[[prompts]]
+id = "docs-035"
+text = "Write a how-to guide explaining how to set up a self-hosted RSS reader called Quillfeed behind a reverse proxy with HTTPS, covering the docker-compose file, environment variables, and generating a certificate with a Let's-Encrypt-style tool. Target about 700 words."
+topic = "rss-reader-selfhost-https"
+
+[[prompts]]
+id = "docs-036"
+text = "Write a tutorial for model railroad hobbyists on wiring a DCC command station using a decoder-programming tool called Railtrace, covering connecting the programming track, reading a decoder's current CV values, and writing a new address. Target about 600 words."
+topic = "dcc-decoder-programming-tutorial"
+
+[[prompts]]
+id = "docs-037"
+text = "Write a conceptual overview of how a build-caching system called Kilnstore decides whether to reuse a cached build artifact, covering content-hash keys, cache invalidation on dependency changes, and remote cache sharing across a team. Target about 800 words."
+topic = "build-cache-concepts"
+
+[[prompts]]
+id = "docs-038"
+text = "Write a how-to guide for setting up a personal finance tracker called Ledgerbox to automatically categorize imported bank transactions using rule-based tags, including creating a rule and reviewing uncategorized transactions weekly. Target about 550 words."
+topic = "finance-tracker-categorization-howto"
+
+[[prompts]]
+id = "docs-039"
+text = "Write a reference document listing the environment variables recognized by a background job runner called Millrace, grouped into logging, concurrency, and retry-policy sections, with default values and accepted ranges. Target about 500 words."
+topic = "job-runner-env-vars-reference"
+
+[[prompts]]
+id = "docs-040"
+text = "Write a tutorial for a small robotics club explaining how to flash and calibrate a line-following robot's motor controller using a tool called Trundlebot Console, covering firmware flashing, PID tuning for the line sensor, and saving a calibration profile. Target about 700 words."
+topic = "line-following-robot-tutorial"
+
+[[prompts]]
+id = "docs-041"
+text = "Write a how-to guide for configuring a self-hosted paste/snippet-sharing service called Scraplink, covering setting an expiration policy for pastes, enabling syntax highlighting themes, and restricting uploads by API token. Target about 550 words."
+topic = "paste-service-configuration"
+
+[[prompts]]
+id = "docs-042"
+text = "Write a conceptual page explaining the module resolution algorithm used by a JavaScript bundler called Packrat, covering how it resolves bare specifiers, the order it checks node_modules directories, and how aliasing in the config file overrides default resolution. Target about 850 words."
+topic = "bundler-module-resolution-concepts"
+
+[[prompts]]
+id = "docs-043"
+text = "Write a how-to guide for hikers explaining how to preload offline topographic maps onto a GPS handheld using a companion desktop app called Trailmark, covering selecting a map region, choosing resolution, and syncing over USB. Target about 500 words."
+topic = "gps-offline-maps-howto"
+
+[[prompts]]
+id = "docs-044"
+text = "Write a reference page documenting the CSS custom-property naming convention and theming API of a component library called Slatework, covering the token layers (base, semantic, component), how to override a theme at runtime, and dark-mode support. Target about 800 words."
+topic = "component-library-theming-reference"
+
+[[prompts]]
+id = "docs-045"
+text = "Write a tutorial for a hobby aquarist explaining how to set up automated dosing of fertilizers for a planted tank using a controller called Reeftide Doser, covering programming a weekly schedule, calibrating the pump's mL-per-second rate, and setting a low-reservoir alert. Target about 600 words."
+topic = "aquarium-doser-tutorial"
+
+[[prompts]]
+id = "docs-046"
+text = "Write a how-to guide explaining how to migrate a database schema safely using a migration tool called Stonepath, covering writing an up/down migration pair, running migrations against a staging database first, and rolling back a failed migration in production. Target about 750 words."
+topic = "database-migration-howto"
+
+[[prompts]]
+id = "docs-047"
+text = "Write a reference document for the assertion library bundled with a testing framework called Foxglove, covering the equality, exception, and async assertion helpers, with short code examples for each. Target about 650 words."
+topic = "testing-framework-assertions-reference"

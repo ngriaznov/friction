@@ -1,0 +1,234 @@
+# Generation prompts for genre "readme".
+#
+# Each entry asks a local small model to produce ONE self-contained
+# project README for an invented but concrete CLI tool, library, or
+# service, matching the pre-2022 open-source README register used for
+# the human corpus. No style instructions are included
+# here by design: the default-register capture and the
+# "sound human" style_prompted slice are handled by the generation
+# script, not by prompt wording.
+
+[[prompts]]
+id = "readme-001"
+text = "Write a README for an open-source command-line tool called phodedupe, written in Python, that scans one or more directories for duplicate photos using perceptual hashing so that resized or slightly re-compressed copies of the same image are still caught. Cover why perceptual hashing beats a plain checksum comparison, how to install it via pip, basic usage for scanning a folder and reviewing a report of duplicate groups before deleting anything, a dry-run flag, and configuration options such as hash algorithm choice and similarity threshold. Aim for about 450 words."
+topic = "photo-deduplication"
+
+[[prompts]]
+id = "readme-002"
+text = "Write a README for confkeep, a small Python library that parses INI-style configuration files while preserving comments and blank lines so round-tripping a file after a programmatic edit doesn't destroy the user's formatting. Explain the motivation compared to the standard library's configparser, show installation via pip, a short code example reading a config, modifying one value, and writing it back out, and describe supported syntax quirks (inline comments, multi-line values, section inheritance). Aim for about 600 words."
+topic = "ini-config-parser"
+
+[[prompts]]
+id = "readme-003"
+text = "Write a README for lumen, a static site generator specifically built for photography portfolios, distributed as a Ruby gem. Describe the folder convention it expects (an images directory per gallery, a front-matter-free markdown file per page), the build command, a local preview server, thumbnail generation and EXIF-based caption extraction, and how to configure the site title, theme, and output directory in a single YAML file. Aim for about 750 words."
+topic = "portfolio-site-generator"
+
+[[prompts]]
+id = "readme-004"
+text = "Write a README for tasq, a command-line todo manager that stores tasks as plain lines of text in a file so the data stays readable and diffable in version control. Cover adding, completing, and listing tasks, tag syntax using an @ prefix, due-date syntax, filtering the list by tag or due date, and where the task file lives by default plus how to point it elsewhere with an environment variable. Aim for about 380 words."
+topic = "plaintext-todo-manager"
+
+[[prompts]]
+id = "readme-005"
+text = "Write a README for csvtype, a Rust crate that reads CSV files and infers a column type schema (integer, float, date, boolean, string) by sampling rows, then exposes a typed record iterator instead of raw strings. Include a Cargo.toml install snippet, a short example inferring a schema and iterating typed rows, notes on how the sampling size affects accuracy, and how to override an inferred type manually per column. Aim for about 550 words."
+topic = "csv-type-inference"
+
+[[prompts]]
+id = "readme-006"
+text = "Write a README for feedwell, a self-hosted RSS and Atom feed reader with a lightweight web UI, packaged to run behind any WSGI server. Cover the feature list (folder organization, read/unread tracking, full-text search across cached articles, OPML import/export), installation from source with a virtualenv, first-run setup creating an admin account, the database backend options (SQLite by default, PostgreSQL supported), and how to schedule feed polling with cron. Aim for about 900 words."
+topic = "rss-reader-selfhosted"
+
+[[prompts]]
+id = "readme-007"
+text = "Write a README for backupctl, a collection of bash scripts that automate nightly backups of a LAMP stack server: MySQL dumps, an rsync of the web root, and rotation of old archives. Describe the required environment variables for database credentials, the cron entry to install, where backups are written and how retention is configured, and a restore script that reverses the process. Aim for about 420 words."
+topic = "lamp-backup-automation"
+
+[[prompts]]
+id = "readme-008"
+text = "Write a README for invoicer4j, a Java library for generating PDF invoices from a template plus a data object, built on top of an existing PDF layout engine. Cover the Maven dependency coordinates, a minimal code sample constructing an invoice with line items and rendering it to a file, how templates are defined (a simple XML layout format), supported currencies and locale-aware number formatting, and known limitations around multi-page invoices. Aim for about 650 words."
+topic = "pdf-invoice-generator"
+
+[[prompts]]
+id = "readme-009"
+text = "Write a README for packlite, a Node.js command-line tool that bundles and minifies a project's JavaScript and CSS into a small number of output files for deployment, aimed at simple static sites rather than full SPA frameworks. Cover npm installation, a config file example listing entry points, watch mode for local development, source map generation, and a comparison of build times against doing the same bundling by hand with existing heavier tools. Aim for about 500 words."
+topic = "asset-bundler-minifier"
+
+[[prompts]]
+id = "readme-010"
+text = "Write a README for wavtag, a small C library for reading and writing metadata chunks (LIST/INFO tags such as artist, title, and comment) in WAV audio files without touching the audio sample data. Include the build instructions using make, the public API functions for opening a file, reading tags, and writing modified tags back, and a note about byte-order handling for portability across platforms. Aim for about 350 words."
+topic = "wav-metadata-library"
+
+[[prompts]]
+id = "readme-011"
+text = "Write a README for multitail-go, a Go command-line tool that tails several log files at once and prefixes each line with a color-coded label identifying its source file, useful when watching an application server and its database logs side by side. Cover installation via go install, basic usage with a list of file paths, glob pattern support for rotating logs, filtering lines by a regex, and how colors are assigned to sources. Aim for about 700 words."
+topic = "multi-log-tailer"
+
+[[prompts]]
+id = "readme-012"
+text = "Write a README for soilwatch, an Arduino firmware project for a battery-powered soil moisture sensor that logs readings to an SD card and can optionally report over a low-power radio link. List the required hardware (capacitive moisture probe, RTC module, SD breakout, radio module), wiring diagram description in text form, how to flash the firmware with the Arduino IDE, the on-device configuration constants for sampling interval and calibration, and how to read the resulting CSV log. Aim for about 480 words."
+topic = "arduino-soil-sensor"
+
+[[prompts]]
+id = "readme-013"
+text = "Write a README for piswitch, a Raspberry Pi home automation hub that controls a bank of relays over GPIO and exposes a small HTTP API for toggling them, intended for lights and small appliances wired through relay modules. Cover the required wiring and GPIO pin mapping, installing the Python daemon as a systemd service, the JSON config file listing relay names and pins, the HTTP endpoints for status and toggle, and a basic example curl command. Aim for about 820 words."
+topic = "raspberry-pi-relay-hub"
+
+[[prompts]]
+id = "readme-014"
+text = "Write a README for orbitsim, a Python package for simulating the orbital mechanics of small satellites in low Earth orbit using simple two-body propagation with optional J2 perturbation. Describe installation via pip including the numpy dependency, a code example propagating a satellite's state vector over one orbit and plotting ground track, the coordinate frames supported, and the accuracy tradeoffs of the included propagator compared to a full numerical integrator. Aim for about 620 words."
+topic = "orbital-mechanics-sim"
+
+[[prompts]]
+id = "readme-015"
+text = "Write a README for bootstat, an R package that computes paired t-tests alongside bootstrapped confidence intervals for the mean difference, intended for small-sample experimental data where normality assumptions are shaky. Cover installation from CRAN, a worked example on a built-in sample dataset, the function signature and its arguments (number of bootstrap replicates, confidence level, random seed), and how the output compares to base R's t.test. Aim for about 460 words."
+topic = "bootstrap-ttest-package"
+
+[[prompts]]
+id = "readme-016"
+text = "Write a README for passvault, a command-line password manager that stores each credential as a separate GPG-encrypted file inside a git repository, similar in spirit to existing pass-style tools but with its own storage layout. Cover installation, initializing a new vault with a GPG key, adding, retrieving, and generating passwords, copying a secret to the clipboard with an auto-clear timeout, syncing the vault via git push/pull, and the on-disk directory layout. Aim for about 950 words."
+topic = "gpg-password-manager"
+
+[[prompts]]
+id = "readme-017"
+text = "Write a README for vim-dslsyntax, a Vim plugin that adds syntax highlighting for a small in-house domain-specific configuration language used at a fictional company, with keywords, string interpolation, and comment styles specific to that language. Cover installation with a couple of common plugin managers, the filetype detection rule based on file extension, the highlight groups defined so users can remap colors, and how to report a token that isn't highlighted correctly. Aim for about 320 words."
+topic = "vim-syntax-plugin"
+
+[[prompts]]
+id = "readme-018"
+text = "Write a README for org-habitctl, an Emacs package that extends org-mode with habit tracking commands beyond the built-in org-habit, adding streak counters and a weekly review summary buffer. Cover installation via a package manager, the minimal init.el configuration to enable it, the key bindings for marking a habit done and viewing the streak, and how habit definitions are stored as org properties. Aim for about 540 words."
+topic = "org-mode-habit-tracker"
+
+[[prompts]]
+id = "readme-019"
+text = "Write a README for tablescrape, a Python library for extracting tabular data from arbitrary HTML pages into pandas DataFrames, handling merged cells and nested headers better than a naive parser. Cover pip installation, a short example scraping a table from a local HTML file and from a live URL, the heuristics used to detect which HTML element is actually a data table on a busy page, and a note on respecting robots.txt when scraping live sites. Aim for about 680 words."
+topic = "html-table-scraper"
+
+[[prompts]]
+id = "readme-020"
+text = "Write a README for pastebin-lite, a self-hosted paste-sharing service distributed as a Docker image with an accompanying docker-compose.yml, supporting syntax highlighting, expiring pastes, and optional password protection per paste. Cover the docker-compose setup including the required environment variables, the web UI features, the plain HTTP API for programmatic paste creation with a curl example, configuring maximum paste size and default expiry, and where uploaded pastes are stored on the host. Aim for about 1050 words."
+topic = "selfhosted-pastebin"
+
+[[prompts]]
+id = "readme-021"
+text = "Write a README for thesismake, a Makefile-based build system for compiling a LaTeX thesis incrementally, only rebuilding chapters that changed and regenerating the bibliography and table of contents only when needed. Cover the expected project layout (one .tex file per chapter, a bib file, a figures directory), the make targets provided (build, clean, watch), and how to add a new chapter to the build without editing the Makefile by hand. Aim for about 400 words."
+topic = "latex-build-system"
+
+[[prompts]]
+id = "readme-022"
+text = "Write a README for ringbuf-hpp, a header-only C++ library implementing a lock-free single-producer single-consumer ring buffer intended for passing data between a real-time audio thread and a UI thread. Cover how to include it (a single header, no build step), a code example creating a fixed-capacity buffer and pushing/popping from two threads, the memory-ordering guarantees it relies on, and the platforms and compilers it has been tested against. Aim for about 720 words."
+topic = "lockfree-ringbuffer"
+
+[[prompts]]
+id = "readme-023"
+text = "Write a README for addrvalid, a Ruby gem that validates and normalizes US postal addresses against USPS formatting rules, including standardizing street suffixes and directional abbreviations. Cover installation via the Gemfile, a code example validating an address hash and reading back any normalization warnings, the list of fields it checks, and a note that it does not perform live USPS API lookups and works entirely offline from a bundled rules table. Aim for about 470 words."
+topic = "usps-address-validator"
+
+[[prompts]]
+id = "readme-024"
+text = "Write a README for mbox2maildir, a Perl script that converts an mbox mail archive into Maildir format for import into modern mail clients, preserving message flags and dates where the source format records them. Cover the command-line usage with input and output paths, the flag mapping table for read/replied/flagged status, how duplicate message IDs are handled, and a warning about backing up the original mbox file before running a large conversion. Aim for about 340 words."
+topic = "mbox-to-maildir"
+
+[[prompts]]
+id = "readme-025"
+text = "Write a README for dotsync, a small shell utility for syncing dotfiles across multiple machines using a bare git repository checked out directly into the home directory, avoiding the usual symlink-farm approach. Cover the one-time setup command that initializes the bare repo, the wrapper alias needed to run git commands against it, a typical workflow of adding a new dotfile and pushing it, and how to pull changes down on a second machine. Aim for about 590 words."
+topic = "dotfiles-sync"
+
+[[prompts]]
+id = "readme-026"
+text = "Write a README for brewlog, an open-source Android app for logging home-brewed beer recipes and tracking fermentation batches, including original and final gravity readings and a batch timeline. Cover where to download the APK or build from source, the main screens (recipe library, active batch tracker, tasting notes), how gravity readings are used to estimate ABV, and the local database backup/export feature. Aim for about 860 words."
+topic = "homebrew-recipe-log"
+
+[[prompts]]
+id = "readme-027"
+text = "Write a README for notesync-swift, an iOS Swift library that provides offline-first note syncing on top of Core Data, queuing changes locally and reconciling them with a remote server once connectivity returns. Cover installation via Swift Package Manager, a code example configuring the sync engine with a server endpoint and observing sync status, the conflict resolution strategy used when the same note is edited on two devices, and background sync scheduling on iOS. Aim for about 630 words."
+topic = "notes-sync-ios"
+
+[[prompts]]
+id = "readme-028"
+text = "Write a README for nbtidy, a Jupyter notebook extension that automatically formats code cells with a standard style whenever the notebook is saved, without touching markdown cells or cell outputs. Cover installation and enabling the extension, the formatter it wraps under the hood, how to exclude specific cells from formatting with a comment marker, and a configuration option for line length. Aim for about 410 words."
+topic = "jupyter-cell-formatter"
+
+[[prompts]]
+id = "readme-029"
+text = "Write a README for wxcli, a command-line tool that fetches current weather conditions for an airport code by parsing the public METAR feed and printing a human-readable summary alongside the raw METAR string. Cover installation, basic usage with an airport code argument, the decoded fields shown (temperature, wind, visibility, cloud cover), and a flag to print only the raw METAR for scripting purposes. Aim for about 300 words."
+topic = "metar-weather-cli"
+
+[[prompts]]
+id = "readme-030"
+text = "Write a README for isbnparse, a Go library for parsing and validating ISBN-10, ISBN-13, and ISSN identifiers, including checksum verification and conversion between ISBN-10 and ISBN-13 forms. Cover the go get installation command, a short code example validating and converting an identifier, the error types returned for malformed input, and a note on how hyphenated versus unhyphenated input is handled. Aim for about 560 words."
+topic = "isbn-issn-parser"
+
+[[prompts]]
+id = "readme-031"
+text = "Write a README for abc2chord, a command-line tool that reads a tune written in ABC music notation and generates a simple chord chart showing the melody line with chord symbols placed above it, rendered as either plain text or a PDF. Cover installation, basic usage converting a .abc file to a chord chart, the chord-detection heuristic used when the ABC file doesn't already specify chords, and the output format options. Aim for about 730 words."
+topic = "abc-notation-chords"
+
+[[prompts]]
+id = "readme-032"
+text = "Write a README for markpile, a self-hosted bookmarking service with tag-based search and a browser bookmarklet for quickly saving the current page. Cover installation on a small VPS, the SQLite-backed storage, the web UI for browsing and searching bookmarks by tag, the bookmarklet setup instructions, and the import format for bringing in bookmarks exported from a browser. Aim for about 490 words."
+topic = "bookmarking-service"
+
+[[prompts]]
+id = "readme-033"
+text = "Write a README for exifsort, a Python command-line tool that batch-renames and organizes photo files into year/month folders based on the EXIF capture date, falling back to file modification time when EXIF data is missing. Cover installation via pip, basic usage pointing it at a source folder and a destination folder, the rename pattern configuration, a dry-run mode, and how it handles files with duplicate target names. Aim for about 670 words."
+topic = "exif-photo-renamer"
+
+[[prompts]]
+id = "readme-034"
+text = "Write a README for rotenc-mod, a Linux kernel module that exposes a rotary encoder connected to two GPIO pins as a custom character device, reporting position deltas to userspace on each read. Cover building the module against the running kernel headers, loading it with insmod and the module parameters for the GPIO pin numbers, the character device's read semantics, and a small C example program reading position changes in a loop. Aim for about 780 words."
+topic = "rotary-encoder-kernel-module"
+
+[[prompts]]
+id = "readme-035"
+text = "Write a README for tf-microvpc, a collection of Terraform modules for provisioning a minimal VPC, subnet, and NAT setup on a budget cloud host, aimed at small side projects where a full multi-AZ production network is overkill. Cover the required provider configuration, a usage example instantiating the module with a CIDR block and region, the variables exposed (subnet count, NAT enabled/disabled), the outputs provided for downstream modules, and an estimate of the monthly cost of the default configuration. Aim for about 1150 words."
+topic = "terraform-microvpc"
+
+[[prompts]]
+id = "readme-036"
+text = "Write a README for cardbox, a command-line spaced-repetition flashcard app that stores decks as plain YAML files so they're easy to edit by hand or generate from scripts. Cover installation, the YAML deck format with front/back fields and optional tags, running a review session and the keys used to grade recall difficulty, and how the scheduling algorithm decides the next review date. Aim for about 430 words."
+topic = "spaced-repetition-cli"
+
+[[prompts]]
+id = "readme-037"
+text = "Write a README for fitreader, a C library for reading and writing Garmin FIT files, the binary format used by GPS fitness devices to store activity data such as heart rate, GPS track, and lap splits. Cover the build instructions, the public API for opening a FIT file and iterating over its message records, a code example extracting a heart rate stream, and a note on which FIT message types are currently supported versus unsupported. Aim for about 610 words."
+topic = "garmin-fit-reader"
+
+[[prompts]]
+id = "readme-038"
+text = "Write a README for csssweep, a static analysis tool that crawls a site's HTML output and its CSS files to report selectors that never match any element, helping trim dead styles before a redesign. Cover installation, basic usage pointing it at a build output directory, how it handles dynamically added classes via an ignore-list configuration option, the report format, and its known false-positive cases involving JavaScript-toggled classes. Aim for about 520 words."
+topic = "unused-css-detector"
+
+[[prompts]]
+id = "readme-039"
+text = "Write a README for sqlsplit, a command-line tool that splits a large SQL dump file into one file per table, useful when you only need to restore a handful of tables from a full database backup. Cover installation, basic usage pointing it at a dump file and an output directory, how it detects table boundaries from CREATE TABLE and INSERT statements, and a flag to also compress each resulting file with gzip. Aim for about 360 words."
+topic = "sql-dump-splitter"
+
+[[prompts]]
+id = "readme-040"
+text = "Write a README for lcd-i2c-font, an Arduino library for driving a 16x2 character LCD over I2C that adds support for a custom font set of extra glyphs beyond the display's built-in character ROM. Cover installing the library through the Arduino Library Manager, wiring notes for the I2C backpack, a code example initializing the display and printing a custom glyph, and how to define and upload a new custom character bitmap. Aim for about 690 words."
+topic = "i2c-lcd-font-library"
+
+[[prompts]]
+id = "readme-041"
+text = "Write a README for changelog2rss, a command-line tool that converts a project's Markdown changelog file, following the Keep a Changelog format, into a valid RSS feed so users can subscribe to release notes. Cover installation, basic usage pointing it at a CHANGELOG.md file and an output path, how version headings and dates are parsed into feed items, and a flag for setting the feed's title and site link. Aim for about 440 words."
+topic = "changelog-to-rss"
+
+[[prompts]]
+id = "readme-042"
+text = "Write a README for gedcom2svg, a genealogy tool that parses GEDCOM files exported from family tree software and renders an ancestor chart as an SVG image, laid out generation by generation. Cover installation, basic usage pointing it at a .ged file and choosing a starting individual by their GEDCOM ID, the layout options for number of generations shown and chart orientation, how names with non-ASCII characters are handled, and a note on GEDCOM version compatibility. Aim for about 940 words."
+topic = "gedcom-ancestor-chart"
+
+[[prompts]]
+id = "readme-043"
+text = "Write a README for pinglog, a small home-network tool that periodically pings a configurable list of hosts and appends the results to a CSV log, intended for tracking whether a flaky router or ISP link is dropping connectivity overnight. Cover installation, the config file listing hosts and ping interval, running it as a background process or cron job, and the CSV column format for later analysis in a spreadsheet. Aim for about 390 words."
+topic = "host-uptime-pinglog"
+
+[[prompts]]
+id = "readme-044"
+text = "Write a README for shtest, a lightweight test runner for shell scripts written entirely in POSIX sh so it has no dependency on bash or any other non-POSIX shell, intended for testing portable installer and build scripts. Cover installation, the test file naming convention it discovers, the assertion helper functions provided, how to run a single test file versus a full suite, and its exit code conventions for CI integration. Aim for about 570 words."
+topic = "posix-shell-test-runner"
+
+[[prompts]]
+id = "readme-045"
+text = "Write a README for shopstock, a command-line inventory tracker for a home woodworking shop that logs lumber stock by species, board footage, and location, and generates a cut list report showing what's needed for a project against what's on hand. Cover installation, adding stock entries from the command line, defining a project's cut list in a simple text format, running the shortage report, and where the inventory data file is stored by default. Aim for about 1200 words."
+topic = "woodshop-inventory-cli"

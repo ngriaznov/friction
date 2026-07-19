@@ -1,0 +1,234 @@
+# Generation prompts for genre "forum".
+#
+# Register: StackExchange-style technical answers and classic phpBB/Discourse
+# forum culture (how-tos, troubleshooting threads, experience reports),
+# pre-2022 topical mix. Each prompt elicits ONE self-contained document from
+# a small local instruct model. No style instructions are included here by
+# design — the default-register capture and the separate
+# style_prompted slice are handled by the generation script, not the prompt
+# text itself.
+
+[[prompts]]
+id = "forum-001"
+text = "Write a StackExchange-style answer to a question asking how to design a command-line tool in Python that deduplicates a large photo library using perceptual hashing. Cover why a perceptual hash (like pHash or dHash) is preferred over a byte-level checksum, how to bucket near-duplicate hashes with a Hamming-distance threshold, and how to handle burst-mode shots that are visually near-identical but not true duplicates. Aim for roughly 550 words."
+topic = "photo-dedup-cli"
+
+[[prompts]]
+id = "forum-002"
+text = "Write a StackExchange-style answer explaining Rust's three lifetime elision rules to someone confused about why some functions with references compile without explicit lifetime annotations while others don't. Use at least two concrete function signatures as examples and explain which rule applies to each. Target about 500 words."
+topic = "rust-lifetime-elision"
+
+[[prompts]]
+id = "forum-003"
+text = "Write a StackExchange-style answer explaining why a regex pattern with nested quantifiers, such as matching repeated groups of optional characters, causes catastrophic backtracking and hangs on certain input strings. Show a problematic pattern, explain the exponential blowup in plain terms, and give a rewritten pattern that avoids it. Around 450 words."
+topic = "regex-catastrophic-backtracking"
+
+[[prompts]]
+id = "forum-004"
+text = "Write a StackExchange-style answer walking through how to use Docker multi-stage builds to shrink a Node.js application image from roughly 900MB down to around 120MB. Cover separating the build stage (with dev dependencies and a compiler) from a slim runtime stage, and mention .dockerignore and choosing an alpine or distroless base. About 600 words."
+topic = "docker-multistage-node"
+
+[[prompts]]
+id = "forum-005"
+text = "Write a StackExchange-style answer explaining how to write a systemd unit file for a custom long-running daemon, covering Restart=on-failure, WatchdogSec with sd_notify keepalives, and the difference between Type=simple and Type=notify. Include a short example unit file. Roughly 520 words."
+topic = "systemd-custom-daemon"
+
+[[prompts]]
+id = "forum-006"
+text = "Write a StackExchange-style answer explaining when a covering index avoids a table lookup in MySQL, walking through a sample EXPLAIN output before and after adding a composite index that includes the selected columns. Explain the Using index versus Using where; Using filesort distinction shown in the Extra column. Target about 650 words."
+topic = "mysql-covering-index"
+
+[[prompts]]
+id = "forum-007"
+text = "Write a StackExchange-style networking answer explaining how to diagnose BGP route flapping between two upstream ISPs on a multihomed router, including how to read flap statistics, when route dampening helps versus masks a real problem, and how to trace the flapping back to a specific peer link. About 700 words."
+topic = "bgp-route-flapping"
+
+[[prompts]]
+id = "forum-008"
+text = "Write a phpBB-style forum post recounting the experience of cleaning up about 40 messy commits before a pull request review using git rebase -i, including squashing fixup commits, rewriting commit messages, and resolving a rebase conflict that came up halfway through. Around 480 words."
+topic = "git-interactive-rebase-cleanup"
+
+[[prompts]]
+id = "forum-009"
+text = "Write a StackExchange-style answer explaining how to write a simple bump allocator with a free list in C for an embedded project with no standard malloc available, including the tradeoffs versus a general-purpose allocator and how fragmentation is handled (or not) in this scheme. Roughly 750 words."
+topic = "c-custom-allocator"
+
+[[prompts]]
+id = "forum-010"
+text = "Write a StackExchange-style statistics answer explaining p-hacking and the multiple comparisons problem, using a worked example of testing 20 independent hypotheses at alpha equals 0.05 and showing how a Bonferroni correction changes the significance threshold. About 600 words."
+topic = "p-hacking-multiple-comparisons"
+
+[[prompts]]
+id = "forum-011"
+text = "Write a phpBB-style forum post from someone planning a homelab NAS build, explaining the reasoning behind choosing a RAIDZ2 vdev layout with 8 drives over mirrored vdevs, how they picked the ashift value for their specific drive model, and what they'd do differently with hindsight. Target about 700 words."
+topic = "zfs-raidz2-homelab"
+
+[[prompts]]
+id = "forum-012"
+text = "Write a phpBB-style forum post describing troubleshooting persistent Wi-Fi dead zones in a two-story house after installing a three-node mesh system, covering node placement changes tried, backhaul band issues discovered, and what finally fixed it. Around 420 words."
+topic = "wifi-mesh-deadzones"
+
+[[prompts]]
+id = "forum-013"
+text = "Write a phpBB-style forum post detailing a custom hot-swap mechanical keyboard build, covering the choice between linear and tactile switches, why stabilizers were band-aid modded and lubed before installation, and impressions after a week of typing on it. Roughly 550 words."
+topic = "mechanical-keyboard-hotswap-build"
+
+[[prompts]]
+id = "forum-014"
+text = "Write a StackExchange-style homebrewing answer diagnosing why a high-gravity beer's fermentation stalled partway through, covering yeast pitch rate, wort oxygenation before pitching, fermentation temperature control, and whether a diacetyl rest or a fresh yeast starter is the right fix. About 500 words."
+topic = "homebrew-stalled-fermentation"
+
+[[prompts]]
+id = "forum-015"
+text = "Write a StackExchange-style answer explaining why a two-week-old sourdough starter stopped rising and developed a layer of dark liquid on top, and how to revive it through more frequent feedings and adjusting the flour-to-water ratio. Around 380 words."
+topic = "sourdough-starter-revival"
+
+[[prompts]]
+id = "forum-016"
+text = "Write a phpBB-style forum post walking through flattening the sole of a vintage hand plane using progressively finer sandpaper adhered to a granite reference surface, including how to check for flatness with a straightedge and how long the process took. Roughly 430 words."
+topic = "hand-plane-sole-flattening"
+
+[[prompts]]
+id = "forum-017"
+text = "Write a StackExchange-style astrophotography answer explaining the difference between narrowband and broadband light-pollution filters for imaging emission nebulae from a city with significant sky glow, including when a dual narrowband filter is worth the cost versus a basic UHC filter. About 600 words."
+topic = "astrophotography-light-pollution-filters"
+
+[[prompts]]
+id = "forum-018"
+text = "Write a StackExchange-style automotive answer walking through diagnosing a P0420 catalytic converter efficiency code on a Honda Civic, covering how to check upstream and downstream oxygen sensor readings before assuming the catalytic converter itself needs replacement. Target about 500 words."
+topic = "honda-p0420-diagnosis"
+
+[[prompts]]
+id = "forum-019"
+text = "Write a phpBB-style forum post giving a detailed how-to for rebuilding a bicycle hub with fresh bearings and truing the wheel afterward, covering cone adjustment, spoke tension by feel versus a tension meter, and correcting both radial and lateral wobble. Roughly 650 words."
+topic = "bicycle-hub-rebuild-truing"
+
+[[prompts]]
+id = "forum-020"
+text = "Write a StackExchange-style home-electrical answer explaining how to wire a 3-way switch setup with traveler wires between two switch boxes controlling one light fixture, including which terminal is the common on each switch and a common wiring mistake that reverses the switching logic. About 500 words."
+topic = "three-way-switch-wiring"
+
+[[prompts]]
+id = "forum-021"
+text = "Write a phpBB-style gardening forum post reporting on a season of companion planting tomatoes with basil and marigolds, including what seemed to help with pest pressure, what had no noticeable effect, and what the poster plans to change next year. Around 400 words."
+topic = "tomato-companion-planting"
+
+[[prompts]]
+id = "forum-022"
+text = "Write a phpBB-style chess forum post analyzing a specific line in the Sicilian Najdorf, explaining a common mistake club-level players make around move 8 or 9 and why the resulting position favors White if the mistake is made. Roughly 550 words."
+topic = "sicilian-najdorf-analysis"
+
+[[prompts]]
+id = "forum-023"
+text = "Write a phpBB-style forum post describing troubleshooting ABS filament warping on a 3D printer, covering the enclosure that was built, bed adhesion changes tried, and the cooling fan settings that ultimately reduced corner lifting on tall prints. About 500 words."
+topic = "abs-warping-fixes"
+
+[[prompts]]
+id = "forum-024"
+text = "Write a StackExchange-style woodturning answer explaining how to sharpen a bowl gouge using a jig on a bench grinder, covering the grind angle typically used for a fingernail-profile gouge and how to check the edge for consistency across the wing. Around 430 words."
+topic = "woodturning-gouge-sharpening"
+
+[[prompts]]
+id = "forum-025"
+text = "Write a phpBB-style forum post detailing the restoration of a Commodore 64's external power supply after the 5V rail failed, covering recapping, testing under load, and why the poster chose to build a modern switching replacement instead of repairing the original linear brick. Roughly 700 words."
+topic = "c64-psu-restoration"
+
+[[prompts]]
+id = "forum-026"
+text = "Write a phpBB-style amateur radio forum post describing building a 40-meter half-wave dipole antenna, including the calculated leg lengths, the feedline choice and why a balun was added at the feedpoint, and the SWR readings measured across the band afterward. About 600 words."
+topic = "ham-radio-40m-dipole"
+
+[[prompts]]
+id = "forum-027"
+text = "Write a StackExchange-style personal-finance answer explaining the mechanics of rebalancing a three-fund portfolio, comparing calendar-based rebalancing against threshold-band rebalancing and noting the tax implications of rebalancing inside a taxable account versus a retirement account. This should explain mechanics only, not give personalized investment advice. Around 550 words."
+topic = "three-fund-portfolio-rebalancing"
+
+[[prompts]]
+id = "forum-028"
+text = "Write a phpBB-style work-life forum post sharing how the poster negotiated an exception to a new return-to-office mandate, including what arguments their manager responded to, what got pushback from HR, and the compromise that was ultimately reached. Roughly 500 words."
+topic = "negotiating-rto-exception"
+
+[[prompts]]
+id = "forum-029"
+text = "Write a StackExchange-style answer explaining how to calculate the right PSU wattage for a gaming PC build with a specific mid-range CPU and a single high-end GPU, covering how much headroom to leave for transient power spikes and why efficiency rating matters beyond the wattage number. About 450 words."
+topic = "psu-wattage-selection"
+
+[[prompts]]
+id = "forum-030"
+text = "Write a phpBB-style board game forum post analyzing route-blocking strategy in Ticket to Ride, explaining when it's worth claiming a route you don't need purely to deny an opponent, and how to judge the risk against your own hand of destination cards. Around 400 words."
+topic = "ticket-to-ride-route-blocking"
+
+[[prompts]]
+id = "forum-031"
+text = "Write a phpBB-style knitting forum post explaining how to fix a dropped stitch that went unnoticed for several rows, using a crochet hook to ladder it back up, including a tip for telling a knit stitch from a purl stitch while doing the repair. Roughly 340 words."
+topic = "knitting-dropped-stitch-fix"
+
+[[prompts]]
+id = "forum-032"
+text = "Write a StackExchange-style answer explaining the difference between first crack and second crack in home coffee roasting, covering roughly how many minutes apart they typically occur, and how stopping the roast at different points between the two changes the flavor profile. About 500 words."
+topic = "coffee-roasting-crack-timing"
+
+[[prompts]]
+id = "forum-033"
+text = "Write a StackExchange-style aquarium-keeping answer explaining how the nitrogen cycle works in a new freshwater tank and walking through the fishless cycling method using ammonia dosing and test-kit readings over several weeks. Target about 600 words."
+topic = "aquarium-fishless-cycling"
+
+[[prompts]]
+id = "forum-034"
+text = "Write a phpBB-style beekeeping forum post walking through requeening a hive that had become aggressive, covering how the old queen was found and removed, the timing before introducing the new queen cage, and how the poster confirmed the new queen had been accepted. Roughly 650 words."
+topic = "beekeeping-requeening"
+
+[[prompts]]
+id = "forum-035"
+text = "Write a phpBB-style camera repair forum post describing replacing a torn shutter curtain on a 1970s manual-focus SLR, covering sourcing a donor part, the disassembly steps to reach the shutter mechanism, and how the shutter speeds were checked afterward. About 550 words."
+topic = "film-camera-shutter-repair"
+
+[[prompts]]
+id = "forum-036"
+text = "Write a StackExchange-style Excel answer comparing VLOOKUP against INDEX combined with MATCH for lookups in a spreadsheet with tens of thousands of rows, covering recalculation performance and why INDEX/MATCH avoids VLOOKUP's column-insertion breakage. Around 430 words."
+topic = "excel-vlookup-index-match-performance"
+
+[[prompts]]
+id = "forum-037"
+text = "Write a StackExchange-style home-audio answer explaining basic room correction for stereo speakers, covering the 38 percent listening-position rule of thumb, how to take swept-sine measurements with REW, and what a room-mode null in the bass response actually looks like on a graph. About 600 words."
+topic = "home-audio-room-correction"
+
+[[prompts]]
+id = "forum-038"
+text = "Write a phpBB-style motorcycle maintenance forum post explaining how to check and adjust chain slack, including the torque spec for the axle nut, how to measure slack correctly at the tightest point of chain wear, and the lubrication routine used afterward. Roughly 430 words."
+topic = "motorcycle-chain-adjustment"
+
+[[prompts]]
+id = "forum-039"
+text = "Write a StackExchange-style baking answer explaining the windowpane test for checking gluten development in bread dough, including what a properly developed dough looks like when stretched thin versus dough that tears, and what to do if the dough keeps tearing after 10 minutes of kneading. About 380 words."
+topic = "bread-windowpane-test"
+
+[[prompts]]
+id = "forum-040"
+text = "Write a phpBB-style running forum post sharing a training block using heart rate zone training ahead of a marathon, covering how the poster estimated their zones, why most weekly mileage stayed in Zone 2, and how their easy-run pace changed over the eight weeks. Roughly 550 words."
+topic = "marathon-heart-rate-zones"
+
+[[prompts]]
+id = "forum-041"
+text = "Write a phpBB-style woodworking forum post explaining how to fit a mortise and tenon joint so it's snug without a shoulder plane, covering paring the tenon cheeks by hand with a chisel and checking the fit incrementally with a dry assembly. About 500 words."
+topic = "mortise-tenon-fitting"
+
+[[prompts]]
+id = "forum-042"
+text = "Write a StackExchange-style genealogy answer explaining how to find immigration records for a great-grandparent who entered through Ellis Island around 1910, covering how to search passenger manifests, what a naturalization petition typically records, and common name-spelling pitfalls in the indexes. Target about 600 words."
+topic = "genealogy-immigration-records"
+
+[[prompts]]
+id = "forum-043"
+text = "Write a phpBB-style work-life forum post reflecting on switching from an individual-contributor software role to an engineering manager role six months in, covering what skills transferred, what surprised the poster about the day-to-day, and whether they'd recommend the switch to a peer considering it. Roughly 700 words."
+topic = "ic-to-manager-transition"
+
+[[prompts]]
+id = "forum-044"
+text = "Write a phpBB-style synth repair forum post walking through recapping a Roland Juno-106, covering the well-known 80017A voice chip failure mode this doesn't fix, which electrolytic capacitors were prioritized, and how the poster tested each of the six voices afterward. About 750 words."
+topic = "juno-106-recap-repair"
+
+[[prompts]]
+id = "forum-045"
+text = "Write a phpBB-style fly fishing forum post about fly selection for trout in spring creeks during early season, covering which nymph and emerger patterns matched the hatch, water clarity considerations, and a specific pattern that outperformed the others on a recent trip. Around 430 words."
+topic = "trout-fly-selection-spring"

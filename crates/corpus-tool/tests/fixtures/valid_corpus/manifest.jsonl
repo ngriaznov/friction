@@ -1,0 +1,2 @@
+{"id":"h001","class":"human","genre":"docs","source":"corpus-tool-fixture","license":"personal-attestation","lang":"en","sha256":"88ab4d69aecc274ed8e00b9dfba1fbcb27e6a8c532a0629b46143e5d46037913"}
+{"id":"l001","class":"llm","genre":"blog","source":"corpus-tool-fixture","model":{"name":"qwen2.5-7b-instruct","quantization":"q4_k_m"},"prompt_id":"fixture-p001","license":"generated","lang":"en","sha256":"0735ae176908991799e4345396f00f3d64eb5a4bee5f113793b9f3d1b43d6fb7","gen_config":{"model_digest":"sha256:deadbeef","temperature":0.7,"seed":42,"reproducible":true}}

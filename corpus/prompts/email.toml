@@ -1,0 +1,258 @@
+# Generation prompts for genre "email".
+#
+# Longer-form emails: team announcements, project status updates, community
+# newsletters, detailed technical requests, incident summaries. Each prompt
+# asks for one self-contained document with a concrete target word count so
+# generated output lands in the 300-2000-word corpus band. No style
+# instructions are included here; the style_prompted slice is added
+# mechanically at generation time, not authored into these prompts.
+
+[[prompts]]
+id = "email-001"
+text = "Write an email from an engineering manager to the whole team announcing that the company is migrating its internal wiki from Confluence to a self-hosted MkDocs setup. Explain the reasoning (licensing cost, search quality, git-based review), the migration timeline over the next six weeks, what individual contributors need to do with their existing pages, and who to contact with questions. Aim for around 450 words."
+topic = "wiki-migration-announcement"
+
+[[prompts]]
+id = "email-002"
+text = "Write a weekly project status update email for a mobile app redesign project, addressed to stakeholders who are not engineers. Cover what shipped this week (a new onboarding flow), what's blocked (waiting on legal sign-off for a third-party analytics SDK), what's planned for next week, and a short risk section about the App Store review timeline. Target roughly 475 words."
+topic = "project-status-update"
+
+[[prompts]]
+id = "email-003"
+text = "Write a community newsletter email for a local astronomy club, covering last month's star party attendance, a member's report on photographing the Orion Nebula with a new CMOS camera, an announcement of a guest lecture on exoplanet detection, and the schedule of viewing nights for the coming month. Around 1050 words."
+topic = "astronomy-club-newsletter"
+
+[[prompts]]
+id = "email-004"
+text = "Write a detailed technical request email from a backend developer to a database administrator, asking for a new read replica to be provisioned for a reporting workload, specifying expected query patterns, approximate data volume (around 800GB), desired region, and a proposed cutover date. Include a short explanation of why the primary database is under load. About 325 words."
+topic = "database-replica-request"
+
+[[prompts]]
+id = "email-005"
+text = "Write an incident summary email sent to an engineering organization after a two-hour outage of a payment processing API. Describe the timeline of detection and mitigation, the root cause (a misconfigured connection pool limit after a deploy), customer impact, and the follow-up action items with owners and due dates. Roughly 300 words."
+topic = "incident-postmortem-summary"
+
+[[prompts]]
+id = "email-006"
+text = "Write an email from a woodworking hobbyist to a small email list of fellow makers, describing a recently finished walnut dining table build, including the wood selection process, a mistake made during the glue-up that required re-planing a leg, the finish used, and total build time. Roughly 525 words."
+topic = "woodworking-project-recap"
+
+[[prompts]]
+id = "email-007"
+text = "Write an HR announcement email to all employees explaining a change to the company's parental leave policy, including the new duration, eligibility rules, how it interacts with short-term disability, and who in HR to schedule a call with for personal questions. Around 575 words."
+topic = "parental-leave-policy-change"
+
+[[prompts]]
+id = "email-008"
+text = "Write a technical request email from a data scientist to a platform team asking for a GPU-backed Jupyter environment to be provisioned for a six-week model training project, specifying the desired instance type, storage needs, expected duration, and budget approval reference. Around 775 words."
+topic = "gpu-environment-request"
+
+[[prompts]]
+id = "email-009"
+text = "Write a quarterly newsletter email from a nonprofit food bank to its volunteer mailing list, covering the number of meals distributed last quarter, a spotlight on a new mobile distribution route, an upcoming volunteer appreciation event, and a call for donations of canned goods ahead of the holiday season. Around 1025 words."
+topic = "food-bank-quarterly-newsletter"
+
+[[prompts]]
+id = "email-010"
+text = "Write a status update email from a solo indie game developer to a small list of newsletter subscribers, describing progress on a 2D pixel-art platformer, including a new dash mechanic added this month, a Steam wishlist milestone reached, and a rough timeline for the next demo build. Around 900 words."
+topic = "indie-game-dev-update"
+
+[[prompts]]
+id = "email-011"
+text = "Write an email from a homeowner to a general contractor requesting a detailed quote for a kitchen renovation, describing the current layout, desired changes (moving a wall, new cabinetry, a larger island), a rough budget range, and asking about timeline and permit requirements. Around 1100 words."
+topic = "kitchen-renovation-quote-request"
+
+[[prompts]]
+id = "email-012"
+text = "Write an incident summary email describing a data pipeline failure that caused a daily analytics dashboard to show stale numbers for three days, explaining how it was discovered (a customer noticed inconsistent totals), the root cause (a silently failing Airflow task with no alerting), the fix, and new monitoring being added. Around 1175 words."
+topic = "data-pipeline-incident-summary"
+
+[[prompts]]
+id = "email-013"
+text = "Write an email from a marathon training group coordinator to members, summarizing this week's group long run, a discussion of proper hydration strategy for hot weather, a reminder about the upcoming half-marathon tune-up race, and the training schedule for the next two weeks. Around 825 words."
+topic = "marathon-training-group-update"
+
+[[prompts]]
+id = "email-014"
+text = "Write a detailed technical request email from a frontend engineer to a design systems team, asking for a new accessible date-range picker component to be added to the shared component library, describing the use cases across three internal tools, required keyboard interactions, and a requested delivery date. Around 675 words."
+topic = "component-library-request"
+
+[[prompts]]
+id = "email-015"
+text = "Write an email announcement from a university department chair to faculty and graduate students about a new shared computing cluster being installed over winter break, covering the specs, how to request an account, a maintenance window schedule, and a deadline for migrating existing jobs off the old cluster. Around 625 words."
+topic = "university-cluster-announcement"
+
+[[prompts]]
+id = "email-016"
+text = "Write a community newsletter email for a neighborhood homebrewers club, recapping last month's IPA tasting meetup, a member's writeup of troubleshooting a stuck fermentation, an announcement of a group order for grain and hops, and details of the next meeting location and date. Around 700 words."
+topic = "homebrewers-club-newsletter"
+
+[[prompts]]
+id = "email-017"
+text = "Write a project status update email for a warehouse inventory system migration, addressed to the operations leadership team, covering completed milestones (barcode scanner rollout to two sites), current blockers (a vendor API rate limit issue), next steps, and a revised go-live date with justification for the delay. Around 1075 words."
+topic = "inventory-system-migration-status"
+
+[[prompts]]
+id = "email-018"
+text = "Write an incident summary email about a customer-facing website going down for 40 minutes due to an expired TLS certificate that auto-renewal failed to catch, describing detection, the manual fix applied, why the automated renewal silently failed, and the process changes being made to prevent recurrence. Around 775 words."
+topic = "tls-certificate-incident"
+
+[[prompts]]
+id = "email-019"
+text = "Write an email from a birdwatching club newsletter editor to members, summarizing sightings from last weekend's coastal wetland outing including a rare sighting of a peregrine falcon, tips for identifying similar raptor species, and an announcement of the next scheduled trip to a different reserve. Around 400 words."
+topic = "birdwatching-club-newsletter"
+
+[[prompts]]
+id = "email-020"
+text = "Write a detailed technical request email from a mobile developer to a backend API team, requesting a new paginated endpoint for a search results screen, specifying the expected filters, sort options, response shape considerations, and a target date tied to an upcoming app release. Around 1200 words."
+topic = "api-endpoint-request"
+
+[[prompts]]
+id = "email-021"
+text = "Write an all-hands announcement email from a startup CEO explaining the outcome of a recent Series B funding round, covering the amount raised, how the funds will be used over the next 18 months, hiring plans across three teams, and a note of thanks to the team for the work that made the round possible. Around 725 words."
+topic = "funding-round-announcement"
+
+[[prompts]]
+id = "email-022"
+text = "Write an email from a home gardener to a community garden mailing list, describing this season's tomato blight problem, the organic treatment approach that worked, a request for anyone with spare compost to share, and a reminder about the fall planting schedule. Around 875 words."
+topic = "community-garden-blight-update"
+
+[[prompts]]
+id = "email-023"
+text = "Write a project status update email for a company-wide CRM migration from Salesforce to HubSpot, addressed to sales leadership, covering data migration progress, a list of custom fields still being mapped, training sessions scheduled for the sales team, and the planned cutover weekend. Around 500 words."
+topic = "crm-migration-status"
+
+[[prompts]]
+id = "email-024"
+text = "Write an incident summary email about an internal build system outage that blocked all deployments for five hours, caused by a disk filling up on the CI runner fleet, including the timeline, temporary mitigation (manually clearing caches), root cause, and a plan to add automated disk-space alerting. Around 700 words."
+topic = "ci-outage-incident-summary"
+
+[[prompts]]
+id = "email-025"
+text = "Write an email from a chess club organizer to members, summarizing results from last month's internal round-robin tournament, a short analysis of an interesting endgame from one of the games, and details of the upcoming simultaneous exhibition with a visiting expert player. Around 925 words."
+topic = "chess-club-tournament-recap"
+
+[[prompts]]
+id = "email-026"
+text = "Write a detailed technical request email from a QA engineer to a DevOps team, asking for a dedicated staging environment to be set up for end-to-end testing of a new checkout flow, specifying required services, test data seeding needs, and a timeline tied to a release freeze date. Around 425 words."
+topic = "staging-environment-request"
+
+[[prompts]]
+id = "email-027"
+text = "Write an announcement email from a public library branch manager to patrons on the mailing list, describing a renovation of the children's section, new extended weekend hours starting next month, and an upcoming author visit event with registration details. Around 975 words."
+topic = "library-branch-announcement"
+
+[[prompts]]
+id = "email-028"
+text = "Write a project status update email for an open-source project's monthly contributor call summary, covering merged pull requests since the last update, a discussion of a proposed breaking change to the plugin API, open questions needing maintainer input, and the release date for the next minor version. Around 350 words."
+topic = "oss-contributor-call-summary"
+
+[[prompts]]
+id = "email-029"
+text = "Write an incident summary email about a mistaken mass email sent to the entire customer list due to a marketing automation misconfiguration, explaining what happened, the immediate response (a follow-up correction email and unsubscribe honoring), root cause in the segmentation logic, and process safeguards being added before future sends. Around 850 words."
+topic = "marketing-email-mishap-summary"
+
+[[prompts]]
+id = "email-030"
+text = "Write an email from a home network hobbyist to a small mailing list of fellow enthusiasts, describing a recent home lab upgrade involving a new pfSense router, VLAN segmentation for IoT devices, and a problem encountered getting a NAS to talk to a Proxmox cluster, along with how it was resolved. Around 1075 words."
+topic = "home-lab-network-upgrade"
+
+[[prompts]]
+id = "email-031"
+text = "Write a detailed technical request email from a site reliability engineer to a networking team, requesting a firewall rule change to allow a new microservice to reach an external payment gateway, specifying source and destination details at a conceptual level, the business justification, and a requested implementation window. Around 800 words."
+topic = "firewall-rule-change-request"
+
+[[prompts]]
+id = "email-032"
+text = "Write a newsletter email from a knitting circle organizer to members, recapping last meeting's project-sharing session including a finished cabled sweater, a discussion of yarn substitution for a popular shawl pattern, and an announcement of a beginner's sock-knitting workshop next month. Around 1025 words."
+topic = "knitting-circle-newsletter"
+
+[[prompts]]
+id = "email-033"
+text = "Write an all-hands email from a VP of Engineering explaining the results of a recent internal engineering satisfaction survey, summarizing the top three areas of concern (on-call load, tooling friction, promotion clarity), concrete steps being taken to address each, and how the team can follow progress over the next two quarters. Around 1000 words."
+topic = "engineering-survey-results"
+
+[[prompts]]
+id = "email-034"
+text = "Write an email from a telescope-making hobbyist to a small forum mailing list, describing progress figuring an 8-inch Newtonian mirror, a setback with a scratch discovered during the polishing stage, and a question for the group about recommended testing methods before final coating. Around 550 words."
+topic = "telescope-mirror-progress"
+
+[[prompts]]
+id = "email-035"
+text = "Write a project status update email for a hospital's electronic health records upgrade, addressed to clinical department heads, covering training completion rates by department, a list of workflow issues reported during the pilot, and the phased rollout schedule for the remaining floors. Around 1150 words."
+topic = "ehr-upgrade-status"
+
+[[prompts]]
+id = "email-036"
+text = "Write an incident summary email about a spike in failed login attempts that turned out to be an automated credential-stuffing attack against a customer login page, describing detection via rate-limiting alerts, the mitigation applied (temporary CAPTCHA and IP throttling), scope of impact, and longer-term defenses being evaluated. Around 350 words."
+topic = "credential-stuffing-incident"
+
+[[prompts]]
+id = "email-037"
+text = "Write an email from a home coffee roasting hobbyist to a small mailing list, describing an experiment roasting a new Ethiopian Yirgacheffe lot at three different first-crack drop points, the cupping notes for each, and which roast profile the group settled on as the favorite. Around 500 words."
+topic = "coffee-roasting-experiment"
+
+[[prompts]]
+id = "email-038"
+text = "Write a detailed technical request email from a data engineer to a security team, asking for review and approval of a new third-party analytics vendor that would receive anonymized event data, describing the data fields involved, retention terms, and a requested review turnaround before an upcoming contract deadline. Around 950 words."
+topic = "vendor-data-review-request"
+
+[[prompts]]
+id = "email-039"
+text = "Write an announcement email from a condominium HOA board to residents about an upcoming elevator modernization project, covering the reason (aging control systems failing inspection), the expected duration with one elevator out of service at a time, alternate access arrangements, and a schedule of the affected weeks. Around 725 words."
+topic = "hoa-elevator-modernization"
+
+[[prompts]]
+id = "email-040"
+text = "Write a project status update email for a company's migration from a monolithic application to a microservices architecture, addressed to the engineering leadership team, covering which services have been extracted so far, a description of a tricky shared-database dependency still being untangled, and revised timeline estimates. Around 650 words."
+topic = "microservices-migration-status"
+
+[[prompts]]
+id = "email-041"
+text = "Write an incident summary email about a scheduled database migration that ran long and caused an unplanned 90-minute read-only period for a SaaS product, describing what was expected versus what happened, the decision-making during the incident, customer communication sent, and changes to the migration runbook going forward. Around 950 words."
+topic = "database-migration-overrun"
+
+[[prompts]]
+id = "email-042"
+text = "Write an email from a sourdough baking enthusiast to a small mailing list of fellow bakers, describing troubleshooting a starter that stopped rising reliably, the change in feeding schedule and flour that fixed it, and a request for other members' favorite hydration ratios for a rustic country loaf. Around 375 words."
+topic = "sourdough-starter-troubleshooting"
+
+[[prompts]]
+id = "email-043"
+text = "Write a detailed technical request email from a product manager to an engineering team lead, asking for a feasibility estimate on adding CSV export to a reporting dashboard, describing the use case from customer feedback, the fields customers most want exported, and a requested timeframe for a rough estimate. Around 750 words."
+topic = "csv-export-feasibility-request"
+
+[[prompts]]
+id = "email-044"
+text = "Write a community newsletter email for a local running club, recapping results from last weekend's 10K time trial, a training tip about tapering before a goal race, and an announcement of a new Tuesday evening speed workout starting next week with meeting location and time. Around 400 words."
+topic = "running-club-newsletter"
+
+[[prompts]]
+id = "email-045"
+text = "Write an incident summary email about a third-party shipping rate API outage that caused checkout failures for two hours on an e-commerce site, describing how the dependency was identified, the fallback that was manually enabled, customer impact in orders lost, and a plan to add a cached-rate fallback for future outages. Around 925 words."
+topic = "shipping-api-outage-summary"
+
+[[prompts]]
+id = "email-046"
+text = "Write an email from a model railroading hobbyist to a club mailing list, describing progress on a new N-scale layout module depicting a mountain switchback, a wiring problem with block detection that took a weekend to diagnose, and an invitation for members to bring their own rolling stock to the next open house. Around 850 words."
+topic = "model-railroad-layout-update"
+
+[[prompts]]
+id = "email-047"
+text = "Write a detailed technical request email from a mobile QA lead to a release engineering team, asking for a new TestFlight build to be cut ahead of schedule to validate a critical crash fix, describing the crash's impact on a subset of users, the fix that was made, and the requested build turnaround. Around 1100 words."
+topic = "testflight-build-request"
+
+[[prompts]]
+id = "email-048"
+text = "Write an announcement email from a school principal to parents about a change in the after-school pickup procedure, explaining the reason (a safety review following a near-miss incident), the new procedure involving car line numbers, and a date when the new system takes effect. Around 325 words."
+topic = "school-pickup-procedure-change"
+
+[[prompts]]
+id = "email-049"
+text = "Write a project status update email for a company's transition to a new payroll processing vendor, addressed to all employees, covering what has already been migrated, what employees need to verify in the new self-service portal, a support contact for issues, and the date of the first paycheck under the new system. Around 625 words."
+topic = "payroll-vendor-transition-status"
+
+[[prompts]]
+id = "email-050"
+text = "Write an incident summary email about a search index falling badly out of date for six days due to a silently crash-looping indexing worker with misconfigured restart alerts, describing how a support ticket surfaced the issue, the backfill process used to catch up, and monitoring gaps being closed. Around 1000 words."
+topic = "search-index-staleness-incident"

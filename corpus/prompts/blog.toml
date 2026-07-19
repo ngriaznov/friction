@@ -1,0 +1,249 @@
+# Generation prompts for genre "blog".
+#
+# These prompts elicit personal/professional tech-blog-style posts in the
+# register common on individual and small-team blogs circa 2010-2021:
+# mostly technical (programming, infrastructure, tooling, career-in-tech)
+# with a minority of general-interest essays, matching the topical spread
+# of the human blog corpus for this genre. Deliberately free of any
+# style-conditioning instructions (default register only); the
+# style_prompted slice is layered on mechanically at generation time.
+
+[[prompts]]
+id = "blog-001"
+text = "Write a single blog post, about 700 words, about migrating a Rails application's background job queue from Redis-backed Sidekiq to Amazon SQS. Cover why the team decided to switch, what broke during the migration, and what the on-call load looked like the first week after the cutover."
+topic = "job-queue-migration"
+
+[[prompts]]
+id = "blog-002"
+text = "Write a single blog post, about 400 words, walking through a custom Git pre-commit hook the author wrote to catch hardcoded API keys and AWS secrets before they get committed. Include the motivating incident that led to writing it."
+topic = "git-pre-commit-hook"
+
+[[prompts]]
+id = "blog-003"
+text = "Write a single blog post, about 650 words, explaining why a five-person engineering team switched their code review tool from Gerrit to GitHub pull requests, including what they missed about Gerrit and what got easier."
+topic = "code-review-tooling"
+
+[[prompts]]
+id = "blog-004"
+text = "Write a single blog post, about 800 words, describing how the author tracked down a slow memory leak in a long-running Node.js worker process, from the first symptoms in production monitoring to the eventual root cause in an event listener that was never removed."
+topic = "nodejs-memory-leak"
+
+[[prompts]]
+id = "blog-005"
+text = "Write a single blog post, about 900 words, about building a small Kubernetes cluster at home out of three Raspberry Pi 4 boards, covering the networking setup, the storage headaches, and what the author actually ended up running on it."
+topic = "home-kubernetes-cluster"
+
+[[prompts]]
+id = "blog-006"
+text = "Write a single blog post, about 500 words, giving the author's first impressions of TypeScript after two years of writing plain JavaScript on a mid-sized web app, including which type errors caught real bugs and which felt like busywork."
+topic = "typescript-first-impressions"
+
+[[prompts]]
+id = "blog-007"
+text = "Write a single blog post, about 450 words, about building a small Chrome extension that blocks autoplaying videos on news sites, covering the manifest permissions it needed and one bug that only showed up on sites with lazy-loaded iframes."
+topic = "chrome-extension-autoplay-blocker"
+
+[[prompts]]
+id = "blog-008"
+text = "Write a single blog post, about 750 words, structured as an incident postmortem for a database migration that locked a production table and caused a 40-minute outage, including a timeline, root cause, and the follow-up changes to the deploy process."
+topic = "database-migration-postmortem"
+
+[[prompts]]
+id = "blog-009"
+text = "Write a single blog post, about 600 words, comparing Postgres and MySQL for a two-person startup choosing its first production database, focused on the specific features and operational tradeoffs that actually drove the decision."
+topic = "postgres-vs-mysql-startup"
+
+[[prompts]]
+id = "blog-010"
+text = "Write a single blog post, about 550 words, reflecting on six months of working full-time in a pair-programming rotation, including what got easier, what got more tiring, and how the team adjusted its schedule to make it sustainable."
+topic = "pair-programming-retrospective"
+
+[[prompts]]
+id = "blog-011"
+text = "Write a single blog post, about 700 words, about how a small team cut its monthly AWS bill roughly in half by rightsizing EC2 instances and switching several batch jobs to spot instances, with rough before-and-after numbers."
+topic = "aws-cost-rightsizing"
+
+[[prompts]]
+id = "blog-012"
+text = "Write a single blog post, about 650 words, walking through implementing rate limiting for a public API using the token bucket algorithm, including the data structure chosen and why a sliding-window approach was rejected."
+topic = "token-bucket-rate-limiting"
+
+[[prompts]]
+id = "blog-013"
+text = "Write a single blog post, about 500 words, explaining why the author moved a personal blog from Wordpress to a static site generator, covering the export process, the theme rebuild, and what backfired."
+topic = "wordpress-to-static-site"
+
+[[prompts]]
+id = "blog-014"
+text = "Write a single blog post, about 600 words, with lessons learned from running a weekly on-call rotation on a five-person backend team for a year, including how the pager load changed after they added a runbook requirement."
+topic = "on-call-rotation-lessons"
+
+[[prompts]]
+id = "blog-015"
+text = "Write a single blog post, about 400 words, about building a Slack bot in Python that posts a daily standup reminder and collects async written updates in a thread, including one deployment mistake that spammed the whole workspace."
+topic = "slack-standup-bot"
+
+[[prompts]]
+id = "blog-016"
+text = "Write a single blog post, about 550 words, on what the author learned writing a first command-line tool in Rust, a small utility for renaming files based on their EXIF metadata, including the parts of the borrow checker that were most confusing at first."
+topic = "first-rust-cli-tool"
+
+[[prompts]]
+id = "blog-017"
+text = "Write a single blog post, about 700 words, describing a command-line tool the author built that deduplicates a photo library by comparing perceptual hashes instead of exact file hashes, including how it handles near-duplicate burst shots."
+topic = "photo-dedup-cli-tool"
+
+[[prompts]]
+id = "blog-018"
+text = "Write a single blog post, about 600 words, on a team's move away from long-lived feature branches toward trunk-based development gated by feature flags, including how they handled half-finished features in production."
+topic = "feature-flags-trunk-based-dev"
+
+[[prompts]]
+id = "blog-019"
+text = "Write a single blog post, about 550 words, describing the lightweight design-doc template a small engineering team adopted before starting any project larger than a day of work, and one project where skipping it caused real pain."
+topic = "design-doc-process"
+
+[[prompts]]
+id = "blog-020"
+text = "Write a single blog post, about 650 words, about debugging a set of flaky integration tests in a CI pipeline that failed roughly one run in twenty, including how the team eventually traced it to test ordering and shared database state."
+topic = "flaky-ci-tests"
+
+[[prompts]]
+id = "blog-021"
+text = "Write a single blog post, about 700 words, explaining why a mid-sized engineering org deprecated its internal RPC framework in favor of plain REST over HTTP, including the migration plan for existing services."
+topic = "rpc-to-rest-migration"
+
+[[prompts]]
+id = "blog-022"
+text = "Write a single blog post, about 1000 words, as a one-year retrospective on a company's move from a monolith to microservices, covering what actually got faster, what got slower, and whether the team would make the same call again."
+topic = "microservices-one-year-retro"
+
+[[prompts]]
+id = "blog-023"
+text = "Write a single blog post, about 800 words, walking through setting up a self-hosted email server with Postfix and Dovecot on a small VPS, including the spam filtering setup and the deliverability problems the author ran into with major providers."
+topic = "self-hosted-email-server"
+
+[[prompts]]
+id = "blog-024"
+text = "Write a single blog post, about 500 words, about building a small personal dashboard that tracks metrics for a handful of side projects, like GitHub stars, npm downloads, and newsletter signups, pulled together on one page."
+topic = "side-project-dashboard"
+
+[[prompts]]
+id = "blog-025"
+text = "Write a single blog post, about 600 words, on learning to read flame graphs for performance profiling, using a specific slow API endpoint the author optimized as the running example."
+topic = "flame-graph-profiling"
+
+[[prompts]]
+id = "blog-026"
+text = "Write a single blog post, about 550 words, on why a backend team adopted the conventional commits format for its commit messages, and how it now drives automated changelog generation and semantic version bumps."
+topic = "conventional-commits-adoption"
+
+[[prompts]]
+id = "blog-027"
+text = "Write a single blog post, about 400 words, giving a small team's house style for writing useful commit messages, with a couple of real before-and-after examples pulled from the team's own repo history."
+topic = "commit-message-style-guide"
+
+[[prompts]]
+id = "blog-028"
+text = "Write a single blog post, about 750 words, describing building an ETL pipeline that merges customer data nightly from three different CRMs into one warehouse table, including how the team handled conflicting records for the same customer."
+topic = "crm-etl-pipeline"
+
+[[prompts]]
+id = "blog-029"
+text = "Write a single blog post, about 450 words, on what surprised the author about switching from a decade of plain Vim to a full IDE for a new job, covering both the features that won them over and the muscle memory that never fully transferred."
+topic = "vim-to-ide-switch"
+
+[[prompts]]
+id = "blog-030"
+text = "Write a single blog post, about 700 words, on how a team reduced its test suite runtime from 40 minutes to 8 minutes, covering test parallelization, cutting redundant end-to-end tests, and caching dependency installs in CI."
+topic = "test-suite-speedup"
+
+[[prompts]]
+id = "blog-031"
+text = "Write a single blog post, about 600 words, about migrating an aging PHP application from shared hosting to a self-managed VPS, including the cron jobs that silently broke and how the author found them."
+topic = "php-shared-hosting-to-vps"
+
+[[prompts]]
+id = "blog-032"
+text = "Write a single blog post, about 650 words, describing a weekend project building a URL shortener with a small custom analytics dashboard showing click counts and referrer breakdowns, including the tech stack chosen for a two-day build."
+topic = "weekend-url-shortener"
+
+[[prompts]]
+id = "blog-033"
+text = "Write a single blog post, about 800 words, about tracking down a race condition in a multithreaded C++ inventory management system that only showed up under heavy load, including the debugging tools used and the eventual fix."
+topic = "cpp-race-condition-debugging"
+
+[[prompts]]
+id = "blog-034"
+text = "Write a single blog post, about 550 words, on how the author prepared for and passed the AWS Certified Solutions Architect Associate exam while working full time, including a rough study schedule and which practice exams were worth the money."
+topic = "aws-certification-prep"
+
+[[prompts]]
+id = "blog-035"
+text = "Write a single blog post, about 900 words, reflecting on the author's first year as a first-time engineering manager after years as an individual contributor, covering the parts of the transition that were harder than expected."
+topic = "first-year-engineering-manager"
+
+[[prompts]]
+id = "blog-036"
+text = "Write a single blog post, about 600 words, explaining why the author stopped using an ORM for a data-heavy analytics service and moved to hand-written SQL, with a specific query that motivated the switch."
+topic = "orm-to-raw-sql"
+
+[[prompts]]
+id = "blog-037"
+text = "Write a single blog post, about 700 words, about setting up a home network with VLANs to keep smart-home and IoT devices isolated from the author's main computers, including the router and switch hardware used."
+topic = "home-network-vlans"
+
+[[prompts]]
+id = "blog-038"
+text = "Write a single blog post, about 650 words, sharing what a hiring manager learned after conducting fifty technical interviews for a backend engineering role over one quarter, including which interview questions turned out to be poor signal."
+topic = "backend-hiring-interviews"
+
+[[prompts]]
+id = "blog-039"
+text = "Write a single blog post, about 500 words, about the imposter syndrome the author felt in their first three months after joining a large well-known tech company from a small startup, and what specifically helped it fade."
+topic = "imposter-syndrome-big-company"
+
+[[prompts]]
+id = "blog-040"
+text = "Write a single blog post, about 450 words, about how the author negotiated a permanent remote-work arrangement with a manager who was initially skeptical, including the specific concerns that came up and how they were addressed."
+topic = "negotiating-remote-work"
+
+[[prompts]]
+id = "blog-041"
+text = "Write a single blog post, about 500 words, on what the author wishes they had known before giving their first talk at a technical conference, covering slide preparation, rehearsal, and handling questions afterward."
+topic = "first-conference-talk"
+
+[[prompts]]
+id = "blog-042"
+text = "Write a single blog post, about 500 words, about building a raised-bed vegetable garden in a small backyard for the first time, covering the bed materials chosen, the soil mix, and which crops did surprisingly well in the first season."
+topic = "raised-bed-vegetable-garden"
+
+[[prompts]]
+id = "blog-043"
+text = "Write a single blog post, about 400 words, on what the author learned brewing a first batch of homemade kombucha, including how the SCOBY was sourced, the fermentation timing, and one batch that went wrong."
+topic = "homemade-kombucha"
+
+[[prompts]]
+id = "blog-044"
+text = "Write a single blog post, about 550 words, about restoring an old ten-speed road bike found at a garage sale over a few weekends, covering the parts that needed replacing and the ones that cleaned up fine."
+topic = "garage-sale-bike-restoration"
+
+[[prompts]]
+id = "blog-045"
+text = "Write a single blog post, about 500 words, on training for a first half marathon while working a full-time desk job, including the weekly mileage buildup and how the author fit runs around a work schedule."
+topic = "first-half-marathon-training"
+
+[[prompts]]
+id = "blog-046"
+text = "Write a single blog post, about 400 words, on why the author went back to keeping a paper journal after nearly a decade of digital note-taking apps, and what changed about their thinking as a result."
+topic = "paper-journal-return"
+
+[[prompts]]
+id = "blog-047"
+text = "Write a single blog post, about 700 words, as a trip report from a five-day backpacking trip through the Wind River Range, covering the route taken, gear that earned its weight, and one stretch of weather that nearly turned the group back."
+topic = "wind-river-backpacking-trip"
+
+[[prompts]]
+id = "blog-048"
+text = "Write a single blog post, about 650 words, about renovating a small bathroom on a tight budget over a few months of weekends, covering what was done by the author versus hired out, and where the money actually went."
+topic = "budget-bathroom-renovation"
