@@ -330,10 +330,20 @@ impl Engine {
 /// `offset` past `source.len()` clamps to the position one past the last
 /// character, rather than panicking: a defensive fallback for a
 /// pathological byte range no well-formed [`friction_core::Finding`]
-/// should ever carry.
+/// should ever carry. An in-bounds `offset` that lands mid-character
+/// (splitting a multi-byte UTF-8 sequence) is likewise walked back to the
+/// nearest preceding character boundary rather than panicking on the
+/// slice below — `offset` is caller-supplied and not guaranteed to be
+/// `source`-char-boundary-valid the way a validated [`friction_core::
+/// Finding`]/[`friction_core::Patch`] range already is (see
+/// `friction_core::span::validate_range`), so this function has to
+/// tolerate it on its own.
 #[must_use]
 pub fn offset_to_line_col(source: &str, offset: usize) -> (usize, usize) {
-    let offset = offset.min(source.len());
+    let mut offset = offset.min(source.len());
+    while !source.is_char_boundary(offset) {
+        offset -= 1;
+    }
     let mut line = 1usize;
     let mut col = 1usize;
     for ch in source[..offset].chars() {
@@ -430,6 +440,25 @@ mod tests {
         assert_eq!(offset_to_line_col(source, 4), (2, 1));
         assert_eq!(offset_to_line_col(source, 8), (3, 1));
         assert_eq!(offset_to_line_col(source, source.len()), (3, 4));
+    }
+
+    /// Regression test for a fuzz-found crash
+    /// (`fuzz/fuzz_targets/fuzz_sarif_line_col.rs`): an in-bounds
+    /// `offset` that splits a multi-byte character used to panic on
+    /// `source[..offset]` (`byte index N is not a char boundary`) instead
+    /// of clamping back to the nearest preceding one the way an
+    /// out-of-bounds offset already clamped to `source.len()`.
+    #[test]
+    fn offset_to_line_col_walks_back_a_mid_character_offset_to_the_preceding_boundary() {
+        // '\u{58b}' ("֋") is 2 bytes (0xd6 0x8b); offset 1 lands inside it.
+        let source = "\u{58b}";
+        assert_eq!(offset_to_line_col(source, 1), offset_to_line_col(source, 0));
+
+        // The exact fuzzer-minimized failing case: three copies of the
+        // same 2-byte character interleaved with 1-byte ASCII, offset 7
+        // landing mid-character.
+        let source = "^^\u{58b}^?\u{58b}~/\u{58b}";
+        assert_eq!(offset_to_line_col(source, 7), (1, 6));
     }
 
     #[test]

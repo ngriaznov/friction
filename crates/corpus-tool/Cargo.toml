@@ -26,12 +26,12 @@ friction-parse = { path = "../friction-parse" }
 serde.workspace = true
 serde_json.workspace = true
 sha2.workspace = true
+# Not in workspace.dependencies; pinned here per crate-local convention for
+# a dependency the workspace root doesn't otherwise need. `separate_holdout`
+# uses this (not just tests) to hold each llm-holdout doc's release-binary
+# fixed output in a scratch directory for the duration of one run.
+tempfile = "3"
 thiserror.workspace = true
 toml.workspace = true
 ureq.workspace = true
 walkdir.workspace = true
-
-[dev-dependencies]
-# Not in workspace.dependencies; pinned here per crate-local convention for
-# a dependency the workspace root doesn't otherwise need.
-tempfile = "3"

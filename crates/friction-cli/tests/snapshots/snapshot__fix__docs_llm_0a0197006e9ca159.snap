@@ -39,7 +39,7 @@ Next, create a script that will handle the backup process. This script will dump
    sudo nano /usr/local/bin/corkboard-backup.sh
    ```
 
-2. Paste the following code into the script. This adjusts paths if needed:
+2. Paste the following code into the script, adjusting paths if needed:
 
    ```bash
    #!/bin/bash

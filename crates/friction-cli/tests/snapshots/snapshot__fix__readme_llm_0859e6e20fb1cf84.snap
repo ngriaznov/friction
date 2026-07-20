@@ -42,7 +42,7 @@ Lumen automates thumbnail creation for your images:
 
 1. **Automatic Thumbnails**: When you build your site (`lumen build`), Lumen scans all image files in the `images/` directory and generates improved thumbnails based on predefined sizes (e.g., small, medium, large). This process improves load times without compromising quality.
 
-2. **Customization**: You can specify custom thumbnail dimensions or formats by editing the `_config.yml` file under particular gallery directories. For example:
+2. **Customization**: You can specify custom thumbnail dimensions or formats by editing the `_config.yml` file under specific gallery directories. For example:
 
 ```yaml
 - name: Summer Vacations
@@ -57,7 +57,7 @@ Lumen intelligently extracts captions from image metadata (EXIF data) to provide
 
 1. **Automatic Extraction**: During the build process, Lumen reads the EXIF data of images in your galleries and automatically generates caption fields based on this metadata.
 
-2. **Customization**: If you prefer a different source for captions or wish to override automatic extraction, simply add a `caption` field in the markdown front matter for that particular image:
+2. **Customization**: If you prefer a different source for captions or wish to override automatic extraction, simply add a `caption` field in the markdown front matter for that specific image:
 
 ```markdown
 ---

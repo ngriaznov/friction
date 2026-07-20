@@ -227,15 +227,6 @@ expression: stdout
       "message": "flat \"X, Y, and Z\" triad with matching-class items reads as an LLM tic; consider dropping the weakest item or restructuring"
     },
     {
-      "rule": "lexical.substitution",
-      "tier": "fix",
-      "start": 3383,
-      "end": 3391,
-      "line": 32,
-      "column": 31,
-      "message": "\"Showcase\" reads as machine-favored register (showcase is a more formal synonym of show); \"show\" is a plain near-synonym"
-    },
-    {
       "rule": "symmetry.triad_reduction",
       "tier": "suggest",
       "start": 3454,

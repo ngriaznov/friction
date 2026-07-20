@@ -20,7 +20,11 @@ use friction_core::{Envelope, MetricVector};
 /// The fixed set of five genres, in the report's section order (matches
 /// their declaration order in `crate::manifest::Genre`, not alphabetical
 /// — there's no `Genre::VARIANTS` to iterate instead).
-const ALL_GENRES: [Genre; 5] = [
+///
+/// `pub(crate)`: `crate::commands::separate_holdout` reuses this exact
+/// order for its own per-genre report sections, so the dev-split and
+/// holdout-split reports iterate genres identically.
+pub(crate) const ALL_GENRES: [Genre; 5] = [
     Genre::Docs,
     Genre::Blog,
     Genre::Readme,
@@ -256,8 +260,12 @@ pub fn mann_whitney_auc(human: &[f64], llm: &[f64]) -> Option<(f64, Direction)> 
 /// percentile band, which side of it is llm-like (from a train-internal
 /// AUC comparison — see `crate::commands::envelope`), and whether this
 /// metric counts toward its genre's combined score at all.
+///
+/// `pub(crate)`: `crate::commands::separate_holdout` loads the same
+/// envelope-pack shape via [`load_envelope_pack`] to score its own
+/// (human, llm, fixed-llm) holdout groups against it.
 #[derive(Debug, Clone, Copy)]
-struct MetricBand {
+pub(crate) struct MetricBand {
     envelope: Envelope,
     direction: Direction,
     include: bool,
@@ -269,7 +277,7 @@ struct MetricBand {
 }
 
 /// genre name -> metric name -> band.
-type EnvelopePack = BTreeMap<String, BTreeMap<String, MetricBand>>;
+pub(crate) type EnvelopePack = BTreeMap<String, BTreeMap<String, MetricBand>>;
 
 #[derive(Debug, Deserialize)]
 struct RawEnvelopeEntry {
@@ -308,12 +316,18 @@ struct RawPack {
 /// metric's `include` flag (the flags themselves are already baked into
 /// `bands`; this is purely for the report's inclusion note to name the
 /// rule instead of just its effect).
-struct LoadedPack {
-    bands: EnvelopePack,
+///
+/// `pub(crate)`: `crate::commands::separate_holdout` loads the exact same
+/// pack file (via [`load_envelope_pack`]) to score its holdout-split
+/// groups — the holdout evaluation must use the same, already-frozen
+/// train-derived bands as the dev-split `separate` report, never a
+/// holdout-fitted band of its own.
+pub(crate) struct LoadedPack {
+    pub(crate) bands: EnvelopePack,
     auc_include_threshold: Option<f64>,
 }
 
-fn load_envelope_pack(path: &std::path::Path) -> anyhow::Result<LoadedPack> {
+pub(crate) fn load_envelope_pack(path: &std::path::Path) -> anyhow::Result<LoadedPack> {
     let text = std::fs::read_to_string(path)?;
     parse_envelope_pack(&text)
 }
@@ -402,7 +416,14 @@ fn exceedance(value: f64, envelope: Envelope) -> f64 {
 /// (an incomplete/absent per-genre envelope — distinct from a field
 /// present but excluded), or if every field was excluded (no basis for a
 /// score).
-fn combined_score(metrics: &MetricVector, bands: &BTreeMap<String, MetricBand>) -> Option<f64> {
+///
+/// `pub(crate)`: `crate::commands::separate_holdout` reuses this exact
+/// scoring rule (never a holdout-specific variant of it) for its own
+/// (human, llm, fixed-llm) holdout groups.
+pub(crate) fn combined_score(
+    metrics: &MetricVector,
+    bands: &BTreeMap<String, MetricBand>,
+) -> Option<f64> {
     let mut included_total = 0.0;
     let mut included_count = 0usize;
     for (name, value) in metrics.named_values() {
@@ -540,7 +561,11 @@ fn combined_scores_for_genre(
 /// inclusion rule (`include: false`), and why (its train-split AUC, when
 /// the pack recorded one) — so the report always states the rule's
 /// concrete effect, not just its existence.
-fn inclusion_note(bands: Option<&BTreeMap<String, MetricBand>>) -> String {
+///
+/// `pub(crate)`: `crate::commands::separate_holdout` renders the exact
+/// same note for its own per-genre sections, so a reader sees identical
+/// inclusion accounting on the dev-split and holdout-split reports.
+pub(crate) fn inclusion_note(bands: Option<&BTreeMap<String, MetricBand>>) -> String {
     let Some(bands) = bands else {
         return "Combined-score metrics: n/a (no envelope for this genre).".to_string();
     };

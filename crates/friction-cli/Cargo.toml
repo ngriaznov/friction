@@ -6,6 +6,10 @@ rust-version.workspace = true
 license.workspace = true
 repository.workspace = true
 
+[lib]
+name = "friction_cli"
+path = "src/lib.rs"
+
 [[bin]]
 name = "friction"
 path = "src/main.rs"

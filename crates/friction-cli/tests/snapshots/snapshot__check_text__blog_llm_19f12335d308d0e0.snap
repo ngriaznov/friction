@@ -57,17 +57,6 @@ symmetry.participial_closer
  12 │ 
     ╰────
 
-lexical.substitution
-
-  ⚠ "Initial" reads as machine-favored register (mined llm-favored (MINING.md); first is the plain equivalent); "first" is a plain near-synonym
-    ╭─[corpus/llm/blog/19f12335d308d0e0.md:13:36]
- 12 │ 
- 13 │ **Digging Deeper: Log Analysis and Initial Hypotheses**
-    ·                                    ───┬───
-    ·                                       ╰── "Initial" reads as machine-favored register (mined llm-favored (MINING.md); first is the plain equivalent); "first" is a plain near-synonym
- 14 │ 
-    ╰────
-
 symmetry.participial_closer
 
   × sentence-final participial closer reads as an LLM tic, but it has no clear object to promote; deleting it cannot be verified to preserve the sentence's claim, so this needs a human decision
@@ -103,7 +92,7 @@ lexical.substitution
 
 lexical.substitution
 
-  ⚠ "specific" reads as machine-favored register (mined llm-favored (MINING.md); particular is a plainer near-synonym); "particular" is a plain near-synonym
+  × "specific" reads as machine-favored register (mined llm-favored (MINING.md); particular is a plainer near-synonym); "particular" is a plain near-synonym
     ╭─[corpus/llm/blog/19f12335d308d0e0.md:21:193]
  20 │ 
  21 │ We decided to take a different approach.  We utilized a heap snapshotting tool called `heapdump-psml`. This tool allows us to capture snapshots of the Node.js process’s memory allocation at specific intervals, providing a detailed breakdown of what was consuming the most memory. 
@@ -125,24 +114,13 @@ symmetry.participial_closer
 
 lexical.substitution
 
-  ⚠ "specific" reads as machine-favored register (mined llm-favored (MINING.md); particular is a plainer near-synonym); "particular" is a plain near-synonym
+  × "specific" reads as machine-favored register (mined llm-favored (MINING.md); particular is a plainer near-synonym); "particular" is a plain near-synonym
     ╭─[corpus/llm/blog/19f12335d308d0e0.md:27:76]
  26 │ 
  27 │ This was a critical turning point. The heap snapshots pointed us towards a specific event listener within the worker that was responsible for consuming these messages from the queue. This listener was designed to handle incoming data and push it through our processing pipeline.  However, we’d implemented a simplified error handling mechanism – a basic `try...catch` block – but *never* removed the listener after each processed message.
     ·                                                                            ────┬───
     ·                                                                                ╰── "specific" reads as machine-favored register (mined llm-favored (MINING.md); particular is a plainer near-synonym); "particular" is a plain near-synonym
  28 │ 
-    ╰────
-
-lexical.substitution
-
-  ⚠ "Robust" reads as machine-favored register (mined llm-favored (MINING.md, z=6.29); solid is the plain equivalent); "solid" is a plain near-synonym
-    ╭─[corpus/llm/blog/19f12335d308d0e0.md:31:14]
- 30 │ 
- 31 │ **The Fix: A Robust Cleanup Mechanism**
-    ·              ───┬──
-    ·                 ╰── "Robust" reads as machine-favored register (mined llm-favored (MINING.md, z=6.29); solid is the plain equivalent); "solid" is a plain near-synonym
- 32 │ 
     ╰────
 
 lexical.substitution
@@ -191,17 +169,6 @@ lexical.substitution
 
 lexical.substitution
 
-  ⚠ "Initial" reads as machine-favored register (mined llm-favored (MINING.md); first is the plain equivalent); "first" is a plain near-synonym
-    ╭─[corpus/llm/blog/19f12335d308d0e0.md:41:20]
- 40 │ 
- 41 │ * **Don’t Ignore Initial Alerts:** Even seemingly minor increases in resource utilization should be investigated promptly.  Early detection can prevent a small problem from escalating into a major outage.
-    ·                  ───┬───
-    ·                     ╰── "Initial" reads as machine-favored register (mined llm-favored (MINING.md); first is the plain equivalent); "first" is a plain near-synonym
- 42 │ * **Leverage Monitoring Tools Effectively:** Heap snapshots, memory profiling tools, and detailed metrics are invaluable for pinpointing the source of performance issues. Don't rely solely on logs – they often lack the granularity needed to diagnose complex problems.
-    ╰────
-
-lexical.substitution
-
   ⚠ "utilization" reads as machine-favored register (canonical LLM-register tell for use (noun form)); "use" is a plain near-synonym
     ╭─[corpus/llm/blog/19f12335d308d0e0.md:41:81]
  40 │ 
@@ -209,17 +176,6 @@ lexical.substitution
     ·                                                                               ─────┬─────
     ·                                                                                    ╰── "utilization" reads as machine-favored register (canonical LLM-register tell for use (noun form)); "use" is a plain near-synonym
  42 │ * **Leverage Monitoring Tools Effectively:** Heap snapshots, memory profiling tools, and detailed metrics are invaluable for pinpointing the source of performance issues. Don't rely solely on logs – they often lack the granularity needed to diagnose complex problems.
-    ╰────
-
-lexical.substitution
-
-  ⚠ "Leverage" reads as machine-favored register (canonical LLM-register tell for use); "use" is a plain near-synonym
-    ╭─[corpus/llm/blog/19f12335d308d0e0.md:42:5]
- 41 │ * **Don’t Ignore Initial Alerts:** Even seemingly minor increases in resource utilization should be investigated promptly.  Early detection can prevent a small problem from escalating into a major outage.
- 42 │ * **Leverage Monitoring Tools Effectively:** Heap snapshots, memory profiling tools, and detailed metrics are invaluable for pinpointing the source of performance issues. Don't rely solely on logs – they often lack the granularity needed to diagnose complex problems.
-    ·     ────┬───
-    ·         ╰── "Leverage" reads as machine-favored register (canonical LLM-register tell for use); "use" is a plain near-synonym
- 43 │ * **Event Listener Management is Critical:** Event listeners can be a significant source of memory leaks if not properly managed. Always ensure that listeners are cleaned up after use, especially in long-running processes.  Consider using techniques like `clearInterval`, `clearTimeout`, and proper resource cleanup within your event handlers.
     ╰────
 
 symmetry.ritual_conclusion

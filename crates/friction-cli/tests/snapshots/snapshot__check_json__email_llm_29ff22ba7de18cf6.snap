@@ -164,15 +164,6 @@ expression: stdout
       "message": "sentence is 27 tokens, above this genre's over-long threshold of 15; splitting at the nearest-to-middle coordinator boundary"
     },
     {
-      "rule": "lexical.substitution",
-      "tier": "fix",
-      "start": 773,
-      "end": 785,
-      "line": 9,
-      "column": 356,
-      "message": "\"accomplished\" reads as machine-favored register (a plain, shorter verb for the same act); \"do\" is a plain near-synonym"
-    },
-    {
       "rule": "symmetry.participial_closer",
       "tier": "suggest",
       "start": 1153,
@@ -219,7 +210,7 @@ expression: stdout
     },
     {
       "rule": "lexical.substitution",
-      "tier": "fix",
+      "tier": "suggest",
       "start": 3369,
       "end": 3377,
       "line": 45,

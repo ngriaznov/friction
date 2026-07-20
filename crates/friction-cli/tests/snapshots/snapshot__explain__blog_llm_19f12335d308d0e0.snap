@@ -17,7 +17,7 @@ semicolon_density             0.0000   0.0000  [0.0000, 3.4200]    in -> in
 participial_closer_rate       0.0597   0.0597  [0.0000, 0.0231]    OUT -> OUT
 not_just_but_rate             0.0000   0.0000  [0.0000, 0.0093]    in -> in  
 ritual_marker_rate            0.0294   0.0294  [0.0000, 0.0000]    OUT -> OUT
-llm_favored_phrase_rate      35.3319  27.8373  [0.9225, 19.3120]   OUT -> OUT
+llm_favored_phrase_rate      35.3319  31.0493  [0.9225, 19.3120]   OUT -> OUT
 human_favored_phrase_rate     4.2827   5.3533  [11.1492, 39.2610]  OUT -> OUT
 heading_density               1.0707   1.0707  [0.6072, 10.3668]   in -> in  
 list_item_density             4.2827   4.2827  [0.0000, 16.8244]   in -> in  
@@ -41,4 +41,4 @@ plan schedule (friction-plan, built from the document's original metrics):
 | rhythm | 0 | sentence_length_cv | 0.5623 | 0.4975 | 1.1375 | 0.0000 |
 | contraction | 0 | contraction_ratio | 1.0000 | 0.0000 | 0.7308 | 0.0000 |
 
-fixpoint: 2 round(s), 15 patch(es) applied
+fixpoint: 2 round(s), 9 patch(es) applied

@@ -174,12 +174,12 @@ expression: stdout
     },
     {
       "rule": "symmetry.participial_closer",
-      "tier": "fix",
+      "tier": "suggest",
       "start": 1700,
       "end": 1730,
       "line": 38,
       "column": 44,
-      "message": "sentence-final participial closer reads as an LLM tic; promoting it to its own sentence preserves the claim"
+      "message": "sentence-final participial closer reads as an LLM tic, but it has no clear object to promote; deleting it cannot be verified to preserve the sentence's claim, so this needs a human decision"
     },
     {
       "rule": "lexical.substitution",

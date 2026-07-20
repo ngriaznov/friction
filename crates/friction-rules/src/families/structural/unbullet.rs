@@ -25,9 +25,23 @@
 //!   never designed to preserve.
 //! - **Short.** At most [`MAX_ITEM_TOKENS`] word tokens (see
 //!   [`super::count_word_tokens`]) and no backtick anywhere in the item's
-//!   text (belt-and-suspenders against inline code — see the previous
-//!   point for why a code span should already disqualify the item on its
-//!   own).
+//!   own raw markdown source (its full [`Block::range`], not just the
+//!   filtered text [`item_prose_text`] returns — see the next paragraph
+//!   for why that distinction matters).
+//!
+//! The backtick check specifically must scan the item's raw source, not
+//! its extracted prose text: a [`friction_core::ProseUnit`] only ever
+//! covers the text *around* an inline code span, never the span's own
+//! backtick-delimited bytes, so a code span sitting at the very end of an
+//! item (nothing textual after it) still leaves exactly one prose run —
+//! the "exactly one run" bullet above only disqualifies when a code span
+//! is *sandwiched* between two prose runs. Checking
+//! `` trimmed.contains('`') `` against that same filtered text was
+//! consequently checking a string that
+//! could never contain a backtick in exactly the case the check exists
+//! for. This was a real, found bug (`corpus/MEANING_AUDIT.md`'s V5): an
+//! item ending in `` "...starting with `/api/v1`" `` slipped through both
+//! checks and got merged into prose with its code span silently dropped.
 //! - **Machine-flavored stem parallelism.** Every item's leading word
 //!   resolves to the same coarse part-of-speech bucket (noun / verb /
 //!   adjective / adverb / "no detectable stem at all" — the last is its
@@ -262,9 +276,17 @@ fn candidate_list(
         if item_has_child_blocks(item_index, parents) {
             return None;
         }
+        // Checked against the item's own raw markdown source, not the
+        // filtered prose text below — see the module docs' "Short" bullet
+        // for why a code span at the tail of an item would otherwise slip
+        // past a check against the prose-only text.
+        let raw_item_text = document.text(&blocks[item_index].range).ok()?;
+        if raw_item_text.contains('`') {
+            return None;
+        }
         let text = item_prose_text(item_index, document)?;
         let trimmed = text.trim();
-        if trimmed.is_empty() || trimmed.contains('`') {
+        if trimmed.is_empty() {
             return None;
         }
         if count_word_tokens(trimmed) > MAX_ITEM_TOKENS {
@@ -703,6 +725,21 @@ mod tests {
     #[test]
     fn scan_does_not_match_an_item_containing_inline_code() {
         assert!(scan_source("- Uses `fast` mode\n- Reliable\n").is_empty());
+    }
+
+    /// Regression test for `corpus/MEANING_AUDIT.md`'s V5: a code span
+    /// sitting at the very *end* of an item (nothing textual after it)
+    /// used to slip past both the "exactly one prose run" check and the
+    /// backtick check, because both were checking the item's filtered
+    /// prose text (which never includes a code span's own bytes) rather
+    /// than its raw markdown source. Two qualifying-looking items each
+    /// ending in a trailing code span must still disqualify the whole
+    /// list.
+    #[test]
+    fn scan_does_not_match_an_item_ending_in_a_trailing_inline_code_span() {
+        let source = "- Handles requests starting with `/api/v1`\n\
+                       - Handles requests starting with `/app`\n";
+        assert!(scan_source(source).is_empty());
     }
 
     /// The nested-lists invariant this module's docs and the family's

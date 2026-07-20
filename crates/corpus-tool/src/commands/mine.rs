@@ -210,12 +210,14 @@ pub fn run(args: &Args) -> anyhow::Result<()> {
 
 // --- tokenization ---
 
-/// Splits `text` into word segments: a maximal run of lowercase word
-/// tokens with no intervening punctuation (only whitespace between
-/// tokens). Punctuation of any kind — sentence-enders, commas, dashes,
-/// parens, quotes — ends the current segment, so n-grams built from a
-/// segment never cross it; a digit or symbol does the same (this tool
-/// mines word phrases, not numbers or code-like tokens).
+/// Splits `text` into word segments.
+///
+/// Each segment is a maximal run of lowercase word tokens with no
+/// intervening punctuation (only whitespace between tokens). Punctuation
+/// of any kind — sentence-enders, commas, dashes, parens, quotes — ends
+/// the current segment, so n-grams built from a segment never cross it; a
+/// digit or symbol does the same (this tool mines word phrases, not
+/// numbers or code-like tokens).
 ///
 /// Tokenization within a segment mirrors `friction-metrics`'s own word
 /// tokenizer: a run of alphabetic characters, with an interior apostrophe
@@ -226,7 +228,12 @@ pub fn run(args: &Args) -> anyhow::Result<()> {
 /// and `"don’t"` count as the same n-gram regardless of which quotation
 /// style a given document happens to use, which matters here (unlike a
 /// per-document metric) since counts are pooled across the whole corpus.
-fn word_segments(text: &str) -> Vec<Vec<String>> {
+///
+/// `pub` so other corpus-scale tooling (e.g. the `self_fingerprint`
+/// example, which needs the exact same tokenization for a *different*
+/// pair of classes) can reuse this instead of re-implementing it.
+#[must_use]
+pub fn word_segments(text: &str) -> Vec<Vec<String>> {
     let chars: Vec<char> = text.chars().collect();
     let mut segments = Vec::new();
     let mut current_segment: Vec<String> = Vec::new();
@@ -265,7 +272,13 @@ fn word_segments(text: &str) -> Vec<Vec<String>> {
 
 /// Adds every `order`-length window of every segment in `segments` to
 /// `counts` (n-gram text -> occurrence count), space-joined.
-fn accumulate_ngrams(segments: &[Vec<String>], order: usize, counts: &mut BTreeMap<String, u64>) {
+///
+/// `pub` — see [`word_segments`]'s doc comment for why.
+pub fn accumulate_ngrams(
+    segments: &[Vec<String>],
+    order: usize,
+    counts: &mut BTreeMap<String, u64>,
+) {
     for segment in segments {
         if segment.len() < order {
             continue;
@@ -278,10 +291,21 @@ fn accumulate_ngrams(segments: &[Vec<String>], order: usize, counts: &mut BTreeM
 
 // --- log-odds scoring ---
 
+/// Per-order n-gram counts for two classes.
+///
+/// Labeled `human`/`llm` here to match this module's own comparison — but
+/// [`score_entries`] treats them as opaque bags of counts, so other
+/// callers (e.g. `self_fingerprint`, which compares `human` against a
+/// *fixed* llm class rather than the raw one) can reuse this struct and
+/// its scoring for any two classes, not just the two this module mines by
+/// default.
 #[derive(Debug, Default)]
-struct ClassCounts {
-    human: BTreeMap<String, u64>,
-    llm: BTreeMap<String, u64>,
+pub struct ClassCounts {
+    /// Human-favored side of the comparison (this module's own reading;
+    /// reused generically by other callers).
+    pub human: BTreeMap<String, u64>,
+    /// Llm-favored side of the comparison (ditto).
+    pub llm: BTreeMap<String, u64>,
 }
 
 /// One scored n-gram: its class counts, the raw log-odds `delta`, and the
@@ -327,12 +351,17 @@ pub fn log_odds_z(y_llm: u64, n_llm: u64, y_human: u64, n_human: u64) -> Option<
     Some((delta, z))
 }
 
-/// Scores every n-gram appearing in `counts.llm` or `counts.human` whose
-/// combined count reaches `min_count`, skipping any [`log_odds_z`] gives
-/// `None` for. Result order is unspecified (`BTreeSet` iteration order,
-/// i.e. n-gram-text ascending) — callers sort for their own purposes via
-/// [`top_llm_favored`]/[`top_human_favored`].
-fn score_entries(counts: &ClassCounts, min_count: u64) -> Vec<Entry> {
+/// Scores every n-gram meeting `min_count`.
+///
+/// Considers every n-gram appearing in `counts.llm` or `counts.human`
+/// whose combined count reaches `min_count`, skipping any [`log_odds_z`]
+/// gives `None` for. Result order is unspecified (`BTreeSet` iteration
+/// order, i.e. n-gram-text ascending) — callers sort for their own
+/// purposes via [`top_llm_favored`]/[`top_human_favored`].
+///
+/// `pub` — see [`ClassCounts`]'s doc comment for why.
+#[must_use]
+pub fn score_entries(counts: &ClassCounts, min_count: u64) -> Vec<Entry> {
     let n_llm: u64 = counts.llm.values().sum();
     let n_human: u64 = counts.human.values().sum();
 
@@ -362,7 +391,10 @@ fn score_entries(counts: &ClassCounts, min_count: u64) -> Vec<Entry> {
 
 /// The top `top_n` llm-favored entries: sorted by `z` descending, ties
 /// broken by n-gram text ascending.
-fn top_llm_favored(entries: &[Entry], top_n: usize) -> Vec<Entry> {
+///
+/// `pub` — see [`ClassCounts`]'s doc comment for why.
+#[must_use]
+pub fn top_llm_favored(entries: &[Entry], top_n: usize) -> Vec<Entry> {
     let mut sorted = entries.to_vec();
     sorted.sort_by(|a, b| b.z.total_cmp(&a.z).then_with(|| a.ngram.cmp(&b.ngram)));
     sorted.truncate(top_n);
@@ -372,7 +404,10 @@ fn top_llm_favored(entries: &[Entry], top_n: usize) -> Vec<Entry> {
 /// The top `top_n` human-favored entries: sorted by `z` ascending (most
 /// negative — most strongly human-favored — first), ties broken by
 /// n-gram text ascending.
-fn top_human_favored(entries: &[Entry], top_n: usize) -> Vec<Entry> {
+///
+/// `pub` — see [`ClassCounts`]'s doc comment for why.
+#[must_use]
+pub fn top_human_favored(entries: &[Entry], top_n: usize) -> Vec<Entry> {
     let mut sorted = entries.to_vec();
     sorted.sort_by(|a, b| a.z.total_cmp(&b.z).then_with(|| a.ngram.cmp(&b.ngram)));
     sorted.truncate(top_n);

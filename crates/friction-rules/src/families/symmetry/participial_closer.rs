@@ -21,16 +21,18 @@
 //! A sentence-final participial closer can be resolved two ways:
 //!
 //! - **Promote**: split the closer clause into its own sentence, with a
-//!   `"This"` subject and the participle's own lemma inflected to agree
-//!   with it (`friction_nlp::inflect`, third-person-singular present).
+//!   `"This"`/`"It"` subject (see "Varying the promoted subject" below)
+//!   and the participle's own lemma inflected to agree with it
+//!   (`friction_nlp::inflect`, third-person-singular present).
 //!   `"...the release, making it easier to onboard new users."` ->
-//!   `"...the release. This makes it easier to onboard new users."` This
-//!   carries the closer clause's own claim forward intact — nothing is
-//!   dropped — so it is the only strategy this rule ever applies
-//!   automatically, and only when the participle has a clear object or
-//!   complement immediately following it to promote (see
-//!   [`has_object_like_continuation`]) and its lemma inflects
-//!   unambiguously (see [`promote_patch`]).
+//!   `"...the release. This makes it easier to onboard new users."` (or
+//!   `"...the release. It makes it easier..."`) — this carries the closer
+//!   clause's own claim forward intact — nothing is dropped — so it is the
+//!   only strategy this rule ever applies automatically, and only when the
+//!   main clause is not itself imperative (see "Imperative main clauses"
+//!   below), the participle has a clear object or complement immediately
+//!   following it to promote (see [`has_object_like_continuation`]), and
+//!   its lemma inflects unambiguously (see [`promote_patch`]).
 //! - **Delete**: remove the comma through the closer clause, keeping the
 //!   sentence's own trailing punctuation. `"...the release, making it
 //!   easier to onboard new users."` -> `"...the release."` A purely
@@ -39,14 +41,59 @@
 //!   exposing a single point of failure in the power supply."`) — deleting
 //!   the latter silently erases it. Because this rule cannot make that
 //!   judgment safely, **delete is never applied automatically**: whenever
-//!   promote is not available (no object-like continuation, or an
-//!   unreliable lemma), the finding is [`friction_core::Tier::Suggest`]
-//!   with no patch — the same "cannot rule out dropping a proposition"
-//!   posture `TriadReductionRule`/`NotJustButRule` already take in this
-//!   family — and [`ParticipialCloserRule::fix`] declines it.
+//!   promote is not available (no object-like continuation, an unreliable
+//!   lemma, or an imperative main clause — see "Imperative main clauses"
+//!   below), the finding is [`friction_core::Tier::Suggest`] with no patch
+//!   — the same "cannot rule out dropping a proposition" posture
+//!   `TriadReductionRule`/`NotJustButRule` already take in this family —
+//!   and [`ParticipialCloserRule::fix`] declines it.
 //!
 //! So this rule's tier is a per-finding runtime decision, not a fixed
 //! per-rule constant — the same shape `RitualConclusionRule` uses.
+//!
+//! # Imperative main clauses
+//!
+//! **Promote** manufactures a declarative subject (`"This"`/`"It"` — see
+//! "Varying the promoted subject" below) for the closer's own verb, which
+//! is only safe when the closer's implied subject is genuinely the main
+//! clause's own referent. When the main clause is an *imperative*
+//! (`"Paste the code, adjusting paths if necessary."`), the participle's
+//! implied subject is the imperative's addressee — the same "you" doing
+//! the pasting is doing the adjusting — not the main clause's action
+//! itself. Promoting that reading manufactures a false claim ("pasting the
+//! code automatically adjusts paths") and drops the reader-directed
+//! instruction, with `"This"`/`"It"` left with no valid antecedent.
+//! [`main_clause_is_imperative`] checks for the lexical signal a syntactic
+//! scan can see without a real parser: the sentence opens with a
+//! subject-shaped tag (`VB`, or the bare-noun tag (`NN`/`NN:UN`) the
+//! tagger actually falls back to for a capitalized, out-of-vocabulary
+//! imperative verb like `"Paste"`/`"Run"` — a known tagger quirk this
+//! workspace's other heuristics already work around, see
+//! `decapitalize_unless_proper_noun`'s own docs) *immediately followed by
+//! a determiner* (`"Paste **the** code, ..."`, `"Run **the** script,
+//! ..."`). A genuine sentence subject is never itself immediately followed
+//! by a determiner — its own verb comes next — so this shape reliably
+//! picks out a verb-plus-object imperative opener without needing the
+//! opener's own tag to be reliably `VB`. [`is_safely_promotable`] treats
+//! this the same as "no safe fix": Suggest tier, no patch, ever.
+//!
+//! # Varying the promoted subject
+//!
+//! **Promote**'s replacement subject alternates between `"This"` and
+//! `"It"` (chosen deterministically per finding by the driver's own
+//! sentence-seeded [`StrategyRng`] — never a document-position or global
+//! counter), rather than manufacturing the same fixed `"This <verb>"`
+//! opener on every single promotion. Both are equally grammatical ways to
+//! pick up the closer clause's own implicit antecedent (the whole prior
+//! main clause). This exists because this rule's own promotions,
+//! measured at corpus scale, raise sentence-initial `"This <verb>"`
+//! density well past both the human-train and pre-fix baselines (see
+//! `corpus/FINGERPRINT.md`'s self-fingerprint check) — a self-inflicted
+//! statistical fingerprint, not a meaning problem. Splitting the promoted
+//! subject across two textually distinct, equally correct openers halves
+//! this rule's own contribution to either one's density without reducing
+//! how much [`GATED_METRIC`] itself improves (a promotion still resolves
+//! the closer either way).
 //!
 //! # Idempotence
 //!
@@ -162,6 +209,26 @@ fn find_closure(tokens: &[TaggedToken], source: &str) -> Option<ClosureMatch> {
     })
 }
 
+/// `true` if `tokens` opens with a subject-shaped tag (`VB`, or the
+/// bare-noun tag — `NN`/`NN:UN` — a real tagger actually produces for a
+/// capitalized, out-of-vocabulary imperative verb) immediately followed by
+/// a determiner (`"Paste **the** code, ..."`, `"Run **the** script,
+/// ..."`). See the module docs' "Imperative main clauses" section for the
+/// full rationale (including why the opener's own tag cannot be trusted to
+/// be `VB`) and why this rules out **promote** entirely rather than merely
+/// gating it.
+fn main_clause_is_imperative(tokens: &[TaggedToken]) -> bool {
+    let Some(opener) = tokens.first() else {
+        return false;
+    };
+    if !matches!(opener.pos.as_str(), "VB" | "NN" | "NN:UN") {
+        return false;
+    }
+    tokens
+        .get(1)
+        .is_some_and(|second| second.pos.as_str() == "DT")
+}
+
 /// `true` if the token immediately after the participle looks like the
 /// start of an object or complement phrase (a determiner, pronoun, or
 /// noun) — the conservative signal [`promote_patch`] requires before
@@ -181,25 +248,25 @@ fn has_object_like_continuation(tokens: &[TaggedToken], closure: &ClosureMatch) 
         })
 }
 
-/// `true` if [`promote_patch`] can produce a content-preserving patch for
-/// `closure` — the sole condition under which this rule ever fixes
-/// automatically. Both [`ParticipialCloserRule::scan`] (to decide a
-/// finding's tier) and [`ParticipialCloserRule::fix`] (to decide whether to
-/// actually build the patch) call this rather than duplicating the check,
-/// so the two can never disagree about which findings are safe to apply.
+/// `true` if [`promoted_verb`] can produce the **promote** strategy's
+/// inflected verb for `closure`, and the main clause is not itself
+/// imperative — the two conditions under which this rule ever fixes
+/// automatically (together with [`has_object_like_continuation`]). Both
+/// [`ParticipialCloserRule::scan`] (to decide a finding's tier) and
+/// [`ParticipialCloserRule::fix`] (to decide whether to actually build the
+/// patch) call this rather than duplicating the check, so the two can
+/// never disagree about which findings are safe to apply.
 fn is_safely_promotable(tokens: &[TaggedToken], closure: &ClosureMatch) -> bool {
-    has_object_like_continuation(tokens, closure) && promote_patch(tokens, closure).is_some()
+    !main_clause_is_imperative(tokens)
+        && has_object_like_continuation(tokens, closure)
+        && promoted_verb(tokens, closure).is_some()
 }
 
-/// The **promote** strategy's patch, or `None` if the participle's own
-/// lemma does not look reliably lemmatized (see below) — the caller treats
-/// that as "no safe fix" rather than falling back to deleting the clause
-/// (see the module docs' "Mixed tier, per finding" section).
+/// The **promote** strategy's inflected verb, or `None` if the
+/// participle's own lemma does not look reliably lemmatized — the caller
+/// treats that as "no safe fix" rather than falling back to deleting the
+/// clause (see the module docs' "Mixed tier, per finding" section).
 ///
-/// Replaces the comma through the participle itself with `". This
-/// <inflected-verb>"`, leaving everything after the participle (the
-/// object/complement phrase this strategy is only attempted when present,
-/// plus the sentence's own trailing punctuation) untouched in the source.
 /// The inflected verb comes from [`friction_nlp::inflect`]: `"uses"` (an
 /// unambiguously third-person-singular-present, all-lowercase template
 /// surface form) applied to the participle's own tagger-assigned lemma
@@ -214,17 +281,45 @@ fn is_safely_promotable(tokens: &[TaggedToken], closure: &ClosureMatch) -> bool 
 /// silently produce a garbled result (`"makings"` instead of `"makes"`)
 /// rather than a wrong-but-plausible one, so this is treated as "no safe
 /// fix", not attempted.
-fn promote_patch(tokens: &[TaggedToken], closure: &ClosureMatch) -> Option<Patch> {
+///
+/// Factored out from [`promote_patch`] so [`is_safely_promotable`] (which
+/// only needs to know whether a promotion is *possible*, not which subject
+/// it would use) does not need a [`StrategyRng`] of its own.
+fn promoted_verb(tokens: &[TaggedToken], closure: &ClosureMatch) -> Option<String> {
     let participle = &tokens[closure.participle_index];
     if participle.lemma.ends_with("ing") {
         return None;
     }
-    let inflected = inflect("uses", &participle.lemma)?;
+    inflect("uses", &participle.lemma)
+}
+
+/// Sentence-initial subjects the **promote** strategy alternates between —
+/// see the module docs' "Varying the promoted subject" section.
+const PROMOTED_SUBJECTS: [&str; 2] = ["This", "It"];
+
+/// The **promote** strategy's patch, or `None` if [`promoted_verb`]
+/// declines (see its own docs).
+///
+/// Replaces the comma through the participle itself with `". <subject>
+/// <inflected-verb>"` (`<subject>` chosen from [`PROMOTED_SUBJECTS`] by
+/// `strategy_rng` — see the module docs' "Varying the promoted subject"
+/// section), leaving everything after the participle (the
+/// object/complement phrase this strategy is only attempted when present,
+/// plus the sentence's own trailing punctuation) untouched in the source.
+fn promote_patch(
+    tokens: &[TaggedToken],
+    closure: &ClosureMatch,
+    strategy_rng: &mut StrategyRng,
+) -> Option<Patch> {
+    let inflected = promoted_verb(tokens, closure)?;
+    let subject = *strategy_rng
+        .choose(&PROMOTED_SUBJECTS)
+        .expect("PROMOTED_SUBJECTS is non-empty");
     let start = closure.comma_start(tokens);
     let end = closure.participle_end(tokens);
     Some(Patch::new(
         start..end,
-        format!(". This {inflected}"),
+        format!(". {subject} {inflected}"),
         RULE_ID,
         Tier::Fix,
     ))
@@ -309,7 +404,7 @@ impl Rule for ParticipialCloserRule {
         &self,
         finding: &Finding,
         ctx: &RuleContext<'_>,
-        _strategy_rng: &mut StrategyRng,
+        strategy_rng: &mut StrategyRng,
     ) -> Option<Patch> {
         // Only ever applies the content-preserving **promote** strategy —
         // see the module docs' "Mixed tier, per finding" section. A
@@ -361,7 +456,7 @@ impl Rule for ParticipialCloserRule {
         if !is_safely_promotable(&tokens, &closure) {
             return None;
         }
-        promote_patch(&tokens, &closure)
+        promote_patch(&tokens, &closure, strategy_rng)
     }
 }
 
@@ -519,6 +614,43 @@ mod tests {
     }
 
     // -----------------------------------------------------------------
+    // main_clause_is_imperative
+    // -----------------------------------------------------------------
+
+    #[test]
+    fn main_clause_is_imperative_true_for_a_bare_base_form_opener() {
+        let (_source, tokens) = build_tokens(&[
+            ("Paste", "VB", "paste"),
+            ("the", "DT", "the"),
+            ("code", "NN", "code"),
+            (",", ",", ","),
+            ("adjusting", "VBG", "adjust"),
+            ("paths", "NNS", "path"),
+            (".", ".", "."),
+        ]);
+        assert!(main_clause_is_imperative(&tokens));
+    }
+
+    #[test]
+    fn main_clause_is_imperative_false_for_a_declarative_opener() {
+        let (_source, tokens) = build_tokens(&[
+            ("It", "PRP", "it"),
+            ("shipped", "VBD", "ship"),
+            (",", ",", ","),
+            ("making", "VBG", "make"),
+            ("it", "PRP", "it"),
+            ("easier", "JJR", "easy"),
+            (".", ".", "."),
+        ]);
+        assert!(!main_clause_is_imperative(&tokens));
+    }
+
+    #[test]
+    fn main_clause_is_imperative_false_for_an_empty_token_list() {
+        assert!(!main_clause_is_imperative(&[]));
+    }
+
+    // -----------------------------------------------------------------
     // gate()
     // -----------------------------------------------------------------
 
@@ -600,9 +732,13 @@ mod tests {
     fn fix_with_a_clear_object_promotes_the_closer_into_its_own_sentence() {
         let source = "The team shipped the release, allowing customers to upgrade early.\n";
         let applied = fix_first(source).expect("expected a patch");
+        // `fix_first` seeds `StrategyRng::from_seed(0)`, which
+        // `PROMOTED_SUBJECTS` resolves to `"It"` — see the module docs'
+        // "Varying the promoted subject" section for why the subject is no
+        // longer always `"This"`.
         assert_eq!(
             applied,
-            "The team shipped the release. This allows customers to upgrade early.\n"
+            "The team shipped the release. It allows customers to upgrade early.\n"
         );
     }
 
@@ -625,9 +761,11 @@ mod tests {
             Tier::Fix,
             "a closer with a clear object continuation is always safely promotable"
         );
-        // Exercise every seed, not just one: this rule no longer draws a
-        // strategy from `strategy_rng` at all, so every seed must produce
-        // the exact same content-preserving patch.
+        // Exercise every seed, not just one: `promote_patch` now alternates
+        // its subject between `"This"`/`"It"` per `strategy_rng` (see the
+        // module docs' "Varying the promoted subject" section), so every
+        // seed must produce one of exactly those two content-preserving
+        // patches — never anything else, and never a dropped claim.
         for seed in 0..50u64 {
             let mut rng = StrategyRng::from_seed(seed);
             let patch = rule
@@ -635,10 +773,12 @@ mod tests {
                 .expect("a safely-promotable finding always yields a patch");
             let mut applied = source.to_string();
             applied.replace_range(patch.range, &patch.replacement);
-            assert_eq!(
-                applied,
-                "The outage lasted six hours. This exposes a single point of failure in the primary datacenter's power supply.\n",
-                "seed {seed}: the outage's root-cause claim must survive the fix, never be silently deleted"
+            assert!(
+                applied
+                    == "The outage lasted six hours. This exposes a single point of failure in the primary datacenter's power supply.\n"
+                    || applied
+                        == "The outage lasted six hours. It exposes a single point of failure in the primary datacenter's power supply.\n",
+                "seed {seed}: the outage's root-cause claim must survive the fix, never be silently deleted; got {applied:?}"
             );
         }
     }
@@ -657,6 +797,34 @@ mod tests {
         let rule = ParticipialCloserRule::new();
         let finding = rule.scan(&ctx).into_iter().next().expect("a finding");
         assert_eq!(finding.tier, Tier::Suggest);
+        for seed in 0..20u64 {
+            let mut rng = StrategyRng::from_seed(seed);
+            assert!(rule.fix(&finding, &ctx, &mut rng).is_none());
+        }
+    }
+
+    /// Regression test for the finding that promoting an imperative main
+    /// clause's closer manufactures a false "this happens automatically"
+    /// claim and drops the reader-directed instruction (`"Paste the code,
+    /// adjusting paths if necessary."` -> `"Paste the code. This adjusts
+    /// paths if needed."`, with `"This"` left without a valid antecedent):
+    /// an imperative main clause is always Suggest tier, `fix` always
+    /// declines, for every seed — even though the closer otherwise has a
+    /// clear object continuation and would normally be safely promotable.
+    #[test]
+    fn fix_never_auto_promotes_an_imperative_main_clauses_closer() {
+        let source = "Paste the following code into the script, adjusting paths if necessary.\n";
+        let doc = document(source);
+        let envelope = permissive_envelope();
+        let tagger = friction_nlp::NlpruleTagger::new().expect("embedded model loads");
+        let ctx = RuleContext::new(&doc, &tagger, "blog", &envelope);
+        let rule = ParticipialCloserRule::new();
+        let finding = rule.scan(&ctx).into_iter().next().expect("a finding");
+        assert_eq!(
+            finding.tier,
+            Tier::Suggest,
+            "an imperative main clause's closer must never be auto-promoted"
+        );
         for seed in 0..20u64 {
             let mut rng = StrategyRng::from_seed(seed);
             assert!(rule.fix(&finding, &ctx, &mut rng).is_none());

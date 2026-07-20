@@ -174,7 +174,7 @@ expression: stdout
     },
     {
       "rule": "lexical.substitution",
-      "tier": "fix",
+      "tier": "suggest",
       "start": 1089,
       "end": 1097,
       "line": 16,

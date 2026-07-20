@@ -59,7 +59,7 @@ lexical.substitution
 
 lexical.substitution
 
-  ⚠ "specific" reads as machine-favored register (mined llm-favored (MINING.md); particular is a plainer near-synonym); "particular" is a plain near-synonym
+  × "specific" reads as machine-favored register (mined llm-favored (MINING.md); particular is a plainer near-synonym); "particular" is a plain near-synonym
    ╭─[corpus/llm/blog/152f7fa1159f4910.md:3:353]
  2 │ 
  3 │ When starting a new venture, especially with limited resources, selecting the right database can significantly impact your project’s success. For a two-person startup, deciding between PostgreSQL and MySQL is crucial as it affects both technical and operational aspects of the business. This blog post aims to provide an in-depth comparison based on specific features and operational tradeoffs that drove our decision.
@@ -191,7 +191,7 @@ lexical.substitution
 
 lexical.substitution
 
-  ⚠ "specific" reads as machine-favored register (mined llm-favored (MINING.md); particular is a plainer near-synonym); "particular" is a plain near-synonym
+  × "specific" reads as machine-favored register (mined llm-favored (MINING.md); particular is a plainer near-synonym); "particular" is a plain near-synonym
     ╭─[corpus/llm/blog/152f7fa1159f4910.md:43:189]
  42 │ - **Query Optimization:** PostgreSQL has a powerful query optimizer that can handle complex queries efficiently. It supports advanced indexing techniques and parallel processing.
  43 │ - **Customizability:** The ability to customize functions and operators allows for fine-grained control over data manipulation processes, which is beneficial for optimizing performance in specific use cases.
@@ -235,7 +235,7 @@ connective.surgery
 
 lexical.substitution
 
-  ⚠ "specific" reads as machine-favored register (mined llm-favored (MINING.md); particular is a plainer near-synonym); "particular" is a plain near-synonym
+  × "specific" reads as machine-favored register (mined llm-favored (MINING.md); particular is a plainer near-synonym); "particular" is a plain near-synonym
     ╭─[corpus/llm/blog/152f7fa1159f4910.md:67:357]
  66 │ 
  67 │ After carefully weighing the pros and cons, we chose PostgreSQL for our two-person startup’s first production database. The combination of advanced features, robust data integrity, superior performance in complex query operations, and no licensing fees made it an ideal choice. However, every project is unique, and your decision should be based on your specific needs and constraints.

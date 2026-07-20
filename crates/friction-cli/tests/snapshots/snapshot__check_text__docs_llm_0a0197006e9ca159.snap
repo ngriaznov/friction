@@ -48,12 +48,12 @@ lexical.substitution
 
 symmetry.participial_closer
 
-  ⚠ sentence-final participial closer reads as an LLM tic; promoting it to its own sentence preserves the claim
+  × sentence-final participial closer reads as an LLM tic, but it has no clear object to promote; deleting it cannot be verified to preserve the sentence's claim, so this needs a human decision
     ╭─[corpus/llm/docs/0a0197006e9ca159.md:38:44]
  37 │ 
  38 │ 2. Paste the following code into the script, adjusting paths if necessary:
     ·                                            ───────────────┬──────────────
-    ·                                                           ╰── sentence-final participial closer reads as an LLM tic; promoting it to its own sentence preserves the claim
+    ·                                                           ╰── sentence-final participial closer reads as an LLM tic, but it has no clear object to promote; deleting it cannot be verified to preserve the sentence's claim, so this needs a human decision
  39 │ 
     ╰────
 

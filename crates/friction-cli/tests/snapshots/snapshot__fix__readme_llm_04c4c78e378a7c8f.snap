@@ -17,7 +17,7 @@ expression: stdout
 
 * **Folder Organization:** Categorize your feeds into folders for easy navigation and management.
 * **Read/Unread Tracking:** Mark articles as read to keep track of your progress and quickly identify new content.
-* **Full-Text Search:**  Search through cached articles using keywords, finding particular information instantly.
+* **Full-Text Search:**  Search through cached articles using keywords, finding specific information instantly.
 * **OPML Import/Export:** Seamlessly import and export your OPML feed subscriptions for easy migration between platforms.
 
 **Installation & Setup:**

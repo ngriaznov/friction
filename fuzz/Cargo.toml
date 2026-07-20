@@ -1,0 +1,46 @@
+[package]
+name = "friction-fuzz"
+version = "0.0.0"
+publish = false
+edition = "2024"
+
+[package.metadata]
+cargo-fuzz = true
+
+# Deliberately outside the workspace's `members = ["crates/*"]` glob, and
+# given its own empty `[workspace]` table below so Cargo never tries to
+# fold it into the root workspace: fuzz targets pull in `libfuzzer-sys`
+# and `arbitrary`, dependencies the rest of the project has no other
+# reason to resolve, and cargo-fuzz's own build flags (sanitizer
+# instrumentation, `-Z build-std` on nightly) are not something the
+# ordinary `cargo build`/`cargo test` workflow should ever pick up.
+[workspace]
+
+[dependencies]
+libfuzzer-sys = "0.4"
+arbitrary = { version = "1", features = ["derive"] }
+
+friction-parse = { path = "../crates/friction-parse" }
+friction-apply = { path = "../crates/friction-apply" }
+friction-cli = { path = "../crates/friction-cli" }
+
+[[bin]]
+name = "fuzz_parse"
+path = "fuzz_targets/fuzz_parse.rs"
+test = false
+doc = false
+bench = false
+
+[[bin]]
+name = "fuzz_fix_document"
+path = "fuzz_targets/fuzz_fix_document.rs"
+test = false
+doc = false
+bench = false
+
+[[bin]]
+name = "fuzz_sarif_line_col"
+path = "fuzz_targets/fuzz_sarif_line_col.rs"
+test = false
+doc = false
+bench = false

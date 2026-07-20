@@ -134,6 +134,67 @@
 //! sentence's asserted proposition is unaffected), and out of scope for a
 //! single-token lexical substitution; fixing the surrounding article would
 //! belong to a grammar-repair pass, not this rule.
+//!
+//! # Guards against context that breaks meaning
+//!
+//! Three narrow, purely lexical/orthographic guards — [`SubstitutionRule::scan`] never emits
+//! a [`Finding`] at all for a match any of them catches, so nothing
+//! downstream ever has to know about the excluded case:
+//!
+//! - **Passive/perfect participle mismatch** ([`PAST_FORM_UNSAFE`]).
+//!   [`friction_nlp::inflect`]'s `Form::Past` bucket covers both simple
+//!   past and past participle without distinguishing them (they are
+//!   identical for every *regular* verb); for an *irregular* replacement
+//!   lemma where the two differ (`"do"` -> `"did"`/`"done"`), reproducing
+//!   the matched word's own past-tense *shape* on the replacement is only
+//!   safe when the surrounding context also wants simple past. A passive
+//!   or perfect construction (`"can be accomplished"`, `"has been
+//!   accomplished"`) wants the participle instead, and `"did"` in that
+//!   slot is ungrammatical (`"can be did"`). Detecting the true syntactic
+//!   construction would need a parser this rule doesn't have, but the
+//!   *lexical* trigger is checkable: a form of `"be"`/`"have"` within the
+//!   two words immediately before the match (`"can **be**
+//!   accomplished"`, `"was **successfully** **accomplished**"`). Any
+//!   table entry named in [`PAST_FORM_UNSAFE`] skips scanning its own past
+//!   form (only) when that trigger is present — a simple, non-passive
+//!   past-tense use (`"The team accomplished the goal."`) is unaffected
+//!   and still fixed normally, since `"did"` is grammatical there.
+//! - **Capitalized-span (title/proper-noun) guard**
+//!   ([`is_part_of_capitalized_span`]). A lemma that happens to be
+//!   Title-Cased *and* sits immediately next to another Title-Cased word
+//!   is very likely part of a multi-word proper noun or heading-style
+//!   title (`"Solar System **Showcase**"`) rather than an ordinary word
+//!   this rule should touch — swapping it renames the entity. A lone
+//!   sentence-initial capital (every sentence has one) does not trigger
+//!   this on its own; it takes a *run* of two or more adjacent Title-Case
+//!   words, a purely orthographic signal that costs nothing beyond the
+//!   word spans [`SubstitutionRule::scan`] already computes.
+//! - **Per-lemma collocation guard** ([`COLLOCATION_GUARDS`]). A handful
+//!   of this table's lemmas are only unsafe to swap immediately before one
+//!   specific following word, where the source forms a fixed technical
+//!   collocation the replacement does not: `"robust **to** noise"` (a
+//!   standard "tolerant of" sense) does not survive becoming `"solid to
+//!   noise"` — `"solid"` has no `to`-complement in that sense, even though
+//!   `robust -> solid` reads fine everywhere else (`"robust error
+//!   handling"` -> `"solid error handling"`).
+//!
+//! # A whole-entry demotion: fixer-introduced register fingerprint
+//!
+//! Unlike the three guards above (each narrows a *specific, detectable*
+//! context), [`SUGGEST_ONLY`] demotes an entry's [`Finding`]s to
+//! [`Tier::Suggest`] wholesale — flagged for a human, never auto-applied.
+//! `specific -> particular` is the one table entry so demoted: applying
+//! this table's single, fixed 1:1 replacement at corpus scale measurably
+//! shifted `"particular"`'s own density into llm-favored territory in its
+//! own right (`corpus/FINGERPRINT.md`'s self-fingerprint check), newly
+//! entering the top-30 fixed-llm-favored n-gram list — relabeling one
+//! machine-favored word as another, not neutralizing the register the way
+//! this rule's every other entry does. There is no per-occurrence context
+//! that distinguishes a "safe to auto-fix" instance of `specific` from one
+//! that would inflate `particular`'s own rate — the effect is inherent to
+//! applying one fixed replacement at scale, not a detectable pattern, so
+//! (unlike the three guards above) it cannot be narrowed away; it can only
+//! be taken out of the auto-fix path.
 
 use std::collections::BTreeMap;
 use std::sync::LazyLock;
@@ -598,6 +659,109 @@ static SUBSTITUTION_FORM_INDEX: LazyLock<BTreeMap<String, usize>> = LazyLock::ne
     map
 });
 
+/// Lemmas whose own past-tense/past-participle surface form is skipped by
+/// [`SubstitutionRule::scan`] when immediately preceded by a participle-requiring auxiliary
+/// — see the module docs' "Passive/perfect participle mismatch" section.
+/// Every other surface form of these lemmas (base, third-person-singular,
+/// gerund) is unaffected; a non-passive/perfect past-tense use is also
+/// unaffected (no auxiliary trigger present) and still matches normally.
+const PAST_FORM_UNSAFE: &[&str] = &["accomplish"];
+
+/// Forms of `"be"`/`"have"` that require a following verb to be a *past
+/// participle*, not a simple past — the lexical trigger
+/// [`is_unsafe_participle_context`] checks for, immediately before (or one
+/// word before, tolerating a single intervening adverb: `"was
+/// successfully accomplished"`) a [`PAST_FORM_UNSAFE`] match.
+const PARTICIPLE_REQUIRING_AUXILIARIES: &[&str] = &[
+    "am", "is", "are", "was", "were", "be", "been", "being", "has", "have", "had", "having",
+];
+
+/// `true` if `spans[index]` is a [`PAST_FORM_UNSAFE`] entry's own past
+/// form, immediately preceded (within one intervening word) by a
+/// [`PARTICIPLE_REQUIRING_AUXILIARIES`] form — see the module docs'
+/// "Passive/perfect participle mismatch" section. `spans` is the same
+/// word-span list [`SubstitutionRule::scan`] already computed for the whole sentence;
+/// looking at `spans[index - 1]`/`spans[index - 2]` (both still within the
+/// same sentence's own text, since `spans` never crosses a sentence
+/// boundary) costs nothing extra.
+fn is_unsafe_participle_context(
+    entry: &SubstitutionEntry,
+    word_lower: &str,
+    spans: &[(std::ops::Range<usize>, String)],
+    index: usize,
+) -> bool {
+    if !PAST_FORM_UNSAFE.contains(&entry.lemma) {
+        return false;
+    }
+    let Some(past_form) = inflect("used", entry.lemma) else {
+        return false;
+    };
+    if word_lower != past_form {
+        return false;
+    }
+    let word_is_auxiliary = |back: usize| {
+        index
+            .checked_sub(back)
+            .and_then(|i| spans.get(i))
+            .is_some_and(|(_, w)| PARTICIPLE_REQUIRING_AUXILIARIES.contains(&w.as_str()))
+    };
+    word_is_auxiliary(1) || word_is_auxiliary(2)
+}
+
+/// `true` if `text[range]`'s first character is uppercase — used only to
+/// detect Title-Case spans (see [`is_part_of_capitalized_span`]), not to
+/// classify a word's actual grammatical role.
+fn starts_uppercase(text: &str, range: &std::ops::Range<usize>) -> bool {
+    text[range.clone()]
+        .chars()
+        .next()
+        .is_some_and(char::is_uppercase)
+}
+
+/// `true` if `spans[index]`'s matched word is itself Title-Case *and* at
+/// least one immediately adjacent word (previous or next) is too — see the
+/// module docs' "Capitalized-span (title/proper-noun) guard" section. A
+/// lone sentence-initial capital (every sentence has one) never triggers
+/// this alone, since it takes a *neighbor* that is also capitalized.
+fn is_part_of_capitalized_span(
+    text: &str,
+    spans: &[(std::ops::Range<usize>, String)],
+    index: usize,
+) -> bool {
+    if !starts_uppercase(text, &spans[index].0) {
+        return false;
+    }
+    let prev_capped = index > 0 && starts_uppercase(text, &spans[index - 1].0);
+    let next_capped = spans
+        .get(index + 1)
+        .is_some_and(|(range, _)| starts_uppercase(text, range));
+    prev_capped || next_capped
+}
+
+/// Per-lemma `(lemma, following word)` collocations this rule must never
+/// break — see the module docs' "Per-lemma collocation guard" section.
+const COLLOCATION_GUARDS: &[(&str, &str)] = &[("robust", "to")];
+
+/// `true` if `entry`'s lemma is immediately followed by a word named in
+/// [`COLLOCATION_GUARDS`] for it.
+fn is_guarded_collocation(
+    entry: &SubstitutionEntry,
+    spans: &[(std::ops::Range<usize>, String)],
+    index: usize,
+) -> bool {
+    COLLOCATION_GUARDS.iter().any(|&(lemma, following)| {
+        entry.lemma == lemma
+            && spans
+                .get(index + 1)
+                .is_some_and(|(_, next_word)| next_word == following)
+    })
+}
+
+/// Lemmas whose [`Finding`]s are demoted to [`Tier::Suggest`] (flagged,
+/// never auto-applied) rather than this table's default [`Tier::Fix`] —
+/// see the module docs' "A whole-entry demotion" section.
+const SUGGEST_ONLY: &[&str] = &["specific"];
+
 /// Splits `text` into `(byte range, lowercase text)` pairs for each
 /// maximal run of alphabetic characters — the same word-span shape
 /// `friction-metrics`' own tokenizers use, kept local here since this
@@ -671,11 +835,24 @@ impl Rule for SubstitutionRule {
             let Ok(text) = document.text(&sentence.range) else {
                 continue;
             };
-            for (relative, word_lower) in word_spans(text) {
-                let Some(&entry_index) = SUBSTITUTION_FORM_INDEX.get(&word_lower) else {
+            let spans = word_spans(text);
+            for index in 0..spans.len() {
+                let (relative, word_lower) = &spans[index];
+                let Some(&entry_index) = SUBSTITUTION_FORM_INDEX.get(word_lower) else {
                     continue;
                 };
                 let entry = &SUBSTITUTIONS[entry_index];
+                if is_unsafe_participle_context(entry, word_lower, &spans, index)
+                    || is_part_of_capitalized_span(text, &spans, index)
+                    || is_guarded_collocation(entry, &spans, index)
+                {
+                    continue;
+                }
+                let tier = if SUGGEST_ONLY.contains(&entry.lemma) {
+                    Tier::Suggest
+                } else {
+                    Tier::Fix
+                };
                 let start = sentence.range.start + relative.start;
                 let end = sentence.range.start + relative.end;
                 findings.push(Finding::new(
@@ -688,7 +865,7 @@ impl Rule for SubstitutionRule {
                         entry.note,
                         entry.replacement
                     ),
-                    Tier::Fix,
+                    tier,
                 ));
             }
         }
@@ -701,6 +878,14 @@ impl Rule for SubstitutionRule {
         ctx: &RuleContext<'_>,
         _strategy_rng: &mut StrategyRng,
     ) -> Option<Patch> {
+        // Defense-in-depth: a Suggest-tier finding (see `SUGGEST_ONLY`)
+        // never gets a patch, even if some future caller invokes `fix`
+        // without going through the driver's own tier check first — the
+        // same posture `ParticipialCloserRule::fix` takes for its own
+        // Suggest-tier findings.
+        if finding.tier != Tier::Fix {
+            return None;
+        }
         let source = ctx.document().source();
         let surface = &source[finding.range.clone()];
         let word_lower = surface.to_ascii_lowercase();
@@ -864,6 +1049,125 @@ mod tests {
                  {findings:?}"
             );
         }
+    }
+
+    // ---------------------------------------------------------------
+    // Meaning-preservation guards (regression tests)
+    // ---------------------------------------------------------------
+
+    /// Regression test for the finding that `accomplish -> do` misconjugates
+    /// a passive/perfect construction (`"can be accomplished"` -> `"can be
+    /// did"` instead of `"can be done"`): any form of `"be"`/`"have"`
+    /// within one word of the matched past-tense form suppresses the
+    /// finding entirely.
+    #[test]
+    fn scan_skips_accomplished_directly_after_an_auxiliary() {
+        for source in [
+            "This can be accomplished quickly.",
+            "This has been accomplished.",
+            "It was successfully accomplished.",
+        ] {
+            let doc = document(source);
+            let envelope = MapEnvelope::new();
+            let ctx = RuleContext::new(&doc, &NoopTagger, "blog", &envelope);
+            assert!(
+                SubstitutionRule::new().scan(&ctx).is_empty(),
+                "expected no findings for {source:?}"
+            );
+        }
+    }
+
+    /// A non-passive, non-perfect past-tense use of `accomplish` (no
+    /// auxiliary trigger) is unaffected and still fixed normally —
+    /// `"did"` is grammatical there.
+    #[test]
+    fn scan_still_fixes_accomplished_without_an_auxiliary() {
+        let source = "The team accomplished the goal.";
+        let doc = document(source);
+        let envelope = MapEnvelope::new();
+        let ctx = RuleContext::new(&doc, &NoopTagger, "blog", &envelope);
+        let rule = SubstitutionRule::new();
+        let finding = &rule.scan(&ctx)[0];
+        let mut rng = StrategyRng::from_seed(0);
+        let patch = rule
+            .fix(finding, &ctx, &mut rng)
+            .expect("finding has a fix");
+        assert_eq!(apply(source, &patch), "The team did the goal.");
+    }
+
+    /// Regression test for the finding that `showcase -> show` renamed the
+    /// proper-noun event title "Solar System Showcase" to "Solar System
+    /// Show": a Title-Case match adjacent to another Title-Case word is
+    /// skipped.
+    #[test]
+    fn scan_skips_showcase_inside_a_capitalized_title_span() {
+        let source = "- **March 24th - Solar System Showcase**";
+        let doc = document(source);
+        let envelope = MapEnvelope::new();
+        let ctx = RuleContext::new(&doc, &NoopTagger, "blog", &envelope);
+        assert!(SubstitutionRule::new().scan(&ctx).is_empty());
+    }
+
+    /// An ordinary, non-title mid-sentence use of `showcase` is unaffected.
+    #[test]
+    fn scan_still_fixes_showcase_outside_a_title_span() {
+        let source = "We will showcase our results at the meeting.";
+        let doc = document(source);
+        let envelope = MapEnvelope::new();
+        let ctx = RuleContext::new(&doc, &NoopTagger, "blog", &envelope);
+        let rule = SubstitutionRule::new();
+        let finding = &rule.scan(&ctx)[0];
+        let mut rng = StrategyRng::from_seed(0);
+        let patch = rule
+            .fix(finding, &ctx, &mut rng)
+            .expect("finding has a fix");
+        assert_eq!(
+            apply(source, &patch),
+            "We will show our results at the meeting."
+        );
+    }
+
+    /// Regression test for the finding that `robust -> solid` broke the
+    /// `"robust to X"` collocation (`"solid to X"` is not idiomatic).
+    #[test]
+    fn scan_skips_robust_before_the_to_collocation() {
+        let source = "Our fingerprint is much more robust to these manipulations.";
+        let doc = document(source);
+        let envelope = MapEnvelope::new();
+        let ctx = RuleContext::new(&doc, &NoopTagger, "blog", &envelope);
+        assert!(SubstitutionRule::new().scan(&ctx).is_empty());
+    }
+
+    /// `robust` outside the `"robust to"` collocation is unaffected.
+    #[test]
+    fn scan_still_fixes_robust_outside_the_to_collocation() {
+        let source = "This is a robust solution.";
+        let doc = document(source);
+        let envelope = MapEnvelope::new();
+        let ctx = RuleContext::new(&doc, &NoopTagger, "blog", &envelope);
+        let rule = SubstitutionRule::new();
+        let finding = &rule.scan(&ctx)[0];
+        let mut rng = StrategyRng::from_seed(0);
+        let patch = rule
+            .fix(finding, &ctx, &mut rng)
+            .expect("finding has a fix");
+        assert_eq!(apply(source, &patch), "This is a solid solution.");
+    }
+
+    /// `specific -> particular` is flagged but never auto-applied — see the
+    /// module docs' "A whole-entry demotion" section.
+    #[test]
+    fn scan_demotes_specific_to_suggest_tier_and_fix_declines_it() {
+        let source = "We need specific requirements from the client.";
+        let doc = document(source);
+        let envelope = MapEnvelope::new();
+        let ctx = RuleContext::new(&doc, &NoopTagger, "blog", &envelope);
+        let rule = SubstitutionRule::new();
+        let findings = rule.scan(&ctx);
+        assert_eq!(findings.len(), 1);
+        assert_eq!(findings[0].tier, Tier::Suggest);
+        let mut rng = StrategyRng::from_seed(0);
+        assert!(rule.fix(&findings[0], &ctx, &mut rng).is_none());
     }
 
     // ---------------------------------------------------------------
@@ -1066,9 +1370,17 @@ mod tests {
 
             let fixed_doc = document(&fixed);
             let fixed_ctx = RuleContext::new(&fixed_doc, &NoopTagger, "blog", &envelope);
+            // A Suggest-tier finding (`SUGGEST_ONLY`, e.g. `specific`) is
+            // never fixed, so it is expected to still be present after
+            // fixing — a stable diagnostic, not something a second scan
+            // could "re-find" as new. Idempotence here is specifically
+            // about Fix-tier findings never reappearing, the same
+            // distinction `symmetry::participial_closer`'s own idempotence
+            // test draws for its own Suggest-tier findings.
             assert!(
-                rule.scan(&fixed_ctx).is_empty(),
-                "expected no findings left after fixing {source:?}, got fixed text {fixed:?}"
+                rule.scan(&fixed_ctx).iter().all(|f| f.tier != Tier::Fix),
+                "expected no Fix-tier findings left after fixing {source:?}, got fixed text \
+                 {fixed:?}"
             );
         }
     }

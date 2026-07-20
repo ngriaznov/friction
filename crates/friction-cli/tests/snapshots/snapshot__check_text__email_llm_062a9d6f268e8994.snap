@@ -112,17 +112,6 @@ symmetry.triad_reduction
  31 │   
     ╰────
 
-lexical.substitution
-
-  ⚠ "Showcase" reads as machine-favored register (showcase is a more formal synonym of show); "show" is a plain near-synonym
-    ╭─[corpus/llm/email/062a9d6f268e8994.md:32:31]
- 31 │   
- 32 │ - **March 24th - Solar System Showcase**
-    ·                               ────┬───
-    ·                                   ╰── "Showcase" reads as machine-favored register (showcase is a more formal synonym of show); "show" is a plain near-synonym
- 33 │   We’ll focus on observing the inner planets – Mercury, Venus, Mars, and Saturn. Bring your binoculars or telescopes if you have any!
-    ╰────
-
 symmetry.triad_reduction
 
   × flat "X, Y, and Z" triad with matching-class items reads as an LLM tic; consider dropping the weakest item or restructuring

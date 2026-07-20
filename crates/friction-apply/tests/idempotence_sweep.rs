@@ -1,7 +1,7 @@
 //! Corpus-wide idempotence sweep: `fix_document(fix_document(x)) ==
 //! fix_document(x)`, byte-for-byte, over every corpus document.
 //!
-//! Two variants, mirroring `friction-nlp`'s own `corpus_determinism`
+//! Three variants, mirroring `friction-nlp`'s own `corpus_determinism`
 //! test:
 //!
 //! - A fast, always-on smoke check over the first 30 corpus documents
@@ -17,6 +17,17 @@
 //!
 //!   which prints a running count and, on any failure, the offending
 //!   doc's path plus the byte offset of the first output divergence.
+//! - The sealed-holdout-only check (`idempotence_sweep_holdout`), also
+//!   `#[ignore]`d by default, filtering to exactly the manifest's
+//!   `split: holdout` documents (a subset `idempotence_sweep_full`
+//!   already covers as part of the whole corpus — this variant exists so
+//!   the holdout evaluation has its own explicit, holdout-scoped
+//!   idempotence result to report, rather than inferring it from the
+//!   full sweep's superset). Run it explicitly with:
+//!
+//!   ```text
+//!   cargo test -p friction-apply --test idempotence_sweep -- --ignored idempotence_sweep_holdout --nocapture
+//!   ```
 //!
 //! # Genre
 //!
@@ -165,6 +176,56 @@ fn idempotence_sweep_full() {
         let genre = genre_of(path);
         assert_idempotent(&engine, path, &source, genre);
         if (i + 1) % 100 == 0 || i + 1 == docs.len() {
+            println!("  ...{}/{} idempotent", i + 1, docs.len());
+        }
+    }
+}
+
+/// Every `split: holdout` manifest document's path and genre (110 as of
+/// this writing: 60 human, 50 llm), sorted by manifest id for a
+/// deterministic order. Reads genre from the manifest record directly
+/// (not the parent directory name, unlike [`genre_of`]) since this
+/// variant needs the manifest anyway to find the holdout split at all.
+///
+/// # Panics
+/// Panics if the manifest doesn't exist or fails to parse — a missing or
+/// malformed manifest is a fixture bug this sweep should fail loudly on.
+fn holdout_docs() -> Vec<(PathBuf, String)> {
+    use corpus_tool::corpus_layout::relpath;
+    use corpus_tool::manifest::{Split, read_manifest};
+
+    let root = corpus_root();
+    let manifest_path = root.join("manifest.jsonl");
+    let mut records = read_manifest(&manifest_path)
+        .expect("manifest.jsonl must read")
+        .expect("manifest.jsonl must exist")
+        .into_iter()
+        .filter(|r| r.split == Some(Split::Holdout))
+        .collect::<Vec<_>>();
+    records.sort_by(|a, b| a.id.cmp(&b.id));
+    records
+        .iter()
+        .map(|r| (root.join(relpath(r)), r.genre.to_string()))
+        .collect()
+}
+
+/// Sealed-holdout-only check: every `split: holdout` manifest document —
+/// a subset [`idempotence_sweep_full`] already covers as part of the
+/// whole corpus, kept as its own variant so the holdout evaluation has an
+/// explicit, holdout-scoped idempotence result to report rather than one
+/// inferred from the full sweep's superset. `#[ignore]`d by default — see
+/// module docs for the explicit run command.
+#[test]
+#[ignore = "runs the fixpoint driver twice over every holdout document; see module docs for the explicit invocation"]
+fn idempotence_sweep_holdout() {
+    let engine = FixEngine::new().expect("embedded tagger model must load");
+    let docs = holdout_docs();
+    println!("idempotence sweep (holdout): {} documents", docs.len());
+    for (i, (path, genre)) in docs.iter().enumerate() {
+        let source = fs::read_to_string(path)
+            .unwrap_or_else(|e| panic!("{}: failed to read: {e}", path.display()));
+        assert_idempotent(&engine, path, &source, genre);
+        if (i + 1) % 25 == 0 || i + 1 == docs.len() {
             println!("  ...{}/{} idempotent", i + 1, docs.len());
         }
     }

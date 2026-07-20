@@ -210,7 +210,7 @@ expression: stdout
     },
     {
       "rule": "lexical.substitution",
-      "tier": "fix",
+      "tier": "suggest",
       "start": 2358,
       "end": 2366,
       "line": 41,
@@ -219,7 +219,7 @@ expression: stdout
     },
     {
       "rule": "lexical.substitution",
-      "tier": "fix",
+      "tier": "suggest",
       "start": 3010,
       "end": 3018,
       "line": 56,

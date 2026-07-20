@@ -92,7 +92,7 @@ lexical.substitution
 
 lexical.substitution
 
-  ⚠ "specific" reads as machine-favored register (mined llm-favored (MINING.md); particular is a plainer near-synonym); "particular" is a plain near-synonym
+  × "specific" reads as machine-favored register (mined llm-favored (MINING.md); particular is a plainer near-synonym); "particular" is a plain near-synonym
     ╭─[corpus/llm/readme/0859e6e20fb1cf84.md:41:118]
  40 │ 
  41 │ 2. **Customization**: You can specify custom thumbnail dimensions or formats by editing the `_config.yml` file under specific gallery directories. For example:
@@ -103,7 +103,7 @@ lexical.substitution
 
 lexical.substitution
 
-  ⚠ "specific" reads as machine-favored register (mined llm-favored (MINING.md); particular is a plainer near-synonym); "particular" is a plain near-synonym
+  × "specific" reads as machine-favored register (mined llm-favored (MINING.md); particular is a plainer near-synonym); "particular" is a plain near-synonym
     ╭─[corpus/llm/readme/0859e6e20fb1cf84.md:56:178]
  55 │ 
  56 │ 2. **Customization**: If you prefer a different source for captions or wish to override automatic extraction, simply add a `caption` field in the markdown front matter for that specific image:

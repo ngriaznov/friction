@@ -1,14 +1,60 @@
 //! The fixpoint driver: repeated rounds of parse -> metrics -> gate -> scan
 //! -> fix -> apply, bounded and reported.
 
-use std::collections::BTreeSet;
+use std::cell::RefCell;
+use std::collections::{BTreeSet, HashMap};
 
 use friction_core::{Document, Finding, Patch, RuleId, Tier, span};
-use friction_nlp::{Segmenter, Tagger};
+use friction_nlp::{Segmenter, TaggedToken, Tagger};
 use friction_plan::Plan;
 use friction_rules::{Gate, GenreEnvelope, Rule, RuleContext, RuleFamily, StrategyRng};
 
 use crate::conflict::{Candidate, apply_patches, resolve_round};
+
+/// A per-round memoizing wrapper over a [`Tagger`].
+///
+/// One round's document text is fixed for the round's whole duration (see
+/// [`run_round`]), but several independent call sites each tag it from
+/// scratch: `friction-metrics::compute`'s own tagger-dependent metrics
+/// (`triad_rate`, `bullet_parallelism`, `participial_closer_rate` each walk
+/// every sentence and tag it independently) and every active rule's own
+/// `scan`/`fix` step (several of which call
+/// [`friction_rules::RuleContext::tag_sentence`] once per sentence they
+/// examine, and multiple rules often examine the same sentence). Left
+/// unmemoized, a document's sentences each get tagged — the most expensive
+/// step in the whole pipeline, since it runs the embedded `nlprule` model —
+/// upwards of a dozen times over in a single round.
+///
+/// [`Tagger::tag`]'s own documented contract — identical `text` and
+/// `base_offset` always produce identical output — is exactly what makes
+/// memoizing it safe: this wrapper is constructed fresh inside
+/// [`run_round`] and dropped at that round's end, so a cache entry can
+/// never outlive (or be reused across) the text it was computed from.
+struct CachingTagger<'a> {
+    inner: &'a dyn Tagger,
+    cache: RefCell<HashMap<(usize, String), Vec<TaggedToken>>>,
+}
+
+impl<'a> CachingTagger<'a> {
+    fn new(inner: &'a dyn Tagger) -> Self {
+        Self {
+            inner,
+            cache: RefCell::new(HashMap::new()),
+        }
+    }
+}
+
+impl Tagger for CachingTagger<'_> {
+    fn tag(&self, text: &str, base_offset: usize) -> Vec<TaggedToken> {
+        let key = (base_offset, text.to_string());
+        if let Some(cached) = self.cache.borrow().get(&key) {
+            return cached.clone();
+        }
+        let tagged = self.inner.tag(text, base_offset);
+        self.cache.borrow_mut().insert(key, tagged.clone());
+        tagged
+    }
+}
 
 /// Up to this many rounds run before the fixpoint driver stops
 /// unconditionally, even if the last round still produced patches.
@@ -219,10 +265,14 @@ fn run_round(
 ) -> Result<(String, RoundReport), ApplyError> {
     let document =
         friction_parse::parse(source).map_err(|source| ApplyError::Parse { round, source })?;
-    let metrics = friction_metrics::compute(&document, segmenter, tagger);
+    // Shared across every tagger-dependent step this round runs (metrics
+    // computation below, then every rule's scan/fix) — see
+    // `CachingTagger`'s own docs for why memoizing it here is safe.
+    let caching_tagger = CachingTagger::new(tagger);
+    let metrics = friction_metrics::compute(&document, segmenter, &caching_tagger);
     let with_sentences = friction_nlp::segment_document(&document, segmenter)
         .map_err(|source| ApplyError::Segment { round, source })?;
-    let ctx = RuleContext::new(&with_sentences, tagger, genre, envelope);
+    let ctx = RuleContext::new(&with_sentences, &caching_tagger, genre, envelope);
 
     let mut findings = Vec::new();
     let mut candidates: Vec<Candidate> = Vec::new();

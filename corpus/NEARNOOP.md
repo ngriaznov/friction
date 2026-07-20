@@ -7,12 +7,12 @@ Fraction of human-class corpus sentences that received at least one `fix_documen
 
 | genre | docs | sentences | touched | % |
 |---|---:|---:|---:|---:|
-| docs | 58 | 7032 | 28 | 0.398 |
-| blog | 68 | 6435 | 33 | 0.513 |
-| readme | 57 | 6429 | 12 | 0.187 |
-| email | 30 | 5015 | 10 | 0.199 |
-| forum | 51 | 3106 | 18 | 0.580 |
-| **overall** | 264 | 28017 | 101 | 0.360 |
+| docs | 58 | 7032 | 26 | 0.370 |
+| blog | 68 | 6435 | 27 | 0.420 |
+| readme | 57 | 6429 | 10 | 0.156 |
+| email | 30 | 5015 | 9 | 0.179 |
+| forum | 51 | 3106 | 15 | 0.483 |
+| **overall** | 264 | 28017 | 87 | 0.311 |
 
 ## DEV split (evaluation only, no further tuning)
 
@@ -22,6 +22,17 @@ Fraction of human-class corpus sentences that received at least one `fix_documen
 | blog | 15 | 1271 | 2 | 0.157 |
 | readme | 12 | 1313 | 3 | 0.228 |
 | email | 7 | 649 | 6 | 0.924 |
-| forum | 11 | 535 | 2 | 0.374 |
-| **overall** | 58 | 5247 | 14 | 0.267 |
+| forum | 11 | 535 | 1 | 0.187 |
+| **overall** | 58 | 5247 | 13 | 0.248 |
+
+## HOLDOUT split (sealed, one-shot evaluation — see `corpus-tool holdout-check`)
+
+| genre | docs | sentences | touched | % |
+|---|---:|---:|---:|---:|
+| docs | 13 | 1573 | 0 | 0.000 |
+| blog | 15 | 1543 | 9 | 0.583 |
+| readme | 13 | 1275 | 2 | 0.157 |
+| email | 7 | 1303 | 0 | 0.000 |
+| forum | 12 | 1389 | 5 | 0.360 |
+| **overall** | 60 | 7083 | 16 | 0.226 |
 

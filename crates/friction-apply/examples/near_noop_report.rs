@@ -9,8 +9,11 @@
 //! ```
 //!
 //! Measures the TRAIN split first (the split rule gating was tuned
-//! against) and the DEV split second (held out, evaluation only — no
-//! tuning happens after seeing this number). Prints both breakdowns to
+//! against), the DEV split second (held out, evaluation only — no tuning
+//! happens after seeing this number), and the HOLDOUT split third (the
+//! sealed, one-shot evaluation split — see `corpus-tool holdout-check`;
+//! by the time this number is seen, no code/threshold/pack/rule change is
+//! permitted in response to it either). Prints all three breakdowns to
 //! stdout and writes them, in the same deterministic format, to
 //! `corpus/NEARNOOP.md`.
 //!
@@ -174,6 +177,7 @@ fn main() {
 
     let (train_per_genre, train_overall) = run_split(&engine, &corpus_dir, Split::Train);
     let (dev_per_genre, dev_overall) = run_split(&engine, &corpus_dir, Split::Dev);
+    let (holdout_per_genre, holdout_overall) = run_split(&engine, &corpus_dir, Split::Holdout);
 
     let mut report = String::new();
     writeln!(report, "# Human near-no-op report").expect("write to String is infallible");
@@ -199,6 +203,14 @@ fn main() {
     writeln!(report).expect("write to String is infallible");
     render_table(&mut report, &dev_per_genre, dev_overall);
     writeln!(report).expect("write to String is infallible");
+    writeln!(
+        report,
+        "## HOLDOUT split (sealed, one-shot evaluation — see `corpus-tool holdout-check`)"
+    )
+    .expect("write to String is infallible");
+    writeln!(report).expect("write to String is infallible");
+    render_table(&mut report, &holdout_per_genre, holdout_overall);
+    writeln!(report).expect("write to String is infallible");
 
     let out_path = corpus_dir.join("NEARNOOP.md");
     fs::write(&out_path, &report).expect("must write corpus/NEARNOOP.md");
@@ -210,5 +222,10 @@ fn main() {
         train_overall.percent() <= 2.0,
         "TRAIN overall near-no-op percentage {:.3}% exceeds the 2.0% cap",
         train_overall.percent()
+    );
+    assert!(
+        holdout_overall.percent() <= 2.0,
+        "HOLDOUT overall near-no-op percentage {:.3}% exceeds the 2.0% cap",
+        holdout_overall.percent()
     );
 }

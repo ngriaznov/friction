@@ -1,1 +1,1 @@
-The outage lasted six hours. This exposes a single point of failure in the primary datacenter's power supply.
+The outage lasted six hours. It exposes a single point of failure in the primary datacenter's power supply.

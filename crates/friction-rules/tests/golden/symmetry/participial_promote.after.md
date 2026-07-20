@@ -1,1 +1,1 @@
-The team shipped the release. This allows customers to upgrade early.
+The team shipped the release. It allows customers to upgrade early.

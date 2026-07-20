@@ -48,7 +48,7 @@ symmetry.triad_reduction
 
 lexical.substitution
 
-  ⚠ "specific" reads as machine-favored register (mined llm-favored (MINING.md); particular is a plainer near-synonym); "particular" is a plain near-synonym
+  × "specific" reads as machine-favored register (mined llm-favored (MINING.md); particular is a plainer near-synonym); "particular" is a plain near-synonym
     ╭─[corpus/llm/readme/04c4c78e378a7c8f.md:16:81]
  15 │ * **Read/Unread Tracking:** Mark articles as read to keep track of your progress and quickly identify new content.
  16 │ * **Full-Text Search:**  Search through cached articles using keywords, finding specific information instantly.

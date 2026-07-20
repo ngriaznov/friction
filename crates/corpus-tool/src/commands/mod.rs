@@ -18,6 +18,7 @@ pub mod mine;
 pub mod remove;
 pub mod seal;
 pub mod separate;
+pub mod separate_holdout;
 pub mod split;
 pub mod stats;
 pub mod validate;

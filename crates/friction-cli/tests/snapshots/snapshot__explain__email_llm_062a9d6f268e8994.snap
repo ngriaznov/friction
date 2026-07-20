@@ -41,4 +41,4 @@ plan schedule (friction-plan, built from the document's original metrics):
 | rhythm | 6 | sentence_length_cv | 0.5487 | 0.8694 | 1.1405 | 0.3207 |
 | contraction | 0 | contraction_ratio | 0.0000 | 0.0000 | 0.5714 | 0.0000 |
 
-fixpoint: 2 round(s), 2 patch(es) applied
+fixpoint: 2 round(s), 1 patch(es) applied

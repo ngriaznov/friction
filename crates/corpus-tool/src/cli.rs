@@ -50,6 +50,11 @@ enum Command {
     /// On the dev split, report how well the metric vector separates
     /// `llm` docs from `human` docs, per genre and per metric.
     Separate(commands::separate::Args),
+    /// On the sealed holdout split (see `holdout-check`), report
+    /// human-holdout vs llm-holdout (baseline) and human-holdout vs
+    /// fixed-llm-holdout (after running the release `friction` binary)
+    /// combined-score AUCs and distributions, per genre.
+    SeparateHoldout(commands::separate_holdout::Args),
     /// On the train split, mine discriminative 1-/2-/3-gram phrases
     /// between `llm` and `human` prose.
     Mine(commands::mine::Args),
@@ -90,6 +95,7 @@ pub fn run() -> anyhow::Result<()> {
         }
         Command::Envelope(args) => commands::envelope::run(&args),
         Command::Separate(args) => commands::separate::run(&args),
+        Command::SeparateHoldout(args) => commands::separate_holdout::run(&args),
         Command::Mine(args) => commands::mine::run(&args),
     }
 }

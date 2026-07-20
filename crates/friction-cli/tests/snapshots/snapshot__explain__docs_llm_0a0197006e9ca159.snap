@@ -3,27 +3,27 @@ source: crates/friction-cli/tests/snapshot.rs
 expression: stdout
 ---
 METRIC                        BEFORE    AFTER  BAND                MOVEMENT  
-sentence_length_mean          9.2264   9.0741  [5.0796, 11.3699]   in -> in  
-sentence_length_stddev        7.1708   7.1281  [4.8412, 9.5356]    in -> in  
-sentence_length_cv            0.7772   0.7855  [0.6938, 1.1063]    in -> in  
+sentence_length_mean          9.2264   9.2264  [5.0796, 11.3699]   in -> in  
+sentence_length_stddev        7.1708   7.1708  [4.8412, 9.5356]    in -> in  
+sentence_length_cv            0.7772   0.7772  [0.6938, 1.1063]    in -> in  
 discourse_marker_density      0.0000   0.0000  [0.0000, 3.0769]    in -> in  
-triad_rate                    0.0189   0.0185  [0.0000, 0.0303]    in -> in  
+triad_rate                    0.0189   0.0189  [0.0000, 0.0303]    in -> in  
 contraction_ratio             1.0000   1.0000  [0.0000, 0.6667]    OUT -> OUT
 bullet_parallelism            0.6750   0.6750  [0.0000, 1.0000]    in -> in  
-paragraph_shape_mean          1.1522   1.1739  [1.0970, 1.5094]    in -> in  
-paragraph_shape_cv            0.3605   0.3685  [0.2883, 0.7260]    in -> in  
+paragraph_shape_mean          1.1522   1.1522  [1.0970, 1.5094]    in -> in  
+paragraph_shape_cv            0.3605   0.3605  [0.2883, 0.7260]    in -> in  
 em_dash_density               0.0000   0.0000  [0.0000, 0.0000]    in -> in  
 semicolon_density             0.0000   0.0000  [0.0000, 3.5336]    in -> in  
-participial_closer_rate       0.0377   0.0185  [0.0000, 0.0185]    OUT -> in 
+participial_closer_rate       0.0377   0.0377  [0.0000, 0.0185]    OUT -> OUT
 not_just_but_rate             0.0000   0.0000  [0.0000, 0.0000]    in -> in  
 ritual_marker_rate            0.0000   0.0000  [0.0000, 0.0000]    in -> in  
-llm_favored_phrase_rate      58.3333  54.0541  [0.0000, 17.8971]   OUT -> OUT
-human_favored_phrase_rate     8.3333   8.3160  [12.5992, 43.8909]  OUT -> OUT
-heading_density              12.5000  12.4740  [2.3095, 14.9813]   in -> in  
-list_item_density            45.8333  45.7380  [0.0000, 31.6249]   OUT -> OUT
-bold_span_density            14.5833  14.5530  [0.0000, 14.1767]   OUT -> OUT
+llm_favored_phrase_rate      58.3333  54.1667  [0.0000, 17.8971]   OUT -> OUT
+human_favored_phrase_rate     8.3333   8.3333  [12.5992, 43.8909]  OUT -> OUT
+heading_density              12.5000  12.5000  [2.3095, 14.9813]   in -> in  
+list_item_density            45.8333  45.8333  [0.0000, 31.6249]   OUT -> OUT
+bold_span_density            14.5833  14.5833  [0.0000, 14.1767]   OUT -> OUT
 sentence_opener_repeat_rate   0.0000   0.0000  [0.0000, 0.0656]    in -> in  
-top_opener_concentration      0.0833   0.0816  [0.0545, 0.1613]    in -> in  
+top_opener_concentration      0.0833   0.0833  [0.0545, 0.1613]    in -> in  
 
 plan schedule (friction-plan, built from the document's original metrics):
 | family | budget | metric | current | lo | hi | excess |
@@ -41,4 +41,4 @@ plan schedule (friction-plan, built from the document's original metrics):
 | rhythm | 0 | sentence_length_cv | 0.7772 | 0.6938 | 1.1063 | 0.0000 |
 | contraction | 0 | contraction_ratio | 1.0000 | 0.0000 | 0.6667 | 0.0000 |
 
-fixpoint: 2 round(s), 4 patch(es) applied
+fixpoint: 2 round(s), 3 patch(es) applied

@@ -182,15 +182,6 @@ expression: stdout
       "message": "sentence-final participial closer reads as an LLM tic, but it has no clear object to promote; deleting it cannot be verified to preserve the sentence's claim, so this needs a human decision"
     },
     {
-      "rule": "lexical.substitution",
-      "tier": "fix",
-      "start": 1834,
-      "end": 1841,
-      "line": 13,
-      "column": 36,
-      "message": "\"Initial\" reads as machine-favored register (mined llm-favored (MINING.md); first is the plain equivalent); \"first\" is a plain near-synonym"
-    },
-    {
       "rule": "symmetry.participial_closer",
       "tier": "suggest",
       "start": 2068,
@@ -219,7 +210,7 @@ expression: stdout
     },
     {
       "rule": "lexical.substitution",
-      "tier": "fix",
+      "tier": "suggest",
       "start": 2834,
       "end": 2842,
       "line": 21,
@@ -237,21 +228,12 @@ expression: stdout
     },
     {
       "rule": "lexical.substitution",
-      "tier": "fix",
+      "tier": "suggest",
       "start": 3460,
       "end": 3468,
       "line": 27,
       "column": 76,
       "message": "\"specific\" reads as machine-favored register (mined llm-favored (MINING.md); particular is a plainer near-synonym); \"particular\" is a plain near-synonym"
-    },
-    {
-      "rule": "lexical.substitution",
-      "tier": "fix",
-      "start": 4244,
-      "end": 4250,
-      "line": 31,
-      "column": 14,
-      "message": "\"Robust\" reads as machine-favored register (mined llm-favored (MINING.md, z=6.29); solid is the plain equivalent); \"solid\" is a plain near-synonym"
     },
     {
       "rule": "lexical.substitution",
@@ -292,29 +274,11 @@ expression: stdout
     {
       "rule": "lexical.substitution",
       "tier": "fix",
-      "start": 5071,
-      "end": 5078,
-      "line": 41,
-      "column": 18,
-      "message": "\"Initial\" reads as machine-favored register (mined llm-favored (MINING.md); first is the plain equivalent); \"first\" is a plain near-synonym"
-    },
-    {
-      "rule": "lexical.substitution",
-      "tier": "fix",
       "start": 5132,
       "end": 5143,
       "line": 41,
       "column": 79,
       "message": "\"utilization\" reads as machine-favored register (canonical LLM-register tell for use (noun form)); \"use\" is a plain near-synonym"
-    },
-    {
-      "rule": "lexical.substitution",
-      "tier": "fix",
-      "start": 5263,
-      "end": 5271,
-      "line": 42,
-      "column": 5,
-      "message": "\"Leverage\" reads as machine-favored register (canonical LLM-register tell for use); \"use\" is a plain near-synonym"
     },
     {
       "rule": "symmetry.ritual_conclusion",
