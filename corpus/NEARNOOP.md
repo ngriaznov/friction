@@ -7,12 +7,12 @@ Fraction of human-class corpus sentences that received at least one `fix_documen
 
 | genre | docs | sentences | touched | % |
 |---|---:|---:|---:|---:|
-| docs | 58 | 7032 | 22 | 0.313 |
-| blog | 68 | 6435 | 27 | 0.420 |
-| readme | 57 | 6429 | 7 | 0.109 |
-| email | 30 | 5015 | 3 | 0.060 |
-| forum | 51 | 3106 | 15 | 0.483 |
-| **overall** | 264 | 28017 | 74 | 0.264 |
+| docs | 58 | 7032 | 28 | 0.398 |
+| blog | 68 | 6435 | 33 | 0.513 |
+| readme | 57 | 6429 | 12 | 0.187 |
+| email | 30 | 5015 | 10 | 0.199 |
+| forum | 51 | 3106 | 18 | 0.580 |
+| **overall** | 264 | 28017 | 101 | 0.360 |
 
 ## DEV split (evaluation only, no further tuning)
 
@@ -20,8 +20,8 @@ Fraction of human-class corpus sentences that received at least one `fix_documen
 |---|---:|---:|---:|---:|
 | docs | 13 | 1479 | 1 | 0.068 |
 | blog | 15 | 1271 | 2 | 0.157 |
-| readme | 12 | 1313 | 1 | 0.076 |
-| email | 7 | 649 | 0 | 0.000 |
+| readme | 12 | 1313 | 3 | 0.228 |
+| email | 7 | 649 | 6 | 0.924 |
 | forum | 11 | 535 | 2 | 0.374 |
-| **overall** | 58 | 5247 | 6 | 0.114 |
+| **overall** | 58 | 5247 | 14 | 0.267 |
 

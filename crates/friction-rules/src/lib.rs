@@ -52,5 +52,10 @@ pub use context::{GenreEnvelope, MapEnvelope, RuleContext};
 pub use families::connective::ConnectiveSurgery;
 pub use families::contraction::ContractionRule;
 pub use families::lexical::{FillerPhraseRule, SubstitutionRule};
+pub use families::rhythm::{SentenceFuseRule, SentenceSplitRule};
+pub use families::structural::{BoldLabelStripRule, HeaderMergeRule, UnbulletRule};
+pub use families::symmetry::{
+    NotJustButRule, ParticipialCloserRule, RitualConclusionRule, TriadReductionRule,
+};
 pub use rule::{Gate, Rule, RuleFamily};
 pub use strategy::StrategyRng;

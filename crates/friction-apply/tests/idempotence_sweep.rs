@@ -8,8 +8,8 @@
 //!   (`idempotence_sweep_smoke`), run as part of the normal test suite.
 //! - The full corpus check (`idempotence_sweep_full`), `#[ignore]`d by
 //!   default since it runs the fixpoint driver (segmenter + tagger +
-//!   every tranche-1 rule) twice over every document in the corpus
-//!   fixture. Run it explicitly with:
+//!   every registered rule, across all six families) twice over every
+//!   document in the corpus fixture. Run it explicitly with:
 //!
 //!   ```text
 //!   cargo test -p friction-apply --test idempotence_sweep -- --ignored --nocapture

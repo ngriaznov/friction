@@ -1,50 +1,82 @@
 //! The public fix entry point: [`fix_document`] (a thin wrapper around
-//! [`crate::run_fixpoint`] that supplies the fixed tranche-1 rule set) and
-//! [`FixEngine`] (a ready-to-use, model-loaded-once handle for callers
-//! that don't want to build a segmenter, tagger, and envelope pack
-//! themselves for every document).
+//! [`crate::run_fixpoint`] that supplies the fixed, six-family
+//! [`registered_rules`] set) and [`FixEngine`] (a ready-to-use,
+//! model-loaded-once handle for callers that don't want to build a
+//! segmenter, tagger, and envelope pack themselves for every document).
 
 use friction_nlp::{NlpruleTagger, Segmenter, SrxSegmenter, TagError, Tagger};
 use friction_packs::{ENVELOPE_V2, EnvelopePack};
 use friction_rules::{
-    ConnectiveSurgery, ContractionRule, FillerPhraseRule, GenreEnvelope, Rule, SubstitutionRule,
+    BoldLabelStripRule, ConnectiveSurgery, ContractionRule, FillerPhraseRule, GenreEnvelope,
+    HeaderMergeRule, NotJustButRule, ParticipialCloserRule, RitualConclusionRule, Rule,
+    SentenceFuseRule, SentenceSplitRule, SubstitutionRule, TriadReductionRule, UnbulletRule,
 };
 
 use crate::driver::{ApplyError, FixpointReport, run_fixpoint};
 
-// Every tranche-1 rule is a zero-sized, `const fn new()`-constructible
+// Every registered rule is a zero-sized, `const fn new()`-constructible
 // type (see each family's own module docs), so the registered set can be
 // plain `'static` statics — no per-call allocation, no interior state to
 // race across threads.
+static BOLD_LABEL_STRIP: BoldLabelStripRule = BoldLabelStripRule::new();
+static HEADER_MERGE: HeaderMergeRule = HeaderMergeRule::new();
+static UNBULLET: UnbulletRule = UnbulletRule::new();
+static NOT_JUST_BUT: NotJustButRule = NotJustButRule::new();
+static PARTICIPIAL_CLOSER: ParticipialCloserRule = ParticipialCloserRule::new();
+static RITUAL_CONCLUSION: RitualConclusionRule = RitualConclusionRule::new();
+static TRIAD_REDUCTION: TriadReductionRule = TriadReductionRule::new();
 static CONNECTIVE_SURGERY: ConnectiveSurgery = ConnectiveSurgery::new();
 static CONTRACTION: ContractionRule = ContractionRule::new();
 static FILLER_PHRASE: FillerPhraseRule = FillerPhraseRule::new();
 static SUBSTITUTION: SubstitutionRule = SubstitutionRule::new();
+static SENTENCE_FUSE: SentenceFuseRule = SentenceFuseRule::new();
+static SENTENCE_SPLIT: SentenceSplitRule = SentenceSplitRule::new();
 
-/// The full tranche-1 rule set (lexical, connective, contraction), in a
-/// fixed, deterministic registration order.
+/// The full six-family rule set (structural, symmetry, connective,
+/// lexical, rhythm, contraction), in a fixed, deterministic registration
+/// order.
 ///
 /// Registration order here is documentation, not a correctness lever:
 /// every candidate patch from every active rule is pooled and
 /// conflict-resolved together by [`crate::resolve_round`] before anything
 /// is applied, so the *output* of a round never depends on which order
 /// `rules` were passed to [`run_fixpoint`] in (see that function's own
-/// docs). The order below simply follows `RuleFamily::priority`'s
-/// documented order (`Connective` before `Lexical` before `Contraction`,
-/// the three families tranche-1 covers), with the two `Lexical` rules
-/// ordered filler-then-substitution to match `friction_rules::families::
-/// lexical`'s own module layout.
+/// docs) — including the `Suggest`-only rules below, which never produce
+/// a patch at all and so never participate in that resolution either way.
+/// The order below simply follows [`friction_rules::RuleFamily::
+/// priority`]'s documented order (`Structural, Symmetry, Connective,
+/// Lexical, Rhythm, Contraction`), with each family's own rules ordered to
+/// match that family's module (`pub use`) layout: structural as
+/// bold-label-strip, header-merge, unbullet; symmetry as not-just-but,
+/// participial-closer, ritual-conclusion, triad-reduction; lexical as
+/// filler-then-substitution; rhythm as fuse-then-split.
+///
+/// Three rules here — [`NotJustButRule`] and [`TriadReductionRule`]
+/// (always `Suggest` tier) and [`SentenceFuseRule`] (`Suggest` tier,
+/// `Gate::Detect` only) — never produce a [`friction_core::Patch`]; they
+/// are registered anyway so their findings are scanned and surfaced
+/// through the normal round pipeline (see [`crate::driver::RoundReport::
+/// findings`]), exactly like every other rule's diagnostics.
 #[must_use]
-pub fn registered_rules() -> [&'static dyn Rule; 4] {
+pub fn registered_rules() -> [&'static dyn Rule; 13] {
     [
+        &BOLD_LABEL_STRIP,
+        &HEADER_MERGE,
+        &UNBULLET,
+        &NOT_JUST_BUT,
+        &PARTICIPIAL_CLOSER,
+        &RITUAL_CONCLUSION,
+        &TRIAD_REDUCTION,
         &CONNECTIVE_SURGERY,
         &FILLER_PHRASE,
         &SUBSTITUTION,
+        &SENTENCE_FUSE,
+        &SENTENCE_SPLIT,
         &CONTRACTION,
     ]
 }
 
-/// Runs the fixpoint driver over `source` with the full tranche-1
+/// Runs the fixpoint driver over `source` with the full six-family
 /// [`registered_rules`] set: parse -> metrics -> gate -> scan -> fix ->
 /// resolve conflicts -> apply, up to [`crate::MAX_ROUNDS`] rounds.
 ///
@@ -154,8 +186,14 @@ mod tests {
     use super::*;
 
     /// A stub tagger that tags nothing — fine for `fix_document`'s test,
-    /// none of the four registered rules' gates in that test consult
-    /// part-of-speech tags.
+    /// since the envelope bands that test supplies only put
+    /// `lexical`/`connective`/`contraction` rules into `Gate::Fix` (every
+    /// other family gates `Off` for lack of a band — see
+    /// `registered_rules_are_the_thirteen_six_family_rules_once_each`'s
+    /// sibling test below for the full set), and none of those three
+    /// families' gates consult part-of-speech tags. Families that do
+    /// (e.g. `symmetry.participial_closer`) are exercised against a real
+    /// tagger in their own family tests instead.
     struct NoopTagger;
     impl Tagger for NoopTagger {
         fn tag(&self, _text: &str, _base_offset: usize) -> Vec<friction_nlp::TaggedToken> {
@@ -163,10 +201,10 @@ mod tests {
         }
     }
 
-    /// The registered rule set is exactly the four tranche-1 rules, each
-    /// appearing once, by id.
+    /// The registered rule set is exactly the thirteen rules across all
+    /// six families, each appearing once, by id.
     #[test]
-    fn registered_rules_are_the_four_tranche_one_rules_once_each() {
+    fn registered_rules_are_the_thirteen_six_family_rules_once_each() {
         let mut ids: Vec<&str> = registered_rules().iter().map(|r| r.id().as_str()).collect();
         ids.sort_unstable();
         assert_eq!(
@@ -176,6 +214,15 @@ mod tests {
                 "contraction.insert",
                 "lexical.filler_phrase",
                 "lexical.substitution",
+                "rhythm.fuse",
+                "rhythm.split",
+                "structural.bold_label_strip",
+                "structural.header_merge",
+                "structural.unbullet",
+                "symmetry.not_just_but",
+                "symmetry.participial_closer",
+                "symmetry.ritual_conclusion",
+                "symmetry.triad_reduction",
             ]
         );
     }
@@ -207,5 +254,106 @@ mod tests {
 
         assert!(report.total_patches_applied() > 0);
         assert_ne!(output, "Moreover, it is not ready yet.");
+    }
+
+    /// A `Suggest`-tier finding from a registered rule
+    /// (`symmetry.not_just_but`, which never proposes a patch — see that
+    /// family's own module docs) survives all the way out through
+    /// `fix_document`'s public [`FixpointReport`], with its original span
+    /// and message intact, and applies no patch: the report is a
+    /// diagnostics channel for `Suggest` findings, not just a record of
+    /// what got fixed.
+    #[test]
+    fn suggest_tier_findings_surface_in_the_report_with_span_and_message() {
+        use friction_core::{Envelope, Tier};
+        use friction_nlp::SrxSegmenter;
+        use friction_rules::MapEnvelope;
+
+        let segmenter = SrxSegmenter::new();
+        let tagger = NoopTagger;
+        // A band whose `hi` sits at zero forces `symmetry.not_just_but`
+        // out of its envelope on any match at all, gating `Detect` (see
+        // that rule's own `gate`) — every other registered rule has no
+        // band in this `MapEnvelope` and so gates `Off`, isolating the
+        // one finding this test cares about.
+        let envelope = MapEnvelope::new().with("not_just_but_rate", Envelope::new(0.0, 0.0));
+        let source = "This release is not just fast but also reliable.";
+
+        let (output, report) = fix_document(source, "blog", &envelope, &segmenter, &tagger)
+            .expect("well-formed input must not fail");
+
+        // No patch: a Suggest-only rule proposes none, and no other rule
+        // was gated on at all.
+        assert_eq!(output, source, "a Suggest-only finding must apply no patch");
+        assert_eq!(report.total_patches_applied(), 0);
+
+        let findings = &report.rounds[0].findings;
+        let suggestion = findings
+            .iter()
+            .find(|f| f.rule.as_str() == "symmetry.not_just_but")
+            .expect("symmetry.not_just_but must have scanned and surfaced a finding");
+        assert_eq!(suggestion.tier, Tier::Suggest);
+        assert_eq!(
+            &source[suggestion.range.clone()],
+            "not just fast but also",
+            "the finding's span must index the original source text it flagged"
+        );
+        assert!(
+            !suggestion.message.is_empty(),
+            "a surfaced finding must carry a human-readable message"
+        );
+    }
+
+    /// Regression test for the finding that `structural.unbullet`
+    /// (priority 0, round 1) joining a three-item list into one
+    /// serial-comma sentence, then `rhythm.split` (priority 4) re-parsing
+    /// that sentence in round 2, used to compose into a comma splice: the
+    /// only boundary `rhythm.split` could find was the final `", and "`,
+    /// and splitting only there left the first two clauses joined by
+    /// nothing but a bare comma. `rhythm.split`'s own
+    /// `precedes_unresolved_comma` check (see
+    /// `friction_rules::families::rhythm::split`'s module docs) now
+    /// excludes exactly that boundary, so the joined sentence — over-long
+    /// as it is — is left as one grammatically valid sentence rather than
+    /// being cut into a splice.
+    #[test]
+    fn unbullet_then_split_across_rounds_never_produces_a_comma_splice() {
+        use friction_core::Envelope;
+        use friction_rules::MapEnvelope;
+
+        let segmenter = SrxSegmenter::new();
+        let tagger = NlpruleTagger::new().expect("embedded model loads");
+        // Forces `structural.unbullet` (any list at all) and
+        // `rhythm.split` (any document, however low its real
+        // `sentence_length_cv`) both into `Gate::Fix`; every other
+        // registered rule has no band here and gates `Off`, isolating
+        // exactly the two-rule, two-round composition this test cares
+        // about.
+        let envelope = MapEnvelope::new()
+            .with("list_item_density", Envelope::new(0.0, 0.0))
+            .with("sentence_length_cv", Envelope::new(5.0, 10.0));
+        let source = "- Configuration handles environment setup automatically for every new \
+                       team member\n\
+                       - Installation handles every dependency without manual intervention \
+                       required\n\
+                       - Kubernetes handles the rollout to every environment automatically \
+                       once approved\n";
+
+        let (output, _report) = fix_document(source, "docs", &envelope, &segmenter, &tagger)
+            .expect("well-formed input must not fail");
+
+        assert!(
+            !output.contains("required. Kubernetes"),
+            "must never split the serial list into a comma splice, got {output:?}"
+        );
+        assert_eq!(
+            output,
+            "Configuration handles environment setup automatically for every new team \
+             member, installation handles every dependency without manual intervention \
+             required, and Kubernetes handles the rollout to every environment \
+             automatically once approved.\n",
+            "structural.unbullet should still join the list; rhythm.split must decline \
+             every boundary rather than introduce a splice"
+        );
     }
 }

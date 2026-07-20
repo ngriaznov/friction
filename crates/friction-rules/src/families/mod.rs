@@ -8,3 +8,6 @@
 pub mod connective;
 pub mod contraction;
 pub mod lexical;
+pub mod rhythm;
+pub mod structural;
+pub mod symmetry;

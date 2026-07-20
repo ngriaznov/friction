@@ -14,15 +14,18 @@ use crate::conflict::{Candidate, apply_patches, resolve_round};
 ///
 /// A rule's budget is recomputed fresh every round from that round's
 /// *actual* (re-measured) metric excess, never carried over or
-/// compounded, and every registered tranche-1 rule only ever deletes or
+/// compounded, and every registered rule only ever deletes, merges
+/// adjacent text, splits a sentence at an existing boundary, or
 /// substitutes toward a closed, non-cyclic target — so the total
-/// "distance left to fix" strictly decreases round over round and the
-/// driver is guaranteed to reach a genuine zero-patch round eventually,
-/// for any finite document. `16` is not a theoretical bound but an
-/// empirical one with real headroom: a full sweep over every corpus
-/// document (`friction-apply`'s idempotence sweep fixture) converges
-/// naturally within 9 rounds at the slowest, so 16 leaves each an
-/// individual document could plausibly need without ever being the
+/// "distance left to fix" strictly decreases round over round (a split
+/// closes its own over-length gap by construction: neither half of a
+/// split sentence is itself split-eligible again with the same excess)
+/// and the driver is guaranteed to reach a genuine zero-patch round
+/// eventually, for any finite document. `16` is not a theoretical bound
+/// but an empirical one with real headroom: a full sweep over every
+/// corpus document (`friction-apply`'s idempotence sweep fixture)
+/// converges naturally within 9 rounds at the slowest, so 16 leaves each
+/// an individual document could plausibly need without ever being the
 /// *reason* a well-behaved document's fix is incomplete — see
 /// `crate::fix_document`'s own idempotence guarantee, which this bound
 /// exists to make actually hold rather than merely usually hold.
@@ -543,5 +546,71 @@ mod tests {
         assert_eq!(output, "Untouched prose.");
         assert_eq!(report.rounds.len(), 1);
         assert_eq!(report.total_patches_applied(), 0);
+    }
+
+    /// A `Gate::Fix`-gated rule whose `scan` reports *both* a `Tier::Fix`
+    /// finding and a `Tier::Suggest` finding for the same document (the
+    /// shape `friction-rules::families::symmetry::RitualConclusionRule`
+    /// needs: a single rule whose per-occurrence tier is a runtime decision,
+    /// not fixed per rule) — confirms both survive into the round's
+    /// `findings`, in scan order, while only the `Tier::Fix` one is ever
+    /// turned into an applied patch. This is not new driver behavior (the
+    /// `Gate::Fix` branch above already pushes every scanned finding,
+    /// regardless of tier, unconditionally); this test exists to pin that
+    /// behavior down explicitly for the mixed-tier-per-finding shape, so a
+    /// future change to this branch can't silently start dropping the
+    /// `Suggest` half.
+    #[test]
+    fn fix_gated_rule_surfaces_a_mixed_tier_finding_set_and_fixes_only_the_fix_tier_one() {
+        struct MixedTierRule;
+        impl Rule for MixedTierRule {
+            fn id(&self) -> RuleId {
+                RuleId::new("stub.mixed_tier")
+            }
+            fn family(&self) -> friction_rules::RuleFamily {
+                friction_rules::RuleFamily::Symmetry
+            }
+            fn gate(&self, _metrics: &MetricVector, _envelope: &dyn GenreEnvelope) -> Gate {
+                Gate::Fix {
+                    budget: Budget::new(10),
+                }
+            }
+            fn scan(&self, ctx: &RuleContext<'_>) -> Vec<Finding> {
+                let source = ctx.document().source();
+                vec![
+                    Finding::new(self.id(), 0..1, "fixable", Tier::Fix),
+                    Finding::new(
+                        self.id(),
+                        source.len() - 1..source.len(),
+                        "suggest-only",
+                        Tier::Suggest,
+                    ),
+                ]
+            }
+            fn fix(
+                &self,
+                finding: &Finding,
+                _ctx: &RuleContext<'_>,
+                _rng: &mut StrategyRng,
+            ) -> Option<Patch> {
+                assert_eq!(
+                    finding.tier,
+                    Tier::Fix,
+                    "the driver must never call fix() for a Suggest-tier finding"
+                );
+                Some(Patch::new(finding.range.clone(), "X", self.id(), Tier::Fix))
+            }
+        }
+
+        let rule: &dyn Rule = &MixedTierRule;
+        let (_output, report) = run("ab", &[rule]);
+        let round = &report.rounds[0];
+        assert_eq!(round.findings.len(), 2, "both findings must be surfaced");
+        assert_eq!(round.findings[0].tier, Tier::Fix);
+        assert_eq!(round.findings[1].tier, Tier::Suggest);
+        assert_eq!(
+            round.patches_applied, 1,
+            "only the Fix-tier finding should have produced an applied patch"
+        );
     }
 }

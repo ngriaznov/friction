@@ -38,9 +38,10 @@
 //!
 //! # The public fix entry point
 //!
-//! [`fix_document`] is [`run_fixpoint`] wired to the fixed tranche-1 rule
-//! set ([`registered_rules`]: lexical, connective, contraction) in a
-//! deterministic registration order; [`FixEngine`] additionally loads the
+//! [`fix_document`] is [`run_fixpoint`] wired to the fixed, six-family
+//! rule set ([`registered_rules`]: structural, symmetry, connective,
+//! lexical, rhythm, contraction) in a deterministic registration order;
+//! [`FixEngine`] additionally loads the
 //! model-backed segmenter/tagger and the shipped envelope pack once and
 //! reuses them across calls, the shape a real caller (CLI, corpus
 //! tooling) wants. [`touched_original_ranges`] maps a (possibly
