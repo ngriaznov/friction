@@ -1,0 +1,121 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  friction-en.srx — English sentence-boundary ruleset in Segmentation
+  Rules eXchange (SRX) 2.0 format.
+
+  Originally authored for the friction project (not derived from the
+  LanguageTool or Okapi SRX rulesets, or any other third-party source).
+  Licensed under either of
+
+    - Apache License, Version 2.0
+    - MIT license
+
+  at your option, matching the license of the crate that vendors it.
+
+  Rules within the "English" languagerule are evaluated in document
+  order; once a rule claims a candidate index, no later rule can claim
+  the same index (first match wins). The no-break rules below therefore
+  come before the general breaking rule, so they get first refusal on
+  any index they cover:
+
+    1. Single capital letter followed by a period ("J.", "U.", "S.")
+       never breaks — covers initials ("J. R. R. Tolkien") and
+       letter-abbreviated acronyms ("U.S.", "U.N.") alike, since each
+       letter is matched independently.
+    2. A fixed list of common English abbreviations (titles, Latin
+       abbreviations, units, business suffixes) whose bare token, spelled
+       out, is not also an ordinary standalone English word or name,
+       matched case-insensitively, never breaks, regardless of what
+       follows.
+    3. A second, shorter list of abbreviations whose bare token *does*
+       double as an ordinary standalone English word or name ("no" vs.
+       "No. 4", "ed" vs. the name "Ed", "co" vs. "Co.", "fig" vs. "fig."
+       for "figure", and similarly "al", "est", "ref"/"refs", "pp", "rd",
+       "mt", "ft"): only suppresses the break when what immediately
+       follows looks like an abbreviation continuing its sentence — a
+       lowercase word ("et al. published", "Smith & Co. was founded") or
+       a digit ("No. 4", "fig. 3", "pp. 12–34"). A capitalized word
+       following is treated as the ordinary case of a new sentence, so
+       this rule declines and lets the general rule below break there.
+    4. An ellipsis ("..." or the single-character "…") does not break
+       when followed by a lowercase word, since that is a continuation
+       within the same sentence; followed by anything else, it falls
+       through to the general rule below.
+    5. Terminal punctuation immediately followed by a closing
+       quote/bracket does not break when what follows *that* is a
+       lowercase word — e.g. an attribution tag after dialogue
+       ("\"Stop!\" she yelled.") is a continuation of the same sentence,
+       not two sentences.
+
+  The general rule breaks on one or more terminal punctuation marks
+  (".", "!", "?"), optionally followed by closing quotes/brackets, then
+  one or more whitespace characters (including newlines — a soft line
+  wrap inside a paragraph has no preceding terminal punctuation, so it
+  is never mistaken for a sentence boundary by this rule).
+-->
+<srx version="2.0"
+    xmlns="http://www.lisa.org/srx20"
+    xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+    xsi:schemaLocation="http://www.lisa.org/srx20 srx20.xsd">
+    <header segmentsubflows="yes" cascade="no">
+        <formathandle type="start" include="no"/>
+        <formathandle type="end" include="yes"/>
+        <formathandle type="isolated" include="yes"/>
+    </header>
+    <body>
+        <languagerules>
+            <languagerule languagerulename="English">
+                <!-- Initials and single-letter-per-period acronyms:
+                     "J. R. R. Tolkien", "U.S.", "U.K.", "a.m."-style
+                     letters are handled by the abbreviation list below
+                     instead, since they are lowercase. -->
+                <rule break="no">
+                    <beforebreak>\b[A-Z]\.</beforebreak>
+                    <afterbreak>\s</afterbreak>
+                </rule>
+                <!-- Common English abbreviations that are (almost) never
+                     sentence-final, and whose bare token is not also an
+                     ordinary standalone English word or name — so it is
+                     safe to never break here regardless of what follows. -->
+                <rule break="no">
+                    <beforebreak>\b(?i:Mr|Mrs|Ms|Dr|Drs|Prof|Sr|Jr|St|Messrs|Mme|Mlle|Rev|Gen|Col|Sgt|Lt|Capt|Fr|Msgr|Gov|Sen|Rep|Pres|Adm|Cmdr|Maj|Hon|Ph|Esq|e\.g|i\.e|etc|vs|cf|approx|appt|dept|misc|viz|ibid|seq|orig|trans|repr|ca|vol|eds|sec|para|op|ave|blvd|inc|ltd|corp|assn|natl|intl|univ|admin|govt|a\.m|p\.m)\.</beforebreak>
+                    <afterbreak>\s</afterbreak>
+                </rule>
+                <!-- Abbreviations whose bare token also spells a common
+                     standalone English word or name: only suppress the
+                     break when what follows reads as the abbreviation
+                     continuing (a lowercase word or a digit), not when a
+                     capitalized word — the ordinary shape of a new
+                     sentence — follows. -->
+                <rule break="no">
+                    <beforebreak>\b(?i:no|ed|co|fig|figs|al|est|ref|refs|pp|rd|mt|ft)\.</beforebreak>
+                    <afterbreak>\s+[a-z0-9]</afterbreak>
+                </rule>
+                <!-- Ellipsis continuing into a lowercase word does not
+                     end the sentence. -->
+                <rule break="no">
+                    <beforebreak>(?:\.\.\.|…)</beforebreak>
+                    <afterbreak>\s+[a-z]</afterbreak>
+                </rule>
+                <!-- Closing quote/bracket right after terminal
+                     punctuation, followed by a lowercase word, is a
+                     dialogue-attribution continuation, not a sentence
+                     break. -->
+                <rule break="no">
+                    <beforebreak>[.!?]+["'\x{2019}\x{201d})\]]+</beforebreak>
+                    <afterbreak>\s+[a-z]</afterbreak>
+                </rule>
+                <!-- General rule: terminal punctuation, optionally
+                     followed by closing quotes/brackets, then
+                     whitespace. -->
+                <rule break="yes">
+                    <beforebreak>[.!?]+["'\x{2019}\x{201d})\]]*</beforebreak>
+                    <afterbreak>\s+</afterbreak>
+                </rule>
+            </languagerule>
+        </languagerules>
+        <maprules>
+            <languagemap languagepattern="en.*" languagerulename="English"/>
+        </maprules>
+    </body>
+</srx>

@@ -14,3 +14,14 @@ path = "src/main.rs"
 workspace = true
 
 [dependencies]
+clap = { workspace = true }
+friction-packs = { path = "../friction-packs" }
+thiserror = { workspace = true }
+ureq = { workspace = true }
+
+# Resolves an XDG-compliant cache directory on Linux, with the platform
+# equivalent on macOS/Windows. Not yet covered by [workspace.dependencies]
+# (see the friction-nlp/friction-packs/friction-cli task brief) — added
+# here rather than at the workspace root to avoid a concurrent root-file
+# edit.
+directories = "6"

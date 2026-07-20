@@ -1,0 +1,54 @@
+# Built-in registry of downloadable, sha256-pinned NLP artifacts that
+# `friction setup` fetches into a local runtime cache directory.
+#
+# This file is the single source of truth for that specific mechanism: it
+# is embedded into the crate via `include_str!` and parsed once into
+# `friction_packs::REGISTRY`. Entries are downloaded and verified by
+# `friction setup`, never fetched at lint or check time.
+#
+# Fields:
+#   name           - stable identifier, used as the cache subdirectory.
+#   kind           - one of: segmentation-ruleset, tagger-tokenizer,
+#                    tagger-rules, dependency-parser-model.
+#   pack_version   - the version this pin corresponds to (an upstream
+#                    release tag where one exists, otherwise a snapshot
+#                    date for artifacts fetched from an unversioned branch).
+#   url            - source URL. Downloaded as-is; never mutated at fetch
+#                    time.
+#   sha256         - lowercase hex digest of the artifact's exact bytes,
+#                    independently verified against the URL above before
+#                    being pinned here.
+#   size_bytes     - exact byte size, independently verified against the
+#                    URL above; used as a download-size sanity bound.
+#   license        - the artifact's own license (not friction's).
+#   license_note   - optional caveat when the license needs attention
+#                    before the artifact is bundled into a distributed
+#                    pack, if any.
+#
+# Why this is currently empty rather than listing every external NLP
+# asset friction-nlp uses: this registry backs one specific mechanism —
+# `friction setup`'s runtime cache directory — not a general provenance
+# ledger. As of this writing, nothing in the workspace actually needs that
+# mechanism:
+#   - The English sentence-segmentation ruleset is a small, self-authored
+#     SRX file vendored directly in friction-nlp's own `data/` directory
+#     and embedded via `include_str!` — never downloaded at all.
+#   - The nlprule English tokenizer/tagger binary is downloaded,
+#     sha256-verified, and embedded via `include_bytes!` by
+#     friction-nlp's own `build.rs`, at *build* time, deliberately never
+#     at runtime — it never needs to exist in a runtime cache directory
+#     for a compiled `friction` binary to work.
+#   - No downloadable ONNX English universal-dependencies parser under
+#     roughly 100 MB has been located (spaCy's dependency parser has no
+#     supported ONNX export; UDPipe 2 ships PyTorch weights, not ONNX) —
+#     see friction-nlp's `dep_onnx` module docs. `friction-nlp`'s `Onnx`
+#     `DepParser` implementation exists and is feature-gated, ready for a
+#     `dependency-parser-model` entry the moment a real one is sourced and
+#     independently verified.
+#
+# `friction setup` on an empty registry prints that plainly and exits 0
+# (see friction-cli's setup module) rather than treating "nothing to
+# download" as an error.
+
+schema_version = 1
+artifacts = []

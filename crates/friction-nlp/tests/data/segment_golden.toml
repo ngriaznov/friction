@@ -1,0 +1,510 @@
+# Golden sentence-segmentation fixtures for `SrxSegmenter`.
+#
+# Each `[[case]]` is one input text plus the exact sequence of sentence
+# strings it must segment into. `tests/segment_golden.rs` slices `input`
+# with every byte range `SrxSegmenter::segment` returns and asserts the
+# result equals `expect`, word for word and byte for byte — so this file
+# doubles as the byte-span-exactness check the segmenter must satisfy.
+#
+# Categories covered (see the `name` prefix of each case): decimals
+# (`dec_`), title abbreviations (`abbr_`), initials and letter-abbreviated
+# acronyms (`init_`, `acro_`), ellipses (`ellipsis_`), quotes/parens ending
+# a sentence (`quote_`, `paren_`, `nested_`), code-ish tokens (`code_`),
+# URLs (`url_`), literal markdown emphasis/markup left in prose (`md_`),
+# newlines within a paragraph (`nl_`), multi-sentence paragraphs
+# (`para_`), punctuation combinations (`punct_`), numbers/measurements
+# (`num_`), negative controls that must never split (`neg_ctrl_`), and
+# abbreviation/word collisions (`collision_`) — cases where a token on
+# the abbreviation no-break list ("no", "ed", "co", "fig", "al", ...) is
+# also an ordinary standalone English word or name, so the segmenter must
+# still split there when a capitalized word follows.
+
+[[case]]
+name = "dec_pi"
+input = "The value of pi is 3.14. Everyone knows that."
+expect = ["The value of pi is 3.14.", "Everyone knows that."]
+
+[[case]]
+name = "dec_version"
+input = "Version 2.5 shipped today. It fixes several bugs."
+expect = ["Version 2.5 shipped today.", "It fixes several bugs."]
+
+[[case]]
+name = "dec_gdp"
+input = "The GDP grew by 3.2 percent. Analysts were pleased."
+expect = ["The GDP grew by 3.2 percent.", "Analysts were pleased."]
+
+[[case]]
+name = "dec_price"
+input = "It costs $19.99 plus tax. That is a fair price."
+expect = ["It costs $19.99 plus tax.", "That is a fair price."]
+
+[[case]]
+name = "dec_threshold"
+input = "The threshold is 0.05. Values above it are rejected."
+expect = ["The threshold is 0.05.", "Values above it are rejected."]
+
+[[case]]
+name = "dec_scores"
+input = "Scores ranged from 1.0 to 9.5. The median was 5.2."
+expect = ["Scores ranged from 1.0 to 9.5.", "The median was 5.2."]
+
+[[case]]
+name = "dec_pi_long"
+input = "Pi is roughly 3.14159265. It never repeats."
+expect = ["Pi is roughly 3.14159265.", "It never repeats."]
+
+[[case]]
+name = "dec_negative_rate"
+input = "The interest rate is -1.5 percent. Unusual, but real."
+expect = ["The interest rate is -1.5 percent.", "Unusual, but real."]
+
+[[case]]
+name = "abbr_mr"
+input = "I saw Mr. Anderson yesterday. He looked tired."
+expect = ["I saw Mr. Anderson yesterday.", "He looked tired."]
+
+[[case]]
+name = "abbr_mrs"
+input = "Mrs. Robinson called this morning. She left a message."
+expect = ["Mrs. Robinson called this morning.", "She left a message."]
+
+[[case]]
+name = "abbr_dr"
+input = "Dr. Chen reviewed the results. Everything looked normal."
+expect = ["Dr. Chen reviewed the results.", "Everything looked normal."]
+
+[[case]]
+name = "abbr_prof"
+input = "Prof. Diaz teaches the seminar. Attendance is mandatory."
+expect = ["Prof. Diaz teaches the seminar.", "Attendance is mandatory."]
+
+[[case]]
+name = "abbr_sr"
+input = "John Smith Sr. retired last year. His son took over."
+expect = ["John Smith Sr. retired last year.", "His son took over."]
+
+[[case]]
+name = "abbr_jr"
+input = "Martin Luther King Jr. gave the speech. It moved the crowd."
+expect = ["Martin Luther King Jr. gave the speech.", "It moved the crowd."]
+
+[[case]]
+name = "abbr_st"
+input = "The office is on St. James Street. It is easy to find."
+expect = ["The office is on St. James Street.", "It is easy to find."]
+
+[[case]]
+name = "abbr_rev"
+input = "Rev. Thompson led the service. The hymn was beautiful."
+expect = ["Rev. Thompson led the service.", "The hymn was beautiful."]
+
+[[case]]
+name = "abbr_gen"
+input = "Gen. Patton commanded the division. His tactics were bold."
+expect = ["Gen. Patton commanded the division.", "His tactics were bold."]
+
+[[case]]
+name = "abbr_capt"
+input = "Capt. Rivera signed the manifest. Cargo checked out fine."
+expect = ["Capt. Rivera signed the manifest.", "Cargo checked out fine."]
+
+[[case]]
+name = "abbr_eg"
+input = "Bring warm clothes, e.g. a coat and gloves. Pack light otherwise."
+expect = ["Bring warm clothes, e.g. a coat and gloves.", "Pack light otherwise."]
+
+[[case]]
+name = "abbr_ie"
+input = "Use the default settings, i.e. leave everything unchecked. That works best."
+expect = ["Use the default settings, i.e. leave everything unchecked.", "That works best."]
+
+[[case]]
+name = "abbr_etc_mid"
+input = "We need flour, sugar, eggs, etc. before we can bake. Check the pantry first."
+expect = ["We need flour, sugar, eggs, etc. before we can bake.", "Check the pantry first."]
+
+[[case]]
+name = "abbr_etc_end"
+input = "I like apples, oranges, etc. Bananas are also great."
+expect = ["I like apples, oranges, etc. Bananas are also great."]
+
+[[case]]
+name = "abbr_vs"
+input = "It is Rust vs. Python for this task. Both have merits."
+expect = ["It is Rust vs. Python for this task.", "Both have merits."]
+
+[[case]]
+name = "abbr_cf"
+input = "See the appendix, cf. table 3 for details. It clarifies the method."
+expect = ["See the appendix, cf. table 3 for details.", "It clarifies the method."]
+
+[[case]]
+name = "abbr_al"
+input = "Smith et al. published the results. The paper was well received."
+expect = ["Smith et al. published the results.", "The paper was well received."]
+
+[[case]]
+name = "abbr_approx"
+input = "The trip takes approx. two hours. Traffic can add more."
+expect = ["The trip takes approx. two hours.", "Traffic can add more."]
+
+[[case]]
+name = "abbr_am"
+input = "The meeting starts at 9 a.m. sharp. Please do not be late."
+expect = ["The meeting starts at 9 a.m. sharp.", "Please do not be late."]
+
+[[case]]
+name = "abbr_pm"
+input = "We close at 5 p.m. on weekdays. Weekends differ."
+expect = ["We close at 5 p.m. on weekdays.", "Weekends differ."]
+
+[[case]]
+name = "abbr_no"
+input = "Please review item No. 4 first. It affects the rest."
+expect = ["Please review item No. 4 first.", "It affects the rest."]
+
+[[case]]
+name = "init_three"
+input = "J. R. R. Tolkien wrote The Hobbit. It remains beloved."
+expect = ["J. R. R. Tolkien wrote The Hobbit.", "It remains beloved."]
+
+[[case]]
+name = "init_two"
+input = "W. E. B. Du Bois was a scholar. His writing endures."
+expect = ["W. E. B. Du Bois was a scholar.", "His writing endures."]
+
+[[case]]
+name = "init_one"
+input = "T. Smith filed the report. It was thorough."
+expect = ["T. Smith filed the report.", "It was thorough."]
+
+[[case]]
+name = "init_end_of_sentence"
+input = "The author is known simply as J. K. He rarely gives interviews."
+expect = ["The author is known simply as J. K. He rarely gives interviews."]
+
+[[case]]
+name = "acro_us"
+input = "The U.S. economy grew last quarter. Analysts were surprised."
+expect = ["The U.S. economy grew last quarter.", "Analysts were surprised."]
+
+[[case]]
+name = "acro_uk"
+input = "The U.K. voted on the measure. Results come out tomorrow."
+expect = ["The U.K. voted on the measure.", "Results come out tomorrow."]
+
+[[case]]
+name = "acro_un"
+input = "The U.N. issued a statement. Member states reacted quickly."
+expect = ["The U.N. issued a statement.", "Member states reacted quickly."]
+
+[[case]]
+name = "acro_eu"
+input = "The E.U. proposed new rules. Companies must comply by June."
+expect = ["The E.U. proposed new rules.", "Companies must comply by June."]
+
+[[case]]
+name = "acro_us_mid"
+input = "Trade between the U.S. and Canada rose. Tariffs remained unchanged."
+expect = ["Trade between the U.S. and Canada rose.", "Tariffs remained unchanged."]
+
+[[case]]
+name = "ellipsis_lower"
+input = "Wait... what happened next?"
+expect = ["Wait... what happened next?"]
+
+[[case]]
+name = "ellipsis_upper"
+input = "Wait... What happened next?"
+expect = ["Wait...", "What happened next?"]
+
+[[case]]
+name = "ellipsis_unicode"
+input = "She paused… then continued speaking softly."
+expect = ["She paused… then continued speaking softly."]
+
+[[case]]
+name = "ellipsis_trailing"
+input = "I am not sure... Maybe we should ask someone else."
+expect = ["I am not sure...", "Maybe we should ask someone else."]
+
+[[case]]
+name = "ellipsis_mid_dialogue"
+input = "He said, \"I don't know...\" and walked away. Nobody followed."
+expect = ["He said, \"I don't know...\" and walked away.", "Nobody followed."]
+
+[[case]]
+name = "ellipsis_end_of_text"
+input = "It just kept going and going..."
+expect = ["It just kept going and going..."]
+
+[[case]]
+name = "quote_period_inside"
+input = "She said, \"Stop.\" Then she left the room."
+expect = ["She said, \"Stop.\"", "Then she left the room."]
+
+[[case]]
+name = "quote_exclaim_attrib"
+input = "\"Stop!\" she yelled. He froze in place."
+expect = ["\"Stop!\" she yelled.", "He froze in place."]
+
+[[case]]
+name = "quote_question_attrib"
+input = "\"Are you coming?\" he asked. She nodded yes."
+expect = ["\"Are you coming?\" he asked.", "She nodded yes."]
+
+[[case]]
+name = "quote_period_outside"
+input = "She said \"stop\". Then she left the room."
+expect = ["She said \"stop\".", "Then she left the room."]
+
+[[case]]
+name = "quote_single"
+input = "He whispered, 'run now.' Nobody moved."
+expect = ["He whispered, 'run now.'", "Nobody moved."]
+
+[[case]]
+name = "paren_full_sentence"
+input = "(This point is minor.) The next one matters more."
+expect = ["(This point is minor.)", "The next one matters more."]
+
+[[case]]
+name = "paren_trailing"
+input = "The results were promising (see appendix). Further study is needed."
+expect = ["The results were promising (see appendix).", "Further study is needed."]
+
+[[case]]
+name = "nested_quote_attrib"
+input = "\"I heard her say 'never again.'\" He wrote it down. It felt final."
+expect = ["\"I heard her say 'never again.'\"", "He wrote it down.", "It felt final."]
+
+[[case]]
+name = "code_call"
+input = "Call foo.bar() to proceed. Then check the return value."
+expect = ["Call foo.bar() to proceed.", "Then check the return value."]
+
+[[case]]
+name = "code_semver"
+input = "We shipped v1.2.3 today. Next release is v1.3.0."
+expect = ["We shipped v1.2.3 today.", "Next release is v1.3.0."]
+
+[[case]]
+name = "code_method_chain"
+input = "Use list.sort().reverse() for descending order. It mutates in place."
+expect = ["Use list.sort().reverse() for descending order.", "It mutates in place."]
+
+[[case]]
+name = "code_filename"
+input = "Edit the config.yaml file first. Then restart the service."
+expect = ["Edit the config.yaml file first.", "Then restart the service."]
+
+[[case]]
+name = "code_snake_case"
+input = "Call handle_request.process() before returning. Logging happens automatically."
+expect = ["Call handle_request.process() before returning.", "Logging happens automatically."]
+
+[[case]]
+name = "code_version_range"
+input = "Requires npm >=7.0.0 and node 18.x. Older versions are unsupported."
+expect = ["Requires npm >=7.0.0 and node 18.x.", "Older versions are unsupported."]
+
+[[case]]
+name = "code_env_var"
+input = "Set DEBUG=true in your .env file. Restart the app afterward."
+expect = ["Set DEBUG=true in your .env file.", "Restart the app afterward."]
+
+[[case]]
+name = "url_https_path"
+input = "Visit https://example.com/docs for details. It explains everything."
+expect = ["Visit https://example.com/docs for details.", "It explains everything."]
+
+[[case]]
+name = "url_trailing_dot"
+input = "Documentation lives at https://example.com/index.html. Read it first."
+expect = ["Documentation lives at https://example.com/index.html.", "Read it first."]
+
+[[case]]
+name = "url_www"
+input = "Check www.example.org for updates. New posts go up weekly."
+expect = ["Check www.example.org for updates.", "New posts go up weekly."]
+
+[[case]]
+name = "url_query"
+input = "Open https://example.com/search?q=rust&lang=en now. Results load instantly."
+expect = ["Open https://example.com/search?q=rust&lang=en now.", "Results load instantly."]
+
+[[case]]
+name = "url_mid_sentence"
+input = "The link at https://example.com was broken, so we fixed it. It works now."
+expect = ["The link at https://example.com was broken, so we fixed it.", "It works now."]
+
+[[case]]
+name = "url_two_urls"
+input = "Compare https://a.example.com and https://b.example.com. Pick whichever loads faster."
+expect = ["Compare https://a.example.com and https://b.example.com.", "Pick whichever loads faster."]
+
+[[case]]
+name = "md_emphasis"
+input = "This is *very* important. Do not skip it."
+expect = ["This is *very* important.", "Do not skip it."]
+
+[[case]]
+name = "md_bold"
+input = "The setting is **required**. Leaving it blank breaks the build."
+expect = ["The setting is **required**.", "Leaving it blank breaks the build."]
+
+[[case]]
+name = "md_underscore"
+input = "Use snake_case for _internal_ names. CamelCase is for types."
+expect = ["Use snake_case for _internal_ names.", "CamelCase is for types."]
+
+[[case]]
+name = "md_strikethrough"
+input = "The old default was ~~5 seconds~~. It is now 30 seconds."
+expect = ["The old default was ~~5 seconds~~.", "It is now 30 seconds."]
+
+[[case]]
+name = "md_inline_backref"
+input = "The `Segmenter` trait lives in segment.rs. Implementations go in sibling files."
+expect = ["The `Segmenter` trait lives in segment.rs.", "Implementations go in sibling files."]
+
+[[case]]
+name = "md_bracket_leftover"
+input = "See [the guide] for more. It covers setup end to end."
+expect = ["See [the guide] for more.", "It covers setup end to end."]
+
+[[case]]
+name = "nl_soft_wrap"
+input = "This sentence is long enough that it\nwraps onto a second line here."
+expect = ["This sentence is long enough that it\nwraps onto a second line here."]
+
+[[case]]
+name = "nl_two_sentences"
+input = "First sentence.\nSecond sentence starts on a new line."
+expect = ["First sentence.", "Second sentence starts on a new line."]
+
+[[case]]
+name = "nl_wrap_then_break"
+input = "This wraps across a line\nbreak before ending. A new sentence follows."
+expect = ["This wraps across a line\nbreak before ending.", "A new sentence follows."]
+
+[[case]]
+name = "nl_multiple_wraps"
+input = "Line one continues\nonto line two and\nonto line three too."
+expect = ["Line one continues\nonto line two and\nonto line three too."]
+
+[[case]]
+name = "nl_crlf_style"
+input = "First sentence.\r\nSecond sentence after a carriage return."
+expect = ["First sentence.", "Second sentence after a carriage return."]
+
+[[case]]
+name = "nl_indented_wrap"
+input = "The report notes    \n   several issues. It recommends fixes."
+expect = ["The report notes    \n   several issues.", "It recommends fixes."]
+
+[[case]]
+name = "para_three"
+input = "First we plan. Then we build. Finally we ship."
+expect = ["First we plan.", "Then we build.", "Finally we ship."]
+
+[[case]]
+name = "para_four_mixed"
+input = "Is this ready? Yes, it is. Ship it now! Great work everyone."
+expect = ["Is this ready?", "Yes, it is.", "Ship it now!", "Great work everyone."]
+
+[[case]]
+name = "para_with_abbrev_mid"
+input = "Dr. Lee joined the team. She has a Ph.D. in physics. Everyone welcomed her."
+expect = ["Dr. Lee joined the team.", "She has a Ph.D. in physics.", "Everyone welcomed her."]
+
+[[case]]
+name = "punct_double_exclaim"
+input = "Really?! Are you sure about that?"
+expect = ["Really?!", "Are you sure about that?"]
+
+[[case]]
+name = "punct_multi_bang"
+input = "Stop!!! This is dangerous."
+expect = ["Stop!!!", "This is dangerous."]
+
+[[case]]
+name = "punct_question_bang"
+input = "What?! No way."
+expect = ["What?!", "No way."]
+
+[[case]]
+name = "punct_semicolon_not_break"
+input = "The plan worked; everyone was relieved. Celebrations followed."
+expect = ["The plan worked; everyone was relieved.", "Celebrations followed."]
+
+[[case]]
+name = "num_percent"
+input = "Sales rose 12.5%. Growth continued into next quarter."
+expect = ["Sales rose 12.5%.", "Growth continued into next quarter."]
+
+[[case]]
+name = "num_negative"
+input = "The temperature was -3.5 degrees. Cold, right?"
+expect = ["The temperature was -3.5 degrees.", "Cold, right?"]
+
+[[case]]
+name = "num_range"
+input = "Ages 8.5 to 12.5 qualify. Others may apply separately."
+expect = ["Ages 8.5 to 12.5 qualify.", "Others may apply separately."]
+
+[[case]]
+name = "num_time"
+input = "The event starts at 10.30. Please arrive on time."
+expect = ["The event starts at 10.30.", "Please arrive on time."]
+
+[[case]]
+name = "neg_ctrl_no_terminal_punctuation"
+input = "This sentence has no terminal punctuation at all"
+expect = ["This sentence has no terminal punctuation at all"]
+
+[[case]]
+name = "neg_ctrl_title_and_time_mid_sentence"
+input = "The professor, Dr. Alvarez, teaches at 9 a.m. every Monday."
+expect = ["The professor, Dr. Alvarez, teaches at 9 a.m. every Monday."]
+
+[[case]]
+name = "neg_ctrl_acronym_and_abbrev_mid_sentence"
+input = "According to the U.S. Dept. of State, travel is discouraged."
+expect = ["According to the U.S. Dept. of State, travel is discouraged."]
+
+[[case]]
+name = "neg_ctrl_chained_dots_no_whitespace"
+input = "The file is named v2.0.1-rc.3.tar.gz for this release."
+expect = ["The file is named v2.0.1-rc.3.tar.gz for this release."]
+
+[[case]]
+name = "collision_no_short_answer"
+input = "Is this the answer? No. It is not."
+expect = ["Is this the answer?", "No.", "It is not."]
+
+[[case]]
+name = "collision_no_declarative"
+input = "The answer was no. The next question was harder."
+expect = ["The answer was no.", "The next question was harder."]
+
+[[case]]
+name = "collision_ed_name"
+input = "I ran into Ed. He was in a hurry."
+expect = ["I ran into Ed.", "He was in a hurry."]
+
+[[case]]
+name = "collision_co_word"
+input = "We visited the co. It was closed."
+expect = ["We visited the co.", "It was closed."]
+
+[[case]]
+name = "collision_fig_word"
+input = "She works at the fig. It grows well here."
+expect = ["She works at the fig.", "It grows well here."]
+
+[[case]]
+name = "collision_co_abbrev_continuation"
+input = "Smith & Co. was founded in 1990. It grew quickly."
+expect = ["Smith & Co. was founded in 1990.", "It grew quickly."]

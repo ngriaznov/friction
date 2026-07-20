@@ -40,6 +40,21 @@ jobs:
       - uses: Swatinem/rust-cache@v2
       - run: cargo test --workspace
 
+  corpus-determinism-full:
+    name: full-corpus determinism (segmenter + tagger)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+      # corpus_determinism_smoke (the first 20 docs) already runs as part
+      # of `cargo test --workspace` in the `test` job above.
+      # corpus_determinism_full hashes the tagger/segmenter output over
+      # every document in the corpus and is `#[ignore]`d by default
+      # because of that cost, so it needs its own explicit `--ignored`
+      # invocation to actually run anywhere.
+      - run: cargo test -p friction-nlp --test corpus_determinism -- --ignored --nocapture
+
   holdout:
     name: holdout lock check
     runs-on: ubuntu-latest

@@ -9,4 +9,49 @@ repository.workspace = true
 [lints]
 workspace = true
 
+[features]
+## Enables `OnnxParser`, an `ort`-backed `DepParser` implementation. Off by
+## default: the heuristic parser needs no model and no C/ONNX toolchain, and
+## as of this writing no pinned dependency-parser model is registered in
+## `friction-packs` for this feature to load (see `dep_onnx`'s module docs).
+onnx = ["dep:ort"]
+
 [dependencies]
+friction-core = { path = "../friction-core" }
+thiserror = { workspace = true }
+
+# Pinned to the exact version verified to build cleanly on this workspace's
+# toolchain/edition (rustc 1.96, edition 2024, resolver 3); not yet covered
+# by [workspace.dependencies] (see the friction-nlp task brief) — added here
+# rather than at the workspace root to avoid a concurrent root-file edit.
+# Default features (`std`, `api-17`, `download-binaries`) are kept: the last
+# fetches a sha256-verified ONNX Runtime build into OUT_DIR at build time,
+# matching this workspace's offline-at-lint-time / downloads-only-at-build-
+# time discipline rather than downloading anything at `check`/`fix` time.
+ort = { version = "2.0.0-rc.12", optional = true }
+# `from_xml` pulls in serde + serde-xml-rs to parse the vendored SRX
+# ruleset at process start; the ruleset itself is embedded via
+# `include_str!` (see src/segment_srx.rs), so no file or network I/O
+# happens at build or run time.
+srx = { version = "0.1.4", features = ["from_xml"] }
+# --- tagging/inflection deps (owned by the tagging agent; see src/tag.rs,
+# src/tag_nlprule.rs, src/inflect.rs) ---
+nlprule = "0.6.4"
+rayon = "1"
+
+[build-dependencies]
+# build.rs downloads + sha256-verifies the nlprule English tagger model at
+# build time (never at runtime) and decompresses it into OUT_DIR.
+ureq = { workspace = true }
+sha2 = { workspace = true }
+flate2 = "1"
+
+[dev-dependencies]
+friction-parse = { path = "../friction-parse" }
+# Golden sentence-segmentation fixtures (tests/data/segment_golden.toml)
+# are TOML for readability; parsed with these two at test time only.
+toml = { workspace = true }
+serde = { workspace = true }
+# Hashes the parse -> segment -> tag token stream for the corpus
+# determinism check (tests/corpus_determinism.rs).
+sha2 = { workspace = true }
