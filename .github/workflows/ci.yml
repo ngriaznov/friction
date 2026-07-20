@@ -55,6 +55,23 @@ jobs:
       # invocation to actually run anywhere.
       - run: cargo test -p friction-nlp --test corpus_determinism -- --ignored --nocapture
 
+  idempotence-sweep-full:
+    name: full-corpus idempotence (fix_document)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+      # idempotence_sweep_smoke (the first 30 docs) already runs as part
+      # of `cargo test --workspace` in the `test` job above.
+      # idempotence_sweep_full runs the fixpoint driver twice over every
+      # document in the corpus and is `#[ignore]`d by default because of
+      # that cost, so it needs its own explicit `--ignored` invocation to
+      # actually run anywhere. Release mode keeps this well under the
+      # debug-mode runtime (a full sweep is ~2 min in release vs. much
+      # longer unoptimized).
+      - run: cargo test -p friction-apply --test idempotence_sweep --release -- --ignored --nocapture
+
   holdout:
     name: holdout lock check
     runs-on: ubuntu-latest

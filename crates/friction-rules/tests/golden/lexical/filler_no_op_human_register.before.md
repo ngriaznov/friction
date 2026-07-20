@@ -1,0 +1,1 @@
+Our team shipped the update on Tuesday morning after a long week of testing. A few people reported minor glitches, and we pushed a fix by Wednesday. The kitchen still smells like the coffee we brought in for the sprint review.

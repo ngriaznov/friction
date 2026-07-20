@@ -20,6 +20,9 @@ anyhow = "1"
 proptest = "1"
 ureq = { version = "3", features = ["json"] }
 walkdir = "2"
+# Deterministic, non-cryptographic hashing used to seed the fix-strategy
+# PRNG from (sentence bytes, rule id) — see `friction-rules::StrategyRng`.
+xxhash-rust = { version = "0.8", features = ["xxh64"] }
 
 [workspace.lints.rust]
 unsafe_code = "deny"

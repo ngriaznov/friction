@@ -15,7 +15,8 @@ pub use symmetry::{bullet_parallelism, participial_closer_rate, triad_rate};
 mod lexical;
 
 pub use lexical::{
-    contraction_ratio, discourse_marker_density, not_just_but_rate, ritual_marker_rate,
+    contraction_counts, contraction_pairs, contraction_ratio, discourse_marker_density,
+    not_just_but_rate, ritual_marker_rate,
 };
 // --- end lexical block ---
 

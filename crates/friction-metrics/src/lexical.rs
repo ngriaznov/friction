@@ -262,6 +262,28 @@ static NOT_JUST_BUT_RE: LazyLock<Regex> = LazyLock::new(|| {
         .expect("not-just-but pattern is a fixed, valid regex")
 });
 
+/// The canonical `(expanded, contracted)` pairs this workspace treats as
+/// standard English contractions.
+///
+/// The same data [`contraction_ratio`] counts over, just handed back as
+/// plain string pairs instead of the private [`ContractionPair`] shape it
+/// is stored in internally. Exposed so other crates that need this *exact*
+/// table — most notably
+/// `friction-rules`' contraction-insertion rule, which turns one of these
+/// `expanded` phrases back into its `contracted` form when a document
+/// reads more formally than its genre's own writers typically do — read
+/// the same data this metric does, rather than maintaining an independent
+/// copy that could quietly drift out of sync with it. Returned in the
+/// same order as the table's own declaration (sorted by `expanded`, ASCII
+/// byte order; see [`CONTRACTION_PAIRS`]'s own doc comment).
+#[must_use]
+pub fn contraction_pairs() -> Vec<(&'static str, &'static str)> {
+    CONTRACTION_PAIRS
+        .iter()
+        .map(|pair| (pair.expanded, pair.contracted))
+        .collect()
+}
+
 /// Sentence-initial discourse-marker density, per 1000 word tokens.
 ///
 /// Counts sentences whose text (after stripping leading whitespace and
@@ -293,9 +315,9 @@ pub fn discourse_marker_density(document: &Document) -> f64 {
     density
 }
 
-/// Ratio of contracted to contractible forms: `contracted / (contracted +
-/// contractible)`, counted over every [`CONTRACTION_PAIRS`] entry across
-/// the whole document.
+/// The raw `(contracted, contractible)` occurrence counts
+/// [`contraction_ratio`] divides to produce its ratio, counted over every
+/// [`CONTRACTION_PAIRS`] entry across the whole document.
 ///
 /// For each sentence (not the whole paragraph — an `expanded` phrase must
 /// not be allowed to match across a sentence boundary, e.g. the "is" that
@@ -304,11 +326,17 @@ pub fn discourse_marker_density(document: &Document) -> f64 {
 /// text once, then for every pair counts exact single-token matches of
 /// `contracted` and exact consecutive-token matches of `expanded`'s words
 /// (so a one-word expanded form like `"cannot"` and a multi-word one like
-/// `"do not"` are counted the same way). Returns `0.0` when neither a
-/// contracted nor a contractible form appears anywhere in the document,
-/// rather than `NaN`.
+/// `"do not"` are counted the same way).
+///
+/// Exposed as its own function (rather than folded straight into
+/// [`contraction_ratio`]) because the raw counts, not just their ratio,
+/// are what a caller needs to work out the metric's *exact* per-occurrence
+/// effect (`1 / (contracted + contractible)`) for a specific document —
+/// most notably `friction-rules`' contraction-insertion rule, which reads
+/// its own real document this same way rather than guessing that effect
+/// from a fixed assumed document size (see that rule's module docs).
 #[must_use]
-pub fn contraction_ratio(document: &Document) -> f64 {
+pub fn contraction_counts(document: &Document) -> (u64, u64) {
     let mut contracted = 0u64;
     let mut contractible = 0u64;
     for unit in document.prose() {
@@ -327,6 +355,17 @@ pub fn contraction_ratio(document: &Document) -> f64 {
             }
         }
     }
+    (contracted, contractible)
+}
+
+/// Ratio of contracted to contractible forms: `contracted / (contracted +
+/// contractible)`, from [`contraction_counts`].
+///
+/// Returns `0.0` when neither a contracted nor a contractible form appears
+/// anywhere in the document, rather than `NaN`.
+#[must_use]
+pub fn contraction_ratio(document: &Document) -> f64 {
+    let (contracted, contractible) = contraction_counts(document);
     let denominator = contracted + contractible;
     if denominator == 0 {
         return 0.0;
@@ -540,6 +579,19 @@ mod tests {
             for b in &CONTRACTION_PAIRS[i + 1..] {
                 assert_ne!(a.contracted, b.contracted);
             }
+        }
+    }
+
+    /// `contraction_pairs` hands back exactly [`CONTRACTION_PAIRS`], in
+    /// the same order, just unwrapped from the private [`ContractionPair`]
+    /// struct into plain tuples — the public accessor other crates (e.g.
+    /// `friction-rules`) reuse instead of maintaining their own copy.
+    #[test]
+    fn contraction_pairs_matches_internal_table() {
+        let pairs = contraction_pairs();
+        assert_eq!(pairs.len(), CONTRACTION_PAIRS.len());
+        for (public, internal) in pairs.iter().zip(CONTRACTION_PAIRS.iter()) {
+            assert_eq!(*public, (internal.expanded, internal.contracted));
         }
     }
 

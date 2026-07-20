@@ -1,0 +1,547 @@
+//! The fixpoint driver: repeated rounds of parse -> metrics -> gate -> scan
+//! -> fix -> apply, bounded and reported.
+
+use std::collections::BTreeSet;
+
+use friction_core::{Document, Finding, Patch, RuleId, Tier, span};
+use friction_nlp::{Segmenter, Tagger};
+use friction_rules::{Gate, GenreEnvelope, Rule, RuleContext, StrategyRng};
+
+use crate::conflict::{Candidate, apply_patches, resolve_round};
+
+/// Up to this many rounds run before the fixpoint driver stops
+/// unconditionally, even if the last round still produced patches.
+///
+/// A rule's budget is recomputed fresh every round from that round's
+/// *actual* (re-measured) metric excess, never carried over or
+/// compounded, and every registered tranche-1 rule only ever deletes or
+/// substitutes toward a closed, non-cyclic target — so the total
+/// "distance left to fix" strictly decreases round over round and the
+/// driver is guaranteed to reach a genuine zero-patch round eventually,
+/// for any finite document. `16` is not a theoretical bound but an
+/// empirical one with real headroom: a full sweep over every corpus
+/// document (`friction-apply`'s idempotence sweep fixture) converges
+/// naturally within 9 rounds at the slowest, so 16 leaves each an
+/// individual document could plausibly need without ever being the
+/// *reason* a well-behaved document's fix is incomplete — see
+/// `crate::fix_document`'s own idempotence guarantee, which this bound
+/// exists to make actually hold rather than merely usually hold.
+pub const MAX_ROUNDS: usize = 16;
+
+/// Errors produced while running the fixpoint driver.
+#[derive(Debug, thiserror::Error)]
+#[non_exhaustive]
+pub enum ApplyError {
+    /// A round's source failed to parse as markdown.
+    #[error("round {round}: parse failed: {source}")]
+    Parse {
+        /// The 1-indexed round the failure happened in.
+        round: usize,
+        /// Underlying parse error.
+        #[source]
+        source: friction_parse::ParseError,
+    },
+    /// A round's document failed to sentence-segment.
+    #[error("round {round}: segmentation failed: {source}")]
+    Segment {
+        /// The 1-indexed round the failure happened in.
+        round: usize,
+        /// Underlying segmentation error.
+        #[source]
+        source: friction_nlp::SegmentError,
+    },
+}
+
+/// One round's outcome: which rules fired, what they found, and how many
+/// of their proposed patches were applied versus dropped.
+#[derive(Debug, Clone)]
+pub struct RoundReport {
+    /// This round's 1-indexed number (between 1 and [`MAX_ROUNDS`]
+    /// inclusive).
+    pub round: usize,
+    /// Ids of every rule that produced at least one *accepted* patch this
+    /// round (i.e. survived both its own gate/budget and conflict
+    /// resolution), sorted and deduplicated.
+    pub rules_fired: Vec<RuleId>,
+    /// Every finding surfaced by an active (non-`Off`-gated) rule's `scan`
+    /// this round, in the order rules were scanned — diagnostic
+    /// information independent of which findings ended up fixed.
+    pub findings: Vec<Finding>,
+    /// How many patches were applied this round (after conflict
+    /// resolution).
+    pub patches_applied: usize,
+    /// How many candidate patches were dropped this round, either for
+    /// failing span validation against the round's source or for losing
+    /// conflict resolution to a higher-priority overlapping patch.
+    pub patches_dropped: usize,
+    /// The accepted patches actually applied this round (after conflict
+    /// resolution), sorted by `range.start` ascending. Every range indexes
+    /// *this round's own* source text — the original `source` passed to
+    /// [`run_fixpoint`] for round 1, or the previous round's resulting
+    /// text for round 2 onward — never the original document's bytes past
+    /// round 1.
+    ///
+    /// Kept alongside the plain `patches_applied` count for callers that
+    /// need to know exactly what changed and where, e.g. mapping a
+    /// multi-round fix back to which spans of the *original* input were
+    /// ever touched (see `crate::touched_original_ranges`).
+    pub applied_patches: Vec<Patch>,
+}
+
+/// The full fixpoint driver's outcome: one [`RoundReport`] per round
+/// actually run (at most [`MAX_ROUNDS`], fewer if a round produced zero
+/// patches and the driver stopped early).
+#[derive(Debug, Clone)]
+pub struct FixpointReport {
+    /// Per-round reports, in round order.
+    pub rounds: Vec<RoundReport>,
+}
+
+impl FixpointReport {
+    /// Total patches applied across every round.
+    #[must_use]
+    pub fn total_patches_applied(&self) -> usize {
+        self.rounds.iter().map(|r| r.patches_applied).sum()
+    }
+}
+
+/// Runs the fixpoint driver on `source`: up to [`MAX_ROUNDS`] rounds of
+/// parse -> compute metrics -> gate every rule -> scan -> fix -> resolve
+/// conflicts -> apply -> (re-parse for the next round).
+///
+/// Each round is independent: `source` is re-parsed from scratch every
+/// round (never carried over as a mutated in-memory tree), so every
+/// [`friction_core::Patch`] a rule proposes is guaranteed to carry a byte
+/// range into that round's actual current text.
+///
+/// Stops after a round that applies zero patches (including possibly the
+/// very first round, on a document already inside its envelope — the
+/// common case) — the returned text at that point equals the previous
+/// round's, so this is never observable as a "wasted" round from the
+/// caller's side beyond one extra (cheap, patch-free) report entry.
+///
+/// `rules` is queried in the given order for gating and scanning, but the
+/// result never depends on that order: every candidate patch, from every
+/// rule, is pooled and conflict-resolved together by
+/// [`crate::resolve_round`] before anything is applied.
+///
+/// # Errors
+/// Returns [`ApplyError`] if any round's current text fails to parse or
+/// sentence-segment. A well-formed input and well-behaved
+/// `segmenter`/`tagger` cannot trigger this on the first round; a
+/// misbehaving `Rule::fix` implementation that produces a patch making the
+/// *next* round's text invalid markdown (impossible for pure text
+/// substitution, since markdown's block grammar does not depend on inline
+/// prose content in a way normal substitutions could break) is the only
+/// realistic way a later round could.
+pub fn run_fixpoint(
+    source: &str,
+    rules: &[&dyn Rule],
+    segmenter: &dyn Segmenter,
+    tagger: &dyn Tagger,
+    genre: &str,
+    envelope: &dyn GenreEnvelope,
+) -> Result<(String, FixpointReport), ApplyError> {
+    let mut current = source.to_string();
+    let mut rounds = Vec::with_capacity(MAX_ROUNDS);
+
+    for round in 1..=MAX_ROUNDS {
+        let (next, report) = run_round(&current, rules, segmenter, tagger, genre, envelope, round)?;
+        let applied = report.patches_applied;
+        rounds.push(report);
+        current = next;
+        if applied == 0 {
+            break;
+        }
+    }
+
+    Ok((current, FixpointReport { rounds }))
+}
+
+/// Runs a single round: parse, compute metrics, gate/scan/fix every rule,
+/// resolve conflicts, and apply. See [`run_fixpoint`] for the driver this
+/// composes into.
+fn run_round(
+    source: &str,
+    rules: &[&dyn Rule],
+    segmenter: &dyn Segmenter,
+    tagger: &dyn Tagger,
+    genre: &str,
+    envelope: &dyn GenreEnvelope,
+    round: usize,
+) -> Result<(String, RoundReport), ApplyError> {
+    let document =
+        friction_parse::parse(source).map_err(|source| ApplyError::Parse { round, source })?;
+    let metrics = friction_metrics::compute(&document, segmenter, tagger);
+    let with_sentences = friction_nlp::segment_document(&document, segmenter)
+        .map_err(|source| ApplyError::Segment { round, source })?;
+    let ctx = RuleContext::new(&with_sentences, tagger, genre, envelope);
+
+    let mut findings = Vec::new();
+    let mut candidates: Vec<Candidate> = Vec::new();
+    let mut fired: BTreeSet<RuleId> = BTreeSet::new();
+
+    for &rule in rules {
+        match rule.gate(&metrics, envelope) {
+            Gate::Off => {}
+            Gate::Detect => {
+                // Diagnostic-only this round: still worth surfacing what
+                // was found, but `fix` is never called, regardless of any
+                // individual finding's own tier.
+                findings.extend(rule.scan(&ctx));
+            }
+            Gate::Fix { mut budget } => {
+                for finding in rule.scan(&ctx) {
+                    if finding.tier == Tier::Fix && !budget.is_exhausted() {
+                        let sentence_bytes = sentence_bytes_for(&with_sentences, &finding);
+                        let mut rng = StrategyRng::seeded(sentence_bytes, rule.id());
+                        if let Some(patch) = rule.fix(&finding, &ctx, &mut rng) {
+                            // Defense-in-depth: only a Fix-tier patch is
+                            // ever eligible for automatic application,
+                            // regardless of the finding's own tier having
+                            // passed that same check above.
+                            if patch.tier == Tier::Fix {
+                                budget = budget
+                                    .take_one()
+                                    .expect("budget was checked non-exhausted above");
+                                fired.insert(rule.id());
+                                candidates.push(Candidate {
+                                    patch,
+                                    family: rule.family(),
+                                });
+                            }
+                        }
+                    }
+                    findings.push(finding);
+                }
+            }
+        }
+    }
+
+    let (accepted, patches_dropped) = resolve_round(source, candidates);
+    let next = apply_patches(source, &accepted);
+
+    Ok((
+        next,
+        RoundReport {
+            round,
+            rules_fired: fired.into_iter().collect(),
+            findings,
+            patches_applied: accepted.len(),
+            patches_dropped,
+            applied_patches: accepted,
+        },
+    ))
+}
+
+/// The source bytes of the sentence containing `finding`, for seeding a
+/// [`StrategyRng`].
+///
+/// Falls back to `finding`'s own range if no sentence in `document`
+/// contains it (e.g. a structural finding spanning a whole block) — always
+/// a pure, deterministic function of `document`'s text either way, never a
+/// panic.
+fn sentence_bytes_for<'a>(document: &'a Document, finding: &Finding) -> &'a [u8] {
+    for unit in document.prose() {
+        for sentence in &unit.sentences {
+            if span::contains_range(&sentence.range, &finding.range) {
+                return document
+                    .text(&sentence.range)
+                    .expect("sentence ranges are already validated against the document")
+                    .as_bytes();
+            }
+        }
+    }
+    document.text(&finding.range).map_or(&[], str::as_bytes)
+}
+
+#[cfg(test)]
+mod tests {
+    use friction_core::{MetricVector, Patch};
+    use friction_nlp::SrxSegmenter;
+    use friction_rules::{Budget, MapEnvelope};
+
+    use super::*;
+
+    /// A stub tagger that tags nothing — fine for rules in these tests,
+    /// none of which need part-of-speech information.
+    struct NoopTagger;
+    impl Tagger for NoopTagger {
+        fn tag(&self, _text: &str, _base_offset: usize) -> Vec<friction_nlp::TaggedToken> {
+            Vec::new()
+        }
+    }
+
+    /// A rule that always gates `Fix` with a fixed budget, finds every
+    /// occurrence of a literal phrase, and deletes it (plus one trailing
+    /// space, if present) — a minimal stand-in for a lexical filler-phrase
+    /// deletion rule.
+    struct DeletePhraseRule {
+        id: RuleId,
+        phrase: &'static str,
+        budget: usize,
+    }
+
+    impl Rule for DeletePhraseRule {
+        fn id(&self) -> RuleId {
+            self.id
+        }
+
+        fn family(&self) -> friction_rules::RuleFamily {
+            friction_rules::RuleFamily::Lexical
+        }
+
+        fn gate(&self, _metrics: &MetricVector, _envelope: &dyn GenreEnvelope) -> Gate {
+            Gate::Fix {
+                budget: Budget::new(self.budget),
+            }
+        }
+
+        fn scan(&self, ctx: &RuleContext<'_>) -> Vec<Finding> {
+            let source = ctx.document().source();
+            let mut findings = Vec::new();
+            let mut start = 0;
+            while let Some(offset) = source[start..].find(self.phrase) {
+                let range = (start + offset)..(start + offset + self.phrase.len());
+                findings.push(Finding::new(
+                    self.id,
+                    range.clone(),
+                    "filler phrase",
+                    Tier::Fix,
+                ));
+                start = range.end;
+            }
+            findings
+        }
+
+        fn fix(
+            &self,
+            finding: &Finding,
+            ctx: &RuleContext<'_>,
+            _strategy_rng: &mut StrategyRng,
+        ) -> Option<Patch> {
+            let source = ctx.document().source();
+            let mut end = finding.range.end;
+            if source[end..].starts_with(' ') {
+                end += 1;
+            }
+            Some(Patch::new(finding.range.start..end, "", self.id, Tier::Fix))
+        }
+    }
+
+    /// A rule that gates `Off` unconditionally — used to prove an `Off`
+    /// rule contributes nothing to a round.
+    struct AlwaysOffRule;
+    impl Rule for AlwaysOffRule {
+        fn id(&self) -> RuleId {
+            RuleId::new("stub.off")
+        }
+        fn family(&self) -> friction_rules::RuleFamily {
+            friction_rules::RuleFamily::Lexical
+        }
+        fn gate(&self, _metrics: &MetricVector, _envelope: &dyn GenreEnvelope) -> Gate {
+            Gate::Off
+        }
+        fn scan(&self, _ctx: &RuleContext<'_>) -> Vec<Finding> {
+            panic!("scan must never be called when gate() returned Off");
+        }
+        fn fix(
+            &self,
+            _f: &Finding,
+            _ctx: &RuleContext<'_>,
+            _rng: &mut StrategyRng,
+        ) -> Option<Patch> {
+            panic!("fix must never be called when gate() returned Off");
+        }
+    }
+
+    /// A rule that gates `Detect` unconditionally and always proposes a
+    /// fix if asked — used to prove `Detect` surfaces findings but never
+    /// applies patches.
+    struct AlwaysDetectRule;
+    impl Rule for AlwaysDetectRule {
+        fn id(&self) -> RuleId {
+            RuleId::new("stub.detect")
+        }
+        fn family(&self) -> friction_rules::RuleFamily {
+            friction_rules::RuleFamily::Symmetry
+        }
+        fn gate(&self, _metrics: &MetricVector, _envelope: &dyn GenreEnvelope) -> Gate {
+            Gate::Detect
+        }
+        fn scan(&self, ctx: &RuleContext<'_>) -> Vec<Finding> {
+            let source = ctx.document().source();
+            if source.is_empty() {
+                Vec::new()
+            } else {
+                vec![Finding::new(
+                    self.id(),
+                    0..source.len().min(1),
+                    "would-be finding",
+                    Tier::Suggest,
+                )]
+            }
+        }
+        fn fix(
+            &self,
+            _f: &Finding,
+            _ctx: &RuleContext<'_>,
+            _rng: &mut StrategyRng,
+        ) -> Option<Patch> {
+            panic!("fix must never be called when gate() returned Detect");
+        }
+    }
+
+    fn run(source: &str, rules: &[&dyn Rule]) -> (String, FixpointReport) {
+        let segmenter = SrxSegmenter::new();
+        let tagger = NoopTagger;
+        let envelope = MapEnvelope::new();
+        run_fixpoint(source, rules, &segmenter, &tagger, "blog", &envelope)
+            .expect("well-formed markdown input must not fail")
+    }
+
+    /// A rule gated `Off` never scans (enforced by the stub's own panic)
+    /// and contributes no patches.
+    #[test]
+    fn off_gated_rule_never_scans_or_fixes() {
+        let rule: &dyn Rule = &AlwaysOffRule;
+        let (output, report) = run("Some ordinary prose.", &[rule]);
+        assert_eq!(output, "Some ordinary prose.");
+        assert_eq!(report.total_patches_applied(), 0);
+    }
+
+    /// A rule gated `Detect` surfaces its findings but never fixes them —
+    /// output is unchanged and no patches are applied, even though the
+    /// stub's `fix` would panic if ever called.
+    #[test]
+    fn detect_gated_rule_surfaces_findings_without_fixing() {
+        let rule: &dyn Rule = &AlwaysDetectRule;
+        let (output, report) = run("Some ordinary prose.", &[rule]);
+        assert_eq!(output, "Some ordinary prose.");
+        assert_eq!(report.total_patches_applied(), 0);
+        assert_eq!(report.rounds[0].findings.len(), 1);
+    }
+
+    /// A `Fix`-gated rule with enough budget deletes every occurrence of
+    /// its target phrase, converges (a later round finds nothing left to
+    /// delete), and the driver reports which rule fired.
+    #[test]
+    fn fix_gated_rule_deletes_every_occurrence_and_converges() {
+        let rule = DeletePhraseRule {
+            id: RuleId::new("lexical.filler"),
+            phrase: "it is worth noting that ",
+            budget: 10,
+        };
+        let rule: &dyn Rule = &rule;
+        let source = "it is worth noting that this works. it is worth noting that so does this.";
+        let (output, report) = run(source, &[rule]);
+        assert_eq!(output, "this works. so does this.");
+        assert!(report.total_patches_applied() >= 2);
+        assert!(
+            report
+                .rounds
+                .iter()
+                .any(|r| r.rules_fired.contains(&RuleId::new("lexical.filler")))
+        );
+
+        // Idempotence: fixing the fixed output again changes nothing.
+        let (output_again, report_again) = run(&output, &[rule]);
+        assert_eq!(output_again, output);
+        assert_eq!(report_again.total_patches_applied(), 0);
+    }
+
+    /// A budget of `0` means the rule scans (findings are still reported)
+    /// but fixes nothing.
+    #[test]
+    fn zero_budget_scans_without_fixing() {
+        let rule = DeletePhraseRule {
+            id: RuleId::new("lexical.filler"),
+            phrase: "filler",
+            budget: 0,
+        };
+        let rule: &dyn Rule = &rule;
+        let (output, report) = run("some filler text here.", &[rule]);
+        assert_eq!(output, "some filler text here.");
+        assert_eq!(report.total_patches_applied(), 0);
+        assert_eq!(report.rounds[0].findings.len(), 1);
+    }
+
+    /// A budget smaller than the number of findings in one round fixes
+    /// only that many, leftmost first (scan returns findings in source
+    /// order, and the driver walks them in that order) — the budget is
+    /// per round, though, so a later round with a fresh budget picks up
+    /// where the previous one left off, and the driver still converges to
+    /// the same fixed point across rounds.
+    #[test]
+    fn partial_budget_fixes_only_that_many_leftmost_first() {
+        let rule = DeletePhraseRule {
+            id: RuleId::new("lexical.filler"),
+            phrase: "filler ",
+            budget: 1,
+        };
+        let rule: &dyn Rule = &rule;
+        let source = "filler one and filler two.";
+        let (output, report) = run(source, &[rule]);
+
+        // Round 1 fixes only the leftmost occurrence...
+        assert_eq!(report.rounds[0].patches_applied, 1);
+        // ...round 2 (fresh budget) fixes the remaining one...
+        assert_eq!(report.rounds[1].patches_applied, 1);
+        // ...and by the final, fully-converged output, both are gone.
+        assert_eq!(output, "one and two.");
+    }
+
+    /// The driver stops after at most `MAX_ROUNDS` rounds even if a rule
+    /// would keep finding (and fixing) something every round forever.
+    #[test]
+    fn driver_stops_after_max_rounds() {
+        // Deletes one character (`x`) at a time, one per round (budget 1),
+        // from a run of `x`s long enough to outlast MAX_ROUNDS.
+        struct EatOneXPerRound;
+        impl Rule for EatOneXPerRound {
+            fn id(&self) -> RuleId {
+                RuleId::new("stub.eat_x")
+            }
+            fn family(&self) -> friction_rules::RuleFamily {
+                friction_rules::RuleFamily::Lexical
+            }
+            fn gate(&self, _metrics: &MetricVector, _envelope: &dyn GenreEnvelope) -> Gate {
+                Gate::Fix {
+                    budget: Budget::new(1),
+                }
+            }
+            fn scan(&self, ctx: &RuleContext<'_>) -> Vec<Finding> {
+                let source = ctx.document().source();
+                source
+                    .find('x')
+                    .map(|i| vec![Finding::new(self.id(), i..i + 1, "x", Tier::Fix)])
+                    .unwrap_or_default()
+            }
+            fn fix(
+                &self,
+                finding: &Finding,
+                _ctx: &RuleContext<'_>,
+                _rng: &mut StrategyRng,
+            ) -> Option<Patch> {
+                Some(Patch::new(finding.range.clone(), "", self.id(), Tier::Fix))
+            }
+        }
+
+        let rule: &dyn Rule = &EatOneXPerRound;
+        let x_count = MAX_ROUNDS + 10; // more x's than MAX_ROUNDS can consume
+        let source = "x".repeat(x_count);
+        let (output, report) = run(&source, &[rule]);
+        assert_eq!(report.rounds.len(), MAX_ROUNDS);
+        assert_eq!(output, "x".repeat(x_count - MAX_ROUNDS));
+    }
+
+    /// Running the fixpoint driver with no rules at all leaves the input
+    /// unchanged and produces a single zero-patch round.
+    #[test]
+    fn no_rules_leaves_input_unchanged() {
+        let (output, report) = run("Untouched prose.", &[]);
+        assert_eq!(output, "Untouched prose.");
+        assert_eq!(report.rounds.len(), 1);
+        assert_eq!(report.total_patches_applied(), 0);
+    }
+}

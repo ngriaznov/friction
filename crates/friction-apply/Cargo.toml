@@ -10,3 +10,18 @@ repository.workspace = true
 workspace = true
 
 [dependencies]
+friction-core = { path = "../friction-core" }
+friction-rules = { path = "../friction-rules" }
+friction-nlp = { path = "../friction-nlp" }
+friction-metrics = { path = "../friction-metrics" }
+friction-packs = { path = "../friction-packs" }
+friction-parse = { path = "../friction-parse" }
+thiserror = { workspace = true }
+
+[dev-dependencies]
+proptest = { workspace = true }
+# The idempotence sweep test reads the corpus manifest to enumerate
+# `(genre, class)` for every corpus doc; a read-only, test-only dependency
+# on `corpus-tool`'s own manifest types rather than duplicating that
+# schema here.
+corpus-tool = { path = "../corpus-tool" }

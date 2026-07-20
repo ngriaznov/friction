@@ -1,6 +1,17 @@
-//! Versioned data packs: the downloadable-artifact registry, plus (once
-//! other crates in this workspace populate them) envelope bands and
-//! lexical substitution tables.
+//! Versioned data packs: the downloadable-artifact registry and the
+//! per-`(genre, metric)` human envelope bands `friction-rules` gates on.
+//! Lexical substitution/filler tables are not a pack — `friction-rules`
+//! ships them hand-curated and compiled in; see that crate's docs for why.
+//!
+//! # Envelope bands
+//!
+//! [`EnvelopePack`] parses the TOML file `corpus-tool envelope` writes
+//! (`packs/envelope-v2.toml`, embedded into this crate and exposed
+//! pre-parsed as [`ENVELOPE_V2`]) into a `(genre, metric) -> [lo, hi]`
+//! lookup. This is the "packs" a caller building `friction-rules`'
+//! `GenreEnvelope` trait for a genre reads from — see
+//! `friction-apply::FixEngine` for the adapter that wires the two
+//! together.
 //!
 //! # Artifact registry
 //!
@@ -36,5 +47,7 @@
 //! it gives identical results on every run and every machine.
 
 mod artifact;
+mod envelope;
 
 pub use artifact::{Artifact, ArtifactKind, PackError, REGISTRY, Sha256, parse_registry};
+pub use envelope::{ENVELOPE_V2, EnvelopePack, exceedance};

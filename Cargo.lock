@@ -516,6 +516,17 @@ dependencies = [
 [[package]]
 name = "friction-apply"
 version = "0.1.0"
+dependencies = [
+ "corpus-tool",
+ "friction-core",
+ "friction-metrics",
+ "friction-nlp",
+ "friction-packs",
+ "friction-parse",
+ "friction-rules",
+ "proptest",
+ "thiserror 2.0.19",
+]
 
 [[package]]
 name = "friction-cli"
@@ -571,6 +582,7 @@ dependencies = [
 name = "friction-packs"
 version = "0.1.0"
 dependencies = [
+ "friction-core",
  "serde",
  "sha2",
  "thiserror 2.0.19",
@@ -594,6 +606,14 @@ version = "0.1.0"
 [[package]]
 name = "friction-rules"
 version = "0.1.0"
+dependencies = [
+ "friction-core",
+ "friction-metrics",
+ "friction-nlp",
+ "friction-parse",
+ "regex",
+ "xxhash-rust",
+]
 
 [[package]]
 name = "fs-err"
@@ -2145,6 +2165,12 @@ name = "xml-rs"
 version = "0.8.28"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "3ae8337f8a065cfc972643663ea4279e04e7256de865aa66fe25cec5fb912d3f"
+
+[[package]]
+name = "xxhash-rust"
+version = "0.8.17"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "985eec839aaf2a1270af8f4ebcf63cf9401cfd90f0902f97c28d9f104ffbde72"
 
 [[package]]
 name = "yoke"

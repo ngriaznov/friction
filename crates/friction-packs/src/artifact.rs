@@ -53,6 +53,20 @@ pub enum PackError {
         /// The offending value, as written in the registry.
         kind: String,
     },
+
+    /// An envelope pack's `[<genre>.<metric>]` band has `lo > hi` or a
+    /// non-finite bound (see [`crate::EnvelopePack::parse`]).
+    #[error("{genre}.{metric}: invalid band [lo={lo}, hi={hi}] (must be finite with lo <= hi)")]
+    InvalidBand {
+        /// The band's genre.
+        genre: String,
+        /// The band's metric name.
+        metric: String,
+        /// The offending lower bound.
+        lo: f64,
+        /// The offending upper bound.
+        hi: f64,
+    },
 }
 
 impl From<toml::de::Error> for PackError {

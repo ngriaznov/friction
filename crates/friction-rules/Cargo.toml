@@ -10,3 +10,20 @@ repository.workspace = true
 workspace = true
 
 [dependencies]
+friction-core = { path = "../friction-core" }
+friction-nlp = { path = "../friction-nlp" }
+# Reuses friction-metrics' canonical contractible-pairs table (see
+# families::contraction) instead of maintaining an independent copy that
+# could drift out of sync with it. No cycle: friction-metrics depends on
+# friction-core/friction-nlp only.
+friction-metrics = { path = "../friction-metrics" }
+xxhash-rust = { workspace = true }
+# Not yet in [workspace.dependencies]; added directly here (mirroring
+# friction-metrics' own rationale) to avoid a concurrent root-file edit
+# while sibling rule families are being written in parallel. Already
+# present in Cargo.lock as a transitive dependency, so this adds no new
+# crate to the build.
+regex = "1"
+
+[dev-dependencies]
+friction-parse = { path = "../friction-parse" }

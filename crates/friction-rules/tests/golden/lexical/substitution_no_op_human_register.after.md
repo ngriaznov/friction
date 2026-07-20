@@ -1,0 +1,1 @@
+The cat curled up on the porch while rain tapped against the window all afternoon. We finally fixed the leaky faucet and cleaned out the garage before dinner. Grandma's soup recipe never fails to warm the whole house.
