@@ -1,0 +1,338 @@
+---
+source: crates/friction-cli/tests/snapshot.rs
+expression: stdout
+---
+{
+  "genre": "blog",
+  "metrics": [
+    {
+      "name": "sentence_length_mean",
+      "value": 14.149253731343284,
+      "lo": 7.222222222222222,
+      "hi": 22.612244897959183,
+      "in_envelope": true
+    },
+    {
+      "name": "sentence_length_stddev",
+      "value": 7.955573905099558,
+      "lo": 6.710643999484348,
+      "hi": 12.69937026747041,
+      "in_envelope": true
+    },
+    {
+      "name": "sentence_length_cv",
+      "value": 0.5622610249384709,
+      "lo": 0.49754649007902846,
+      "hi": 1.1375256187963048,
+      "in_envelope": true
+    },
+    {
+      "name": "discourse_marker_density",
+      "value": 3.2119914346895073,
+      "lo": 0.0,
+      "hi": 2.8618152085036797,
+      "in_envelope": false
+    },
+    {
+      "name": "triad_rate",
+      "value": 0.029850746268656716,
+      "lo": 0.0,
+      "hi": 0.08695652173913043,
+      "in_envelope": true
+    },
+    {
+      "name": "contraction_ratio",
+      "value": 1.0,
+      "lo": 0.0,
+      "hi": 0.7307692307692307,
+      "in_envelope": false
+    },
+    {
+      "name": "bullet_parallelism",
+      "value": 0.75,
+      "lo": 0.0,
+      "hi": 1.0,
+      "in_envelope": true
+    },
+    {
+      "name": "paragraph_shape_mean",
+      "value": 1.9705882352941178,
+      "lo": 1.1640625,
+      "hi": 3.5384615384615383,
+      "in_envelope": true
+    },
+    {
+      "name": "paragraph_shape_cv",
+      "value": 0.6090210675553185,
+      "lo": 0.38580860691983426,
+      "hi": 0.7953949089757174,
+      "in_envelope": true
+    },
+    {
+      "name": "em_dash_density",
+      "value": 0.0,
+      "lo": 0.0,
+      "hi": 4.244482173174872,
+      "in_envelope": true
+    },
+    {
+      "name": "semicolon_density",
+      "value": 0.0,
+      "lo": 0.0,
+      "hi": 3.4199726402188784,
+      "in_envelope": true
+    },
+    {
+      "name": "participial_closer_rate",
+      "value": 0.05970149253731343,
+      "lo": 0.0,
+      "hi": 0.023076923076923078,
+      "in_envelope": false
+    },
+    {
+      "name": "not_just_but_rate",
+      "value": 0.0,
+      "lo": 0.0,
+      "hi": 0.009259259259259259,
+      "in_envelope": true
+    },
+    {
+      "name": "ritual_marker_rate",
+      "value": 0.029411764705882353,
+      "lo": 0.0,
+      "hi": 0.0,
+      "in_envelope": false
+    },
+    {
+      "name": "llm_favored_phrase_rate",
+      "value": 35.33190578158458,
+      "lo": 0.922509225092251,
+      "hi": 19.31200965600483,
+      "in_envelope": false
+    },
+    {
+      "name": "human_favored_phrase_rate",
+      "value": 4.282655246252677,
+      "lo": 11.149228130360205,
+      "hi": 39.260969976905315,
+      "in_envelope": false
+    },
+    {
+      "name": "heading_density",
+      "value": 1.0706638115631693,
+      "lo": 0.607164541590771,
+      "hi": 10.36682615629984,
+      "in_envelope": true
+    },
+    {
+      "name": "list_item_density",
+      "value": 4.282655246252677,
+      "lo": 0.0,
+      "hi": 16.82439537329127,
+      "in_envelope": true
+    },
+    {
+      "name": "bold_span_density",
+      "value": 10.70663811563169,
+      "lo": 0.0,
+      "hi": 10.668163952835485,
+      "in_envelope": false
+    },
+    {
+      "name": "sentence_opener_repeat_rate",
+      "value": 0.030303030303030304,
+      "lo": 0.006711409395973154,
+      "hi": 0.13432835820895522,
+      "in_envelope": true
+    },
+    {
+      "name": "top_opener_concentration",
+      "value": 0.203125,
+      "lo": 0.058823529411764705,
+      "hi": 0.2153846153846154,
+      "in_envelope": true
+    }
+  ],
+  "findings": [
+    {
+      "rule": "lexical.substitution",
+      "tier": "fix",
+      "start": 530,
+      "end": 537,
+      "line": 3,
+      "column": 437,
+      "message": "\"initial\" reads as machine-favored register (mined llm-favored (MINING.md); first is the plain equivalent); \"first\" is a plain near-synonym"
+    },
+    {
+      "rule": "lexical.substitution",
+      "tier": "fix",
+      "start": 636,
+      "end": 643,
+      "line": 3,
+      "column": 543,
+      "message": "\"crucial\" reads as machine-favored register (mined llm-favored (MINING.md, z=6.47); key keeps the emphasis, drops the register); \"key\" is a plain near-synonym"
+    },
+    {
+      "rule": "symmetry.participial_closer",
+      "tier": "suggest",
+      "start": 1770,
+      "end": 1796,
+      "line": 11,
+      "column": 354,
+      "message": "sentence-final participial closer reads as an LLM tic, but it has no clear object to promote; deleting it cannot be verified to preserve the sentence's claim, so this needs a human decision"
+    },
+    {
+      "rule": "lexical.substitution",
+      "tier": "fix",
+      "start": 1834,
+      "end": 1841,
+      "line": 13,
+      "column": 36,
+      "message": "\"Initial\" reads as machine-favored register (mined llm-favored (MINING.md); first is the plain equivalent); \"first\" is a plain near-synonym"
+    },
+    {
+      "rule": "symmetry.participial_closer",
+      "tier": "suggest",
+      "start": 2068,
+      "end": 2175,
+      "line": 15,
+      "column": 211,
+      "message": "sentence-final participial closer reads as an LLM tic, but it has no clear object to promote; deleting it cannot be verified to preserve the sentence's claim, so this needs a human decision"
+    },
+    {
+      "rule": "lexical.substitution",
+      "tier": "fix",
+      "start": 2202,
+      "end": 2209,
+      "line": 17,
+      "column": 5,
+      "message": "\"initial\" reads as machine-favored register (mined llm-favored (MINING.md); first is the plain equivalent); \"first\" is a plain near-synonym"
+    },
+    {
+      "rule": "lexical.substitution",
+      "tier": "fix",
+      "start": 2687,
+      "end": 2695,
+      "line": 21,
+      "column": 46,
+      "message": "\"utilized\" reads as machine-favored register (canonical LLM-register tell for use); \"use\" is a plain near-synonym"
+    },
+    {
+      "rule": "lexical.substitution",
+      "tier": "fix",
+      "start": 2834,
+      "end": 2842,
+      "line": 21,
+      "column": 191,
+      "message": "\"specific\" reads as machine-favored register (mined llm-favored (MINING.md); particular is a plainer near-synonym); \"particular\" is a plain near-synonym"
+    },
+    {
+      "rule": "symmetry.participial_closer",
+      "tier": "fix",
+      "start": 2852,
+      "end": 2922,
+      "line": 21,
+      "column": 209,
+      "message": "sentence-final participial closer reads as an LLM tic; promoting it to its own sentence preserves the claim"
+    },
+    {
+      "rule": "lexical.substitution",
+      "tier": "fix",
+      "start": 3460,
+      "end": 3468,
+      "line": 27,
+      "column": 76,
+      "message": "\"specific\" reads as machine-favored register (mined llm-favored (MINING.md); particular is a plainer near-synonym); \"particular\" is a plain near-synonym"
+    },
+    {
+      "rule": "lexical.substitution",
+      "tier": "fix",
+      "start": 4244,
+      "end": 4250,
+      "line": 31,
+      "column": 14,
+      "message": "\"Robust\" reads as machine-favored register (mined llm-favored (MINING.md, z=6.29); solid is the plain equivalent); \"solid\" is a plain near-synonym"
+    },
+    {
+      "rule": "lexical.substitution",
+      "tier": "fix",
+      "start": 4317,
+      "end": 4327,
+      "line": 33,
+      "column": 44,
+      "message": "\"incredibly\" reads as machine-favored register (mined llm-favored (MINING.md); very is the plain intensifier); \"very\" is a plain near-synonym"
+    },
+    {
+      "rule": "lexical.substitution",
+      "tier": "fix",
+      "start": 4353,
+      "end": 4359,
+      "line": 33,
+      "column": 80,
+      "message": "\"robust\" reads as machine-favored register (mined llm-favored (MINING.md, z=6.29); solid is the plain equivalent); \"solid\" is a plain near-synonym"
+    },
+    {
+      "rule": "symmetry.participial_closer",
+      "tier": "fix",
+      "start": 4691,
+      "end": 4748,
+      "line": 35,
+      "column": 49,
+      "message": "sentence-final participial closer reads as an LLM tic; promoting it to its own sentence preserves the claim"
+    },
+    {
+      "rule": "lexical.substitution",
+      "tier": "fix",
+      "start": 4985,
+      "end": 4992,
+      "line": 39,
+      "column": 36,
+      "message": "\"crucial\" reads as machine-favored register (mined llm-favored (MINING.md, z=6.47); key keeps the emphasis, drops the register); \"key\" is a plain near-synonym"
+    },
+    {
+      "rule": "lexical.substitution",
+      "tier": "fix",
+      "start": 5071,
+      "end": 5078,
+      "line": 41,
+      "column": 18,
+      "message": "\"Initial\" reads as machine-favored register (mined llm-favored (MINING.md); first is the plain equivalent); \"first\" is a plain near-synonym"
+    },
+    {
+      "rule": "lexical.substitution",
+      "tier": "fix",
+      "start": 5132,
+      "end": 5143,
+      "line": 41,
+      "column": 79,
+      "message": "\"utilization\" reads as machine-favored register (canonical LLM-register tell for use (noun form)); \"use\" is a plain near-synonym"
+    },
+    {
+      "rule": "lexical.substitution",
+      "tier": "fix",
+      "start": 5263,
+      "end": 5271,
+      "line": 42,
+      "column": 5,
+      "message": "\"Leverage\" reads as machine-favored register (canonical LLM-register tell for use); \"use\" is a plain near-synonym"
+    },
+    {
+      "rule": "symmetry.ritual_conclusion",
+      "tier": "suggest",
+      "start": 6035,
+      "end": 6045,
+      "line": 46,
+      "column": 1,
+      "message": "the document's final paragraph opens with the ritual conclusion marker \"Ultimately\""
+    },
+    {
+      "rule": "lexical.substitution",
+      "tier": "fix",
+      "start": 6440,
+      "end": 6446,
+      "line": 46,
+      "column": 404,
+      "message": "\"robust\" reads as machine-favored register (mined llm-favored (MINING.md, z=6.29); solid is the plain equivalent); \"solid\" is a plain near-synonym"
+    }
+  ]
+}

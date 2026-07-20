@@ -1,0 +1,112 @@
+---
+source: crates/friction-cli/tests/snapshot.rs
+expression: stdout
+---
+METRIC                         VALUE  BAND                STATUS
+sentence_length_mean         14.5946  [3.7147, 8.3678]    OUT   
+sentence_length_stddev        8.8148  [3.8429, 8.5614]    OUT   
+sentence_length_cv            0.6040  [0.8694, 1.1405]    OUT   
+discourse_marker_density      0.0000  [0.0000, 0.0000]    in    
+triad_rate                    0.0541  [0.0000, 0.0169]    OUT   
+contraction_ratio             0.0000  [0.0000, 0.5714]    in    
+bullet_parallelism            0.0000  [0.6320, 0.8533]    OUT   
+paragraph_shape_mean          1.8500  [1.0926, 1.2222]    OUT   
+paragraph_shape_cv            0.3926  [0.2877, 0.4873]    in    
+em_dash_density               0.0000  [0.0000, 1.2285]    in    
+semicolon_density             0.0000  [0.0000, 1.6207]    in    
+participial_closer_rate       0.0270  [0.0000, 0.0064]    OUT   
+not_just_but_rate             0.0000  [0.0000, 0.0000]    in    
+ritual_marker_rate            0.0000  [0.0000, 0.0000]    in    
+llm_favored_phrase_rate      65.1769  [3.5928, 14.8957]   OUT   
+human_favored_phrase_rate     9.3110  [10.1215, 27.7537]  OUT   
+heading_density               0.0000  [5.7582, 19.1617]   OUT   
+list_item_density             0.0000  [12.2581, 80.2920]  OUT   
+bold_span_density            29.7952  [0.0000, 6.4516]    OUT   
+sentence_opener_repeat_rate   0.0000  [0.0038, 0.0448]    OUT   
+top_opener_concentration      0.0909  [0.0485, 0.1739]    in    
+rhythm.split
+
+  ⚠ sentence is 27 tokens, above this genre's over-long threshold of 15; splitting at the nearest-to-middle coordinator boundary
+    ╭─[corpus/llm/email/29ff22ba7de18cf6.md:9:318]
+  8 │ 
+  9 │ We are thrilled to share that over the past three months, we successfully distributed an impressive **[X,XXX]** meals across our service areas. This remarkable achievement is thanks to the dedication and hard work of our incredible volunteers like you. Your commitment ensures that no one in our community goes hungry, and it’s a testament to what can be accomplished when we unite for a common cause.
+    ·                                                                                                                                                                                                                                                                                                                              ───┬──
+    ·                                                                                                                                                                                                                                                                                                                                 ╰── sentence is 27 tokens, above this genre's over-long threshold of 15; splitting at the nearest-to-middle coordinator boundary
+ 10 │ 
+    ╰────
+
+lexical.substitution
+
+  ⚠ "accomplished" reads as machine-favored register (a plain, shorter verb for the same act); "do" is a plain near-synonym
+    ╭─[corpus/llm/email/29ff22ba7de18cf6.md:9:358]
+  8 │ 
+  9 │ We are thrilled to share that over the past three months, we successfully distributed an impressive **[X,XXX]** meals across our service areas. This remarkable achievement is thanks to the dedication and hard work of our incredible volunteers like you. Your commitment ensures that no one in our community goes hungry, and it’s a testament to what can be accomplished when we unite for a common cause.
+    ·                                                                                                                                                                                                                                                                                                                                                                    ──────┬─────
+    ·                                                                                                                                                                                                                                                                                                                                                                          ╰── "accomplished" reads as machine-favored register (a plain, shorter verb for the same act); "do" is a plain near-synonym
+ 10 │ 
+    ╰────
+
+symmetry.participial_closer
+
+  × sentence-final participial closer reads as an LLM tic, but it has no clear object to promote; deleting it cannot be verified to preserve the sentence's claim, so this needs a human decision
+    ╭─[corpus/llm/email/29ff22ba7de18cf6.md:13:278]
+ 12 │ 
+ 13 │ In an effort to reach more families in need, we’ve launched a new mobile distribution route this quarter! This initiative allows us to bring food directly to neighborhoods that have limited access to traditional distribution sites. The first route has already made its rounds, delivering essential meals to **[Y]** households and garnering positive feedback from community members.
+    ·                                                                                                                                                                                                                                                                                    ────────────────────────────────────────────────────┬────────────────────────────────────────────────────
+    ·                                                                                                                                                                                                                                                                                                                                        ╰── sentence-final participial closer reads as an LLM tic, but it has no clear object to promote; deleting it cannot be verified to preserve the sentence's claim, so this needs a human decision
+ 14 │ 
+    ╰────
+
+lexical.substitution
+
+  ⚠ "assisting" reads as machine-favored register (assist is a formal register synonym of help); "help" is a plain near-synonym
+    ╭─[corpus/llm/email/29ff22ba7de18cf6.md:15:142]
+ 14 │ 
+ 15 │ We’re excited about the potential of expanding these routes further and are looking for enthusiastic volunteers who might be interested in assisting with logistics or outreach on future trips. If you’d like to get involved or learn more about how you can help, please reach out to our Outreach Coordinator at **[Contact Information]**.
+    ·                                                                                                                                            ────┬────
+    ·                                                                                                                                                ╰── "assisting" reads as machine-favored register (assist is a formal register synonym of help); "help" is a plain near-synonym
+ 16 │ 
+    ╰────
+
+symmetry.triad_reduction
+
+  × flat "X, Y, and Z" triad with matching-class items reads as an LLM tic; consider dropping the weakest item or restructuring
+    ╭─[corpus/llm/email/29ff22ba7de18cf6.md:19:265]
+ 18 │ 
+ 19 │ To celebrate the incredible contributions of our volunteer community, we’re hosting a special appreciation event on **[Date]** at **[Venue]** from **[Time]** to **[Time]**. This will be an opportunity to thank you all for your unwavering support and dedication. We’ll have food, fun activities, and a chance to recognize outstanding volunteers with our annual “Volunteer of the Quarter” awards.
+    ·                                                                                                                                                                                                                                                                       ─────────────────────────────────────────────────────────────────┬─────────────────────────────────────────────────────────────────
+    ·                                                                                                                                                                                                                                                                                                                                        ╰── flat "X, Y, and Z" triad with matching-class items reads as an LLM tic; consider dropping the weakest item or restructuring
+ 20 │ 
+    ╰────
+
+symmetry.triad_reduction
+
+  × flat "X, Y, and Z" triad with matching-class items reads as an LLM tic; consider dropping the weakest item or restructuring
+    ╭─[corpus/llm/email/29ff22ba7de18cf6.md:27:41]
+ 26 │ 
+ 27 │ You can help by donating canned fruits, vegetables, soups, or stews at any of our distribution sites or through our online donation portal: **[Donation Link]**. Every item counts and ensures that we can provide meals to those in need during the holidays and beyond.
+    ·                                         ─────────────────────────────────────────────────┬────────────────────────────────────────────────
+    ·                                                                                          ╰── flat "X, Y, and Z" triad with matching-class items reads as an LLM tic; consider dropping the weakest item or restructuring
+ 28 │ 
+    ╰────
+
+rhythm.split
+
+  ⚠ sentence is 21 tokens, above this genre's over-long threshold of 15; splitting at the nearest-to-middle coordinator boundary
+    ╭─[corpus/llm/email/29ff22ba7de18cf6.md:31:53]
+ 30 │ 
+ 31 │ Your commitment to helping others is truly inspiring, and it’s because of you that [Nonprofit Food Bank Name] continues to thrive. If you have any questions or would like to get involved in a new project, please don’t hesitate to contact us at **[Contact Information]**.
+    ·                                                     ───┬──
+    ·                                                        ╰── sentence is 21 tokens, above this genre's over-long threshold of 15; splitting at the nearest-to-middle coordinator boundary
+ 32 │ 
+    ╰────
+
+lexical.substitution
+
+  ⚠ "specific" reads as machine-favored register (mined llm-favored (MINING.md); particular is a plainer near-synonym); "particular" is a plain near-synonym
+    ╭─[corpus/llm/email/29ff22ba7de18cf6.md:45:66]
+ 44 │ 
+ 45 │ **Note:** Ensure that the placeholders such as [X,XXX], [Y], and specific dates are replaced with actual data from your organization's records to make this newsletter accurate and engaging.
+    ·                                                                  ────┬───
+    ·                                                                      ╰── "specific" reads as machine-favored register (mined llm-favored (MINING.md); particular is a plainer near-synonym); "particular" is a plain near-synonym
+    ╰────

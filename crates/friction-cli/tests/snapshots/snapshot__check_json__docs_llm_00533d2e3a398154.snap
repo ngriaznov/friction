@@ -1,0 +1,176 @@
+---
+source: crates/friction-cli/tests/snapshot.rs
+expression: stdout
+---
+{
+  "genre": "docs",
+  "metrics": [
+    {
+      "name": "sentence_length_mean",
+      "value": 15.127272727272727,
+      "lo": 5.079601990049751,
+      "hi": 11.36986301369863,
+      "in_envelope": false
+    },
+    {
+      "name": "sentence_length_stddev",
+      "value": 8.629873159195427,
+      "lo": 4.841157658992773,
+      "hi": 9.53557474351129,
+      "in_envelope": true
+    },
+    {
+      "name": "sentence_length_cv",
+      "value": 0.5704844035525823,
+      "lo": 0.6938000297364706,
+      "hi": 1.1063157464161906,
+      "in_envelope": false
+    },
+    {
+      "name": "discourse_marker_density",
+      "value": 1.1918951132300357,
+      "lo": 0.0,
+      "hi": 3.076923076923077,
+      "in_envelope": true
+    },
+    {
+      "name": "triad_rate",
+      "value": 0.03636363636363636,
+      "lo": 0.0,
+      "hi": 0.030303030303030304,
+      "in_envelope": false
+    },
+    {
+      "name": "contraction_ratio",
+      "value": 0.0,
+      "lo": 0.0,
+      "hi": 0.6666666666666666,
+      "in_envelope": true
+    },
+    {
+      "name": "bullet_parallelism",
+      "value": 0.7833333333333333,
+      "lo": 0.0,
+      "hi": 1.0,
+      "in_envelope": true
+    },
+    {
+      "name": "paragraph_shape_mean",
+      "value": 1.6176470588235294,
+      "lo": 1.0970149253731343,
+      "hi": 1.509433962264151,
+      "in_envelope": false
+    },
+    {
+      "name": "paragraph_shape_cv",
+      "value": 0.5612854196521138,
+      "lo": 0.28827503026587703,
+      "hi": 0.7259662712736925,
+      "in_envelope": true
+    },
+    {
+      "name": "em_dash_density",
+      "value": 0.0,
+      "lo": 0.0,
+      "hi": 0.0,
+      "in_envelope": true
+    },
+    {
+      "name": "semicolon_density",
+      "value": 1.2019230769230769,
+      "lo": 0.0,
+      "hi": 3.5335689045936394,
+      "in_envelope": true
+    },
+    {
+      "name": "participial_closer_rate",
+      "value": 0.01818181818181818,
+      "lo": 0.0,
+      "hi": 0.018518518518518517,
+      "in_envelope": true
+    },
+    {
+      "name": "not_just_but_rate",
+      "value": 0.0,
+      "lo": 0.0,
+      "hi": 0.0,
+      "in_envelope": true
+    },
+    {
+      "name": "ritual_marker_rate",
+      "value": 0.0,
+      "lo": 0.0,
+      "hi": 0.0,
+      "in_envelope": true
+    },
+    {
+      "name": "llm_favored_phrase_rate",
+      "value": 17.878426698450536,
+      "lo": 0.0,
+      "hi": 17.89709172259508,
+      "in_envelope": true
+    },
+    {
+      "name": "human_favored_phrase_rate",
+      "value": 3.575685339690107,
+      "lo": 12.599160055996267,
+      "hi": 43.890865954922894,
+      "in_envelope": false
+    },
+    {
+      "name": "heading_density",
+      "value": 1.1918951132300357,
+      "lo": 2.3094688221709005,
+      "hi": 14.9812734082397,
+      "in_envelope": false
+    },
+    {
+      "name": "list_item_density",
+      "value": 15.494636471990464,
+      "lo": 0.0,
+      "hi": 31.62486368593239,
+      "in_envelope": true
+    },
+    {
+      "name": "bold_span_density",
+      "value": 22.64600715137068,
+      "lo": 0.0,
+      "hi": 14.176663031624864,
+      "in_envelope": false
+    },
+    {
+      "name": "sentence_opener_repeat_rate",
+      "value": 0.05555555555555555,
+      "lo": 0.0,
+      "hi": 0.06557377049180328,
+      "in_envelope": true
+    },
+    {
+      "name": "top_opener_concentration",
+      "value": 0.18518518518518517,
+      "lo": 0.05454545454545454,
+      "hi": 0.16129032258064516,
+      "in_envelope": false
+    }
+  ],
+  "findings": [
+    {
+      "rule": "symmetry.triad_reduction",
+      "tier": "suggest",
+      "start": 1681,
+      "end": 1826,
+      "line": 20,
+      "column": 26,
+      "message": "flat \"X, Y, and Z\" triad with matching-class items reads as an LLM tic; consider dropping the weakest item or restructuring"
+    },
+    {
+      "rule": "symmetry.triad_reduction",
+      "tier": "suggest",
+      "start": 2401,
+      "end": 2540,
+      "line": 22,
+      "column": 229,
+      "message": "flat \"X, Y, and Z\" triad with matching-class items reads as an LLM tic; consider dropping the weakest item or restructuring"
+    }
+  ]
+}

@@ -1,0 +1,79 @@
+---
+source: crates/friction-cli/tests/snapshot.rs
+expression: stdout
+---
+METRIC                         VALUE  BAND                STATUS
+sentence_length_mean          9.2264  [5.0796, 11.3699]   in    
+sentence_length_stddev        7.1708  [4.8412, 9.5356]    in    
+sentence_length_cv            0.7772  [0.6938, 1.1063]    in    
+discourse_marker_density      0.0000  [0.0000, 3.0769]    in    
+triad_rate                    0.0189  [0.0000, 0.0303]    in    
+contraction_ratio             1.0000  [0.0000, 0.6667]    OUT   
+bullet_parallelism            0.6750  [0.0000, 1.0000]    in    
+paragraph_shape_mean          1.1522  [1.0970, 1.5094]    in    
+paragraph_shape_cv            0.3605  [0.2883, 0.7260]    in    
+em_dash_density               0.0000  [0.0000, 0.0000]    in    
+semicolon_density             0.0000  [0.0000, 3.5336]    in    
+participial_closer_rate       0.0377  [0.0000, 0.0185]    OUT   
+not_just_but_rate             0.0000  [0.0000, 0.0000]    in    
+ritual_marker_rate            0.0000  [0.0000, 0.0000]    in    
+llm_favored_phrase_rate      58.3333  [0.0000, 17.8971]   OUT   
+human_favored_phrase_rate     8.3333  [12.5992, 43.8909]  OUT   
+heading_density              12.5000  [2.3095, 14.9813]   in    
+list_item_density            45.8333  [0.0000, 31.6249]   OUT   
+bold_span_density            14.5833  [0.0000, 14.1767]   OUT   
+sentence_opener_repeat_rate   0.0000  [0.0000, 0.0656]    in    
+top_opener_concentration      0.0833  [0.0545, 0.1613]    in    
+lexical.substitution
+
+  ⚠ "valuable" reads as machine-favored register (mined llm-favored (MINING.md); useful is the plain equivalent); "useful" is a plain near-synonym
+   ╭─[corpus/llm/docs/0a0197006e9ca159.md:3:121]
+ 2 │ 
+ 3 │ Corkboard is your go-to platform for organizing notes and ideas in an intuitive, visual manner. To ensure that all your valuable data remains safe and accessible, setting up automatic database backups is crucial. This guide will walk you through the process of configuring these backups using cron scheduling on a Linux server environment, specifying where to store the backups, and detailing how to restore from a backup file.
+   ·                                                                                                                         ────┬───
+   ·                                                                                                                             ╰── "valuable" reads as machine-favored register (mined llm-favored (MINING.md); useful is the plain equivalent); "useful" is a plain near-synonym
+ 4 │ 
+   ╰────
+
+lexical.substitution
+
+  ⚠ "crucial" reads as machine-favored register (mined llm-favored (MINING.md, z=6.47); key keeps the emphasis, drops the register); "key" is a plain near-synonym
+   ╭─[corpus/llm/docs/0a0197006e9ca159.md:3:205]
+ 2 │ 
+ 3 │ Corkboard is your go-to platform for organizing notes and ideas in an intuitive, visual manner. To ensure that all your valuable data remains safe and accessible, setting up automatic database backups is crucial. This guide will walk you through the process of configuring these backups using cron scheduling on a Linux server environment, specifying where to store the backups, and detailing how to restore from a backup file.
+   ·                                                                                                                                                                                                             ───┬───
+   ·                                                                                                                                                                                                                ╰── "crucial" reads as machine-favored register (mined llm-favored (MINING.md, z=6.47); key keeps the emphasis, drops the register); "key" is a plain near-synonym
+ 4 │ 
+   ╰────
+
+symmetry.participial_closer
+
+  ⚠ sentence-final participial closer reads as an LLM tic; promoting it to its own sentence preserves the claim
+    ╭─[corpus/llm/docs/0a0197006e9ca159.md:38:44]
+ 37 │ 
+ 38 │ 2. Paste the following code into the script, adjusting paths if necessary:
+    ·                                            ───────────────┬──────────────
+    ·                                                           ╰── sentence-final participial closer reads as an LLM tic; promoting it to its own sentence preserves the claim
+ 39 │ 
+    ╰────
+
+lexical.substitution
+
+  ⚠ "necessary" reads as machine-favored register (mined llm-favored (MINING.md); needed is the plain equivalent); "needed" is a plain near-synonym
+    ╭─[corpus/llm/docs/0a0197006e9ca159.md:38:65]
+ 37 │ 
+ 38 │ 2. Paste the following code into the script, adjusting paths if necessary:
+    ·                                                                 ────┬────
+    ·                                                                     ╰── "necessary" reads as machine-favored register (mined llm-favored (MINING.md); needed is the plain equivalent); "needed" is a plain near-synonym
+ 39 │ 
+    ╰────
+
+symmetry.participial_closer
+
+  ⚠ sentence-final participial closer reads as an LLM tic; promoting it to its own sentence preserves the claim
+     ╭─[corpus/llm/docs/0a0197006e9ca159.md:104:81]
+ 103 │ 
+ 104 │ By following these steps, you've set up automatic database backups for Corkboard, ensuring that your notes remain safe against unexpected data loss. Regularly checking your backup logs will help you stay informed about the success of each backup run.
+     ·                                                                                 ─────────────────────────────────┬─────────────────────────────────
+     ·                                                                                                                  ╰── sentence-final participial closer reads as an LLM tic; promoting it to its own sentence preserves the claim
+     ╰────

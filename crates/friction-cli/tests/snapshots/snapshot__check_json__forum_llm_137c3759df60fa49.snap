@@ -1,0 +1,248 @@
+---
+source: crates/friction-cli/tests/snapshot.rs
+expression: stdout
+---
+{
+  "genre": "forum",
+  "metrics": [
+    {
+      "name": "sentence_length_mean",
+      "value": 11.465116279069768,
+      "lo": 7.14,
+      "hi": 21.545454545454547,
+      "in_envelope": true
+    },
+    {
+      "name": "sentence_length_stddev",
+      "value": 9.693797674728527,
+      "lo": 6.973680679685744,
+      "hi": 13.411800359716398,
+      "in_envelope": true
+    },
+    {
+      "name": "sentence_length_cv",
+      "value": 0.8455036511426504,
+      "lo": 0.5491203194353567,
+      "hi": 0.9915185800501058,
+      "in_envelope": true
+    },
+    {
+      "name": "discourse_marker_density",
+      "value": 6.122448979591836,
+      "lo": 0.0,
+      "hi": 4.237288135593221,
+      "in_envelope": false
+    },
+    {
+      "name": "triad_rate",
+      "value": 0.0,
+      "lo": 0.0,
+      "hi": 0.0425531914893617,
+      "in_envelope": true
+    },
+    {
+      "name": "contraction_ratio",
+      "value": 0.0,
+      "lo": 0.2,
+      "hi": 0.9,
+      "in_envelope": false
+    },
+    {
+      "name": "bullet_parallelism",
+      "value": 0.6666666666666666,
+      "lo": 0.0,
+      "hi": 1.0,
+      "in_envelope": true
+    },
+    {
+      "name": "paragraph_shape_mean",
+      "value": 1.4333333333333333,
+      "lo": 1.2258064516129032,
+      "hi": 2.4761904761904763,
+      "in_envelope": true
+    },
+    {
+      "name": "paragraph_shape_cv",
+      "value": 0.46569731150001803,
+      "lo": 0.38987177379235843,
+      "hi": 0.7590772998235673,
+      "in_envelope": true
+    },
+    {
+      "name": "em_dash_density",
+      "value": 2.028397565922921,
+      "lo": 0.0,
+      "hi": 2.4154589371980677,
+      "in_envelope": true
+    },
+    {
+      "name": "semicolon_density",
+      "value": 0.0,
+      "lo": 0.0,
+      "hi": 2.9994001199760048,
+      "in_envelope": true
+    },
+    {
+      "name": "participial_closer_rate",
+      "value": 0.0,
+      "lo": 0.0,
+      "hi": 0.03125,
+      "in_envelope": true
+    },
+    {
+      "name": "not_just_but_rate",
+      "value": 0.023255813953488372,
+      "lo": 0.0,
+      "hi": 0.0,
+      "in_envelope": false
+    },
+    {
+      "name": "ritual_marker_rate",
+      "value": 0.03333333333333333,
+      "lo": 0.0,
+      "hi": 0.0,
+      "in_envelope": false
+    },
+    {
+      "name": "llm_favored_phrase_rate",
+      "value": 10.204081632653061,
+      "lo": 0.0,
+      "hi": 19.656019656019655,
+      "in_envelope": true
+    },
+    {
+      "name": "human_favored_phrase_rate",
+      "value": 30.612244897959183,
+      "lo": 19.41747572815534,
+      "hi": 48.821548821548824,
+      "in_envelope": true
+    },
+    {
+      "name": "heading_density",
+      "value": 6.122448979591836,
+      "lo": 0.0,
+      "hi": 8.103727714748784,
+      "in_envelope": true
+    },
+    {
+      "name": "list_item_density",
+      "value": 6.122448979591836,
+      "lo": 0.0,
+      "hi": 22.22222222222222,
+      "in_envelope": true
+    },
+    {
+      "name": "bold_span_density",
+      "value": 14.285714285714286,
+      "lo": 0.0,
+      "hi": 10.482180293501049,
+      "in_envelope": false
+    },
+    {
+      "name": "sentence_opener_repeat_rate",
+      "value": 0.0,
+      "lo": 0.0,
+      "hi": 0.1111111111111111,
+      "in_envelope": true
+    },
+    {
+      "name": "top_opener_concentration",
+      "value": 0.12195121951219512,
+      "lo": 0.06944444444444445,
+      "hi": 0.18181818181818182,
+      "in_envelope": true
+    }
+  ],
+  "findings": [
+    {
+      "rule": "connective.surgery",
+      "tier": "fix",
+      "start": 273,
+      "end": 280,
+      "line": 3,
+      "column": 221,
+      "message": "sentence-initial connective \"However\" is over this genre's envelope"
+    },
+    {
+      "rule": "structural.bold_label_strip",
+      "tier": "fix",
+      "start": 819,
+      "end": 845,
+      "line": 11,
+      "column": 4,
+      "message": "bolded lead-in label in a bullet could be plain text"
+    },
+    {
+      "rule": "structural.bold_label_strip",
+      "tier": "fix",
+      "start": 1094,
+      "end": 1115,
+      "line": 13,
+      "column": 4,
+      "message": "bolded lead-in label in a bullet could be plain text"
+    },
+    {
+      "rule": "structural.bold_label_strip",
+      "tier": "fix",
+      "start": 1510,
+      "end": 1547,
+      "line": 22,
+      "column": 4,
+      "message": "bolded lead-in label in a bullet could be plain text"
+    },
+    {
+      "rule": "structural.bold_label_strip",
+      "tier": "fix",
+      "start": 1831,
+      "end": 1852,
+      "line": 24,
+      "column": 4,
+      "message": "bolded lead-in label in a bullet could be plain text"
+    },
+    {
+      "rule": "connective.surgery",
+      "tier": "fix",
+      "start": 2120,
+      "end": 2124,
+      "line": 32,
+      "column": 75,
+      "message": "sentence-initial connective \"Thus\" is over this genre's envelope"
+    },
+    {
+      "rule": "structural.bold_label_strip",
+      "tier": "fix",
+      "start": 2291,
+      "end": 2311,
+      "line": 34,
+      "column": 4,
+      "message": "bolded lead-in label in a bullet could be plain text"
+    },
+    {
+      "rule": "structural.bold_label_strip",
+      "tier": "fix",
+      "start": 2636,
+      "end": 2657,
+      "line": 36,
+      "column": 4,
+      "message": "bolded lead-in label in a bullet could be plain text"
+    },
+    {
+      "rule": "symmetry.not_just_but",
+      "tier": "suggest",
+      "start": 3506,
+      "end": 3555,
+      "line": 49,
+      "column": 193,
+      "message": "\"not just/only X but (also) Y\" reads as an LLM tic; consider reframing which half the sentence emphasizes"
+    },
+    {
+      "rule": "symmetry.ritual_conclusion",
+      "tier": "suggest",
+      "start": 3635,
+      "end": 3645,
+      "line": 51,
+      "column": 1,
+      "message": "the document's final paragraph opens with the ritual conclusion marker \"In summary\""
+    }
+  ]
+}

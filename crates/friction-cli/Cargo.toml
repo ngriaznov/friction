@@ -15,7 +15,20 @@ workspace = true
 
 [dependencies]
 clap = { workspace = true }
+friction-apply = { path = "../friction-apply" }
+# `serde` feature: this crate's `--format json` output serializes
+# `MetricVector` (see src/check.rs, src/explain.rs) directly.
+friction-core = { path = "../friction-core", features = ["serde"] }
+friction-metrics = { path = "../friction-metrics" }
+friction-nlp = { path = "../friction-nlp" }
 friction-packs = { path = "../friction-packs" }
+friction-parse = { path = "../friction-parse" }
+# `explain`'s plan-schedule section (src/explain.rs) renders a real
+# `friction_plan::Plan` rather than reimplementing its own approximation.
+friction-plan = { path = "../friction-plan" }
+friction-rules = { path = "../friction-rules" }
+serde = { workspace = true }
+serde_json = { workspace = true }
 thiserror = { workspace = true }
 ureq = { workspace = true }
 
@@ -25,3 +38,26 @@ ureq = { workspace = true }
 # here rather than at the workspace root to avoid a concurrent root-file
 # edit.
 directories = "6"
+
+# `check`'s text-mode findings are rendered as labeled-span diagnostics
+# with miette's fancy renderer (see src/diagnostics.rs); not yet covered
+# by [workspace.dependencies] — added here per crate-local convention (see
+# `directories`, above) rather than touching the shared root file.
+miette = { version = "7", features = ["fancy"] }
+
+[dev-dependencies]
+# Drives the built `friction` binary as a subprocess for the integration
+# tests (exit codes, stdin mode, JSON/SARIF shape) — not yet covered by
+# [workspace.dependencies]; pinned here per crate-local convention.
+assert_cmd = "2"
+predicates = "3"
+# Validates generated SARIF against the vendored 2.1.0 JSON schema
+# (tests/data/sarif-schema-2.1.0.json) in tests/sarif_schema.rs.
+jsonschema = "0.30"
+# Isolated per-test fixture directories for `--in-place` and stdin tests;
+# not yet covered by [workspace.dependencies] (see corpus-tool's own
+# dev-dependency for the same crate-local convention).
+tempfile = "3"
+# End-to-end snapshot suite (tests/snapshot.rs): pins the full byte output
+# of `check`/`fix`/`explain` over a fixed 20-document corpus selection.
+insta = { workspace = true }

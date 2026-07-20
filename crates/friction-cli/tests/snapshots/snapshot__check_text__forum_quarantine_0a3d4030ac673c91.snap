@@ -1,0 +1,51 @@
+---
+source: crates/friction-cli/tests/snapshot.rs
+expression: stdout
+---
+METRIC                         VALUE  BAND                STATUS
+sentence_length_mean          8.3793  [7.1400, 21.5455]   in    
+sentence_length_stddev        7.8121  [6.9737, 13.4118]   in    
+sentence_length_cv            0.9323  [0.5491, 0.9915]    in    
+discourse_marker_density      2.0964  [0.0000, 4.2373]    in    
+triad_rate                    0.0000  [0.0000, 0.0426]    in    
+contraction_ratio             0.5000  [0.2000, 0.9000]    in    
+bullet_parallelism            0.6333  [0.0000, 1.0000]    in    
+paragraph_shape_mean          1.2609  [1.2258, 2.4762]    in    
+paragraph_shape_cv            0.5592  [0.3899, 0.7591]    in    
+em_dash_density               0.0000  [0.0000, 2.4155]    in    
+semicolon_density             0.0000  [0.0000, 2.9994]    in    
+participial_closer_rate       0.0172  [0.0000, 0.0312]    in    
+not_just_but_rate             0.0000  [0.0000, 0.0000]    in    
+ritual_marker_rate            0.0000  [0.0000, 0.0000]    in    
+llm_favored_phrase_rate       2.0964  [0.0000, 19.6560]   in    
+human_favored_phrase_rate    18.8679  [19.4175, 48.8215]  OUT   
+heading_density              16.7715  [0.0000, 8.1037]    OUT   
+list_item_density            44.0252  [0.0000, 22.2222]   OUT   
+bold_span_density            10.4822  [0.0000, 10.4822]   in    
+sentence_opener_repeat_rate   0.0351  [0.0000, 0.1111]    in    
+top_opener_concentration      0.1207  [0.0694, 0.1818]    in    
+structural.header_merge
+
+  × heading immediately followed by one short paragraph repeats across this document; consider merging these sections into flowing prose
+    ╭─[corpus/quarantine/forum/0a3d4030ac673c91.md:59:1]
+ 58 │     
+ 59 │ ╭─▶ THE WAIT
+ 60 │ │   -------------------------
+ 61 │ ├─▶ With the dishwasher empty, the first bit of the program made an awful lot of noise, with cold water hitting the inside of the empty dishwasher. After that it kind-of returned to normal.
+    · ╰──── heading immediately followed by one short paragraph repeats across this document; consider merging these sections into flowing prose
+ 62 │     
+ 63 │     STEP 4 - Results
+    ╰────
+
+structural.header_merge
+
+  × heading immediately followed by one short paragraph repeats across this document; consider merging these sections into flowing prose
+    ╭─[corpus/quarantine/forum/0a3d4030ac673c91.md:75:1]
+ 74 │     
+ 75 │ ╭─▶ Conclusion
+ 76 │ │   =======================
+ 77 │ ├─▶ The answer is then a wholehearted "Yes: this is possible!". **Try this at home!**
+    · ╰──── heading immediately followed by one short paragraph repeats across this document; consider merging these sections into flowing prose
+ 78 │     
+ 79 │       [1]: https://i.sstatic.net/bQSvm.jpg
+    ╰────

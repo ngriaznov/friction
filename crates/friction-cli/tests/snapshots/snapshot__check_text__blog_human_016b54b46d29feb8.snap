@@ -1,0 +1,26 @@
+---
+source: crates/friction-cli/tests/snapshot.rs
+expression: stdout
+---
+METRIC                         VALUE  BAND                STATUS
+sentence_length_mean         21.5373  [7.2222, 22.6122]   in    
+sentence_length_stddev        9.7634  [6.7106, 12.6994]   in    
+sentence_length_cv            0.4533  [0.4975, 1.1375]    OUT   
+discourse_marker_density      0.0000  [0.0000, 2.8618]    in    
+triad_rate                    0.0299  [0.0000, 0.0870]    in    
+contraction_ratio             0.0000  [0.0000, 0.7308]    in    
+bullet_parallelism            0.0000  [0.0000, 1.0000]    in    
+paragraph_shape_mean          2.3103  [1.1641, 3.5385]    in    
+paragraph_shape_cv            0.4836  [0.3858, 0.7954]    in    
+em_dash_density               2.0790  [0.0000, 4.2445]    in    
+semicolon_density             1.3860  [0.0000, 3.4200]    in    
+participial_closer_rate       0.0000  [0.0000, 0.0231]    in    
+not_just_but_rate             0.0000  [0.0000, 0.0093]    in    
+ritual_marker_rate            0.0000  [0.0000, 0.0000]    in    
+llm_favored_phrase_rate       6.1771  [0.9225, 19.3120]   in    
+human_favored_phrase_rate    22.6493  [11.1492, 39.2610]  in    
+heading_density               0.6863  [0.6072, 10.3668]   in    
+list_item_density             0.0000  [0.0000, 16.8244]   in    
+bold_span_density             0.0000  [0.0000, 10.6682]   in    
+sentence_opener_repeat_rate   0.0606  [0.0067, 0.1343]    in    
+top_opener_concentration      0.1045  [0.0588, 0.2154]    in

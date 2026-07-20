@@ -1,0 +1,102 @@
+---
+source: crates/friction-cli/tests/snapshot.rs
+expression: stdout
+---
+METRIC                         VALUE  BAND                STATUS
+sentence_length_mean          9.1250  [3.4918, 8.0284]    OUT   
+sentence_length_stddev        5.8957  [3.4228, 7.1793]    in    
+sentence_length_cv            0.6461  [0.8732, 1.3592]    OUT   
+discourse_marker_density      0.0000  [0.0000, 3.1847]    in    
+triad_rate                    0.1000  [0.0000, 0.0142]    OUT   
+contraction_ratio             0.0000  [0.0000, 1.0000]    in    
+bullet_parallelism            0.6696  [0.5000, 0.9139]    in    
+paragraph_shape_mean          1.1765  [1.0357, 1.2946]    in    
+paragraph_shape_cv            0.3841  [0.1792, 0.5170]    in    
+em_dash_density               0.0000  [0.0000, 0.0000]    in    
+semicolon_density             0.0000  [0.0000, 3.9683]    in    
+participial_closer_rate       0.0000  [0.0000, 0.0114]    in    
+not_just_but_rate             0.0000  [0.0000, 0.0000]    in    
+ritual_marker_rate            0.0000  [0.0000, 0.0000]    in    
+llm_favored_phrase_rate      58.0475  [0.0000, 21.6346]   OUT   
+human_favored_phrase_rate     0.0000  [8.5911, 35.4610]   OUT   
+heading_density               2.6385  [10.3806, 43.0464]  OUT   
+list_item_density            42.2164  [4.9261, 98.2659]   in    
+bold_span_density            58.0475  [0.0000, 14.7059]   OUT   
+sentence_opener_repeat_rate   0.0256  [0.0079, 0.1379]    in    
+top_opener_concentration      0.0513  [0.0442, 0.1609]    in    
+symmetry.triad_reduction
+
+  × flat "X, Y, and Z" triad with matching-class items reads as an LLM tic; consider dropping the weakest item or restructuring
+   ╭─[corpus/llm/readme/04c4c78e378a7c8f.md:3:122]
+ 2 │ 
+ 3 │ **Feedwell** is a self-hosted RSS and Atom feed reader built with performance and simplicity in mind. It boasts a clean, lightweight web UI allowing you to manage your favorite feeds, keep track of unread articles, and easily search through your archive. 
+   ·                                                                                                                          ──────────────────────────────────────────────────────────────────┬─────────────────────────────────────────────────────────────────
+   ·                                                                                                                                                                                            ╰── flat "X, Y, and Z" triad with matching-class items reads as an LLM tic; consider dropping the weakest item or restructuring
+ 4 │ 
+   ╰────
+
+symmetry.triad_reduction
+
+  × flat "X, Y, and Z" triad with matching-class items reads as an LLM tic; consider dropping the weakest item or restructuring
+   ╭─[corpus/llm/readme/04c4c78e378a7c8f.md:8:19]
+ 7 │ * **Privacy:** Keep your reading history and preferences private by running Feedwell on your own server.
+ 8 │ * **Customization:** Tailor the experience to your needs with folder organization, read/unread tracking, and full-text search capabilities.
+   ·                   ────────────────────────────────────────────────────────────┬───────────────────────────────────────────────────────────
+   ·                                                                               ╰── flat "X, Y, and Z" triad with matching-class items reads as an LLM tic; consider dropping the weakest item or restructuring
+ 9 │ * **Flexibility:** Deploy behind any WSGI-compliant web server, giving you control over your infrastructure.
+   ╰────
+
+lexical.substitution
+
+  ⚠ "specific" reads as machine-favored register (mined llm-favored (MINING.md); particular is a plainer near-synonym); "particular" is a plain near-synonym
+    ╭─[corpus/llm/readme/04c4c78e378a7c8f.md:16:81]
+ 15 │ * **Read/Unread Tracking:** Mark articles as read to keep track of your progress and quickly identify new content.
+ 16 │ * **Full-Text Search:**  Search through cached articles using keywords, finding specific information instantly.
+    ·                                                                                 ────┬───
+    ·                                                                                     ╰── "specific" reads as machine-favored register (mined llm-favored (MINING.md); particular is a plainer near-synonym); "particular" is a plain near-synonym
+ 17 │ * **OPML Import/Export:** Seamlessly import and export your OPML feed subscriptions for easy migration between platforms.
+    ╰────
+
+lexical.substitution
+
+  ⚠ "necessary" reads as machine-favored register (mined llm-favored (MINING.md); needed is the plain equivalent); "needed" is a plain near-synonym
+    ╭─[corpus/llm/readme/04c4c78e378a7c8f.md:36:35]
+ 35 │ 
+ 36 │ 4. **Run Migrations:** Create the necessary database tables:
+    ·                                   ────┬────
+    ·                                       ╰── "necessary" reads as machine-favored register (mined llm-favored (MINING.md); needed is the plain equivalent); "needed" is a plain near-synonym
+ 37 │ 
+    ╰────
+
+lexical.substitution
+
+  ⚠ "initial" reads as machine-favored register (mined llm-favored (MINING.md); first is the plain equivalent); "first" is a plain near-synonym
+    ╭─[corpus/llm/readme/04c4c78e378a7c8f.md:42:100]
+ 41 │ 
+ 42 │ 5. **First-Time Setup:** Run the following command to create an administrator account and complete initial setup:
+    ·                                                                                                    ───┬───
+    ·                                                                                                       ╰── "initial" reads as machine-favored register (mined llm-favored (MINING.md); first is the plain equivalent); "first" is a plain near-synonym
+ 43 │ 
+    ╰────
+
+symmetry.triad_reduction
+
+  × flat "X, Y, and Z" triad with matching-class items reads as an LLM tic; consider dropping the weakest item or restructuring
+    ╭─[corpus/llm/readme/04c4c78e378a7c8f.md:48:4]
+ 47 │ 
+ 48 │    You will be prompted to enter a username, password, and email address for your admin account.
+    ·    ──────────────────────────────────────────────┬─────────────────────────────────────────────
+    ·                                                  ╰── flat "X, Y, and Z" triad with matching-class items reads as an LLM tic; consider dropping the weakest item or restructuring
+ 49 │ 
+    ╰────
+
+symmetry.triad_reduction
+
+  × flat "X, Y, and Z" triad with matching-class items reads as an LLM tic; consider dropping the weakest item or restructuring
+    ╭─[corpus/llm/readme/04c4c78e378a7c8f.md:69:52]
+ 68 │ 
+ 69 │ Feel free to contribute to Feedwell's development! We welcome bug reports, feature requests, and pull requests. Please refer to the CONTRIBUTING.md file for guidelines on how to get involved.
+    ·                                                    ─────────────────────────────┬─────────────────────────────
+    ·                                                                                 ╰── flat "X, Y, and Z" triad with matching-class items reads as an LLM tic; consider dropping the weakest item or restructuring
+ 70 │ 
+    ╰────

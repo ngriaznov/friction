@@ -5,7 +5,8 @@ use std::collections::BTreeSet;
 
 use friction_core::{Document, Finding, Patch, RuleId, Tier, span};
 use friction_nlp::{Segmenter, Tagger};
-use friction_rules::{Gate, GenreEnvelope, Rule, RuleContext, StrategyRng};
+use friction_plan::Plan;
+use friction_rules::{Gate, GenreEnvelope, Rule, RuleContext, RuleFamily, StrategyRng};
 
 use crate::conflict::{Candidate, apply_patches, resolve_round};
 
@@ -145,11 +146,52 @@ pub fn run_fixpoint(
     genre: &str,
     envelope: &dyn GenreEnvelope,
 ) -> Result<(String, FixpointReport), ApplyError> {
+    run_fixpoint_with_plan(source, rules, segmenter, tagger, genre, envelope, None)
+}
+
+/// Runs the fixpoint driver exactly like [`run_fixpoint`], with one
+/// additional, optional input: `plan`.
+///
+/// `plan` is `None` -> `Some`, additive: passing `None` runs the exact
+/// same code path [`run_fixpoint`] itself runs (that function is a thin
+/// wrapper over this one, supplying `None`), so it reproduces
+/// [`run_fixpoint`]'s output byte-for-byte, with no separate
+/// implementation to drift out of sync — see
+/// `crate::tests::plan_none_matches_run_fixpoint` for a regression test
+/// pinning this down over a real fixture.
+///
+/// Passing `Some(plan)` layers one additional constraint on top of every
+/// rule's own [`Rule::gate`]-computed budget, never in place of it: each
+/// round, a family may contribute at most [`Plan::budget_for`]'s value
+/// for that family to that round's candidate pool, counting only
+/// candidates that actually got that far (i.e. already inside their own
+/// rule's per-rule budget). A finding still gets scanned and surfaced in
+/// [`RoundReport::findings`] even once its family's plan budget is
+/// exhausted — only the fix pathway is capped, exactly like a per-rule
+/// [`friction_rules::Budget`] of zero already behaves. Because the cap
+/// applies to *candidates entering conflict resolution*, not to a
+/// post-resolution count, the number of patches a family actually ends up
+/// applying in a round can be lower than its plan budget (an overlap with
+/// another family's patch can still drop one) but never higher.
+///
+/// # Errors
+/// See [`run_fixpoint`].
+pub fn run_fixpoint_with_plan(
+    source: &str,
+    rules: &[&dyn Rule],
+    segmenter: &dyn Segmenter,
+    tagger: &dyn Tagger,
+    genre: &str,
+    envelope: &dyn GenreEnvelope,
+    plan: Option<&Plan>,
+) -> Result<(String, FixpointReport), ApplyError> {
     let mut current = source.to_string();
     let mut rounds = Vec::with_capacity(MAX_ROUNDS);
 
     for round in 1..=MAX_ROUNDS {
-        let (next, report) = run_round(&current, rules, segmenter, tagger, genre, envelope, round)?;
+        let (next, report) = run_round(
+            &current, rules, segmenter, tagger, genre, envelope, round, plan,
+        )?;
         let applied = report.patches_applied;
         rounds.push(report);
         current = next;
@@ -162,8 +204,9 @@ pub fn run_fixpoint(
 }
 
 /// Runs a single round: parse, compute metrics, gate/scan/fix every rule,
-/// resolve conflicts, and apply. See [`run_fixpoint`] for the driver this
-/// composes into.
+/// resolve conflicts, and apply. See [`run_fixpoint_with_plan`] for the
+/// driver this composes into.
+#[allow(clippy::too_many_arguments)]
 fn run_round(
     source: &str,
     rules: &[&dyn Rule],
@@ -172,6 +215,7 @@ fn run_round(
     genre: &str,
     envelope: &dyn GenreEnvelope,
     round: usize,
+    plan: Option<&Plan>,
 ) -> Result<(String, RoundReport), ApplyError> {
     let document =
         friction_parse::parse(source).map_err(|source| ApplyError::Parse { round, source })?;
@@ -183,6 +227,10 @@ fn run_round(
     let mut findings = Vec::new();
     let mut candidates: Vec<Candidate> = Vec::new();
     let mut fired: BTreeSet<RuleId> = BTreeSet::new();
+    // How many candidates each family has already contributed this round,
+    // indexed by `RuleFamily::priority` (0..=5, one slot per family) —
+    // only ever consulted when `plan` is `Some`; see `family_has_room`.
+    let mut family_counts = [0usize; 6];
 
     for &rule in rules {
         match rule.gate(&metrics, envelope) {
@@ -195,7 +243,10 @@ fn run_round(
             }
             Gate::Fix { mut budget } => {
                 for finding in rule.scan(&ctx) {
-                    if finding.tier == Tier::Fix && !budget.is_exhausted() {
+                    if finding.tier == Tier::Fix
+                        && !budget.is_exhausted()
+                        && family_has_room(plan, rule.family(), &family_counts)
+                    {
                         let sentence_bytes = sentence_bytes_for(&with_sentences, &finding);
                         let mut rng = StrategyRng::seeded(sentence_bytes, rule.id());
                         if let Some(patch) = rule.fix(&finding, &ctx, &mut rng) {
@@ -207,6 +258,7 @@ fn run_round(
                                 budget = budget
                                     .take_one()
                                     .expect("budget was checked non-exhausted above");
+                                family_counts[rule.family().priority() as usize] += 1;
                                 fired.insert(rule.id());
                                 candidates.push(Candidate {
                                     patch,
@@ -237,6 +289,16 @@ fn run_round(
     ))
 }
 
+/// `true` if `family` may still contribute another candidate this round:
+/// always `true` when `plan` is `None` (the default, behavior-preserving
+/// case — see [`run_fixpoint_with_plan`]'s own docs), otherwise `true`
+/// only while `family`'s running count in `counts` (indexed by
+/// [`RuleFamily::priority`]) is still below `plan`'s
+/// [`Plan::budget_for`] value for that family.
+fn family_has_room(plan: Option<&Plan>, family: RuleFamily, counts: &[usize; 6]) -> bool {
+    plan.is_none_or(|plan| counts[family.priority() as usize] < plan.budget_for(family))
+}
+
 /// The source bytes of the sentence containing `finding`, for seeding a
 /// [`StrategyRng`].
 ///
@@ -260,7 +322,7 @@ fn sentence_bytes_for<'a>(document: &'a Document, finding: &Finding) -> &'a [u8]
 
 #[cfg(test)]
 mod tests {
-    use friction_core::{MetricVector, Patch};
+    use friction_core::{Envelope, MetricVector, Patch};
     use friction_nlp::SrxSegmenter;
     use friction_rules::{Budget, MapEnvelope};
 
@@ -612,5 +674,161 @@ mod tests {
             round.patches_applied, 1,
             "only the Fix-tier finding should have produced an applied patch"
         );
+    }
+
+    /// Regression test: `run_fixpoint_with_plan(..., None)` reproduces
+    /// `run_fixpoint`'s output byte-for-byte — including every round's
+    /// fired-rule set, applied/dropped counts, and the applied patch
+    /// count — on a golden, multi-round, multi-family fixture (structural
+    /// unbullet, connective surgery, and contraction insertion all fire
+    /// across four rounds). `run_fixpoint` is defined as calling this
+    /// function with `None` (see its own docs), so this passes by
+    /// construction today; the point of this test is to catch a future
+    /// change that breaks that construction — e.g. a refactor that
+    /// accidentally starts threading `plan` through some other path.
+    #[test]
+    fn plan_none_matches_pre_plan_output_on_a_golden_fixture() {
+        let segmenter = SrxSegmenter::new();
+        let tagger = NoopTagger;
+        let envelope = MapEnvelope::new()
+            .with("list_item_density", Envelope::new(0.0, 0.0))
+            .with("discourse_marker_density", Envelope::new(0.0, 0.0))
+            .with("contraction_ratio", Envelope::new(0.9, 1.0));
+        let source = "- Moreover, it is not ready for every team member to use\n\
+                       - Furthermore, it is not likely to work either\n";
+        let rules = crate::registered_rules();
+
+        let (without_plan, report_without_plan) =
+            run_fixpoint(source, &rules, &segmenter, &tagger, "blog", &envelope)
+                .expect("golden fixture must fix cleanly");
+        let (with_none_plan, report_with_none_plan) =
+            run_fixpoint_with_plan(source, &rules, &segmenter, &tagger, "blog", &envelope, None)
+                .expect("golden fixture must fix cleanly");
+
+        // Pin the actual output, not just the two paths' agreement with
+        // each other: a future change to any registered rule that alters
+        // this fixture's output has to update this assertion consciously.
+        assert_eq!(
+            without_plan,
+            "It's not ready for every team member to use and it's not likely to work either.\n"
+        );
+        assert_eq!(
+            without_plan, with_none_plan,
+            "run_fixpoint_with_plan(..., None) must reproduce run_fixpoint's output exactly"
+        );
+
+        assert_eq!(
+            report_without_plan.rounds.len(),
+            report_with_none_plan.rounds.len()
+        );
+        for (a, b) in report_without_plan
+            .rounds
+            .iter()
+            .zip(&report_with_none_plan.rounds)
+        {
+            assert_eq!(a.round, b.round);
+            assert_eq!(a.rules_fired, b.rules_fired);
+            assert_eq!(a.patches_applied, b.patches_applied);
+            assert_eq!(a.patches_dropped, b.patches_dropped);
+            assert_eq!(a.applied_patches, b.applied_patches);
+        }
+    }
+
+    /// A [`Plan`] with a `0` budget for a rule's family blocks that
+    /// family's fixes entirely, this round, while leaving its scan
+    /// (findings surfaced for diagnostics) untouched — exactly the same
+    /// shape [`zero_budget_scans_without_fixing`] already pins down for a
+    /// rule's own per-round [`Budget`] of zero, now via the plan-level
+    /// cap instead.
+    #[test]
+    fn plan_zero_budget_blocks_a_familys_fixes_but_not_its_scan() {
+        let rule = DeletePhraseRule {
+            id: RuleId::new("lexical.filler"),
+            phrase: "filler ",
+            budget: 10,
+        };
+        let rule: &dyn Rule = &rule;
+        let source = "filler one and filler two.";
+
+        // No bands at all -> every family's summed advisory budget is 0.
+        let plan = Plan::build(&MetricVector::default(), &MapEnvelope::new());
+        assert_eq!(plan.budget_for(RuleFamily::Lexical), 0);
+
+        let segmenter = SrxSegmenter::new();
+        let tagger = NoopTagger;
+        let envelope = MapEnvelope::new();
+        let (output, report) = run_fixpoint_with_plan(
+            source,
+            &[rule],
+            &segmenter,
+            &tagger,
+            "blog",
+            &envelope,
+            Some(&plan),
+        )
+        .expect("well-formed markdown input must not fail");
+
+        assert_eq!(output, source, "a zero plan budget must apply no patches");
+        assert_eq!(report.total_patches_applied(), 0);
+        assert_eq!(
+            report.rounds[0].findings.len(),
+            2,
+            "scanning must still happen even though the family's plan budget is zero"
+        );
+    }
+
+    /// A [`Plan`]'s per-family budget caps that family's applied patches
+    /// for the round, even when the firing rule's own per-round
+    /// [`Budget`] (computed independently by [`Rule::gate`]) would allow
+    /// more — the plan layers an additional constraint on top, it never
+    /// loosens the rule's own. The cap is per round, though (like a
+    /// rule's own budget): a fresh round re-applies the same plan budget
+    /// and picks up where the previous one left off.
+    #[test]
+    fn plan_caps_a_familys_applied_patches_per_round() {
+        let rule = DeletePhraseRule {
+            id: RuleId::new("lexical.filler"),
+            phrase: "filler ",
+            // Generous rule-level budget: not the limiting factor here.
+            budget: 10,
+        };
+        let rule: &dyn Rule = &rule;
+        let source = "filler one filler two filler three filler four filler five.";
+
+        // Hand-computed: llm_favored_phrase_rate at 5.0 against a [0.0,
+        // 2.0] band, per-fix effect 1.0 -> excess 3.0 -> budget 3.
+        let plan = Plan::build(
+            &MetricVector {
+                llm_favored_phrase_rate: 5.0,
+                ..MetricVector::default()
+            },
+            &MapEnvelope::new().with("llm_favored_phrase_rate", Envelope::new(0.0, 2.0)),
+        );
+        assert_eq!(plan.budget_for(RuleFamily::Lexical), 3);
+
+        let segmenter = SrxSegmenter::new();
+        let tagger = NoopTagger;
+        let envelope = MapEnvelope::new();
+        let (output, report) = run_fixpoint_with_plan(
+            source,
+            &[rule],
+            &segmenter,
+            &tagger,
+            "blog",
+            &envelope,
+            Some(&plan),
+        )
+        .expect("well-formed markdown input must not fail");
+
+        assert_eq!(
+            report.rounds[0].patches_applied, 3,
+            "plan budget of 3 must cap round 1, even though the rule's own budget of 10 \
+             would allow all 5 occurrences"
+        );
+        assert_eq!(
+            report.rounds[1].patches_applied, 2,
+            "round 2's fresh cap picks up the 2 occurrences round 1 left behind"
+        );
+        assert_eq!(output, "one two three four five.");
     }
 }

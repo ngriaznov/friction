@@ -1,0 +1,44 @@
+---
+source: crates/friction-cli/tests/snapshot.rs
+expression: stdout
+---
+METRIC                        BEFORE    AFTER  BAND                MOVEMENT  
+sentence_length_mean         14.2391  14.2391  [3.7147, 8.3678]    OUT -> OUT
+sentence_length_stddev        7.8135   7.8135  [3.8429, 8.5614]    in -> in  
+sentence_length_cv            0.5487   0.5487  [0.8694, 1.1405]    OUT -> OUT
+discourse_marker_density      0.0000   0.0000  [0.0000, 0.0000]    in -> in  
+triad_rate                    0.1087   0.1087  [0.0000, 0.0169]    OUT -> OUT
+contraction_ratio             0.0000   0.0000  [0.0000, 0.5714]    in -> in  
+bullet_parallelism            1.0000   1.0000  [0.6320, 0.8533]    OUT -> OUT
+paragraph_shape_mean          1.8400   1.8400  [1.0926, 1.2222]    OUT -> OUT
+paragraph_shape_cv            0.5253   0.5253  [0.2877, 0.4873]    OUT -> OUT
+em_dash_density               1.5267   1.5267  [0.0000, 1.2285]    OUT -> OUT
+semicolon_density             0.0000   0.0000  [0.0000, 1.6207]    in -> in  
+participial_closer_rate       0.0435   0.0435  [0.0000, 0.0064]    OUT -> OUT
+not_just_but_rate             0.0217   0.0217  [0.0000, 0.0000]    OUT -> OUT
+ritual_marker_rate            0.0000   0.0000  [0.0000, 0.0000]    in -> in  
+llm_favored_phrase_rate      33.6907  33.6907  [3.5928, 14.8957]   OUT -> OUT
+human_favored_phrase_rate     6.1256   6.1256  [10.1215, 27.7537]  OUT -> OUT
+heading_density               0.0000   0.0000  [5.7582, 19.1617]   OUT -> OUT
+list_item_density             4.5942   4.5942  [12.2581, 80.2920]  OUT -> OUT
+bold_span_density            12.2511  12.2511  [0.0000, 6.4516]    OUT -> OUT
+sentence_opener_repeat_rate   0.0000   0.0000  [0.0038, 0.0448]    OUT -> OUT
+top_opener_concentration      0.0870   0.0870  [0.0485, 0.1739]    in -> in  
+
+plan schedule (friction-plan, built from the document's original metrics):
+| family | budget | metric | current | lo | hi | excess |
+|---|---|---|---|---|---|---|
+| structural | 5 | bold_span_density | 12.2511 | 0.0000 | 6.4516 | 5.7995 |
+|  |  | list_item_density | 4.5942 | 12.2581 | 80.2920 | 0.0000 |
+|  |  | heading_density | 0.0000 | 5.7582 | 19.1617 | 0.0000 |
+| symmetry | 0 | not_just_but_rate | 0.0217 | 0.0000 | 0.0000 | 0.0217 |
+|  |  | participial_closer_rate | 0.0435 | 0.0000 | 0.0064 | 0.0371 |
+|  |  | ritual_marker_rate | 0.0000 | 0.0000 | 0.0000 | 0.0000 |
+|  |  | triad_rate | 0.1087 | 0.0000 | 0.0169 | 0.0917 |
+| connective | 0 | discourse_marker_density | 0.0000 | 0.0000 | 0.0000 | 0.0000 |
+| lexical | 18 | discourse_marker_density | 0.0000 | 0.0000 | 0.0000 | 0.0000 |
+|  |  | llm_favored_phrase_rate | 33.6907 | 3.5928 | 14.8957 | 18.7949 |
+| rhythm | 6 | sentence_length_cv | 0.5487 | 0.8694 | 1.1405 | 0.3207 |
+| contraction | 0 | contraction_ratio | 0.0000 | 0.0000 | 0.5714 | 0.0000 |
+
+fixpoint: 2 round(s), 2 patch(es) applied

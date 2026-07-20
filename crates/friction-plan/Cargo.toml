@@ -10,3 +10,9 @@ repository.workspace = true
 workspace = true
 
 [dependencies]
+friction-core = { path = "../friction-core", features = ["serde"] }
+friction-rules = { path = "../friction-rules" }
+serde = { workspace = true }
+
+[dev-dependencies]
+serde_json = { workspace = true }

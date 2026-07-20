@@ -1,0 +1,167 @@
+---
+source: crates/friction-cli/tests/snapshot.rs
+expression: stdout
+---
+{
+  "genre": "blog",
+  "metrics": [
+    {
+      "name": "sentence_length_mean",
+      "value": 12.972222222222221,
+      "lo": 7.222222222222222,
+      "hi": 22.612244897959183,
+      "in_envelope": true
+    },
+    {
+      "name": "sentence_length_stddev",
+      "value": 10.326573356343845,
+      "lo": 6.710643999484348,
+      "hi": 12.69937026747041,
+      "in_envelope": true
+    },
+    {
+      "name": "sentence_length_cv",
+      "value": 0.7960527640864634,
+      "lo": 0.49754649007902846,
+      "hi": 1.1375256187963048,
+      "in_envelope": true
+    },
+    {
+      "name": "discourse_marker_density",
+      "value": 0.0,
+      "lo": 0.0,
+      "hi": 2.8618152085036797,
+      "in_envelope": true
+    },
+    {
+      "name": "triad_rate",
+      "value": 0.0,
+      "lo": 0.0,
+      "hi": 0.08695652173913043,
+      "in_envelope": true
+    },
+    {
+      "name": "contraction_ratio",
+      "value": 0.0,
+      "lo": 0.0,
+      "hi": 0.7307692307692307,
+      "in_envelope": true
+    },
+    {
+      "name": "bullet_parallelism",
+      "value": 0.0,
+      "lo": 0.0,
+      "hi": 1.0,
+      "in_envelope": true
+    },
+    {
+      "name": "paragraph_shape_mean",
+      "value": 1.3333333333333333,
+      "lo": 1.1640625,
+      "hi": 3.5384615384615383,
+      "in_envelope": true
+    },
+    {
+      "name": "paragraph_shape_cv",
+      "value": 0.5773502691896257,
+      "lo": 0.38580860691983426,
+      "hi": 0.7953949089757174,
+      "in_envelope": true
+    },
+    {
+      "name": "em_dash_density",
+      "value": 4.282655246252677,
+      "lo": 0.0,
+      "hi": 4.244482173174872,
+      "in_envelope": false
+    },
+    {
+      "name": "semicolon_density",
+      "value": 0.0,
+      "lo": 0.0,
+      "hi": 3.4199726402188784,
+      "in_envelope": true
+    },
+    {
+      "name": "participial_closer_rate",
+      "value": 0.0,
+      "lo": 0.0,
+      "hi": 0.023076923076923078,
+      "in_envelope": true
+    },
+    {
+      "name": "not_just_but_rate",
+      "value": 0.027777777777777776,
+      "lo": 0.0,
+      "hi": 0.009259259259259259,
+      "in_envelope": false
+    },
+    {
+      "name": "ritual_marker_rate",
+      "value": 0.0,
+      "lo": 0.0,
+      "hi": 0.0,
+      "in_envelope": true
+    },
+    {
+      "name": "llm_favored_phrase_rate",
+      "value": 6.437768240343348,
+      "lo": 0.922509225092251,
+      "hi": 19.31200965600483,
+      "in_envelope": true
+    },
+    {
+      "name": "human_favored_phrase_rate",
+      "value": 6.437768240343348,
+      "lo": 11.149228130360205,
+      "hi": 39.260969976905315,
+      "in_envelope": false
+    },
+    {
+      "name": "heading_density",
+      "value": 2.1459227467811157,
+      "lo": 0.607164541590771,
+      "hi": 10.36682615629984,
+      "in_envelope": true
+    },
+    {
+      "name": "list_item_density",
+      "value": 0.0,
+      "lo": 0.0,
+      "hi": 16.82439537329127,
+      "in_envelope": true
+    },
+    {
+      "name": "bold_span_density",
+      "value": 0.0,
+      "lo": 0.0,
+      "hi": 10.668163952835485,
+      "in_envelope": true
+    },
+    {
+      "name": "sentence_opener_repeat_rate",
+      "value": 0.22857142857142856,
+      "lo": 0.006711409395973154,
+      "hi": 0.13432835820895522,
+      "in_envelope": false
+    },
+    {
+      "name": "top_opener_concentration",
+      "value": 0.2222222222222222,
+      "lo": 0.058823529411764705,
+      "hi": 0.2153846153846154,
+      "in_envelope": false
+    }
+  ],
+  "findings": [
+    {
+      "rule": "symmetry.not_just_but",
+      "tier": "suggest",
+      "start": 432,
+      "end": 470,
+      "line": 5,
+      "column": 78,
+      "message": "\"not just/only X but (also) Y\" reads as an LLM tic; consider reframing which half the sentence emphasizes"
+    }
+  ]
+}

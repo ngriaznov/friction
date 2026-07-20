@@ -1,0 +1,120 @@
+---
+source: crates/friction-cli/tests/snapshot.rs
+expression: stdout
+---
+# Lumen README
+
+## Introduction
+
+Lumen is a static site generator tailored specifically for photography portfolios. It uses Ruby's power through a gem distribution system, making it easy to integrate into existing projects or workflows. Designed with simplicity and performance in mind, Lumen automates the generation of visually appealing portfolio sites by handling image galleries, markdown-based content, thumbnail creation, and EXIF-based caption extraction seamlessly.
+
+## Folder Convention
+
+To use Lumen effectively, adhere to its recommended folder structure:
+
+1. **`images/`**: This directory should contain subdirectories named after each gallery or section within your portfolio. For example, if you have a "Summer Vacations" and "Winter Projects" gallery, create `images/summer-vacations` and `images/winter-projects`. Each subdirectory will hold the images relevant to that gallery.
+
+2. **`pages/`**: This directory should contain front-matter-free markdown files representing each page of your portfolio (e.g., About Me, Contact). Markdown files do not require YAML front matter; Lumen reads them directly for content insertion.
+
+## Build Command
+
+To generate your static site, use the following command:
+
+```bash
+lumen build
+```
+
+This command compiles all specified galleries and pages into a fully functional static website improved for deployment on any web server or hosting service that supports static sites (like GitHub Pages, Netlify, etc.).
+
+## Local Preview Server
+
+For local development and testing, Lumen offers an integrated preview server:
+
+```bash
+lumen serve
+```
+
+This command starts a local HTTP server at `http://localhost:8000`, allowing you to view your portfolio in real-time as you make changes. It’s particularly useful for iterating on content layout, image galleries, or theme customization without rebuilding the site each time.
+
+## Thumbnail Generation
+
+Lumen automates thumbnail creation for your images:
+
+1. **Automatic Thumbnails**: When you build your site (`lumen build`), Lumen scans all image files in the `images/` directory and generates improved thumbnails based on predefined sizes (e.g., small, medium, large). This process improves load times without compromising quality.
+
+2. **Customization**: You can specify custom thumbnail dimensions or formats by editing the `_config.yml` file under particular gallery directories. For example:
+
+```yaml
+- name: Summer Vacations
+  thumbnails:
+    small: 150x100
+    medium: 500x333
+```
+
+## EXIF-Based Caption Extraction
+
+Lumen intelligently extracts captions from image metadata (EXIF data) to provide descriptive information about each photograph:
+
+1. **Automatic Extraction**: During the build process, Lumen reads the EXIF data of images in your galleries and automatically generates caption fields based on this metadata.
+
+2. **Customization**: If you prefer a different source for captions or wish to override automatic extraction, simply add a `caption` field in the markdown front matter for that particular image:
+
+```markdown
+---
+title: Sunset Over Beach
+---
+
+# This is your main content...
+
+![Sunset](images/summer-vacations/sunset-beach.jpg)
+```
+
+## Configuration via `_config.yml`
+
+Lumen’s configuration file, `_config.yml`, centralizes settings like site title, theme selection, and output directory:
+
+```yaml
+site_title: "Jane Doe's Photography Portfolio"
+theme: "dark-mode" # Options: light-mode | dark-mode
+output_directory: "_site"
+
+# Optional customizations for galleries or pages can be added here.
+```
+
+### Explanation of Configuration Options
+
+- **`site_title`**: Sets the title displayed at the top of your site, which is also used in SEO and social sharing contexts.
+
+- **`theme`**: Choose between `light-mode` (default) or `dark-mode` to match your aesthetic preferences or audience needs. Themes adjust background colors, text contrast, and overall visual feel without altering image galleries themselves.
+
+- **`output_directory`**: Specifies the folder where the generated static site will be placed after running `lumen build`. This can be useful for separating compiled sites from source files if you manage multiple projects simultaneously.
+
+## Getting Started
+
+1. **Installation**: Install Lumen using RubyGems:
+
+```bash
+gem install lumen-photography
+```
+
+2. **Project Setup**: Initialize a new project by running:
+
+```bash
+lumen init
+```
+
+This command creates the needed directory structure (`images/`, `pages/`) and populates `_config.yml` with default settings.
+
+3. **Add Content**: Place your images in the appropriate gallery directories under `images/`. Write markdown files for each page of your portfolio inside the `pages/` directory.
+
+4. **Build & Serve**:
+
+```bash
+lumen build
+# To preview locally:
+lumen serve
+```
+
+## Conclusion
+
+Lumen simplifies the creation and maintenance of photography portfolios by automating repetitive tasks like thumbnail generation, caption extraction from EXIF data, and providing a straightforward configuration system via `_config.yml`. Its intuitive folder structure ensures consistency across galleries and pages, making it an excellent choice for photographers looking to show their work online with minimal effort. Happy creating!

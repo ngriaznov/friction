@@ -23,6 +23,10 @@ walkdir = "2"
 # Deterministic, non-cryptographic hashing used to seed the fix-strategy
 # PRNG from (sentence bytes, rule id) — see `friction-rules::StrategyRng`.
 xxhash-rust = { version = "0.8", features = ["xxh64"] }
+# End-to-end CLI snapshot suite (friction-cli's tests/snapshot.rs): pins
+# the full byte output of `check`/`fix`/`explain` over a fixed corpus
+# selection to on-disk `.snap` files.
+insta = "1"
 
 [workspace.lints.rust]
 unsafe_code = "deny"

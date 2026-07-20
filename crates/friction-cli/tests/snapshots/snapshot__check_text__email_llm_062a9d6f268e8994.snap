@@ -1,0 +1,135 @@
+---
+source: crates/friction-cli/tests/snapshot.rs
+expression: stdout
+---
+METRIC                         VALUE  BAND                STATUS
+sentence_length_mean         14.2391  [3.7147, 8.3678]    OUT   
+sentence_length_stddev        7.8135  [3.8429, 8.5614]    in    
+sentence_length_cv            0.5487  [0.8694, 1.1405]    OUT   
+discourse_marker_density      0.0000  [0.0000, 0.0000]    in    
+triad_rate                    0.1087  [0.0000, 0.0169]    OUT   
+contraction_ratio             0.0000  [0.0000, 0.5714]    in    
+bullet_parallelism            1.0000  [0.6320, 0.8533]    OUT   
+paragraph_shape_mean          1.8400  [1.0926, 1.2222]    OUT   
+paragraph_shape_cv            0.5253  [0.2877, 0.4873]    OUT   
+em_dash_density               1.5267  [0.0000, 1.2285]    OUT   
+semicolon_density             0.0000  [0.0000, 1.6207]    in    
+participial_closer_rate       0.0435  [0.0000, 0.0064]    OUT   
+not_just_but_rate             0.0217  [0.0000, 0.0000]    OUT   
+ritual_marker_rate            0.0000  [0.0000, 0.0000]    in    
+llm_favored_phrase_rate      33.6907  [3.5928, 14.8957]   OUT   
+human_favored_phrase_rate     6.1256  [10.1215, 27.7537]  OUT   
+heading_density               0.0000  [5.7582, 19.1617]   OUT   
+list_item_density             4.5942  [12.2581, 80.2920]  OUT   
+bold_span_density            12.2511  [0.0000, 6.4516]    OUT   
+sentence_opener_repeat_rate   0.0000  [0.0038, 0.0448]    OUT   
+top_opener_concentration      0.0870  [0.0485, 0.1739]    in    
+symmetry.triad_reduction
+
+  × flat "X, Y, and Z" triad with matching-class items reads as an LLM tic; consider dropping the weakest item or restructuring
+   ╭─[corpus/llm/email/062a9d6f268e8994.md:5:186]
+ 4 │ 
+ 5 │ Welcome to another issue of our monthly newsletter where we share updates from the night sky to the latest happenings at our local astronomy club! As we look back on a fantastic month, let's dive into what transpired during our last star party, explore the beauty captured by one of our members, and get excited about upcoming events. This newsletter is filled with celestial delights that await us all.
+   ·                                                                                                                                                                                          ──────────────────────────────────────────────────────────────────────────┬─────────────────────────────────────────────────────────────────────────
+   ·                                                                                                                                                                                                                                                                    ╰── flat "X, Y, and Z" triad with matching-class items reads as an LLM tic; consider dropping the weakest item or restructuring
+ 6 │ 
+   ╰────
+
+symmetry.triad_reduction
+
+  × flat "X, Y, and Z" triad with matching-class items reads as an LLM tic; consider dropping the weakest item or restructuring
+    ╭─[corpus/llm/email/062a9d6f268e8994.md:9:50]
+  8 │ 
+  9 │ Our February star party was an absolute success! Over 40 eager astronomers gathered at our observatory site to observe the night sky through various telescopes, learn from experienced guides, and share their passion for astronomy. The clear weather provided excellent visibility of the Milky Way, as well as several bright planets including Jupiter and Mars.
+    ·                                                  ──────────────────────────────────────────────────────────────────────────────────────────┬─────────────────────────────────────────────────────────────────────────────────────────
+    ·                                                                                                                                            ╰── flat "X, Y, and Z" triad with matching-class items reads as an LLM tic; consider dropping the weakest item or restructuring
+ 10 │ 
+    ╰────
+
+symmetry.not_just_but
+
+  × "not just/only X but (also) Y" reads as an LLM tic; consider reframing which half the sentence emphasizes
+    ╭─[corpus/llm/email/062a9d6f268e8994.md:11:369]
+ 10 │ 
+ 11 │ We had a special guest, Dr. Emily Starbright (pseudonym), who shared her expertise in deep-sky imaging. She guided us through the night sky using state-of-the-art equipment, making our star party even more engaging than ever before. The highlight of the evening was undoubtedly the view of Saturn and its rings, illuminated by a full moon. Participants were impressed not only with what they saw but also with how to capture such celestial beauty.
+    ·                                                                                                                                                                                                                                                                                                                                                                                 ──────────────────┬─────────────────
+    ·                                                                                                                                                                                                                                                                                                                                                                                                   ╰── "not just/only X but (also) Y" reads as an LLM tic; consider reframing which half the sentence emphasizes
+ 12 │ 
+    ╰────
+
+lexical.substitution
+
+  ⚠ "showcase" reads as machine-favored register (showcase is a more formal synonym of show); "show" is a plain near-synonym
+    ╭─[corpus/llm/email/062a9d6f268e8994.md:17:15]
+ 16 │ 
+ 17 │ Jane's images showcase a vibrant pinkish region of gas clouds and stars within the Orion Nebula, illuminated by the intense radiation from massive young stars. She shared her process with us, including tips on adjusting exposure times to capture fine details while balancing noise reduction techniques. The result is nothing short of breathtaking—a testament to Jane’s dedication and skill.
+    ·               ────┬───
+    ·                   ╰── "showcase" reads as machine-favored register (showcase is a more formal synonym of show); "show" is a plain near-synonym
+ 18 │ 
+    ╰────
+
+symmetry.participial_closer
+
+  ⚠ sentence-final participial closer reads as an LLM tic; promoting it to its own sentence preserves the claim
+    ╭─[corpus/llm/email/062a9d6f268e8994.md:17:191]
+ 16 │ 
+ 17 │ Jane's images showcase a vibrant pinkish region of gas clouds and stars within the Orion Nebula, illuminated by the intense radiation from massive young stars. She shared her process with us, including tips on adjusting exposure times to capture fine details while balancing noise reduction techniques. The result is nothing short of breathtaking—a testament to Jane’s dedication and skill.
+    ·                                                                                                                                                                                               ───────────────────────────────────────────────────────┬───────────────────────────────────────────────────────
+    ·                                                                                                                                                                                                                                                      ╰── sentence-final participial closer reads as an LLM tic; promoting it to its own sentence preserves the claim
+ 18 │ 
+    ╰────
+
+symmetry.triad_reduction
+
+  × flat "X, Y, and Z" triad with matching-class items reads as an LLM tic; consider dropping the weakest item or restructuring
+    ╭─[corpus/llm/email/062a9d6f268e8994.md:21:274]
+ 20 │ 
+ 21 │ On March 15th, we are thrilled to welcome Dr. John Smith (pseudonym), an expert in exoplanetary science from the University of Astrology (hypothetical institution). Dr. Smith will present a lecture titled "The Search for Other Worlds" at our club hall starting at 7:00 PM. The event is free and open to all members, their families, and interested guests.
+    ·                                                                                                                                                                                                                                                                                  ────────────────────────────────────────┬───────────────────────────────────────
+    ·                                                                                                                                                                                                                                                                                                                          ╰── flat "X, Y, and Z" triad with matching-class items reads as an LLM tic; consider dropping the weakest item or restructuring
+ 22 │ 
+    ╰────
+
+symmetry.participial_closer
+
+  × sentence-final participial closer reads as an LLM tic, but it has no clear object to promote; deleting it cannot be verified to preserve the sentence's claim, so this needs a human decision
+    ╭─[corpus/llm/email/062a9d6f268e8994.md:23:87]
+ 22 │ 
+ 23 │ Dr. Smith’s research focuses on advanced methods used in the detection of exoplanets, including direct imaging techniques and transit photometry. His lecture will cover recent discoveries and future prospects for finding life beyond our solar system. We encourage everyone to attend this enlightening event, which promises to deepen our understanding of what lies outside our own cosmic neighborhood.
+    ·                                                                                     ──────────────────────────────┬─────────────────────────────
+    ·                                                                                                                   ╰── sentence-final participial closer reads as an LLM tic, but it has no clear object to promote; deleting it cannot be verified to preserve the sentence's claim, so this needs a human decision
+ 24 │ 
+    ╰────
+
+symmetry.triad_reduction
+
+  × flat "X, Y, and Z" triad with matching-class items reads as an LLM tic; consider dropping the weakest item or restructuring
+    ╭─[corpus/llm/email/062a9d6f268e8994.md:30:69]
+ 29 │ - **March 10th - Night Sky Observations**
+ 30 │   Join us as we explore the constellations visible in early spring. Our guide will point out interesting stars, planets, and galaxies.
+    ·                                                                     ────────────────────────────────┬────────────────────────────────
+    ·                                                                                                     ╰── flat "X, Y, and Z" triad with matching-class items reads as an LLM tic; consider dropping the weakest item or restructuring
+ 31 │   
+    ╰────
+
+lexical.substitution
+
+  ⚠ "Showcase" reads as machine-favored register (showcase is a more formal synonym of show); "show" is a plain near-synonym
+    ╭─[corpus/llm/email/062a9d6f268e8994.md:32:31]
+ 31 │   
+ 32 │ - **March 24th - Solar System Showcase**
+    ·                               ────┬───
+    ·                                   ╰── "Showcase" reads as machine-favored register (showcase is a more formal synonym of show); "show" is a plain near-synonym
+ 33 │   We’ll focus on observing the inner planets – Mercury, Venus, Mars, and Saturn. Bring your binoculars or telescopes if you have any!
+    ╰────
+
+symmetry.triad_reduction
+
+  × flat "X, Y, and Z" triad with matching-class items reads as an LLM tic; consider dropping the weakest item or restructuring
+    ╭─[corpus/llm/email/062a9d6f268e8994.md:33:61]
+ 32 │ - **March 24th - Solar System Showcase**
+ 33 │   We’ll focus on observing the inner planets – Mercury, Venus, Mars, and Saturn. Bring your binoculars or telescopes if you have any!
+    ·                                                         ───────────┬───────────
+    ·                                                                    ╰── flat "X, Y, and Z" triad with matching-class items reads as an LLM tic; consider dropping the weakest item or restructuring
+ 34 │ 
+    ╰────

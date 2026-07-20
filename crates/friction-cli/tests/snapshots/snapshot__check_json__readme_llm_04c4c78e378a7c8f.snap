@@ -1,0 +1,221 @@
+---
+source: crates/friction-cli/tests/snapshot.rs
+expression: stdout
+---
+{
+  "genre": "readme",
+  "metrics": [
+    {
+      "name": "sentence_length_mean",
+      "value": 9.125,
+      "lo": 3.4918032786885247,
+      "hi": 8.028436018957345,
+      "in_envelope": false
+    },
+    {
+      "name": "sentence_length_stddev",
+      "value": 5.8957081847730555,
+      "lo": 3.4227587963188086,
+      "hi": 7.179325061127496,
+      "in_envelope": true
+    },
+    {
+      "name": "sentence_length_cv",
+      "value": 0.6461050065504719,
+      "lo": 0.8732200181547038,
+      "hi": 1.3591689344136941,
+      "in_envelope": false
+    },
+    {
+      "name": "discourse_marker_density",
+      "value": 0.0,
+      "lo": 0.0,
+      "hi": 3.1847133757961785,
+      "in_envelope": true
+    },
+    {
+      "name": "triad_rate",
+      "value": 0.1,
+      "lo": 0.0,
+      "hi": 0.014218009478672985,
+      "in_envelope": false
+    },
+    {
+      "name": "contraction_ratio",
+      "value": 0.0,
+      "lo": 0.0,
+      "hi": 1.0,
+      "in_envelope": true
+    },
+    {
+      "name": "bullet_parallelism",
+      "value": 0.6696428571428572,
+      "lo": 0.5,
+      "hi": 0.9138888888888889,
+      "in_envelope": true
+    },
+    {
+      "name": "paragraph_shape_mean",
+      "value": 1.1764705882352942,
+      "lo": 1.0357142857142858,
+      "hi": 1.2946428571428572,
+      "in_envelope": true
+    },
+    {
+      "name": "paragraph_shape_cv",
+      "value": 0.3840572873934304,
+      "lo": 0.179177669748504,
+      "hi": 0.5170232290628554,
+      "in_envelope": true
+    },
+    {
+      "name": "em_dash_density",
+      "value": 0.0,
+      "lo": 0.0,
+      "hi": 0.0,
+      "in_envelope": true
+    },
+    {
+      "name": "semicolon_density",
+      "value": 0.0,
+      "lo": 0.0,
+      "hi": 3.9682539682539684,
+      "in_envelope": true
+    },
+    {
+      "name": "participial_closer_rate",
+      "value": 0.0,
+      "lo": 0.0,
+      "hi": 0.011363636363636364,
+      "in_envelope": true
+    },
+    {
+      "name": "not_just_but_rate",
+      "value": 0.0,
+      "lo": 0.0,
+      "hi": 0.0,
+      "in_envelope": true
+    },
+    {
+      "name": "ritual_marker_rate",
+      "value": 0.0,
+      "lo": 0.0,
+      "hi": 0.0,
+      "in_envelope": true
+    },
+    {
+      "name": "llm_favored_phrase_rate",
+      "value": 58.047493403693935,
+      "lo": 0.0,
+      "hi": 21.634615384615383,
+      "in_envelope": false
+    },
+    {
+      "name": "human_favored_phrase_rate",
+      "value": 0.0,
+      "lo": 8.59106529209622,
+      "hi": 35.46099290780142,
+      "in_envelope": false
+    },
+    {
+      "name": "heading_density",
+      "value": 2.638522427440633,
+      "lo": 10.380622837370241,
+      "hi": 43.04635761589404,
+      "in_envelope": false
+    },
+    {
+      "name": "list_item_density",
+      "value": 42.21635883905013,
+      "lo": 4.926108374384237,
+      "hi": 98.26589595375722,
+      "in_envelope": true
+    },
+    {
+      "name": "bold_span_density",
+      "value": 58.047493403693935,
+      "lo": 0.0,
+      "hi": 14.705882352941176,
+      "in_envelope": false
+    },
+    {
+      "name": "sentence_opener_repeat_rate",
+      "value": 0.02564102564102564,
+      "lo": 0.007874015748031496,
+      "hi": 0.13793103448275862,
+      "in_envelope": true
+    },
+    {
+      "name": "top_opener_concentration",
+      "value": 0.05128205128205128,
+      "lo": 0.04424778761061947,
+      "hi": 0.16091954022988506,
+      "in_envelope": true
+    }
+  ],
+  "findings": [
+    {
+      "rule": "symmetry.triad_reduction",
+      "tier": "suggest",
+      "start": 179,
+      "end": 311,
+      "line": 3,
+      "column": 122,
+      "message": "flat \"X, Y, and Z\" triad with matching-class items reads as an LLM tic; consider dropping the weakest item or restructuring"
+    },
+    {
+      "rule": "symmetry.triad_reduction",
+      "tier": "suggest",
+      "start": 464,
+      "end": 584,
+      "line": 8,
+      "column": 19,
+      "message": "flat \"X, Y, and Z\" triad with matching-class items reads as an LLM tic; consider dropping the weakest item or restructuring"
+    },
+    {
+      "rule": "lexical.substitution",
+      "tier": "fix",
+      "start": 1089,
+      "end": 1097,
+      "line": 16,
+      "column": 81,
+      "message": "\"specific\" reads as machine-favored register (mined llm-favored (MINING.md); particular is a plainer near-synonym); \"particular\" is a plain near-synonym"
+    },
+    {
+      "rule": "lexical.substitution",
+      "tier": "fix",
+      "start": 1792,
+      "end": 1801,
+      "line": 36,
+      "column": 35,
+      "message": "\"necessary\" reads as machine-favored register (mined llm-favored (MINING.md); needed is the plain equivalent); \"needed\" is a plain near-synonym"
+    },
+    {
+      "rule": "lexical.substitution",
+      "tier": "fix",
+      "start": 1966,
+      "end": 1973,
+      "line": 42,
+      "column": 100,
+      "message": "\"initial\" reads as machine-favored register (mined llm-favored (MINING.md); first is the plain equivalent); \"first\" is a plain near-synonym"
+    },
+    {
+      "rule": "symmetry.triad_reduction",
+      "tier": "suggest",
+      "start": 2042,
+      "end": 2134,
+      "line": 48,
+      "column": 4,
+      "message": "flat \"X, Y, and Z\" triad with matching-class items reads as an LLM tic; consider dropping the weakest item or restructuring"
+    },
+    {
+      "rule": "symmetry.triad_reduction",
+      "tier": "suggest",
+      "start": 2805,
+      "end": 2864,
+      "line": 69,
+      "column": 52,
+      "message": "flat \"X, Y, and Z\" triad with matching-class items reads as an LLM tic; consider dropping the weakest item or restructuring"
+    }
+  ]
+}

@@ -11,6 +11,7 @@ workspace = true
 
 [dependencies]
 friction-core = { path = "../friction-core" }
+friction-plan = { path = "../friction-plan" }
 friction-rules = { path = "../friction-rules" }
 friction-nlp = { path = "../friction-nlp" }
 friction-metrics = { path = "../friction-metrics" }

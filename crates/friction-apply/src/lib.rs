@@ -48,6 +48,16 @@
 //! multi-round) run's applied patches back to spans of the *original*
 //! input, for reporting tools that need to know what was actually
 //! touched.
+//!
+//! # An optional per-family cap
+//!
+//! [`run_fixpoint_with_plan`] runs the exact same pipeline as
+//! [`run_fixpoint`] (which is defined in terms of it, passing `None`),
+//! with one additional, optional input: a `friction-plan`
+//! [`friction_plan::Plan`] that caps how many patches each rule family may
+//! contribute to any one round, on top of — never in place of — every
+//! rule's own [`friction_rules::Rule::gate`]-computed budget. See that
+//! function's own docs for the exact contract.
 
 mod conflict;
 mod coverage;
@@ -56,5 +66,7 @@ mod fix;
 
 pub use conflict::{Candidate, apply_patches, resolve_round};
 pub use coverage::touched_original_ranges;
-pub use driver::{ApplyError, FixpointReport, MAX_ROUNDS, RoundReport, run_fixpoint};
+pub use driver::{
+    ApplyError, FixpointReport, MAX_ROUNDS, RoundReport, run_fixpoint, run_fixpoint_with_plan,
+};
 pub use fix::{EngineError, FixEngine, fix_document, registered_rules};

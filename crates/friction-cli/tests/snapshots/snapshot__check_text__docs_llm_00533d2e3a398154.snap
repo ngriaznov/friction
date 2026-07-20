@@ -1,0 +1,47 @@
+---
+source: crates/friction-cli/tests/snapshot.rs
+expression: stdout
+---
+METRIC                         VALUE  BAND                STATUS
+sentence_length_mean         15.1273  [5.0796, 11.3699]   OUT   
+sentence_length_stddev        8.6299  [4.8412, 9.5356]    in    
+sentence_length_cv            0.5705  [0.6938, 1.1063]    OUT   
+discourse_marker_density      1.1919  [0.0000, 3.0769]    in    
+triad_rate                    0.0364  [0.0000, 0.0303]    OUT   
+contraction_ratio             0.0000  [0.0000, 0.6667]    in    
+bullet_parallelism            0.7833  [0.0000, 1.0000]    in    
+paragraph_shape_mean          1.6176  [1.0970, 1.5094]    OUT   
+paragraph_shape_cv            0.5613  [0.2883, 0.7260]    in    
+em_dash_density               0.0000  [0.0000, 0.0000]    in    
+semicolon_density             1.2019  [0.0000, 3.5336]    in    
+participial_closer_rate       0.0182  [0.0000, 0.0185]    in    
+not_just_but_rate             0.0000  [0.0000, 0.0000]    in    
+ritual_marker_rate            0.0000  [0.0000, 0.0000]    in    
+llm_favored_phrase_rate      17.8784  [0.0000, 17.8971]   in    
+human_favored_phrase_rate     3.5757  [12.5992, 43.8909]  OUT   
+heading_density               1.1919  [2.3095, 14.9813]   OUT   
+list_item_density            15.4946  [0.0000, 31.6249]   in    
+bold_span_density            22.6460  [0.0000, 14.1767]   OUT   
+sentence_opener_repeat_rate   0.0556  [0.0000, 0.0656]    in    
+top_opener_concentration      0.1852  [0.0545, 0.1613]    OUT   
+symmetry.triad_reduction
+
+  × flat "X, Y, and Z" triad with matching-class items reads as an LLM tic; consider dropping the weakest item or restructuring
+    ╭─[corpus/llm/docs/00533d2e3a398154.md:20:26]
+ 19 │ 
+ 20 │ * **Cache Key Generation:**  A unique key is generated for each query based on its SQL statement, the parameters passed to the query (if any), and potentially a timestamp. This ensures that different queries with identical parameters are treated as distinct entries in the cache.
+    ·                          ────────────────────────────────────────────────────────────────────────┬────────────────────────────────────────────────────────────────────────
+    ·                                                                                                  ╰── flat "X, Y, and Z" triad with matching-class items reads as an LLM tic; consider dropping the weakest item or restructuring
+ 21 │ * **Cache Storage:** The Query Result Cache utilizes an in-memory data structure – likely a dictionary or hashmap – for fast lookups.  The key is the generated query key, and the value is the result set returned by the database.
+    ╰────
+
+symmetry.triad_reduction
+
+  × flat "X, Y, and Z" triad with matching-class items reads as an LLM tic; consider dropping the weakest item or restructuring
+    ╭─[corpus/llm/docs/00533d2e3a398154.md:22:233]
+ 21 │ * **Cache Storage:** The Query Result Cache utilizes an in-memory data structure – likely a dictionary or hashmap – for fast lookups.  The key is the generated query key, and the value is the result set returned by the database.
+ 22 │ * **Hit/Miss Logic:** When `query()` is called, Ledgerline first checks if the corresponding key exists in the Query Result Cache. If it does (a "cache hit"), the cached result is immediately returned.  If not (a “cache miss”), the query executes against the database, the results are stored in the cache using the generated key, and then finally returned to the user.
+    ·                                                                                                                                                                                                                                     ─────────────────────────────────────────────────────────────────────┬─────────────────────────────────────────────────────────────────────
+    ·                                                                                                                                                                                                                                                                                                          ╰── flat "X, Y, and Z" triad with matching-class items reads as an LLM tic; consider dropping the weakest item or restructuring
+ 23 │ * **TTL (Time-To-Live):** Each cached entry has a TTL associated with it – a configurable time period after which the entry is automatically removed from the cache. This prevents stale data from being served. The default TTL can be adjusted per model or globally.
+    ╰────

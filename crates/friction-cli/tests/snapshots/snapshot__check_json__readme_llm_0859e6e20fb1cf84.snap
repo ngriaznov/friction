@@ -1,0 +1,275 @@
+---
+source: crates/friction-cli/tests/snapshot.rs
+expression: stdout
+---
+{
+  "genre": "readme",
+  "metrics": [
+    {
+      "name": "sentence_length_mean",
+      "value": 9.2,
+      "lo": 3.4918032786885247,
+      "hi": 8.028436018957345,
+      "in_envelope": false
+    },
+    {
+      "name": "sentence_length_stddev",
+      "value": 7.891962805479819,
+      "lo": 3.4227587963188086,
+      "hi": 7.179325061127496,
+      "in_envelope": false
+    },
+    {
+      "name": "sentence_length_cv",
+      "value": 0.8578220440738935,
+      "lo": 0.8732200181547038,
+      "hi": 1.3591689344136941,
+      "in_envelope": false
+    },
+    {
+      "name": "discourse_marker_density",
+      "value": 0.0,
+      "lo": 0.0,
+      "hi": 3.1847133757961785,
+      "in_envelope": true
+    },
+    {
+      "name": "triad_rate",
+      "value": 0.06153846153846154,
+      "lo": 0.0,
+      "hi": 0.014218009478672985,
+      "in_envelope": false
+    },
+    {
+      "name": "contraction_ratio",
+      "value": 0.0,
+      "lo": 0.0,
+      "hi": 1.0,
+      "in_envelope": true
+    },
+    {
+      "name": "bullet_parallelism",
+      "value": 0.7857142857142857,
+      "lo": 0.5,
+      "hi": 0.9138888888888889,
+      "in_envelope": true
+    },
+    {
+      "name": "paragraph_shape_mean",
+      "value": 1.25,
+      "lo": 1.0357142857142858,
+      "hi": 1.2946428571428572,
+      "in_envelope": true
+    },
+    {
+      "name": "paragraph_shape_cv",
+      "value": 0.41137667560372115,
+      "lo": 0.179177669748504,
+      "hi": 0.5170232290628554,
+      "in_envelope": true
+    },
+    {
+      "name": "em_dash_density",
+      "value": 0.0,
+      "lo": 0.0,
+      "hi": 0.0,
+      "in_envelope": true
+    },
+    {
+      "name": "semicolon_density",
+      "value": 1.6722408026755853,
+      "lo": 0.0,
+      "hi": 3.9682539682539684,
+      "in_envelope": true
+    },
+    {
+      "name": "participial_closer_rate",
+      "value": 0.0,
+      "lo": 0.0,
+      "hi": 0.011363636363636364,
+      "in_envelope": true
+    },
+    {
+      "name": "not_just_but_rate",
+      "value": 0.0,
+      "lo": 0.0,
+      "hi": 0.0,
+      "in_envelope": true
+    },
+    {
+      "name": "ritual_marker_rate",
+      "value": 0.0,
+      "lo": 0.0,
+      "hi": 0.0,
+      "in_envelope": true
+    },
+    {
+      "name": "llm_favored_phrase_rate",
+      "value": 32.25806451612903,
+      "lo": 0.0,
+      "hi": 21.634615384615383,
+      "in_envelope": false
+    },
+    {
+      "name": "human_favored_phrase_rate",
+      "value": 8.488964346349745,
+      "lo": 8.59106529209622,
+      "hi": 35.46099290780142,
+      "in_envelope": false
+    },
+    {
+      "name": "heading_density",
+      "value": 18.67572156196944,
+      "lo": 10.380622837370241,
+      "hi": 43.04635761589404,
+      "in_envelope": true
+    },
+    {
+      "name": "list_item_density",
+      "value": 22.07130730050934,
+      "lo": 4.926108374384237,
+      "hi": 98.26589595375722,
+      "in_envelope": true
+    },
+    {
+      "name": "bold_span_density",
+      "value": 13.582342954159593,
+      "lo": 0.0,
+      "hi": 14.705882352941176,
+      "in_envelope": true
+    },
+    {
+      "name": "sentence_opener_repeat_rate",
+      "value": 0.0,
+      "lo": 0.007874015748031496,
+      "hi": 0.13793103448275862,
+      "in_envelope": false
+    },
+    {
+      "name": "top_opener_concentration",
+      "value": 0.11666666666666667,
+      "lo": 0.04424778761061947,
+      "hi": 0.16091954022988506,
+      "in_envelope": true
+    }
+  ],
+  "findings": [
+    {
+      "rule": "lexical.substitution",
+      "tier": "fix",
+      "start": 119,
+      "end": 128,
+      "line": 5,
+      "column": 87,
+      "message": "\"leverages\" reads as machine-favored register (canonical LLM-register tell for use); \"use\" is a plain near-synonym"
+    },
+    {
+      "rule": "lexical.substitution",
+      "tier": "fix",
+      "start": 506,
+      "end": 513,
+      "line": 9,
+      "column": 4,
+      "message": "\"utilize\" reads as machine-favored register (canonical LLM-register tell for use); \"use\" is a plain near-synonym"
+    },
+    {
+      "rule": "lexical.substitution",
+      "tier": "fix",
+      "start": 1349,
+      "end": 1358,
+      "line": 23,
+      "column": 96,
+      "message": "\"optimized\" reads as machine-favored register (optimize is a more formal synonym of improve); \"improve\" is a plain near-synonym"
+    },
+    {
+      "rule": "symmetry.triad_reduction",
+      "tier": "suggest",
+      "start": 1742,
+      "end": 1879,
+      "line": 33,
+      "column": 139,
+      "message": "flat \"X, Y, and Z\" triad with matching-class items reads as an LLM tic; consider dropping the weakest item or restructuring"
+    },
+    {
+      "rule": "lexical.substitution",
+      "tier": "fix",
+      "start": 2100,
+      "end": 2109,
+      "line": 39,
+      "column": 141,
+      "message": "\"optimized\" reads as machine-favored register (optimize is a more formal synonym of improve); \"improve\" is a plain near-synonym"
+    },
+    {
+      "rule": "lexical.substitution",
+      "tier": "fix",
+      "start": 2190,
+      "end": 2198,
+      "line": 39,
+      "column": 231,
+      "message": "\"enhances\" reads as machine-favored register (enhance is a more formal synonym of improve); \"improve\" is a plain near-synonym"
+    },
+    {
+      "rule": "lexical.substitution",
+      "tier": "fix",
+      "start": 2358,
+      "end": 2366,
+      "line": 41,
+      "column": 118,
+      "message": "\"specific\" reads as machine-favored register (mined llm-favored (MINING.md); particular is a plainer near-synonym); \"particular\" is a plain near-synonym"
+    },
+    {
+      "rule": "lexical.substitution",
+      "tier": "fix",
+      "start": 3010,
+      "end": 3018,
+      "line": 56,
+      "column": 178,
+      "message": "\"specific\" reads as machine-favored register (mined llm-favored (MINING.md); particular is a plainer near-synonym); \"particular\" is a plain near-synonym"
+    },
+    {
+      "rule": "symmetry.triad_reduction",
+      "tier": "suggest",
+      "start": 3243,
+      "end": 3318,
+      "line": 70,
+      "column": 44,
+      "message": "flat \"X, Y, and Z\" triad with matching-class items reads as an LLM tic; consider dropping the weakest item or restructuring"
+    },
+    {
+      "rule": "symmetry.triad_reduction",
+      "tier": "suggest",
+      "start": 3820,
+      "end": 3935,
+      "line": 84,
+      "column": 124,
+      "message": "flat \"X, Y, and Z\" triad with matching-class items reads as an LLM tic; consider dropping the weakest item or restructuring"
+    },
+    {
+      "rule": "lexical.substitution",
+      "tier": "fix",
+      "start": 4401,
+      "end": 4410,
+      "line": 102,
+      "column": 26,
+      "message": "\"necessary\" reads as machine-favored register (mined llm-favored (MINING.md); needed is the plain equivalent); \"needed\" is a plain near-synonym"
+    },
+    {
+      "rule": "symmetry.triad_reduction",
+      "tier": "suggest",
+      "start": 4781,
+      "end": 5002,
+      "line": 116,
+      "column": 1,
+      "message": "flat \"X, Y, and Z\" triad with matching-class items reads as an LLM tic; consider dropping the weakest item or restructuring"
+    },
+    {
+      "rule": "lexical.substitution",
+      "tier": "fix",
+      "start": 5156,
+      "end": 5164,
+      "line": 116,
+      "column": 376,
+      "message": "\"showcase\" reads as machine-favored register (showcase is a more formal synonym of show); \"show\" is a plain near-synonym"
+    }
+  ]
+}

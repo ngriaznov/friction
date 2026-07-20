@@ -1,0 +1,49 @@
+---
+source: crates/friction-cli/tests/snapshot.rs
+expression: stdout
+---
+**Subject: Quarterly Update – Making a Difference Together!**
+
+Dear Valued Volunteers,
+
+As we wrap up another fantastic quarter at [Nonprofit Food Bank Name], I hope this email finds you well and energized for the work ahead. It’s always inspiring to reflect on how our collective efforts have made a tangible impact in our community, especially during challenging times.
+
+**1. Meals Distributed Last Quarter**
+
+We are thrilled to share that over the past three months, we successfully distributed an impressive **[X,XXX]** meals across our service areas. This remarkable achievement is thanks to the dedication and hard work of our incredible volunteers like you. Your commitment ensures that no one in our community goes hungry. It’s a testament to what can be did when we unite for a common cause.
+
+**2. Spotlight on Our New Mobile Distribution Route**
+
+In an effort to reach more families in need, we’ve launched a new mobile distribution route this quarter! This initiative allows us to bring food directly to neighborhoods that have limited access to traditional distribution sites. The first route has already made its rounds, delivering essential meals to **[Y]** households and garnering positive feedback from community members.
+
+We’re excited about the potential of expanding these routes further and are looking for enthusiastic volunteers who might be interested in helping with logistics or outreach on future trips. If you’d like to get involved or learn more about how you can help, please reach out to our Outreach Coordinator at **[Contact Information]**.
+
+**3. Upcoming Volunteer Appreciation Event**
+
+To celebrate the incredible contributions of our volunteer community, we’re hosting a special appreciation event on **[Date]** at **[Venue]** from **[Time]** to **[Time]**. This will be an opportunity to thank you all for your unwavering support and dedication. We’ll have food, fun activities, and a chance to recognize outstanding volunteers with our annual “Volunteer of the Quarter” awards.
+
+Please RSVP by **[RSVP Deadline]** so we can ensure everyone has a spot. Light refreshments will be provided, but feel free to bring a dish or two if you’d like!
+
+**4. Call for Donations Ahead of the Holiday Season**
+
+As we approach the holiday season, our need for support is greater than ever. Many families are facing food insecurity this time of year, and your generosity can make all the difference. We’re currently in dire need of **[X]** cases of canned goods to stock our emergency food boxes.
+
+You can help by donating canned fruits, vegetables, soups, or stews at any of our distribution sites or through our online donation portal: **[Donation Link]**. Every item counts and ensures that we can provide meals to those in need during the holidays and beyond.
+
+**Thank You for Your Support**
+
+Your commitment to helping others is truly inspiring. It’s because of you that [Nonprofit Food Bank Name] continues to thrive. If you have any questions or would like to get involved in a new project, please don’t hesitate to contact us at **[Contact Information]**.
+
+Let’s keep making a difference together!
+
+Warm regards,
+
+**[Your Name]**  
+**Executive Director**  
+[Nonprofit Food Bank Name]  
+[Website URL]  
+[Phone Number]  
+
+---
+
+**Note:** Ensure that the placeholders such as [X,XXX], [Y], and particular dates are replaced with actual data from your organization's records to make this newsletter accurate and engaging.

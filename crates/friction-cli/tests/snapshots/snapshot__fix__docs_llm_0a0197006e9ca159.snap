@@ -1,0 +1,108 @@
+---
+source: crates/friction-cli/tests/snapshot.rs
+expression: stdout
+---
+**How to Set Up Automatic Database Backups for Corkboard**
+
+Corkboard is your go-to platform for organizing notes and ideas in an intuitive, visual manner. To ensure that all your useful data remains safe and accessible, setting up automatic database backups is key. This guide will walk you through the process of configuring these backups using cron scheduling on a Linux server environment, specifying where to store the backups, and detailing how to restore from a backup file.
+
+### Prerequisites
+
+Before we begin, ensure you have:
+
+1. **Corkboard installed** on your server.
+2. **MySQL/MariaDB** (or PostgreSQL) database set up for Corkboard with root or sufficient privileges.
+3. **Root access** or sudo privileges on the server.
+4. Basic knowledge of using a terminal/command line interface.
+
+### Step 1: Create Backup Directory
+
+First, you need a dedicated directory to store your backups. This will help keep your system organized and make it easier to manage older backups over time.
+
+1. Open your terminal.
+2. Navigate to a suitable location for backups, such as `/var/backups/corkboard/`.
+3. Create the backup directory with the following command:
+
+   ```bash
+   sudo mkdir -p /var/backups/corkboard/
+   ```
+
+4. Set appropriate permissions so that only root or users you authorize can write to this directory.
+
+### Step 2: Write a Backup Script
+
+Next, create a script that will handle the backup process. This script will dump your database into a file and save it in the designated backup directory.
+
+1. Open your favorite text editor (e.g., nano) with root privileges:
+
+   ```bash
+   sudo nano /usr/local/bin/corkboard-backup.sh
+   ```
+
+2. Paste the following code into the script. This adjusts paths if needed:
+
+   ```bash
+   #!/bin/bash
+   
+   DB_USER="your_db_user"
+   DB_PASSWORD="your_db_password"
+   DB_NAME="corkboard_database_name"
+   BACKUP_DIR="/var/backups/corkboard/"
+   
+   TIMESTAMP=$(date +%Y%m%d_%H%M%S)
+   BACKUP_FILE="${BACKUP_DIR}corkboard_$(echo $DB_NAME | tr '-' '_')_${TIMESTAMP}.sql.gz"
+   
+   mysqldump -u$DB_USER -p$DB_PASSWORD --single-transaction $DB_NAME > $BACKUP_FILE
+   gzip $BACKUP_FILE
+   
+   echo "Backup created: $BACKUP_FILE"
+   ```
+
+3. Replace `your_db_user`, `your_db_password`, and `corkboard_database_name` with your actual database credentials.
+4. Save the file and exit the editor (in nano, press `CTRL+X`, then `Y`, followed by `ENTER`).
+
+5. Make the script executable:
+
+   ```bash
+   sudo chmod +x /usr/local/bin/corkboard-backup.sh
+   ```
+
+### Step 3: Schedule Backups with Cron
+
+Now that your backup script is ready, you need to schedule it using cron, a time-based job scheduler.
+
+1. Open the crontab editor for root:
+
+   ```bash
+   sudo crontab -e
+   ```
+
+2. Add a new line to run the backup script daily at 2 AM (adjust the time as needed):
+
+   ```bash
+   0 2 * * * /usr/local/bin/corkboard-backup.sh >> /var/log/corkboard-backup.log 2>&1
+   ```
+
+3. Save and exit the editor. The cron job is now set to run your backup script every day at 2 AM.
+
+### Step 4: Restoring from a Backup
+
+In case of data loss or corruption, you can restore Corkboard from any available backup file in the designated directory.
+
+1. Identify the desired backup file by checking the `BACKUP_DIR`. Files are named like `corkboard_YourDatabaseName_YYYYMMDD_HHMMSS.sql.gz`.
+
+2. To restore a database to its previous state:
+
+   ```bash
+   sudo mysql -u$DB_USER -p$DB_PASSWORD $DB_NAME < /var/backups/corkboard/corkboard_your_database_name_YYYYMMDD_HHMMSS.sql
+   ```
+
+3. Replace `your_database_name` with the actual name of your database.
+
+### Additional Notes
+
+- **Security**: Ensure that backups are stored securely, especially if you're using plain text files before compression.
+- **Backup Retention**: Consider setting up a policy to keep only the most recent backups and delete older ones periodically to save disk space.
+- **Testing**: Periodically test restoring from a backup to confirm its integrity and process speed.
+
+By following these steps, you've set up automatic database backups for Corkboard, ensuring that your notes remain safe against unexpected data loss. Regularly checking your backup logs will help you stay informed about the success of each backup run.

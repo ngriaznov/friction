@@ -1,0 +1,166 @@
+---
+source: crates/friction-cli/tests/snapshot.rs
+expression: stdout
+---
+METRIC                         VALUE  BAND                STATUS
+sentence_length_mean          9.2000  [3.4918, 8.0284]    OUT   
+sentence_length_stddev        7.8920  [3.4228, 7.1793]    OUT   
+sentence_length_cv            0.8578  [0.8732, 1.3592]    OUT   
+discourse_marker_density      0.0000  [0.0000, 3.1847]    in    
+triad_rate                    0.0615  [0.0000, 0.0142]    OUT   
+contraction_ratio             0.0000  [0.0000, 1.0000]    in    
+bullet_parallelism            0.7857  [0.5000, 0.9139]    in    
+paragraph_shape_mean          1.2500  [1.0357, 1.2946]    in    
+paragraph_shape_cv            0.4114  [0.1792, 0.5170]    in    
+em_dash_density               0.0000  [0.0000, 0.0000]    in    
+semicolon_density             1.6722  [0.0000, 3.9683]    in    
+participial_closer_rate       0.0000  [0.0000, 0.0114]    in    
+not_just_but_rate             0.0000  [0.0000, 0.0000]    in    
+ritual_marker_rate            0.0000  [0.0000, 0.0000]    in    
+llm_favored_phrase_rate      32.2581  [0.0000, 21.6346]   OUT   
+human_favored_phrase_rate     8.4890  [8.5911, 35.4610]   OUT   
+heading_density              18.6757  [10.3806, 43.0464]  in    
+list_item_density            22.0713  [4.9261, 98.2659]   in    
+bold_span_density            13.5823  [0.0000, 14.7059]   in    
+sentence_opener_repeat_rate   0.0000  [0.0079, 0.1379]    OUT   
+top_opener_concentration      0.1167  [0.0442, 0.1609]    in    
+lexical.substitution
+
+  ⚠ "leverages" reads as machine-favored register (canonical LLM-register tell for use); "use" is a plain near-synonym
+   ╭─[corpus/llm/readme/0859e6e20fb1cf84.md:5:87]
+ 4 │ 
+ 5 │ Lumen is a static site generator tailored specifically for photography portfolios. It leverages Ruby's power through a gem distribution system, making it easy to integrate into existing projects or workflows. Designed with simplicity and performance in mind, Lumen automates the generation of visually appealing portfolio sites by handling image galleries, markdown-based content, thumbnail creation, and EXIF-based caption extraction seamlessly.
+   ·                                                                                       ────┬────
+   ·                                                                                           ╰── "leverages" reads as machine-favored register (canonical LLM-register tell for use); "use" is a plain near-synonym
+ 6 │ 
+   ╰────
+
+lexical.substitution
+
+  ⚠ "utilize" reads as machine-favored register (canonical LLM-register tell for use); "use" is a plain near-synonym
+    ╭─[corpus/llm/readme/0859e6e20fb1cf84.md:9:4]
+  8 │ 
+  9 │ To utilize Lumen effectively, adhere to its recommended folder structure:
+    ·    ───┬───
+    ·       ╰── "utilize" reads as machine-favored register (canonical LLM-register tell for use); "use" is a plain near-synonym
+ 10 │ 
+    ╰────
+
+lexical.substitution
+
+  ⚠ "optimized" reads as machine-favored register (optimize is a more formal synonym of improve); "improve" is a plain near-synonym
+    ╭─[corpus/llm/readme/0859e6e20fb1cf84.md:23:96]
+ 22 │ 
+ 23 │ This command compiles all specified galleries and pages into a fully functional static website optimized for deployment on any web server or hosting service that supports static sites (like GitHub Pages, Netlify, etc.).
+    ·                                                                                                ────┬────
+    ·                                                                                                    ╰── "optimized" reads as machine-favored register (optimize is a more formal synonym of improve); "improve" is a plain near-synonym
+ 24 │ 
+    ╰────
+
+symmetry.triad_reduction
+
+  × flat "X, Y, and Z" triad with matching-class items reads as an LLM tic; consider dropping the weakest item or restructuring
+    ╭─[corpus/llm/readme/0859e6e20fb1cf84.md:33:139]
+ 32 │ 
+ 33 │ This command starts a local HTTP server at `http://localhost:8000`, allowing you to view your portfolio in real-time as you make changes. It’s particularly useful for iterating on content layout, image galleries, or theme customization without rebuilding the site each time.
+    ·                                                                                                                                           ───────────────────────────────────────────────────────────────────┬───────────────────────────────────────────────────────────────────
+    ·                                                                                                                                                                                                              ╰── flat "X, Y, and Z" triad with matching-class items reads as an LLM tic; consider dropping the weakest item or restructuring
+ 34 │ 
+    ╰────
+
+lexical.substitution
+
+  ⚠ "optimized" reads as machine-favored register (optimize is a more formal synonym of improve); "improve" is a plain near-synonym
+    ╭─[corpus/llm/readme/0859e6e20fb1cf84.md:39:141]
+ 38 │ 
+ 39 │ 1. **Automatic Thumbnails**: When you build your site (`lumen build`), Lumen scans all image files in the `images/` directory and generates optimized thumbnails based on predefined sizes (e.g., small, medium, large). This process enhances load times without compromising quality.
+    ·                                                                                                                                             ────┬────
+    ·                                                                                                                                                 ╰── "optimized" reads as machine-favored register (optimize is a more formal synonym of improve); "improve" is a plain near-synonym
+ 40 │ 
+    ╰────
+
+lexical.substitution
+
+  ⚠ "enhances" reads as machine-favored register (enhance is a more formal synonym of improve); "improve" is a plain near-synonym
+    ╭─[corpus/llm/readme/0859e6e20fb1cf84.md:39:231]
+ 38 │ 
+ 39 │ 1. **Automatic Thumbnails**: When you build your site (`lumen build`), Lumen scans all image files in the `images/` directory and generates optimized thumbnails based on predefined sizes (e.g., small, medium, large). This process enhances load times without compromising quality.
+    ·                                                                                                                                                                                                                                       ────┬───
+    ·                                                                                                                                                                                                                                           ╰── "enhances" reads as machine-favored register (enhance is a more formal synonym of improve); "improve" is a plain near-synonym
+ 40 │ 
+    ╰────
+
+lexical.substitution
+
+  ⚠ "specific" reads as machine-favored register (mined llm-favored (MINING.md); particular is a plainer near-synonym); "particular" is a plain near-synonym
+    ╭─[corpus/llm/readme/0859e6e20fb1cf84.md:41:118]
+ 40 │ 
+ 41 │ 2. **Customization**: You can specify custom thumbnail dimensions or formats by editing the `_config.yml` file under specific gallery directories. For example:
+    ·                                                                                                                      ────┬───
+    ·                                                                                                                          ╰── "specific" reads as machine-favored register (mined llm-favored (MINING.md); particular is a plainer near-synonym); "particular" is a plain near-synonym
+ 42 │ 
+    ╰────
+
+lexical.substitution
+
+  ⚠ "specific" reads as machine-favored register (mined llm-favored (MINING.md); particular is a plainer near-synonym); "particular" is a plain near-synonym
+    ╭─[corpus/llm/readme/0859e6e20fb1cf84.md:56:178]
+ 55 │ 
+ 56 │ 2. **Customization**: If you prefer a different source for captions or wish to override automatic extraction, simply add a `caption` field in the markdown front matter for that specific image:
+    ·                                                                                                                                                                                  ────┬───
+    ·                                                                                                                                                                                      ╰── "specific" reads as machine-favored register (mined llm-favored (MINING.md); particular is a plainer near-synonym); "particular" is a plain near-synonym
+ 57 │ 
+    ╰────
+
+symmetry.triad_reduction
+
+  × flat "X, Y, and Z" triad with matching-class items reads as an LLM tic; consider dropping the weakest item or restructuring
+    ╭─[corpus/llm/readme/0859e6e20fb1cf84.md:70:46]
+ 69 │ 
+ 70 │ Lumen’s configuration file, `_config.yml`, centralizes settings like site title, theme selection, and output directory:
+    ·                                            ─────────────────────────────────────┬─────────────────────────────────────
+    ·                                                                                 ╰── flat "X, Y, and Z" triad with matching-class items reads as an LLM tic; consider dropping the weakest item or restructuring
+ 71 │ 
+    ╰────
+
+symmetry.triad_reduction
+
+  × flat "X, Y, and Z" triad with matching-class items reads as an LLM tic; consider dropping the weakest item or restructuring
+    ╭─[corpus/llm/readme/0859e6e20fb1cf84.md:84:124]
+ 83 │ 
+ 84 │ - **`theme`**: Choose between `light-mode` (default) or `dark-mode` to match your aesthetic preferences or audience needs. Themes adjust background colors, text contrast, and overall visual feel without altering image galleries themselves.
+    ·                                                                                                                            ─────────────────────────────────────────────────────────┬─────────────────────────────────────────────────────────
+    ·                                                                                                                                                                                     ╰── flat "X, Y, and Z" triad with matching-class items reads as an LLM tic; consider dropping the weakest item or restructuring
+ 85 │ 
+    ╰────
+
+lexical.substitution
+
+  ⚠ "necessary" reads as machine-favored register (mined llm-favored (MINING.md); needed is the plain equivalent); "needed" is a plain near-synonym
+     ╭─[corpus/llm/readme/0859e6e20fb1cf84.md:102:26]
+ 101 │ 
+ 102 │ This command creates the necessary directory structure (`images/`, `pages/`) and populates `_config.yml` with default settings.
+     ·                          ────┬────
+     ·                              ╰── "necessary" reads as machine-favored register (mined llm-favored (MINING.md); needed is the plain equivalent); "needed" is a plain near-synonym
+ 103 │ 
+     ╰────
+
+symmetry.triad_reduction
+
+  × flat "X, Y, and Z" triad with matching-class items reads as an LLM tic; consider dropping the weakest item or restructuring
+     ╭─[corpus/llm/readme/0859e6e20fb1cf84.md:116:1]
+ 115 │ 
+ 116 │ Lumen simplifies the creation and maintenance of photography portfolios by automating repetitive tasks like thumbnail generation, caption extraction from EXIF data, and providing a straightforward configuration system via `_config.yml`. Its intuitive folder structure ensures consistency across galleries and pages, making it an excellent choice for photographers looking to showcase their work online with minimal effort. Happy creating!
+     · ──────────────────────────────────────────────────────────────────────────────────────────────────────────────┬──────────────────────────────────────────────────────────────────────────────────────────────────────────────
+     ·                                                                                                               ╰── flat "X, Y, and Z" triad with matching-class items reads as an LLM tic; consider dropping the weakest item or restructuring
+     ╰────
+
+lexical.substitution
+
+  ⚠ "showcase" reads as machine-favored register (showcase is a more formal synonym of show); "show" is a plain near-synonym
+     ╭─[corpus/llm/readme/0859e6e20fb1cf84.md:116:376]
+ 115 │ 
+ 116 │ Lumen simplifies the creation and maintenance of photography portfolios by automating repetitive tasks like thumbnail generation, caption extraction from EXIF data, and providing a straightforward configuration system via `_config.yml`. Its intuitive folder structure ensures consistency across galleries and pages, making it an excellent choice for photographers looking to showcase their work online with minimal effort. Happy creating!
+     ·                                                                                                                                                                                                                                                                                                                                                                                        ────┬───
+     ·                                                                                                                                                                                                                                                                                                                                                                                            ╰── "showcase" reads as machine-favored register (showcase is a more formal synonym of show); "show" is a plain near-synonym
+     ╰────

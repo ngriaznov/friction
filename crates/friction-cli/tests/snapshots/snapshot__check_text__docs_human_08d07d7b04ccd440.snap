@@ -1,0 +1,68 @@
+---
+source: crates/friction-cli/tests/snapshot.rs
+expression: stdout
+---
+METRIC                         VALUE  BAND                STATUS
+sentence_length_mean          8.6818  [5.0796, 11.3699]   in    
+sentence_length_stddev        7.4613  [4.8412, 9.5356]    in    
+sentence_length_cv            0.8594  [0.6938, 1.1063]    in    
+discourse_marker_density      0.0000  [0.0000, 3.0769]    in    
+triad_rate                    0.0909  [0.0000, 0.0303]    OUT   
+contraction_ratio             0.6667  [0.0000, 0.6667]    in    
+bullet_parallelism            1.0000  [0.0000, 1.0000]    in    
+paragraph_shape_mean          1.1892  [1.0970, 1.5094]    in    
+paragraph_shape_cv            0.3293  [0.2883, 0.7260]    in    
+em_dash_density               0.0000  [0.0000, 0.0000]    in    
+semicolon_density             0.0000  [0.0000, 3.5336]    in    
+participial_closer_rate       0.0000  [0.0000, 0.0185]    in    
+not_just_but_rate             0.0000  [0.0000, 0.0000]    in    
+ritual_marker_rate            0.0000  [0.0000, 0.0000]    in    
+llm_favored_phrase_rate       7.5758  [0.0000, 17.8971]   in    
+human_favored_phrase_rate    20.2020  [12.5992, 43.8909]  in    
+heading_density               7.5758  [2.3095, 14.9813]   in    
+list_item_density             2.5253  [0.0000, 31.6249]   in    
+bold_span_density             7.5758  [0.0000, 14.1767]   in    
+sentence_opener_repeat_rate   0.0000  [0.0000, 0.0656]    in    
+top_opener_concentration      0.0952  [0.0545, 0.1613]    in    
+symmetry.triad_reduction
+
+  × flat "X, Y, and Z" triad with matching-class items reads as an LLM tic; consider dropping the weakest item or restructuring
+    ╭─[corpus/human/docs/08d07d7b04ccd440.md:13:1]
+ 12 │ 
+ 13 │ In this section, we will consider a few problems where developers new to React often reach for inheritance, and show how we can solve them with composition.
+    · ─────────────────────────────────────────────────────────────────────────────┬─────────────────────────────────────────────────────────────────────────────
+    ·                                                                              ╰── flat "X, Y, and Z" triad with matching-class items reads as an LLM tic; consider dropping the weakest item or restructuring
+ 14 │ 
+    ╰────
+
+symmetry.triad_reduction
+
+  × flat "X, Y, and Z" triad with matching-class items reads as an LLM tic; consider dropping the weakest item or restructuring
+     ╭─[corpus/human/docs/08d07d7b04ccd440.md:154:1]
+ 153 │ 
+ 154 │ At Facebook, we use React in thousands of components, and we haven't found any use cases where we would recommend creating component inheritance hierarchies.
+     · ──────────────────────────────────────────────────────────────────────────────┬─────────────────────────────────────────────────────────────────────────────
+     ·                                                                               ╰── flat "X, Y, and Z" triad with matching-class items reads as an LLM tic; consider dropping the weakest item or restructuring
+ 155 │ 
+     ╰────
+
+symmetry.triad_reduction
+
+  × flat "X, Y, and Z" triad with matching-class items reads as an LLM tic; consider dropping the weakest item or restructuring
+     ╭─[corpus/human/docs/08d07d7b04ccd440.md:156:188]
+ 155 │ 
+ 156 │ Props and composition give you all the flexibility you need to customize a component's look and behavior in an explicit and safe way. Remember that components may accept arbitrary props, including primitive values, React elements, or functions.
+     ·                                                                                                                                                                                            ────────────────────────────┬───────────────────────────
+     ·                                                                                                                                                                                                                        ╰── flat "X, Y, and Z" triad with matching-class items reads as an LLM tic; consider dropping the weakest item or restructuring
+ 157 │ 
+     ╰────
+
+symmetry.triad_reduction
+
+  × flat "X, Y, and Z" triad with matching-class items reads as an LLM tic; consider dropping the weakest item or restructuring
+     ╭─[corpus/human/docs/08d07d7b04ccd440.md:158:123]
+ 157 │ 
+ 158 │ If you want to reuse non-UI functionality between components, we suggest extracting it into a separate JavaScript module. The components may import it and use that function, object, or a class, without extending it.
+     ·                                                                                                                           ───────────────────────────────────┬──────────────────────────────────
+     ·                                                                                                                                                              ╰── flat "X, Y, and Z" triad with matching-class items reads as an LLM tic; consider dropping the weakest item or restructuring
+     ╰────

@@ -1,0 +1,203 @@
+---
+source: crates/friction-cli/tests/snapshot.rs
+expression: stdout
+---
+{
+  "genre": "docs",
+  "metrics": [
+    {
+      "name": "sentence_length_mean",
+      "value": 9.226415094339623,
+      "lo": 5.079601990049751,
+      "hi": 11.36986301369863,
+      "in_envelope": true
+    },
+    {
+      "name": "sentence_length_stddev",
+      "value": 7.170804300652942,
+      "lo": 4.841157658992773,
+      "hi": 9.53557474351129,
+      "in_envelope": true
+    },
+    {
+      "name": "sentence_length_cv",
+      "value": 0.7772037381075785,
+      "lo": 0.6938000297364706,
+      "hi": 1.1063157464161906,
+      "in_envelope": true
+    },
+    {
+      "name": "discourse_marker_density",
+      "value": 0.0,
+      "lo": 0.0,
+      "hi": 3.076923076923077,
+      "in_envelope": true
+    },
+    {
+      "name": "triad_rate",
+      "value": 0.018867924528301886,
+      "lo": 0.0,
+      "hi": 0.030303030303030304,
+      "in_envelope": true
+    },
+    {
+      "name": "contraction_ratio",
+      "value": 1.0,
+      "lo": 0.0,
+      "hi": 0.6666666666666666,
+      "in_envelope": false
+    },
+    {
+      "name": "bullet_parallelism",
+      "value": 0.6749999999999999,
+      "lo": 0.0,
+      "hi": 1.0,
+      "in_envelope": true
+    },
+    {
+      "name": "paragraph_shape_mean",
+      "value": 1.1521739130434783,
+      "lo": 1.0970149253731343,
+      "hi": 1.509433962264151,
+      "in_envelope": true
+    },
+    {
+      "name": "paragraph_shape_cv",
+      "value": 0.3604711919725054,
+      "lo": 0.28827503026587703,
+      "hi": 0.7259662712736925,
+      "in_envelope": true
+    },
+    {
+      "name": "em_dash_density",
+      "value": 0.0,
+      "lo": 0.0,
+      "hi": 0.0,
+      "in_envelope": true
+    },
+    {
+      "name": "semicolon_density",
+      "value": 0.0,
+      "lo": 0.0,
+      "hi": 3.5335689045936394,
+      "in_envelope": true
+    },
+    {
+      "name": "participial_closer_rate",
+      "value": 0.03773584905660377,
+      "lo": 0.0,
+      "hi": 0.018518518518518517,
+      "in_envelope": false
+    },
+    {
+      "name": "not_just_but_rate",
+      "value": 0.0,
+      "lo": 0.0,
+      "hi": 0.0,
+      "in_envelope": true
+    },
+    {
+      "name": "ritual_marker_rate",
+      "value": 0.0,
+      "lo": 0.0,
+      "hi": 0.0,
+      "in_envelope": true
+    },
+    {
+      "name": "llm_favored_phrase_rate",
+      "value": 58.333333333333336,
+      "lo": 0.0,
+      "hi": 17.89709172259508,
+      "in_envelope": false
+    },
+    {
+      "name": "human_favored_phrase_rate",
+      "value": 8.333333333333334,
+      "lo": 12.599160055996267,
+      "hi": 43.890865954922894,
+      "in_envelope": false
+    },
+    {
+      "name": "heading_density",
+      "value": 12.5,
+      "lo": 2.3094688221709005,
+      "hi": 14.9812734082397,
+      "in_envelope": true
+    },
+    {
+      "name": "list_item_density",
+      "value": 45.833333333333336,
+      "lo": 0.0,
+      "hi": 31.62486368593239,
+      "in_envelope": false
+    },
+    {
+      "name": "bold_span_density",
+      "value": 14.583333333333334,
+      "lo": 0.0,
+      "hi": 14.176663031624864,
+      "in_envelope": false
+    },
+    {
+      "name": "sentence_opener_repeat_rate",
+      "value": 0.0,
+      "lo": 0.0,
+      "hi": 0.06557377049180328,
+      "in_envelope": true
+    },
+    {
+      "name": "top_opener_concentration",
+      "value": 0.08333333333333333,
+      "lo": 0.05454545454545454,
+      "hi": 0.16129032258064516,
+      "in_envelope": true
+    }
+  ],
+  "findings": [
+    {
+      "rule": "lexical.substitution",
+      "tier": "fix",
+      "start": 180,
+      "end": 188,
+      "line": 3,
+      "column": 121,
+      "message": "\"valuable\" reads as machine-favored register (mined llm-favored (MINING.md); useful is the plain equivalent); \"useful\" is a plain near-synonym"
+    },
+    {
+      "rule": "lexical.substitution",
+      "tier": "fix",
+      "start": 264,
+      "end": 271,
+      "line": 3,
+      "column": 205,
+      "message": "\"crucial\" reads as machine-favored register (mined llm-favored (MINING.md, z=6.47); key keeps the emphasis, drops the register); \"key\" is a plain near-synonym"
+    },
+    {
+      "rule": "symmetry.participial_closer",
+      "tier": "fix",
+      "start": 1700,
+      "end": 1730,
+      "line": 38,
+      "column": 44,
+      "message": "sentence-final participial closer reads as an LLM tic; promoting it to its own sentence preserves the claim"
+    },
+    {
+      "rule": "lexical.substitution",
+      "tier": "fix",
+      "start": 1721,
+      "end": 1730,
+      "line": 38,
+      "column": 65,
+      "message": "\"necessary\" reads as machine-favored register (mined llm-favored (MINING.md); needed is the plain equivalent); \"needed\" is a plain near-synonym"
+    },
+    {
+      "rule": "symmetry.participial_closer",
+      "tier": "fix",
+      "start": 4049,
+      "end": 4116,
+      "line": 104,
+      "column": 81,
+      "message": "sentence-final participial closer reads as an LLM tic; promoting it to its own sentence preserves the claim"
+    }
+  ]
+}

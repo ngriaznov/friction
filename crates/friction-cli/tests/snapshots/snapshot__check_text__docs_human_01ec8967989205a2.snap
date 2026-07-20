@@ -1,0 +1,61 @@
+---
+source: crates/friction-cli/tests/snapshot.rs
+expression: stdout
+---
+METRIC                         VALUE  BAND                STATUS
+sentence_length_mean          9.6721  [5.0796, 11.3699]   in    
+sentence_length_stddev        9.6881  [4.8412, 9.5356]    OUT   
+sentence_length_cv            1.0017  [0.6938, 1.1063]    in    
+discourse_marker_density      0.0000  [0.0000, 3.0769]    in    
+triad_rate                    0.0492  [0.0000, 0.0303]    OUT   
+contraction_ratio             0.6250  [0.0000, 0.6667]    in    
+bullet_parallelism            0.0000  [0.0000, 1.0000]    in    
+paragraph_shape_mean          1.4524  [1.0970, 1.5094]    in    
+paragraph_shape_cv            0.4558  [0.2883, 0.7260]    in    
+em_dash_density               0.0000  [0.0000, 0.0000]    in    
+semicolon_density             1.6949  [0.0000, 3.5336]    in    
+participial_closer_rate       0.0000  [0.0000, 0.0185]    in    
+not_just_but_rate             0.0000  [0.0000, 0.0000]    in    
+ritual_marker_rate            0.0000  [0.0000, 0.0000]    in    
+llm_favored_phrase_rate       5.1724  [0.0000, 17.8971]   in    
+human_favored_phrase_rate    48.2759  [12.5992, 43.8909]  OUT   
+heading_density               5.1724  [2.3095, 14.9813]   in    
+list_item_density             0.0000  [0.0000, 31.6249]   in    
+bold_span_density             0.0000  [0.0000, 14.1767]   in    
+sentence_opener_repeat_rate   0.0167  [0.0000, 0.0656]    in    
+top_opener_concentration      0.0962  [0.0545, 0.1613]    in    
+symmetry.triad_reduction
+
+  × flat "X, Y, and Z" triad with matching-class items reads as an LLM tic; consider dropping the weakest item or restructuring
+    ╭─[corpus/human/docs/01ec8967989205a2.md:41:19]
+ 40 │     under the hood but requires users to follow the best practices for the program
+ 41 │ ╭─▶ to run correctly. For example, the sending process must stay alive as long as
+ 42 │ │   the consumer process has references to the tensor, and the refcounting can not
+ 43 │ ├─▶ save you if the consumer process exits abnormally via a fatal signal. See
+    · ╰──── flat "X, Y, and Z" triad with matching-class items reads as an LLM tic; consider dropping the weakest item or restructuring
+ 44 │     :ref:`this section <multiprocessing-cuda-sharing-details>`.
+    ╰────
+
+symmetry.triad_reduction
+
+  × flat "X, Y, and Z" triad with matching-class items reads as an LLM tic; consider dropping the weakest item or restructuring
+    ╭─[corpus/human/docs/01ec8967989205a2.md:67:48]
+ 66 │     We're trying our best to make it easy for you and ensure these deadlocks don't
+ 67 │ ╭─▶ happen but some things are out of our control. If you have any issues you can't
+ 68 │ │   cope with for a while, try reaching out on forums, and we'll see if it's an
+ 69 │ ├─▶ issue we can fix.
+    · ╰──── flat "X, Y, and Z" triad with matching-class items reads as an LLM tic; consider dropping the weakest item or restructuring
+ 70 │     
+    ╰────
+
+symmetry.triad_reduction
+
+  × flat "X, Y, and Z" triad with matching-class items reads as an LLM tic; consider dropping the weakest item or restructuring
+    ╭─[corpus/human/docs/01ec8967989205a2.md:92:64]
+ 91 │     of PyTorch objects between processes. It is possible to e.g. inherit the tensors
+ 92 │ ╭─▶ and storages already in shared memory, when using the ``fork`` start method,
+ 93 │ │   however it is very bug prone and should be used with care, and only by advanced
+ 94 │ ├─▶ users. Queues, even though they're sometimes a less elegant solution, will work
+    · ╰──── flat "X, Y, and Z" triad with matching-class items reads as an LLM tic; consider dropping the weakest item or restructuring
+ 95 │     properly in all cases.
+    ╰────

@@ -1,0 +1,134 @@
+---
+source: crates/friction-cli/tests/snapshot.rs
+expression: stdout
+---
+METRIC                         VALUE  BAND                STATUS
+sentence_length_mean         11.4651  [7.1400, 21.5455]   in    
+sentence_length_stddev        9.6938  [6.9737, 13.4118]   in    
+sentence_length_cv            0.8455  [0.5491, 0.9915]    in    
+discourse_marker_density      6.1224  [0.0000, 4.2373]    OUT   
+triad_rate                    0.0000  [0.0000, 0.0426]    in    
+contraction_ratio             0.0000  [0.2000, 0.9000]    OUT   
+bullet_parallelism            0.6667  [0.0000, 1.0000]    in    
+paragraph_shape_mean          1.4333  [1.2258, 2.4762]    in    
+paragraph_shape_cv            0.4657  [0.3899, 0.7591]    in    
+em_dash_density               2.0284  [0.0000, 2.4155]    in    
+semicolon_density             0.0000  [0.0000, 2.9994]    in    
+participial_closer_rate       0.0000  [0.0000, 0.0312]    in    
+not_just_but_rate             0.0233  [0.0000, 0.0000]    OUT   
+ritual_marker_rate            0.0333  [0.0000, 0.0000]    OUT   
+llm_favored_phrase_rate      10.2041  [0.0000, 19.6560]   in    
+human_favored_phrase_rate    30.6122  [19.4175, 48.8215]  in    
+heading_density               6.1224  [0.0000, 8.1037]    in    
+list_item_density             6.1224  [0.0000, 22.2222]   in    
+bold_span_density            14.2857  [0.0000, 10.4822]   OUT   
+sentence_opener_repeat_rate   0.0000  [0.0000, 0.1111]    in    
+top_opener_concentration      0.1220  [0.0694, 0.1818]    in    
+connective.surgery
+
+  ⚠ sentence-initial connective "However" is over this genre's envelope
+   ╭─[corpus/llm/forum/137c3759df60fa49.md:3:225]
+ 2 │ 
+ 3 │ Rust’s type system is robust, especially when it comes to handling lifetimes—particularly in functions that use references. Lifetimes are crucial for ensuring memory safety by preventing dangling pointers or data races. However, the explicit annotation of lifetimes can sometimes feel like an extra layer of complexity. Rust addresses this with three lifetime elision rules that automatically infer lifetimes for you when they’re safe to do so.
+   ·                                                                                                                                                                                                                             ───┬───
+   ·                                                                                                                                                                                                                                ╰── sentence-initial connective "However" is over this genre's envelope
+ 4 │ 
+   ╰────
+
+structural.bold_label_strip
+
+  ⚠ bolded lead-in label in a bullet could be plain text
+    ╭─[corpus/llm/forum/137c3759df60fa49.md:11:4]
+ 10 │ 
+ 11 │ 1. **Default Parameter Rule**: If a function has only one reference parameter, the lifetime is inferred as the longest-living (outermost) reference in the argument list. This rule assumes that the referenced value lives at least as long as the outermost borrowed reference.
+    ·    ─────────────┬────────────
+    ·                 ╰── bolded lead-in label in a bullet could be plain text
+ 12 │ 
+    ╰────
+
+structural.bold_label_strip
+
+  ⚠ bolded lead-in label in a bullet could be plain text
+    ╭─[corpus/llm/forum/137c3759df60fa49.md:13:4]
+ 12 │ 
+ 13 │    **Example Signature**:
+    ·    ──────────┬──────────
+    ·              ╰── bolded lead-in label in a bullet could be plain text
+ 14 │    ```rust
+    ╰────
+
+structural.bold_label_strip
+
+  ⚠ bolded lead-in label in a bullet could be plain text
+    ╭─[corpus/llm/forum/137c3759df60fa49.md:22:4]
+ 21 │ 
+ 22 │ 2. **Multiple Reference Parameter Rule**: If a function has more than one reference parameter, Rust uses the following pattern to infer lifetimes: the first reference gets the default lifetime `'a`, the second gets `'b`, and so on. This rule helps disambiguate which references are related or independent of each other.
+    ·    ──────────────────┬──────────────────
+    ·                      ╰── bolded lead-in label in a bullet could be plain text
+ 23 │ 
+    ╰────
+
+structural.bold_label_strip
+
+  ⚠ bolded lead-in label in a bullet could be plain text
+    ╭─[corpus/llm/forum/137c3759df60fa49.md:24:4]
+ 23 │ 
+ 24 │    **Example Signature**:
+    ·    ──────────┬──────────
+    ·              ╰── bolded lead-in label in a bullet could be plain text
+ 25 │    ```rust
+    ╰────
+
+connective.surgery
+
+  ⚠ sentence-initial connective "Thus" is over this genre's envelope
+    ╭─[corpus/llm/forum/137c3759df60fa49.md:32:75]
+ 31 │    
+ 32 │    Here, the compiler infers that `x` and `y` are independent references. Thus, `x` receives the default lifetime `'a`, while `y` gets a new lifetime `'b`. This ensures that if one reference goes out of scope, it doesn’t affect the other.
+    ·                                                                           ──┬─
+    ·                                                                             ╰── sentence-initial connective "Thus" is over this genre's envelope
+ 33 │ 
+    ╰────
+
+structural.bold_label_strip
+
+  ⚠ bolded lead-in label in a bullet could be plain text
+    ╭─[corpus/llm/forum/137c3759df60fa49.md:34:4]
+ 33 │ 
+ 34 │ 3. **Return Type Rule**: If a function’s return type contains a reference and there are no parameters (or only multiple non-reference parameters), Rust infers the lifetime of the returned reference to be the same as the longest-living argument in the call site. This rule helps when the function’s behavior is tied to its input references.
+    ·    ──────────┬─────────
+    ·              ╰── bolded lead-in label in a bullet could be plain text
+ 35 │ 
+    ╰────
+
+structural.bold_label_strip
+
+  ⚠ bolded lead-in label in a bullet could be plain text
+    ╭─[corpus/llm/forum/137c3759df60fa49.md:36:4]
+ 35 │ 
+ 36 │    **Example Signature**:
+    ·    ──────────┬──────────
+    ·              ╰── bolded lead-in label in a bullet could be plain text
+ 37 │    ```rust
+    ╰────
+
+symmetry.not_just_but
+
+  × "not just/only X but (also) Y" reads as an LLM tic; consider reframing which half the sentence emphasizes
+    ╭─[corpus/llm/forum/137c3759df60fa49.md:49:195]
+ 48 │ 
+ 49 │ Understanding these rules helps you predict when explicit lifetime annotations are necessary, typically when there’s ambiguity or when multiple references interact differently. This knowledge not only streamlines your coding process but also deepens your understanding of how Rust manages data safely behind the scenes.
+    ·                                                                                                                                                                                                 ────────────────────────┬────────────────────────
+    ·                                                                                                                                                                                                                         ╰── "not just/only X but (also) Y" reads as an LLM tic; consider reframing which half the sentence emphasizes
+ 50 │ 
+    ╰────
+
+symmetry.ritual_conclusion
+
+  × the document's final paragraph opens with the ritual conclusion marker "In summary"
+    ╭─[corpus/llm/forum/137c3759df60fa49.md:51:1]
+ 50 │ 
+ 51 │ In summary, Rust's three lifetime elision rules provide a pragmatic approach to handling lifetimes in functions with reference parameters. By applying these rules, you can write cleaner code without sacrificing safety or clarity about memory management.
+    · ─────┬────
+    ·      ╰── the document's final paragraph opens with the ritual conclusion marker "In summary"
+    ╰────
