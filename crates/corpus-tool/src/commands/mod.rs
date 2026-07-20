@@ -9,11 +9,13 @@
 //! (which would make it untestable in-process).
 
 pub mod clean;
+pub mod envelope;
 pub mod generate;
 pub mod holdout_check;
 pub mod ingest;
 pub mod remove;
 pub mod seal;
+pub mod separate;
 pub mod split;
 pub mod stats;
 pub mod validate;

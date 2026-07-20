@@ -133,6 +133,31 @@ or `license` exactly equal to `"personal-attestation"`.
 - **`generate`** — generates the `llm` corpus
   against a local [Ollama](https://ollama.com) server. See "Generating
   the LLM corpus" below.
+- **`envelope`** — for every `human`-class, `train`-split document,
+  computes its metric vector, groups by genre, and for each
+  `(genre, metric)` pair estimates a `[lo, hi]` percentile band
+  (nearest-rank method; `--lo-percentile`/`--hi-percentile`, default
+  10/90). Writes the result as a versioned TOML pack to `--out`
+  (default `crates/friction-packs/packs/envelope-v1.toml`). Quarantined
+  (CC-BY-SA) human docs are included in the estimate — quarantine
+  restricts redistributing document *text*, not aggregate statistics —
+  and a genre with zero train-split human docs is omitted from the pack
+  (warning to stderr) rather than emitting a degenerate band.
+- **`separate`** — on the dev split, measures how well the metric
+  vector separates `llm` docs from `human` docs, per genre and per
+  metric (AUC via the Mann-Whitney U statistic, oriented so `AUC > 0.5`
+  always means "separates llm from human"), plus a combined per-document
+  score (fraction of metrics falling outside that document's genre's
+  envelope band, loaded from `--envelope`) and that score's own AUC.
+  Writes a markdown report to `--report`. Like `envelope`, quarantined
+  human docs are not excluded from the dev-split measurement. A genre
+  missing data for one class (or missing from the envelope pack) is
+  reported as `n/a` rather than a fabricated AUC.
+- **`remove`** — `--id <id>` (repeatable): validates every requested id
+  is present in the manifest before touching anything, then for each
+  deletes its corpus file (`<class>/<genre>/<id>.md`, or
+  `quarantine/<genre>/<id>.md` when quarantined) and drops its manifest
+  line. The raw doc under `corpus/incoming/` is never touched.
 
 ## Generating the LLM corpus (`generate`)
 

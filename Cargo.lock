@@ -279,6 +279,10 @@ version = "0.1.0"
 dependencies = [
  "anyhow",
  "clap",
+ "friction-core",
+ "friction-metrics",
+ "friction-nlp",
+ "friction-parse",
  "serde",
  "serde_json",
  "sha2",
@@ -536,6 +540,12 @@ dependencies = [
 [[package]]
 name = "friction-metrics"
 version = "0.1.0"
+dependencies = [
+ "friction-core",
+ "friction-nlp",
+ "friction-parse",
+ "regex",
+]
 
 [[package]]
 name = "friction-nlp"

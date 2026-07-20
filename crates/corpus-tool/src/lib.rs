@@ -12,5 +12,6 @@ pub mod corpus_layout;
 pub mod genconfig;
 pub mod hashing;
 pub mod manifest;
+pub mod metric_source;
 pub mod ollama;
 pub mod prompts;

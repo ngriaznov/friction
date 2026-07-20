@@ -13,6 +13,16 @@ workspace = true
 [dependencies]
 anyhow.workspace = true
 clap.workspace = true
+# Path deps, not in workspace.dependencies (only this crate and the crates
+# they belong to need them): `envelope`/`separate` parse corpus docs and
+# compute their MetricVector via `friction-metrics` (see
+# `src/metric_source.rs`), which in turn needs `friction-nlp`'s segmenter
+# and tagger to hand `friction-metrics::compute` a fully-segmented,
+# tagger-ready document.
+friction-core = { path = "../friction-core" }
+friction-metrics = { path = "../friction-metrics" }
+friction-nlp = { path = "../friction-nlp" }
+friction-parse = { path = "../friction-parse" }
 serde.workspace = true
 serde_json.workspace = true
 sha2.workspace = true

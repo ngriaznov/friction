@@ -40,6 +40,12 @@ enum Command {
     Remove(commands::remove::Args),
     /// Generate the LLM corpus via Ollama.
     Generate(commands::generate::Args),
+    /// Estimate per-`(genre, metric)` human percentile bands from the
+    /// train split and write a versioned envelope pack.
+    Envelope(commands::envelope::Args),
+    /// On the dev split, report how well the metric vector separates
+    /// `llm` docs from `human` docs, per genre and per metric.
+    Separate(commands::separate::Args),
 }
 
 /// Parses process arguments and runs the selected subcommand.
@@ -74,5 +80,7 @@ pub fn run() -> anyhow::Result<()> {
             }
             Ok(())
         }
+        Command::Envelope(args) => commands::envelope::run(&args),
+        Command::Separate(args) => commands::separate::run(&args),
     }
 }

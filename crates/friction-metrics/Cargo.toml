@@ -10,3 +10,14 @@ repository.workspace = true
 workspace = true
 
 [dependencies]
+friction-core = { path = "../friction-core" }
+friction-nlp = { path = "../friction-nlp" }
+# Not yet in [workspace.dependencies]; added directly here (rather than at
+# the workspace root) to avoid a concurrent root-file edit while sibling
+# metric modules are being written in parallel. Already present in
+# Cargo.lock as a transitive dependency (srx/nlprule), so this adds no new
+# crate to the build.
+regex = "1"
+
+[dev-dependencies]
+friction-parse = { path = "../friction-parse" }
