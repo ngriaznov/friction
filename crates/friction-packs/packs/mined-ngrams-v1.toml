@@ -1,0 +1,479 @@
+# mined-ngrams-v1 pack: hand-curated discriminative 1-/2-/3-gram phrases,
+# mined from the TRAIN split only via `corpus-tool mine` and then
+# hand-selected from its output — this file is NOT machine-generated and
+# should be edited by hand (re-running `mine` does not overwrite it).
+#
+# Provenance: `corpus-tool mine --n all --top 120 --min-count 5 --report
+# <path>`, train split, pooled across all five genres (264 human docs /
+# 230 llm docs). Scoring is the log-odds ratio with an informative
+# Dirichlet prior (Monroe, Colaresi & Quinn 2008, eq. 16; prior drawn from
+# the two classes' own combined counts) — see
+# `crates/corpus-tool/src/commands/mine.rs`'s module doc comment for the
+# exact formula. `z` below is that run's z-score, copied verbatim from the
+# report at curation time (re-running `mine` on a changed corpus will
+# shift these numbers; this pack is a point-in-time hand-picked snapshot,
+# not something to regenerate blindly).
+#
+# Curation rationale (why these ~40-per-side entries and not the raw
+# top-120): the mined report's raw top ranks are dominated by three kinds
+# of entries that were deliberately dropped here:
+#
+#   1. Topic artifacts of this corpus's specific prompt set and specific
+#      human sources, not general llm-vs-human register — e.g.
+#      `perceptual`, `chirpline`, `wharfgate`, `route flapping`, `bed
+#      adhesion` (each traces to one or two generation prompts about a
+#      specific gadget/story), and on the human side named software
+#      projects/technologies (`rust`, `flux`, `helm`, `gradle`, `haskell`,
+#      `react`, `bazel`, `prometheus`, `linkerd`, `cncf`) that are simply
+#      what a chunk of the human corpus's source documents happen to be
+#      about. None of these would generalize to a document about a
+#      different subject.
+#   2. Tokenization/encoding artifacts, not real words — single-letter
+#      fragments (`s`, `t`, `v`, `d`, `u`, `m`, `f`) from apostrophe edge
+#      cases, and un-decoded HTML entities (`quot`, `gt`, `lt`) that leak
+#      through from a handful of human source documents.
+#   3. Bare grammatical function words (`the`, `of`, `in`, `is`, `at`,
+#      `they`, `you`, `if`, `all`, ...) whose z-score mostly reflects raw
+#      frequency rather than a checkable pragmatic marker — the kind of
+#      signal `sentence_length_*`/other syntactic metrics already cover,
+#      not a phrase a future fix-rule could act on.
+#
+# What's kept is every entry from the mined top ranks (across all three
+# n-gram orders together, not per-order) that reads as an actual register
+# marker: second-person/first-person-plural address (`your`, `our`),
+# hedges, connectives, intensifiers, and fixed formulas (`feel free to`,
+# `don't hesitate to`, `best regards`, "I hope this email finds..."). A
+# few entries are counter-intuitive relative to this project's existing
+# `friction-metrics` marker lists (e.g. `in fact`, `also`, `in addition
+# to`, `for more information`, and `would like to` all land
+# human-favored here, not llm-favored) — kept anyway, deliberately, since
+# the whole point of this mining pass is to let the data override
+# assumptions; a bare word like `in fact` mined mid-sentence is not the
+# same signal as `friction-metrics::lexical`'s sentence-*initial*
+# `"In fact"` check, so this is not a direct contradiction of that list,
+# but it is a genuine surprise worth a human reader's attention before
+# either list is trusted uncritically.
+#
+# Category is a single word naming the entry's pragmatic function:
+#   hedge       - softens a claim (`ensure`, `may be`, `it is possible`)
+#   connective  - links clauses/ideas (`so`, `because`, `in order to`)
+#   intensifier - amplifies a claim (`crucial`, `robust`, `a lot`)
+#   formula     - a fixed, near-boilerplate phrase (`best regards`,
+#                 `feel free to`)
+#   register    - a formality/address marker not fitting the above
+#                 (`your`, `it is` vs. `it's`, `there are`)
+#
+# Ordering: each list is sorted by `z` in the direction that strengthens
+# its own side — `llm_favored` descending (most positive first),
+# `human_favored` ascending (most negative first) — matching
+# `corpus-tool mine`'s own top-llm-favored/top-human-favored convention.
+
+[pack]
+version = "mined-ngrams-v1"
+method = "log-odds-informative-dirichlet-prior"
+corpus_split = "train"
+train_human_doc_count = 264
+train_llm_doc_count = 230
+min_count = 5
+llm_favored_count = 40
+human_favored_count = 40
+
+[[llm_favored]]
+ngram = "your"
+z = 14.1211
+category = "register"
+
+[[llm_favored]]
+ngram = "our"
+z = 12.3317
+category = "register"
+
+[[llm_favored]]
+ngram = "ensure"
+z = 8.1261
+category = "hedge"
+
+[[llm_favored]]
+ngram = "crucial"
+z = 6.4922
+category = "intensifier"
+
+[[llm_favored]]
+ngram = "significant"
+z = 6.3508
+category = "intensifier"
+
+[[llm_favored]]
+ngram = "robust"
+z = 6.3060
+category = "intensifier"
+
+[[llm_favored]]
+ngram = "specific"
+z = 6.1032
+category = "hedge"
+
+[[llm_favored]]
+ngram = "ensuring"
+z = 6.0044
+category = "connective"
+
+[[llm_favored]]
+ngram = "here's"
+z = 5.3537
+category = "formula"
+
+[[llm_favored]]
+ngram = "for your"
+z = 5.2028
+category = "register"
+
+[[llm_favored]]
+ngram = "your name"
+z = 5.0593
+category = "formula"
+
+[[llm_favored]]
+ngram = "for our"
+z = 5.0370
+category = "register"
+
+[[llm_favored]]
+ngram = "identify"
+z = 4.8117
+category = "hedge"
+
+[[llm_favored]]
+ngram = "ensure that"
+z = 4.7102
+category = "hedge"
+
+[[llm_favored]]
+ngram = "designed to"
+z = 4.6157
+category = "formula"
+
+[[llm_favored]]
+ngram = "our team"
+z = 4.5740
+category = "register"
+
+[[llm_favored]]
+ngram = "benefits"
+z = 4.5229
+category = "register"
+
+[[llm_favored]]
+ngram = "of your"
+z = 4.4644
+category = "register"
+
+[[llm_favored]]
+ngram = "this will"
+z = 4.3900
+category = "formula"
+
+[[llm_favored]]
+ngram = "valuable"
+z = 4.3618
+category = "intensifier"
+
+[[llm_favored]]
+ngram = "potential"
+z = 4.3241
+category = "hedge"
+
+[[llm_favored]]
+ngram = "to ensure"
+z = 4.0644
+category = "hedge"
+
+[[llm_favored]]
+ngram = "powerful"
+z = 4.0485
+category = "intensifier"
+
+[[llm_favored]]
+ngram = "making it"
+z = 4.0353
+category = "formula"
+
+[[llm_favored]]
+ngram = "best regards"
+z = 3.8659
+category = "formula"
+
+[[llm_favored]]
+ngram = "can lead to"
+z = 3.7906
+category = "connective"
+
+[[llm_favored]]
+ngram = "by following these"
+z = 3.6252
+category = "formula"
+
+[[llm_favored]]
+ngram = "walk you through"
+z = 3.4112
+category = "formula"
+
+[[llm_favored]]
+ngram = "lessons learned"
+z = 3.1805
+category = "formula"
+
+[[llm_favored]]
+ngram = "feel free to"
+z = 3.1640
+category = "formula"
+
+[[llm_favored]]
+ngram = "thank you for"
+z = 3.1485
+category = "formula"
+
+[[llm_favored]]
+ngram = "i hope this"
+z = 3.0745
+category = "formula"
+
+[[llm_favored]]
+ngram = "add the following"
+z = 3.0227
+category = "formula"
+
+[[llm_favored]]
+ngram = "allows you to"
+z = 2.6942
+category = "formula"
+
+[[llm_favored]]
+ngram = "this email finds"
+z = 2.5632
+category = "formula"
+
+[[llm_favored]]
+ngram = "have any questions"
+z = 2.5262
+category = "formula"
+
+[[llm_favored]]
+ngram = "don't hesitate to"
+z = 2.4898
+category = "formula"
+
+[[llm_favored]]
+ngram = "a testament to"
+z = 2.4870
+category = "formula"
+
+[[llm_favored]]
+ngram = "look forward to"
+z = 2.2371
+category = "formula"
+
+[[llm_favored]]
+ngram = "are committed to"
+z = 2.2198
+category = "formula"
+
+[[human_favored]]
+ngram = "it is"
+z = -6.0208
+category = "register"
+
+[[human_favored]]
+ngram = "not"
+z = -5.6218
+category = "hedge"
+
+[[human_favored]]
+ngram = "so"
+z = -5.6168
+category = "connective"
+
+[[human_favored]]
+ngram = "very"
+z = -4.6495
+category = "intensifier"
+
+[[human_favored]]
+ngram = "is not"
+z = -4.0857
+category = "register"
+
+[[human_favored]]
+ngram = "you are"
+z = -4.0687
+category = "register"
+
+[[human_favored]]
+ngram = "have to"
+z = -3.9632
+category = "hedge"
+
+[[human_favored]]
+ngram = "there is"
+z = -3.8582
+category = "register"
+
+[[human_favored]]
+ngram = "want to"
+z = -3.6026
+category = "hedge"
+
+[[human_favored]]
+ngram = "only"
+z = -3.2710
+category = "hedge"
+
+[[human_favored]]
+ngram = "also"
+z = -3.0518
+category = "connective"
+
+[[human_favored]]
+ngram = "note"
+z = -3.0130
+category = "formula"
+
+[[human_favored]]
+ngram = "because"
+z = -2.9607
+category = "connective"
+
+[[human_favored]]
+ngram = "as well"
+z = -2.8915
+category = "connective"
+
+[[human_favored]]
+ngram = "there are"
+z = -2.8474
+category = "register"
+
+[[human_favored]]
+ngram = "good"
+z = -2.8213
+category = "register"
+
+[[human_favored]]
+ngram = "no"
+z = -2.7629
+category = "register"
+
+[[human_favored]]
+ngram = "going to"
+z = -2.7164
+category = "register"
+
+[[human_favored]]
+ngram = "since"
+z = -2.6577
+category = "connective"
+
+[[human_favored]]
+ngram = "may be"
+z = -2.6290
+category = "hedge"
+
+[[human_favored]]
+ngram = "a lot"
+z = -2.5404
+category = "intensifier"
+
+[[human_favored]]
+ngram = "a number of"
+z = -2.3666
+category = "hedge"
+
+[[human_favored]]
+ngram = "so that"
+z = -2.3580
+category = "connective"
+
+[[human_favored]]
+ngram = "check out"
+z = -2.3404
+category = "register"
+
+[[human_favored]]
+ngram = "for example"
+z = -2.3386
+category = "connective"
+
+[[human_favored]]
+ngram = "in order to"
+z = -2.2257
+category = "connective"
+
+[[human_favored]]
+ngram = "will not"
+z = -2.1653
+category = "register"
+
+[[human_favored]]
+ngram = "important to"
+z = -2.1045
+category = "hedge"
+
+[[human_favored]]
+ngram = "does not"
+z = -2.0537
+category = "register"
+
+[[human_favored]]
+ngram = "in fact"
+z = -2.0322
+category = "connective"
+
+[[human_favored]]
+ngram = "do not"
+z = -1.9753
+category = "register"
+
+[[human_favored]]
+ngram = "must be"
+z = -1.9617
+category = "hedge"
+
+[[human_favored]]
+ngram = "for more information"
+z = -1.9398
+category = "formula"
+
+[[human_favored]]
+ngram = "can be found"
+z = -1.8195
+category = "formula"
+
+[[human_favored]]
+ngram = "it is possible"
+z = -1.7965
+category = "hedge"
+
+[[human_favored]]
+ngram = "take a look"
+z = -1.6897
+category = "register"
+
+[[human_favored]]
+ngram = "can be used"
+z = -1.4864
+category = "formula"
+
+[[human_favored]]
+ngram = "would like to"
+z = -1.4829
+category = "hedge"
+
+[[human_favored]]
+ngram = "in addition to"
+z = -1.4491
+category = "connective"
+
+[[human_favored]]
+ngram = "be able to"
+z = -1.3348
+category = "hedge"

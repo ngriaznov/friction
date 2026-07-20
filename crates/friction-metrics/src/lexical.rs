@@ -25,6 +25,16 @@
 //!   requires that the character right after the marker (if any) is not
 //!   alphanumeric, so `"However"` matches `"However, it..."` but not
 //!   `"Howeverish results..."`.
+//! - **Leading markdown emphasis**: before a sentence-initial marker match
+//!   is attempted, leading whitespace and leading `*`/`_` characters
+//!   (markdown emphasis/strong delimiters) are stripped, repeating both
+//!   strips until neither removes anything further. `friction-parse`
+//!   deliberately *bridges* emphasis/strong delimiters into a sentence's
+//!   source text rather than stripping them (see `friction-parse`'s
+//!   `extract` module docs), so a bold- or italic-wrapped marker like
+//!   `"**Overall:** it works."` or `"__However__, it works."` keeps its
+//!   literal `**`/`__` prefix in the sentence text; without this stripping
+//!   step the marker match would silently fail on every such sentence.
 //! - **Tokenization** (for the contraction ratio and the per-1000-token
 //!   discourse-marker density): [`word_tokens`] splits text into maximal
 //!   runs of alphabetic characters, treating an interior apostrophe
@@ -254,8 +264,9 @@ static NOT_JUST_BUT_RE: LazyLock<Regex> = LazyLock::new(|| {
 
 /// Sentence-initial discourse-marker density, per 1000 word tokens.
 ///
-/// Counts sentences whose text (after trimming leading whitespace) starts
-/// with one of [`DISCOURSE_MARKERS`], divides by the document's total word
+/// Counts sentences whose text (after stripping leading whitespace and
+/// markdown emphasis delimiters, see [`strip_leading_markup`]) starts with
+/// one of [`DISCOURSE_MARKERS`], divides by the document's total word
 /// token count (see the module docs for the tokenization rule), and scales
 /// to a per-1000-token rate. Returns `0.0` for a document with no word
 /// tokens.
@@ -331,8 +342,11 @@ pub fn contraction_ratio(document: &Document) -> f64 {
 /// A paragraph is a [`friction_core::ProseUnit`] with at least one
 /// sentence; it counts as "flagged" if its first sentence or its last
 /// sentence (which may be the same sentence, for a one-sentence
-/// paragraph) starts with one of [`RITUAL_MARKERS`]. Returns `0.0` for a
-/// document with no paragraphs that have any sentences.
+/// paragraph) starts with one of [`RITUAL_MARKERS`] (after stripping
+/// leading whitespace and markdown emphasis delimiters, see
+/// [`strip_leading_markup`] — this is what lets a bold-wrapped marker like
+/// `"**Overall:** ..."` match). Returns `0.0` for a document with no
+/// paragraphs that have any sentences.
 #[must_use]
 pub fn ritual_marker_rate(document: &Document) -> f64 {
     let mut paragraphs = 0u64;
@@ -390,14 +404,38 @@ pub fn not_just_but_rate(document: &Document) -> f64 {
     rate
 }
 
-/// Returns `true` if `text`, after trimming leading whitespace, starts
-/// with any phrase in `markers` (see the module docs for the exact
+/// Returns `true` if `text`, after stripping leading whitespace and
+/// leading markdown emphasis delimiters (see [`strip_leading_markup`]),
+/// starts with any phrase in `markers` (see the module docs for the exact
 /// case/apostrophe/word-boundary rules).
 fn starts_with_any(text: &str, markers: &[&str]) -> bool {
-    let trimmed = text.trim_start();
+    let stripped = strip_leading_markup(text);
     markers
         .iter()
-        .any(|marker| starts_with_marker(trimmed, marker))
+        .any(|marker| starts_with_marker(stripped, marker))
+}
+
+/// Strips leading whitespace and leading markdown emphasis/strong
+/// delimiters (`*`/`_`) from `text`, repeating both strips in sequence
+/// until a pass removes nothing further.
+///
+/// A sentence's source-sliced text keeps a bold- or italic-wrapped
+/// marker's literal delimiter prefix — `friction-parse`'s prose
+/// extraction bridges emphasis/strong runs into the surrounding sentence
+/// rather than stripping them — so `"**Overall:**"` and `"__However__,"`
+/// both need their `**`/`__` skipped before [`starts_with_marker`] can see
+/// the word underneath. Repeating the whitespace-then-delimiter strip
+/// (rather than doing each once) handles a delimiter run followed by more
+/// whitespace, e.g. `"** Overall"` (a space inside the emphasis markers).
+fn strip_leading_markup(text: &str) -> &str {
+    let mut current = text;
+    loop {
+        let next = current.trim_start().trim_start_matches(['*', '_']);
+        if next == current {
+            return next;
+        }
+        current = next;
+    }
 }
 
 /// Returns `true` if `text` begins with `marker`, case-insensitively
@@ -541,6 +579,60 @@ mod tests {
         Document::new(source, blocks, prose).expect("hand-built fixture must be well-formed")
     }
 
+    // --- strip_leading_markup ------------------------------------------
+
+    /// Plain text with only leading whitespace is trimmed the same as
+    /// `str::trim_start` would, with no markup to strip.
+    #[test]
+    fn strip_leading_markup_trims_whitespace_only() {
+        assert_eq!(
+            strip_leading_markup("  Overall it works."),
+            "Overall it works."
+        );
+    }
+
+    /// A single run of leading `**` (bold) is stripped down to the word
+    /// underneath.
+    #[test]
+    fn strip_leading_markup_strips_bold_delimiters() {
+        assert_eq!(
+            strip_leading_markup("**Overall:** it works."),
+            "Overall:** it works."
+        );
+    }
+
+    /// A single run of leading `__` (the underscore strong-emphasis
+    /// delimiter) is stripped the same way `**` is.
+    #[test]
+    fn strip_leading_markup_strips_underscore_delimiters() {
+        assert_eq!(
+            strip_leading_markup("__However__, it works."),
+            "However__, it works."
+        );
+    }
+
+    /// Whitespace and delimiter stripping repeat until neither removes
+    /// anything further: `"** Overall"` has a space *inside* the leading
+    /// `**`, so a single whitespace-then-delimiter pass would stop after
+    /// stripping `**` and land on `" Overall"` — this checks the second
+    /// pass strips that remaining leading space too.
+    #[test]
+    fn strip_leading_markup_repeats_until_fixed_point() {
+        assert_eq!(
+            strip_leading_markup("** Overall it works."),
+            "Overall it works."
+        );
+    }
+
+    /// Text with no leading whitespace or markup is returned unchanged.
+    #[test]
+    fn strip_leading_markup_no_op_on_plain_text() {
+        assert_eq!(
+            strip_leading_markup("Overall it works."),
+            "Overall it works."
+        );
+    }
+
     // --- discourse_marker_density -----------------------------------
 
     /// "However, it works." (3 tokens, sentence-initial "However") and
@@ -551,6 +643,44 @@ mod tests {
         let source = "However, it works. Fine.";
         let doc = doc_from_sentences(source, &[0..18, 19..24]);
         assert_eq!(discourse_marker_density(&doc), 250.0);
+    }
+
+    /// Regression test for the bold-wrapped-marker detector bug: a
+    /// sentence whose source text is `"**However**, it works."` (the
+    /// literal form a markdown-source ritual/discourse marker takes once
+    /// `friction-parse` bridges the emphasis delimiters into the sentence,
+    /// see the module docs) must still be recognized as opening with
+    /// "However" — 3 tokens ("However", "it", "works"; the bold markers
+    /// are not `str::split_whitespace` tokens on their own, they cling to
+    /// "However" and "works" respectively... actually the source is
+    /// `"**However**, it works."`, whose whitespace-split tokens are
+    /// `["**However**,", "it", "works."]`, i.e. 3 tokens), 1 marked
+    /// sentence over 3 tokens = `1 * 1000 / 3`.
+    #[test]
+    fn discourse_marker_density_matches_bold_wrapped_marker() {
+        let source = "**However**, it works.";
+        let doc = doc_from_sentences(source, &[0..source.len()]);
+        assert!((discourse_marker_density(&doc) - 1000.0 / 3.0).abs() < 1e-9);
+    }
+
+    /// The same bold-wrapped-marker recognition applies to the underscore
+    /// strong-emphasis delimiter, not just `**`.
+    #[test]
+    fn discourse_marker_density_matches_underscore_wrapped_marker() {
+        let source = "__However__, it works.";
+        let doc = doc_from_sentences(source, &[0..source.len()]);
+        assert!((discourse_marker_density(&doc) - 1000.0 / 3.0).abs() < 1e-9);
+    }
+
+    /// A bold-wrapped word that is *not* one of `DISCOURSE_MARKERS` must
+    /// not spuriously match just because its emphasis delimiters got
+    /// stripped — stripping markup does not loosen the marker-phrase
+    /// comparison itself.
+    #[test]
+    fn discourse_marker_density_bold_non_marker_does_not_match() {
+        let source = "**Something** happened.";
+        let doc = doc_from_sentences(source, &[0..source.len()]);
+        assert_eq!(discourse_marker_density(&doc), 0.0);
     }
 
     /// A marker word must be followed by a non-alphanumeric character to
@@ -647,6 +777,30 @@ mod tests {
     fn ritual_marker_rate_no_paragraphs_is_zero() {
         let doc = doc_from_paragraphs("", &[]);
         assert_eq!(ritual_marker_rate(&doc), 0.0);
+    }
+
+    /// Regression test for the exact bug reproduced against train doc
+    /// `corpus/llm/blog/cde08357ef2e91de.md`: a one-sentence paragraph
+    /// whose entire text is a bold-wrapped ritual marker,
+    /// `"**Overall:**"` (the literal form `friction-parse` bridges into a
+    /// sentence's source text, see the module docs), must be flagged —
+    /// before the leading-markup strip, `starts_with_marker` saw a `*` as
+    /// the first character and never matched "Overall" at all, silently
+    /// undercounting this pattern.
+    #[test]
+    fn ritual_marker_rate_matches_bold_wrapped_marker() {
+        let source = "**Overall:**";
+        let doc = doc_from_paragraphs(source, &[(0..source.len(), &[0..source.len()])]);
+        assert_eq!(ritual_marker_rate(&doc), 1.0);
+    }
+
+    /// The same bold-wrapped-marker recognition applies when the marker
+    /// opens a longer sentence, and to the underscore delimiter too.
+    #[test]
+    fn ritual_marker_rate_matches_underscore_wrapped_marker() {
+        let source = "__Overall__, it works out fine.";
+        let doc = doc_from_paragraphs(source, &[(0..source.len(), &[0..source.len()])]);
+        assert_eq!(ritual_marker_rate(&doc), 1.0);
     }
 
     // --- not_just_but_rate ----------------------------------------------

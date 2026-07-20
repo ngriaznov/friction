@@ -7,7 +7,7 @@
 Consider a railroad junction:
 
 [![Image showing a railroad junction][2]][3]
-&lt;sub&gt;[Image][3] by Mecanismo, via Wikimedia Commons. Used under the [CC-By-SA 3.0][4] license.&lt;/sub&gt;
+<sub>[Image][3] by Mecanismo, via Wikimedia Commons. Used under the [CC-By-SA 3.0][4] license.</sub>
 
 Now for the sake of argument, suppose this is back in the 1800s - before long-distance or radio communication.
 
@@ -27,11 +27,11 @@ Is there a better way? You guess which direction the train will go!
 
 **Consider an if-statement:** At the processor level, it is a branch instruction:
 
-![if(x &gt;= 128) compiles into a jump-if-less-than processor instruction.][5]
+![if(x >= 128) compiles into a jump-if-less-than processor instruction.][5]
 
 You are a processor and you see a branch. You have no idea which way it will go. What do you do? You halt execution and wait until the previous instructions are complete. Then you continue down the correct path.
 
-*Modern processors are complicated and have long pipelines. This means they take forever to &quot;warm up&quot; and &quot;slow down&quot;.*
+*Modern processors are complicated and have long pipelines. This means they take forever to "warm up" and "slow down".*
 
 Is there a better way? You guess which direction the branch will go!
 
@@ -43,21 +43,21 @@ Is there a better way? You guess which direction the branch will go!
 
 ---
 
-This is branch prediction. I admit it&#39;s not the best analogy since the train could just signal the direction with a flag. But in computers, the processor doesn&#39;t know which direction a branch will go until the last moment.
+This is branch prediction. I admit it's not the best analogy since the train could just signal the direction with a flag. But in computers, the processor doesn't know which direction a branch will go until the last moment.
 
 How would you strategically guess to minimize the number of times that the train must back up and go down the other path? You look at the past history! If the train goes left 99% of the time, then you guess left. If it alternates, then you alternate your guesses. If it goes one way every three times, you guess the same...
 
 ***In other words, you try to identify a pattern and follow it.*** This is more or less how branch predictors work.
 
-Most applications have well-behaved branches. Therefore, modern branch predictors will typically achieve &gt;90% hit rates. But when faced with unpredictable branches with no recognizable patterns, branch predictors are virtually useless.
+Most applications have well-behaved branches. Therefore, modern branch predictors will typically achieve >90% hit rates. But when faced with unpredictable branches with no recognizable patterns, branch predictors are virtually useless.
 
-Further reading: [&quot;Branch predictor&quot; article on Wikipedia][1].
+Further reading: ["Branch predictor" article on Wikipedia][1].
 
 ---
 
 ## As hinted from above, the culprit is this if-statement:
 
-    if (data[c] &gt;= 128)
+    if (data[c] >= 128)
         sum += data[c];
 
 Notice that the data is evenly distributed between 0 and 255. When the data is sorted, roughly the first half of the iterations will not enter the if-statement. After that, they will all enter the if-statement.
@@ -75,7 +75,7 @@ branch = N  N  N  N  N  ...   N    N    T    T    T  ...   T    T    T  ...
 
        = NNNNNNNNNNNN ... NNNNNNNTTTTTTTTT ... TTTTTTTTTT  (easy to predict)
 ```
-However, when the data is completely random, the branch predictor is rendered useless, because it can&#39;t predict random data. Thus there will probably be around 50% misprediction (no better than random guessing).
+However, when the data is completely random, the branch predictor is rendered useless, because it can't predict random data. Thus there will probably be around 50% misprediction (no better than random guessing).
 
 ```none
 data[] = 226, 185, 125, 158, 198, 144, 217, 79, 202, 118,  14, 150, 177, 182, ...
@@ -88,21 +88,21 @@ branch =   T,   T,   N,   T,   T,   T,   T,  N,   T,   N,   N,   T,   T,   T  ..
 
 **What can be done?**
 
-If the compiler isn&#39;t able to optimize the branch into a conditional move, you can try some hacks if you are willing to sacrifice readability for performance.
+If the compiler isn't able to optimize the branch into a conditional move, you can try some hacks if you are willing to sacrifice readability for performance.
 
 Replace:
 
-    if (data[c] &gt;= 128)
+    if (data[c] >= 128)
         sum += data[c];
 
 with:
 
-    int t = (data[c] - 128) &gt;&gt; 31;
-    sum += ~t &amp; data[c];
+    int t = (data[c] - 128) >> 31;
+    sum += ~t & data[c];
 
 This eliminates the branch and replaces it with some bitwise operations.
 
-&lt;sub&gt;(Note that this hack is not strictly equivalent to the original if-statement. But in this case, it&#39;s valid for all the input values of `data[]`.)&lt;/sub&gt;
+<sub>(Note that this hack is not strictly equivalent to the original if-statement. But in this case, it's valid for all the input values of `data[]`.)</sub>
 
 **Benchmarks: Core i7 920 @ 3.5 GHz**
 
@@ -136,13 +136,13 @@ A general rule of thumb is to avoid data-dependent branching in critical loops (
 
 **Update:**
 
-- GCC 4.6.1 with `-O3` or `-ftree-vectorize` on x64 is able to generate a conditional move, so there is no difference between the sorted and unsorted data - both are fast.  This is called &quot;if-conversion&quot; (to branchless) and is necessary for vectorization but also sometimes good for scalar.
+- GCC 4.6.1 with `-O3` or `-ftree-vectorize` on x64 is able to generate a conditional move, so there is no difference between the sorted and unsorted data - both are fast.  This is called "if-conversion" (to branchless) and is necessary for vectorization but also sometimes good for scalar.
 
    (Or somewhat fast: for the already-sorted case, `cmov` can be slower especially if GCC puts it on the critical path instead of just `add`, especially on Intel before Broadwell where `cmov` has 2-cycle latency: *https://stackoverflow.com/questions/28875325/gcc-optimization-flag-o3-makes-code-slower-than-o2*)
 
 - VC++ 2010 is unable to generate conditional moves for this branch even under `/Ox`.
 
-- [Intel C++ Compiler][6] (ICC) 11 does something miraculous. It [interchanges the two loops][7], thereby hoisting the unpredictable branch to the outer loop. Not only is it immune to the mispredictions, it&#39;s also twice as fast as whatever VC++ and GCC can generate! In other words, ICC took advantage of the test-loop to defeat the benchmark...
+- [Intel C++ Compiler][6] (ICC) 11 does something miraculous. It [interchanges the two loops][7], thereby hoisting the unpredictable branch to the outer loop. Not only is it immune to the mispredictions, it's also twice as fast as whatever VC++ and GCC can generate! In other words, ICC took advantage of the test-loop to defeat the benchmark...
 
 - If you give the Intel compiler the branchless code, it just outright vectorizes it... and is just as fast as with the branch (with the loop interchange).
 

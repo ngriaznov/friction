@@ -1,15 +1,15 @@
 ## When in Doubt, Throw it Out!
 
-You cannot always see or smell bacterial contamination. Mold that appears to be growing only on the surface may grow invisible roots into softer foods. Do not rely on a visual inspection or &quot;smell test&quot; to tell you whether or not a food is safe. It&#39;s not worth the risk - food poisoning can be much, much worse than an upset stomach.
+You cannot always see or smell bacterial contamination. Mold that appears to be growing only on the surface may grow invisible roots into softer foods. Do not rely on a visual inspection or "smell test" to tell you whether or not a food is safe. It's not worth the risk - food poisoning can be much, much worse than an upset stomach.
 
 ## The Danger Zone
 
-  * Per [the USDA guidelines][1], **potentially hazardous food that stays in the temperature &quot;danger zone&quot;, 40-140 &#176;F (4-60 &#176;C), for more than 2 hours should be discarded. For temperatures above 90&#176;F (32&#176;C), the limit is 1 hour.**&lt;a
-href=&quot;https://cooking.stackexchange.com/questions/34670/how-do-i-know-if-food-left-at-room-temperature-is-still-safe-to-eat#canon-footnote-1&quot;&gt;&lt;sup&gt;*&lt;/sup&gt;&lt;/a&gt;
+  * Per [the USDA guidelines][1], **potentially hazardous food that stays in the temperature "danger zone", 40-140 °F (4-60 °C), for more than 2 hours should be discarded. For temperatures above 90°F (32°C), the limit is 1 hour.**<a
+href="https://cooking.stackexchange.com/questions/34670/how-do-i-know-if-food-left-at-room-temperature-is-still-safe-to-eat#canon-footnote-1"><sup>*</sup></a>
 
   * [Potentially hazardous][2] foods are those foods that spoil most easily, such as unshelled eggs, raw meats, fish, shell fish, dairy products, almost all cooked foods.
 
-  * This time is *cumulative*, so it includes time bringing the food home from the grocery store, time before cooking, time after cooking, and so on.   The reason is that while cooking may destroy bacteria or other pathogens, it doesn&#39;t always destroy the toxins that they have produced.
+  * This time is *cumulative*, so it includes time bringing the food home from the grocery store, time before cooking, time after cooking, and so on.   The reason is that while cooking may destroy bacteria or other pathogens, it doesn't always destroy the toxins that they have produced.
 
   * In general, regarding perishable foods like meat, most dairy, unshelled eggs and [shell eggs (in the US)](https://cooking.stackexchange.com/a/2947/3649), cooked casseroles, and so on:  if the food (or its perishable components) have been at room temperature for more than two hours, you should discard that food.
 
@@ -17,13 +17,13 @@ href=&quot;https://cooking.stackexchange.com/questions/34670/how-do-i-know-if-fo
 
   * If you can be certain that the food was not in the danger zone, then yes, it is safe. For example, if you left a large chunk of frozen meat out and it is still frozen solid (including the surface) when you come back to it, it was not in the danger zone.
 
-## Why is it so strict? / Why didn&#39;t I get sick?
+## Why is it so strict? / Why didn't I get sick?
 
-These guidelines are about making *sure* you don&#39;t get a foodborne illness, i.e. reducing the risk to where it&#39;s so small as to not be an issue. So if you break the rules, e.g. eating food that&#39;s been left at room temperature for 8 hours, that doesn&#39;t mean you *will* get sick, just that you&#39;re taking a risk.
+These guidelines are about making *sure* you don't get a foodborne illness, i.e. reducing the risk to where it's so small as to not be an issue. So if you break the rules, e.g. eating food that's been left at room temperature for 8 hours, that doesn't mean you *will* get sick, just that you're taking a risk.
 
-## Why does cooking not completely &quot;reset the clock&quot;?
+## Why does cooking not completely "reset the clock"?
 
-  * **Some bacteria leave behind harmful protein toxins that cannot be &quot;killed&quot; (denatured) by cooking.** Cooking food is only effective against live organisms, not their toxic waste products. Spoiled food cannot be cooked back to safety and *must* be discarded.
+  * **Some bacteria leave behind harmful protein toxins that cannot be "killed" (denatured) by cooking.** Cooking food is only effective against live organisms, not their toxic waste products. Spoiled food cannot be cooked back to safety and *must* be discarded.
 
   * **Cooking is pasteurization, not sterilization.** [Pasteurization][3] means killing *most* microbes, so as to render the food safe for human consumption.  [Sterilization][4] methods (e.g. pressure-canning and irradiation) are the only safe methods for longer-term room-temperature storage. Otherwise, the danger zone rules always apply.
 
@@ -31,7 +31,7 @@ These guidelines are about making *sure* you don&#39;t get a foodborne illness, 
 
 ## What can I leave out longer?
 
-For foods that aren&#39;t potentially hazardous as described above, there&#39;s no solid rule, but things are generally safe for much longer than the 2 hours given above. For example, things which are sold at room temperature (e.g. fresh produce, bread, or cookies) are most likely safe at least all day or overnight if not for days or even months. You can find guidelines for common things at [StillTasty][5].
+For foods that aren't potentially hazardous as described above, there's no solid rule, but things are generally safe for much longer than the 2 hours given above. For example, things which are sold at room temperature (e.g. fresh produce, bread, or cookies) are most likely safe at least all day or overnight if not for days or even months. You can find guidelines for common things at [StillTasty][5].
 
 ## Regulation and Risks
 
@@ -51,7 +51,7 @@ Health codes tend to be very conservative, to fully protect the community.    Yo
 
 Once again, if you suspect spoilage or contamination, *please, **throw it out.***
 
-&lt;sub&gt;&lt;a name=&quot;canon-footnote-1&quot;&gt;*&lt;/a&gt; Note: this is the USDA&#39;s rule. Other agencies may have variations on it. Additionally, government agencies generally make very conservative recommendations - they&#39;re trying to make sure that *no one* who follows the rules gets sick. Breaking the rules means maybe taking on some risk. That&#39;s up to you - just remember, eventually someone gets unlucky, and food poisoning is not fun.&lt;/sub&gt;
+<sub><a name="canon-footnote-1">*</a> Note: this is the USDA's rule. Other agencies may have variations on it. Additionally, government agencies generally make very conservative recommendations - they're trying to make sure that *no one* who follows the rules gets sick. Breaking the rules means maybe taking on some risk. That's up to you - just remember, eventually someone gets unlucky, and food poisoning is not fun.</sub>
 
 ## Helpful Resources
 

@@ -36,7 +36,7 @@ pub struct Args {
     pub corpus_dir: PathBuf,
     /// Path to the envelope pack (`corpus-tool envelope`'s output) used
     /// for the combined score.
-    #[arg(long, default_value = "crates/friction-packs/packs/envelope-v1.toml")]
+    #[arg(long, default_value = "crates/friction-packs/packs/envelope-v2.toml")]
     pub envelope: PathBuf,
     /// Path to write the markdown separation report to.
     #[arg(long)]
@@ -52,9 +52,19 @@ pub struct Args {
 /// `AUC > 0.5` always means "this metric separates llm from human",
 /// regardless of which class actually scores higher — [`Direction`]
 /// records which way it points. Also computes, per document, a combined
-/// score (the fraction of the 14 metrics falling outside that document's
-/// genre's envelope band, loaded from `--envelope`) and that score's own
-/// AUC. Writes a markdown report to `--report`.
+/// score (the mean, over that document's genre's *included* metrics —
+/// see [`MetricBand`] — of a per-metric normalized directional
+/// exceedance beyond that document's genre's train-human envelope band,
+/// loaded from `--envelope`; see [`combined_score`]) and that score's
+/// own AUC. Writes a markdown report to `--report`.
+///
+/// "Included" is entirely a property of the envelope pack, not this
+/// command: `corpus-tool envelope` decides, per `(genre, metric)`, from a
+/// train-internal AUC comparison, whether that metric counts toward its
+/// genre's combined score at all (see the pack's `include` field) — a
+/// metric the diagnosis judged non-discriminative for a genre (e.g.
+/// `ritual_marker_rate` before its detector fix) is dropped from that
+/// genre's combined score this way, never by a hand-picked override here.
 ///
 /// A genre with no dev-split docs of one class (or missing from the
 /// envelope pack, for the combined score) is reported with `n/a` rather
@@ -144,10 +154,25 @@ pub enum Direction {
 }
 
 impl Direction {
-    const fn as_str(self) -> &'static str {
+    /// `pub(crate)`, not private: `corpus-tool envelope` writes this
+    /// exact string into the envelope-v2 pack's `direction` field (see
+    /// `crate::commands::envelope::render_pack`), and [`Direction::parse`]
+    /// below is its inverse.
+    pub(crate) const fn as_str(self) -> &'static str {
         match self {
             Self::LlmHigher => "llm higher",
             Self::LlmLower => "llm lower",
+        }
+    }
+
+    /// Parses the exact string [`Direction::as_str`] produces. Returns
+    /// `None` for anything else (an unrecognized or hand-edited envelope
+    /// pack).
+    fn parse(s: &str) -> Option<Self> {
+        match s {
+            "llm higher" => Some(Self::LlmHigher),
+            "llm lower" => Some(Self::LlmLower),
+            _ => None,
         }
     }
 }
@@ -227,36 +252,76 @@ pub fn mann_whitney_auc(human: &[f64], llm: &[f64]) -> Option<(f64, Direction)> 
 
 // --- envelope pack loading ---
 
+/// One `(genre, metric)` entry from an envelope-v2 pack: the train-human
+/// percentile band, which side of it is llm-like (from a train-internal
+/// AUC comparison — see `crate::commands::envelope`), and whether this
+/// metric counts toward its genre's combined score at all.
+#[derive(Debug, Clone, Copy)]
+struct MetricBand {
+    envelope: Envelope,
+    direction: Direction,
+    include: bool,
+    /// The train-internal AUC `include` was decided from; `None` when
+    /// that comparison was undefined for this `(genre, metric)` (no
+    /// train-split llm docs for the genre) — `include` then defaults to
+    /// `true` and `direction` is a meaningless placeholder.
+    train_auc: Option<f64>,
+}
+
 /// genre name -> metric name -> band.
-type EnvelopePack = BTreeMap<String, BTreeMap<String, Envelope>>;
+type EnvelopePack = BTreeMap<String, BTreeMap<String, MetricBand>>;
 
 #[derive(Debug, Deserialize)]
 struct RawEnvelopeEntry {
     lo: f64,
     hi: f64,
+    direction: String,
+    include: bool,
+    #[serde(default)]
+    train_auc: Option<f64>,
+}
+
+/// The `[pack]` header fields `separate` itself reads; every other header
+/// field (version, percentiles, doc counts, ...) is generation metadata
+/// `envelope` records for its own reproducibility and isn't needed here,
+/// so it's left for serde to silently ignore rather than declared.
+#[derive(Debug, Default, Deserialize)]
+struct RawPackHeader {
+    #[serde(default)]
+    auc_include_threshold: Option<f64>,
 }
 
 /// The TOML shape `corpus-tool envelope` writes: a `[pack]` header table
-/// (ignored here beyond consuming the key) plus one top-level table per
-/// genre, each mapping metric name to a `{lo, hi}` sub-table. `#[serde(flatten)]`
+/// plus one top-level table per genre, each mapping metric name to a
+/// `{lo, hi, direction, include, train_auc?}` sub-table. `#[serde(flatten)]`
 /// captures every top-level key except `pack` into `genres`.
 #[derive(Debug, Deserialize)]
 struct RawPack {
     #[serde(default)]
-    #[allow(dead_code)]
-    pack: Option<toml::Value>,
+    pack: RawPackHeader,
     #[serde(flatten)]
     genres: BTreeMap<String, BTreeMap<String, RawEnvelopeEntry>>,
 }
 
-fn load_envelope_pack(path: &std::path::Path) -> anyhow::Result<EnvelopePack> {
+/// An envelope pack plus the one header field the report displays for
+/// transparency: the train-AUC threshold `envelope` used to decide each
+/// metric's `include` flag (the flags themselves are already baked into
+/// `bands`; this is purely for the report's inclusion note to name the
+/// rule instead of just its effect).
+struct LoadedPack {
+    bands: EnvelopePack,
+    auc_include_threshold: Option<f64>,
+}
+
+fn load_envelope_pack(path: &std::path::Path) -> anyhow::Result<LoadedPack> {
     let text = std::fs::read_to_string(path)?;
     parse_envelope_pack(&text)
 }
 
-fn parse_envelope_pack(text: &str) -> anyhow::Result<EnvelopePack> {
+fn parse_envelope_pack(text: &str) -> anyhow::Result<LoadedPack> {
     let raw: RawPack = toml::from_str(text)?;
-    raw.genres
+    let bands = raw
+        .genres
         .into_iter()
         .map(|(genre, metrics)| -> anyhow::Result<_> {
             let metrics = metrics
@@ -270,32 +335,89 @@ fn parse_envelope_pack(text: &str) -> anyhow::Result<EnvelopePack> {
                             entry.lo, entry.hi
                         )
                     })?;
-                    Ok((name, envelope))
+                    let direction = Direction::parse(&entry.direction).with_context(|| {
+                        format!(
+                            "envelope pack: unrecognized direction {:?} for genre {genre:?}, \
+                             metric {name:?}",
+                            entry.direction
+                        )
+                    })?;
+                    Ok((
+                        name,
+                        MetricBand {
+                            envelope,
+                            direction,
+                            include: entry.include,
+                            train_auc: entry.train_auc,
+                        },
+                    ))
                 })
                 .collect::<anyhow::Result<_>>()?;
             Ok((genre, metrics))
         })
-        .collect()
+        .collect::<anyhow::Result<EnvelopePack>>()?;
+    Ok(LoadedPack {
+        bands,
+        auc_include_threshold: raw.pack.auc_include_threshold,
+    })
 }
 
 // --- combined score ---
 
-/// The fraction of `metrics`'s 14 fields that fall *outside* `bands`
-/// (metric name -> envelope), if `bands` has an entry for every field —
-/// `None` if `bands` is missing any metric (an incomplete/absent
-/// per-genre envelope), so callers can distinguish "0 out of 14 outside"
-/// from "no envelope to compare against".
-fn combined_score(metrics: &MetricVector, bands: &BTreeMap<String, Envelope>) -> Option<f64> {
-    let mut outside = 0usize;
-    for (name, value) in metrics.named_values() {
-        let envelope = bands.get(name)?;
-        if !envelope.contains(value) {
-            outside += 1;
+/// `0.0` if `value` falls inside `envelope`'s `[lo, hi]` band (inclusive
+/// on both ends); otherwise the distance from `value` to the *nearer*
+/// band edge, divided by the band width, capped at `1.0` — a normalized
+/// directional exceedance, replacing `envelope-v1`'s binary in/out
+/// verdict with how far out. A zero-width band (`lo == hi`) treats any
+/// miss as full (`1.0`) exceedance rather than dividing by zero.
+fn exceedance(value: f64, envelope: Envelope) -> f64 {
+    let width = envelope.hi - envelope.lo;
+    if value < envelope.lo {
+        if width <= 0.0 {
+            1.0
+        } else {
+            ((envelope.lo - value) / width).min(1.0)
         }
+    } else if value > envelope.hi {
+        if width <= 0.0 {
+            1.0
+        } else {
+            ((value - envelope.hi) / width).min(1.0)
+        }
+    } else {
+        0.0
+    }
+}
+
+/// The mean, over `metrics`'s fields that `bands` marks `include: true`
+/// (see [`MetricBand`] — a train-derived rule, decided entirely by
+/// `corpus-tool envelope`, never hand-picked here), of that field's
+/// [`exceedance`] beyond its genre's train-human envelope band.
+///
+/// Generic over [`MetricVector::FIELD_NAMES`]'s current length — adding a
+/// metric to `MetricVector` (and its envelope pack entries) changes what
+/// this averages over without any code change here.
+///
+/// `None` if `bands` has no entry at all for one of `metrics`'s fields
+/// (an incomplete/absent per-genre envelope — distinct from a field
+/// present but excluded), or if every field was excluded (no basis for a
+/// score).
+fn combined_score(metrics: &MetricVector, bands: &BTreeMap<String, MetricBand>) -> Option<f64> {
+    let mut included_total = 0.0;
+    let mut included_count = 0usize;
+    for (name, value) in metrics.named_values() {
+        let band = bands.get(name)?;
+        if !band.include {
+            continue;
+        }
+        included_count += 1;
+        included_total += exceedance(value, band.envelope);
+    }
+    if included_count == 0 {
+        return None;
     }
     #[allow(clippy::cast_precision_loss)]
-    let fraction = outside as f64 / MetricVector::FIELD_NAMES.len() as f64;
-    Some(fraction)
+    Some(included_total / included_count as f64)
 }
 
 // --- report rendering ---
@@ -311,17 +433,26 @@ fn combined_score(metrics: &MetricVector, bands: &BTreeMap<String, Envelope>) ->
 const GATE_AUC_THRESHOLD: f64 = 0.85;
 const GATE_MIN_GENRES: usize = 3;
 
-fn render_report(by_genre: &BTreeMap<Genre, GenreVectors>, envelope_pack: &EnvelopePack) -> String {
+fn render_report(by_genre: &BTreeMap<Genre, GenreVectors>, envelope_pack: &LoadedPack) -> String {
     let mut out = String::new();
     writeln!(out, "# Separation report").expect("write to String is infallible");
     writeln!(out).expect("write to String is infallible");
+    let threshold_note = envelope_pack.auc_include_threshold.map_or_else(
+        || "n/a (envelope pack header has no `auc_include_threshold`)".to_string(),
+        |t| format!("{t:.4}"),
+    );
     writeln!(
         out,
         "Dev split, human vs llm. AUC is the Mann-Whitney U statistic, tie-corrected via \
          midranks, oriented so AUC > 0.5 always means the metric separates the two classes \
-         (see `direction` for which one scores higher). Combined score: the fraction of a \
-         document's 14 metrics falling outside its genre's train-human envelope; its own AUC \
-         uses the same method. All figures to 4 decimal places."
+         (see `direction` for which one scores higher). Combined score: the mean, over a \
+         document's genre's *included* metrics (envelope pack `include` flag, a train-internal \
+         AUC >= {threshold_note} rule decided entirely by `corpus-tool envelope` — see each \
+         genre's \"Combined-score metrics\" line below for which metrics that excluded and \
+         why), of a per-metric normalized directional exceedance beyond that metric's \
+         train-human envelope band (0.0 inside the band, else the distance to the nearer edge \
+         over the band width, capped at 1.0); its own AUC uses the same Mann-Whitney method. \
+         All figures to 4 decimal places."
     )
     .expect("write to String is infallible");
 
@@ -360,9 +491,11 @@ fn render_report(by_genre: &BTreeMap<Genre, GenreVectors>, envelope_pack: &Envel
         }
 
         writeln!(out).expect("write to String is infallible");
-        let combined = combined_scores_for_genre(genre, vectors, envelope_pack);
+        let bands = envelope_pack.bands.get(&genre.to_string());
+        let combined = combined_scores_for_genre(vectors, bands);
         let summary = combined_score_summary(genre, vectors, combined.as_ref());
         writeln!(out, "{summary}").expect("write to String is infallible");
+        writeln!(out, "{}", inclusion_note(bands)).expect("write to String is infallible");
 
         let auc = combined
             .as_ref()
@@ -381,15 +514,14 @@ fn render_report(by_genre: &BTreeMap<Genre, GenreVectors>, envelope_pack: &Envel
     out
 }
 
-/// The per-document combined scores (human, then llm), for `genre`, that
-/// [`combined_score_summary`] and the gate section both need — `None` if
-/// `envelope_pack` has no entry for `genre` at all.
+/// The per-document combined scores (human, then llm), given `bands` (a
+/// genre's envelope-pack entry) — `None` if there is no entry at all for
+/// this genre.
 fn combined_scores_for_genre(
-    genre: Genre,
     vectors: &GenreVectors,
-    envelope_pack: &EnvelopePack,
+    bands: Option<&BTreeMap<String, MetricBand>>,
 ) -> Option<(Vec<f64>, Vec<f64>)> {
-    let bands = envelope_pack.get(&genre.to_string())?;
+    let bands = bands?;
     let human_scores = vectors
         .human
         .iter()
@@ -401,6 +533,38 @@ fn combined_scores_for_genre(
         .filter_map(|v| combined_score(v, bands))
         .collect();
     Some((human_scores, llm_scores))
+}
+
+/// A one-line note, per genre, on which of that genre's envelope-pack
+/// metrics were dropped from the combined score by the train-derived
+/// inclusion rule (`include: false`), and why (its train-split AUC, when
+/// the pack recorded one) — so the report always states the rule's
+/// concrete effect, not just its existence.
+fn inclusion_note(bands: Option<&BTreeMap<String, MetricBand>>) -> String {
+    let Some(bands) = bands else {
+        return "Combined-score metrics: n/a (no envelope for this genre).".to_string();
+    };
+    let total = bands.len();
+    let mut excluded: Vec<(&String, &MetricBand)> =
+        bands.iter().filter(|(_, band)| !band.include).collect();
+    excluded.sort_by(|a, b| a.0.cmp(b.0));
+    let included = total - excluded.len();
+    if excluded.is_empty() {
+        return format!("Combined-score metrics: {included} of {total} included (none excluded).");
+    }
+    let details: Vec<String> = excluded
+        .iter()
+        .map(|(name, band)| {
+            band.train_auc.map_or_else(
+                || format!("{name} (no train-split llm docs for this genre)"),
+                |auc| format!("{name} (train AUC {auc:.4}, {})", band.direction.as_str()),
+            )
+        })
+        .collect();
+    format!(
+        "Combined-score metrics: {included} of {total} included; excluded: {}.",
+        details.join(", ")
+    )
 }
 
 fn combined_score_summary(
@@ -534,17 +698,69 @@ mod tests {
         assert!(mann_whitney_auc(&[1.0], &[]).is_none());
     }
 
+    // --- exceedance: hand-computed fixtures ---
+
+    /// A value inside `[0, 10]`, including both boundaries, exceeds by
+    /// exactly `0.0`.
+    #[test]
+    fn exceedance_inside_band_including_boundaries_is_zero() {
+        let band = Envelope::new(0.0, 10.0);
+        assert_eq!(exceedance(5.0, band), 0.0);
+        assert_eq!(exceedance(0.0, band), 0.0);
+        assert_eq!(exceedance(10.0, band), 0.0);
+    }
+
+    /// Band `[10, 20]` (width 10): a value 5 below `lo` exceeds by
+    /// `5 / 10 = 0.5`; a value 5 above `hi` also exceeds by `0.5` — same
+    /// magnitude on either side, since the formula only cares about
+    /// distance to the *nearer* edge.
+    #[test]
+    fn exceedance_matches_hand_computed_value_on_either_side() {
+        let band = Envelope::new(10.0, 20.0);
+        assert!((exceedance(5.0, band) - 0.5).abs() < 1e-12);
+        assert!((exceedance(25.0, band) - 0.5).abs() < 1e-12);
+    }
+
+    /// A miss more than a full band-width beyond the edge is capped at
+    /// `1.0`, not left to grow unbounded.
+    #[test]
+    fn exceedance_caps_at_one() {
+        let band = Envelope::new(10.0, 20.0);
+        assert_eq!(exceedance(1000.0, band), 1.0);
+        assert_eq!(exceedance(-1000.0, band), 1.0);
+    }
+
+    /// A zero-width band (`lo == hi`, e.g. a genre where every train-human
+    /// doc had the exact same value) treats any miss as full exceedance
+    /// rather than dividing by zero.
+    #[test]
+    fn exceedance_zero_width_band_treats_any_miss_as_full() {
+        let band = Envelope::new(5.0, 5.0);
+        assert_eq!(exceedance(5.0, band), 0.0);
+        assert_eq!(exceedance(5.001, band), 1.0);
+        assert_eq!(exceedance(4.999, band), 1.0);
+    }
+
     // --- combined_score ---
 
-    fn bands_all(lo: f64, hi: f64) -> BTreeMap<String, Envelope> {
+    fn band(lo: f64, hi: f64, direction: Direction, include: bool) -> MetricBand {
+        MetricBand {
+            envelope: Envelope::new(lo, hi),
+            direction,
+            include,
+            train_auc: None,
+        }
+    }
+
+    fn bands_all(lo: f64, hi: f64) -> BTreeMap<String, MetricBand> {
         MetricVector::FIELD_NAMES
             .iter()
-            .map(|&name| (name.to_string(), Envelope::new(lo, hi)))
+            .map(|&name| (name.to_string(), band(lo, hi, Direction::LlmHigher, true)))
             .collect()
     }
 
-    /// A vector entirely within `[0, 10]` on every field scores 0/14
-    /// outside.
+    /// A vector entirely within `[0, 10]` on every included field scores
+    /// exactly `0.0` (mean of all-zero exceedances).
     #[test]
     fn combined_score_all_inside_is_zero() {
         let bands = bands_all(0.0, 10.0);
@@ -555,16 +771,21 @@ mod tests {
         assert_eq!(combined_score(&metrics, &bands), Some(0.0));
     }
 
-    /// Exactly one field (`triad_rate`) outside its `[0, 1]` band: 1/14.
+    /// Exactly one field (`triad_rate`) outside its `[0, 1]` band, by 4x
+    /// the band width (capped at `1.0`): mean over `N` included fields is
+    /// `1.0 / N`.
     #[test]
-    fn combined_score_counts_fields_outside_band() {
+    fn combined_score_matches_hand_computed_mean_exceedance() {
         let bands = bands_all(0.0, 1.0);
         let metrics = MetricVector {
             triad_rate: 5.0,
             ..MetricVector::default()
         };
         let score = combined_score(&metrics, &bands).unwrap();
-        assert!((score - 1.0 / 14.0).abs() < 1e-12, "score={score}");
+        let n = MetricVector::FIELD_NAMES.len();
+        #[allow(clippy::cast_precision_loss)]
+        let expected = 1.0 / n as f64;
+        assert!((score - expected).abs() < 1e-12, "score={score}");
     }
 
     /// A band boundary is inclusive: a value exactly at `hi` counts as
@@ -587,35 +808,121 @@ mod tests {
         assert_eq!(combined_score(&MetricVector::default(), &bands), None);
     }
 
+    /// The inclusion-rule example: `triad_rate` is excluded
+    /// (`include: false`) even though its value is wildly out of band —
+    /// an excluded field contributes nothing to the mean, so a document
+    /// whose only miss is on an excluded field scores a perfect `0.0`,
+    /// not some fraction reflecting that miss.
+    #[test]
+    fn combined_score_skips_excluded_fields() {
+        let mut bands = bands_all(0.0, 1.0);
+        bands.insert(
+            "triad_rate".to_string(),
+            band(0.0, 1.0, Direction::LlmHigher, false),
+        );
+        let metrics = MetricVector {
+            triad_rate: 100.0, // wildly out of [0, 1], but excluded
+            ..MetricVector::default()
+        };
+        assert_eq!(combined_score(&metrics, &bands), Some(0.0));
+    }
+
+    /// When *every* field is excluded, there is no basis for a score at
+    /// all — `None`, the same "undefined" signal as a missing band,
+    /// rather than a fabricated `0.0`.
+    #[test]
+    fn combined_score_all_excluded_is_none() {
+        let bands: BTreeMap<String, MetricBand> = MetricVector::FIELD_NAMES
+            .iter()
+            .map(|&name| {
+                (
+                    name.to_string(),
+                    band(0.0, 1.0, Direction::LlmHigher, false),
+                )
+            })
+            .collect();
+        assert_eq!(combined_score(&MetricVector::default(), &bands), None);
+    }
+
     // --- envelope pack parsing ---
 
-    /// A pack in exactly the shape `corpus-tool envelope` writes parses
-    /// into the expected genre -> metric -> Envelope map.
+    /// A pack in exactly the shape `corpus-tool envelope` writes (v2:
+    /// `lo`/`hi`/`direction`/`include`/`train_auc`, plus the `[pack]`
+    /// header's `auc_include_threshold`) parses into the expected
+    /// genre -> metric -> `MetricBand` map.
     #[test]
     fn parse_envelope_pack_reads_genre_metric_bands() {
         let text = r#"
 [pack]
-version = "envelope-v1"
+version = "envelope-v2"
 percentile_method = "nearest-rank"
 lo_percentile = 10.0
 hi_percentile = 90.0
+auc_include_threshold = 0.55
 corpus_manifest_sha256 = "deadbeef"
 train_human_doc_count = 2
+train_llm_doc_count = 2
 
-[pack.docs_per_genre]
+[pack.human_docs_per_genre]
+docs = 2
+
+[pack.llm_docs_per_genre]
 docs = 2
 
 [docs.triad_rate]
 lo = 0.1
 hi = 0.9
+direction = "llm higher"
+include = true
+train_auc = 0.7
 "#;
         let pack = parse_envelope_pack(text).unwrap();
-        let band = pack["docs"]["triad_rate"];
-        assert_eq!(band.lo, 0.1);
-        assert_eq!(band.hi, 0.9);
+        assert_eq!(pack.auc_include_threshold, Some(0.55));
+        let band = pack.bands["docs"]["triad_rate"];
+        assert_eq!(band.envelope.lo, 0.1);
+        assert_eq!(band.envelope.hi, 0.9);
+        assert_eq!(band.direction, Direction::LlmHigher);
+        assert!(band.include);
+        assert_eq!(band.train_auc, Some(0.7));
+    }
+
+    /// A metric entry with no `train_auc` line (the "no train-split llm
+    /// docs for this genre" case) parses to `train_auc: None`.
+    #[test]
+    fn parse_envelope_pack_missing_train_auc_is_none() {
+        let text = r#"
+[docs.triad_rate]
+lo = 0.1
+hi = 0.9
+direction = "llm higher"
+include = true
+"#;
+        let pack = parse_envelope_pack(text).unwrap();
+        assert_eq!(pack.bands["docs"]["triad_rate"].train_auc, None);
+    }
+
+    /// An unrecognized `direction` string is a hard parse error, not a
+    /// silently defaulted direction.
+    #[test]
+    fn parse_envelope_pack_rejects_unrecognized_direction() {
+        let text = r#"
+[docs.triad_rate]
+lo = 0.1
+hi = 0.9
+direction = "sideways"
+include = true
+"#;
+        assert!(parse_envelope_pack(text).is_err());
     }
 
     // --- report rendering ---
+
+    fn empty_pack() -> LoadedPack {
+        LoadedPack {
+            bands: BTreeMap::new(),
+            auc_include_threshold: None,
+        }
+    }
 
     /// The rendered report contains every genre's section, in
     /// declaration order, plus the summary line for a genre with data.
@@ -635,9 +942,8 @@ hi = 0.9
                 }],
             },
         );
-        let envelope_pack: EnvelopePack = BTreeMap::new();
 
-        let report = render_report(&by_genre, &envelope_pack);
+        let report = render_report(&by_genre, &empty_pack());
         assert!(report.contains("## docs"));
         assert!(report.contains("## blog"));
         assert!(report.contains("## readme"));
@@ -646,6 +952,45 @@ hi = 0.9
         assert!(report.contains("| triad_rate | 1 | 1 | 1.0000 | llm higher |"));
         assert!(report.contains("Summary: docs — human n=1, llm n=1"));
         assert!(report.contains("no envelope for this genre"));
+        assert!(report.contains("Combined-score metrics: n/a (no envelope for this genre)."));
+    }
+
+    /// A genre whose envelope entry excludes one metric shows that
+    /// metric's name and train AUC in the "Combined-score metrics" line.
+    #[test]
+    fn render_report_states_excluded_metrics_and_why() {
+        let mut by_genre: BTreeMap<Genre, GenreVectors> = BTreeMap::new();
+        by_genre.insert(
+            Genre::Docs,
+            GenreVectors {
+                human: vec![MetricVector::default()],
+                llm: vec![MetricVector::default()],
+            },
+        );
+        let mut docs_bands = bands_all(0.0, 10.0);
+        docs_bands.insert(
+            "triad_rate".to_string(),
+            MetricBand {
+                envelope: Envelope::new(0.0, 10.0),
+                direction: Direction::LlmHigher,
+                include: false,
+                train_auc: Some(0.5),
+            },
+        );
+        let mut bands = BTreeMap::new();
+        bands.insert("docs".to_string(), docs_bands);
+        let pack = LoadedPack {
+            bands,
+            auc_include_threshold: Some(0.55),
+        };
+
+        let report = render_report(&by_genre, &pack);
+        let names_len = MetricVector::FIELD_NAMES.len();
+        assert!(report.contains(&format!(
+            "Combined-score metrics: {} of {names_len} included; excluded: triad_rate (train \
+             AUC 0.5000, llm higher).",
+            names_len - 1
+        )));
     }
 
     /// Rendering twice from the same input is byte-identical.
@@ -659,9 +1004,8 @@ hi = 0.9
                 llm: vec![MetricVector::default()],
             },
         );
-        let envelope_pack: EnvelopePack = BTreeMap::new();
-        let a = render_report(&by_genre, &envelope_pack);
-        let b = render_report(&by_genre, &envelope_pack);
+        let a = render_report(&by_genre, &empty_pack());
+        let b = render_report(&by_genre, &empty_pack());
         assert_eq!(a, b);
     }
 }

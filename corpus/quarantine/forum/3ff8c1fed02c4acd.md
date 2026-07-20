@@ -1,17 +1,17 @@
-#More than you&#39;ve ever wanted to know about the `C` wire:
-Lets start by explaining what the `C` wire is, and why it&#39;s needed.
+#More than you've ever wanted to know about the `C` wire:
+Lets start by explaining what the `C` wire is, and why it's needed.
 
 #Ye olde thermostat
 In the olden days thermostats were simple switch devices, that used [Mercury Switches](http://en.wikipedia.org/wiki/Mercury_switch) to complete the circuit and turn on the heat/AC.
 
-&gt; Mercury switches were commonly used in bimetal thermostats. The weight
-&gt; of the movable mercury drop provided some hysteresis by moving the
-&gt; bimetal spring slightly beyond the point it would normally assume,
-&gt; thereby holding the thermostat off slightly longer before flipping to
-&gt; the on state and then holding the thermostat on slightly longer before
-&gt; flipping back to the off state. The mercury also provided a very
-&gt; positive on/off switching action and could withstand millions of
-&gt; cycles without degradation of the contacts.
+> Mercury switches were commonly used in bimetal thermostats. The weight
+> of the movable mercury drop provided some hysteresis by moving the
+> bimetal spring slightly beyond the point it would normally assume,
+> thereby holding the thermostat off slightly longer before flipping to
+> the on state and then holding the thermostat on slightly longer before
+> flipping back to the off state. The mercury also provided a very
+> positive on/off switching action and could withstand millions of
+> cycles without degradation of the contacts.
 [Source](http://en.wikipedia.org/wiki/Mercury_switch)
 
 Because of this, there was no reason to run a return wire to the thermostat. For example a thermostat that only controlled heat, would only require 2 wires.
@@ -28,9 +28,9 @@ Newer thermostats that offer clocks, backlit displays, WiFi, etc. are controlled
 ![Thermostat wiring with a C wire showing electricity][4]
 
 #How do I get a `C` wire?
-If you&#39;re lucky when you upgrade to a newer thermostat that requires this connection, there will be an extra (unused) wire in the cable at the thermostat.  If you&#39;re not, you&#39;ll have to run new cable to the thermostat.
+If you're lucky when you upgrade to a newer thermostat that requires this connection, there will be an extra (unused) wire in the cable at the thermostat.  If you're not, you'll have to run new cable to the thermostat.
 
-If you have heat and AC, you&#39;ll have to pull an 18/5 cable. If you have just heat you can get away with pulling 18/3 cable, but you may want to pull 18/5 anyway to make adding AC in the future easier.
+If you have heat and AC, you'll have to pull an 18/5 cable. If you have just heat you can get away with pulling 18/3 cable, but you may want to pull 18/5 anyway to make adding AC in the future easier.
 
 ![enter image description here][5]
 
@@ -46,7 +46,7 @@ There are no standards for wire color, so any wire *could* be used for any purpo
  - Blue or Black - `C` - Common
 
 #Alternative Solution
-This solution is illustrated in [this video from Honeywell](https://www.youtube.com/watch?v=jniws7wqeY4&amp;list=UU-kFH2fpyttdWAWmJLqT7aQ&amp;index=9). With this solution you lose the ability to manually turn on the blower fan, but the fan will still run properly in the `Auto` position.
+This solution is illustrated in [this video from Honeywell](https://www.youtube.com/watch?v=jniws7wqeY4&list=UU-kFH2fpyttdWAWmJLqT7aQ&index=9). With this solution you lose the ability to manually turn on the blower fan, but the fan will still run properly in the `Auto` position.
 
 ***WARNING:** This procedure involves modifying the wiring in the furnace, and may not be approved by every manufacturer. Check with the furnace manufacturer, and all local codes before attempting this procedure. Make sure the breaker for the furnace is OFF before you begin.*
 
@@ -61,13 +61,13 @@ This solution is illustrated in [this video from Honeywell](https://www.youtube.
  9. Turn the furnace breaker back on.
 
 #A bit more about transformers and `C` wires.
-A [transformer](http://en.wikipedia.org/wiki/Transformer) uses coils of wire, magnetism, and a bit of magic to transfer energy from the **primary** side of the transformer to the **secondary** side of the transformer.  Usually during the transfer, the voltage is either increased or decreased. In the case of our furnace we&#39;re likely talking about taking 120VAC, and transforming it into 24VAC. Once the voltage has been reduced, we can use the lower voltage and a thermostat to control the furnace.
+A [transformer](http://en.wikipedia.org/wiki/Transformer) uses coils of wire, magnetism, and a bit of magic to transfer energy from the **primary** side of the transformer to the **secondary** side of the transformer.  Usually during the transfer, the voltage is either increased or decreased. In the case of our furnace we're likely talking about taking 120VAC, and transforming it into 24VAC. Once the voltage has been reduced, we can use the lower voltage and a thermostat to control the furnace.
 
 Now that you know even less about transformers than you did before, lets look at a diagram.
 
 [![Highlighted Furnace Wiring Diagram][6]][6]
 
-This is an actual wiring diagram from a furnace, but you&#39;ll notice I&#39;ve highlighted a few things.  First, in red I&#39;ve highlighted the 120V primary side of the transformer. I&#39;ve also highlighted the secondary side of the transformer in a couple shades of blue. This was done to illustrate that one side of the transformers secondary winding (light blue), is attached to the `R` or power terminal. While the other side of the secondary winding (dark blue), is attached to the `C` or &quot;neutral&quot; terminal.
+This is an actual wiring diagram from a furnace, but you'll notice I've highlighted a few things.  First, in red I've highlighted the 120V primary side of the transformer. I've also highlighted the secondary side of the transformer in a couple shades of blue. This was done to illustrate that one side of the transformers secondary winding (light blue), is attached to the `R` or power terminal. While the other side of the secondary winding (dark blue), is attached to the `C` or "neutral" terminal.
 
 ##Locating transformers
 ###On a schematic
@@ -75,7 +75,7 @@ On a schematic or wiring diagram, a transformer will look something like this.
 
 ![Transformer Symbol][7]
 
-Often you&#39;ll see a number written on each side, which denotes the expected voltages on each side of the transformer. Notice in the schematic above that the top side lists 120V (120 volts), while the bottom lists 24V (24 volts).
+Often you'll see a number written on each side, which denotes the expected voltages on each side of the transformer. Notice in the schematic above that the top side lists 120V (120 volts), while the bottom lists 24V (24 volts).
 
 ###In the real world
 When actually digging through HVAC equipment, a transformer will look something like this.
@@ -96,12 +96,12 @@ and .3333 amperes on the primary
 
 `40VA / 120V = .3333A`
 
-Normally this is not a problem, since the only things supplied by the transformer are switches and relays. If you install a thermostat that draws more current than the transformer can carry, you&#39;re going run into problems.  So in this case, you&#39;ll have to upgrade the transformer and any fuses that protect it (since the fuses are sized based on the VA rating).
+Normally this is not a problem, since the only things supplied by the transformer are switches and relays. If you install a thermostat that draws more current than the transformer can carry, you're going run into problems.  So in this case, you'll have to upgrade the transformer and any fuses that protect it (since the fuses are sized based on the VA rating).
 
 #What about systems with multiple transformers?
-In some systems, there will be separate transformers for the heating and cooling systems. In these situations, you&#39;ll have to check with the thermostat manufacturer, to determine which system should provide the `C` wire.  In the case of Nest and Honeywell (and probably others), their thermostats expect the `C` wire to come from the cooling system.
+In some systems, there will be separate transformers for the heating and cooling systems. In these situations, you'll have to check with the thermostat manufacturer, to determine which system should provide the `C` wire.  In the case of Nest and Honeywell (and probably others), their thermostats expect the `C` wire to come from the cooling system.
 
-When you&#39;re connecting the wires to the thermostat in these systems, you&#39;ll have to remove any jumpers between the `R` terminals.  You&#39;ll wire the `R` wire from the heating system, to `R` or `Rh`, and the `R ` wire from the cooling system, to `Rc`.  Then you&#39;ll have to wire the `C` wire from the cooling system, to the `C` terminal of the thermostat.
+When you're connecting the wires to the thermostat in these systems, you'll have to remove any jumpers between the `R` terminals.  You'll wire the `R` wire from the heating system, to `R` or `Rh`, and the `R ` wire from the cooling system, to `Rc`.  Then you'll have to wire the `C` wire from the cooling system, to the `C` terminal of the thermostat.
 
   [1]: https://i.sstatic.net/psCg3.png
   [2]: https://i.sstatic.net/2iRIE.gif

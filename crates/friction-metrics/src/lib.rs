@@ -29,7 +29,17 @@ pub use rhythm::{
 };
 // --- end rhythm block ---
 
-// --- integration: wires the three families above into one MetricVector,
+// --- structural/mined-phrase/opener "signal" metrics (owned by the
+// signals agent; see src/signals.rs) ---
+mod signals;
+
+pub use signals::{
+    bold_span_density, heading_density, human_favored_phrase_rate, list_item_density,
+    llm_favored_phrase_rate, sentence_opener_repeat_rate, top_opener_concentration,
+};
+// --- end signals block ---
+
+// --- integration: wires the four families above into one MetricVector,
 // document-wide and per paragraph (owned by the integrator) ---
 mod compute;
 

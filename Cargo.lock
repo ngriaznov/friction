@@ -545,6 +545,8 @@ dependencies = [
  "friction-nlp",
  "friction-parse",
  "regex",
+ "serde",
+ "toml",
 ]
 
 [[package]]

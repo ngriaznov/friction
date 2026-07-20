@@ -18,6 +18,11 @@ friction-nlp = { path = "../friction-nlp" }
 # Cargo.lock as a transitive dependency (srx/nlprule), so this adds no new
 # crate to the build.
 regex = "1"
+# Both already in `[workspace.dependencies]`: used only to parse the
+# embedded `mined-ngrams-v1.toml` pack at process start (see
+# src/signals.rs) into the curated llm-/human-favored phrase lists.
+serde = { workspace = true }
+toml = { workspace = true }
 
 [dev-dependencies]
 friction-parse = { path = "../friction-parse" }

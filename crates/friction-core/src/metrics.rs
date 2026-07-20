@@ -51,12 +51,31 @@ pub struct MetricVector {
     /// Rate of ritual open/close markers (`"In conclusion"`, `"Overall"`,
     /// `"In today's..."`).
     pub ritual_marker_rate: f64,
+    /// Rate of curated llm-favored mined n-grams (`crates/friction-packs/
+    /// packs/mined-ngrams-v1.toml`), per 1000 tokens.
+    pub llm_favored_phrase_rate: f64,
+    /// Rate of curated human-favored mined n-grams (same pack), per 1000
+    /// tokens.
+    pub human_favored_phrase_rate: f64,
+    /// ATX/setext heading-block density, per 1000 tokens.
+    pub heading_density: f64,
+    /// Markdown list-item-block density, per 1000 tokens.
+    pub list_item_density: f64,
+    /// Bold/strong-emphasis (`**...**`/`__...__`) span density, per 1000
+    /// tokens.
+    pub bold_span_density: f64,
+    /// Fraction of a document's sentences (excluding the first) whose
+    /// leading unigram matches the immediately preceding sentence's.
+    pub sentence_opener_repeat_rate: f64,
+    /// The most common sentence-leading unigram's share of all detected
+    /// sentence openers in the document.
+    pub top_opener_concentration: f64,
 }
 
 /// Number of metrics in [`MetricVector`]; the length of
 /// [`MetricVector::FIELD_NAMES`] and of [`MetricVector::named_values`]'s
 /// output.
-const FIELD_COUNT: usize = 14;
+const FIELD_COUNT: usize = 21;
 
 impl MetricVector {
     /// The metric names, in the same fixed order as
@@ -76,6 +95,13 @@ impl MetricVector {
         "participial_closer_rate",
         "not_just_but_rate",
         "ritual_marker_rate",
+        "llm_favored_phrase_rate",
+        "human_favored_phrase_rate",
+        "heading_density",
+        "list_item_density",
+        "bold_span_density",
+        "sentence_opener_repeat_rate",
+        "top_opener_concentration",
     ];
 
     /// Returns `(name, value)` pairs in a fixed, deterministic order
@@ -115,6 +141,13 @@ impl MetricVector {
             self.participial_closer_rate,
             self.not_just_but_rate,
             self.ritual_marker_rate,
+            self.llm_favored_phrase_rate,
+            self.human_favored_phrase_rate,
+            self.heading_density,
+            self.list_item_density,
+            self.bold_span_density,
+            self.sentence_opener_repeat_rate,
+            self.top_opener_concentration,
         ]
     }
 }
@@ -143,6 +176,13 @@ mod tests {
                 "participial_closer_rate",
                 "not_just_but_rate",
                 "ritual_marker_rate",
+                "llm_favored_phrase_rate",
+                "human_favored_phrase_rate",
+                "heading_density",
+                "list_item_density",
+                "bold_span_density",
+                "sentence_opener_repeat_rate",
+                "top_opener_concentration",
             ]
         );
     }
@@ -155,12 +195,14 @@ mod tests {
             sentence_length_mean: 18.5,
             sentence_length_stddev: 6.2,
             ritual_marker_rate: 0.1,
+            top_opener_concentration: 0.77,
             ..MetricVector::default()
         };
         let pairs = metrics.named_values();
         assert_eq!(pairs[0], ("sentence_length_mean", 18.5));
         assert_eq!(pairs[1], ("sentence_length_stddev", 6.2));
-        assert_eq!(pairs[FIELD_COUNT - 1], ("ritual_marker_rate", 0.1));
+        assert_eq!(pairs[13], ("ritual_marker_rate", 0.1));
+        assert_eq!(pairs[FIELD_COUNT - 1], ("top_opener_concentration", 0.77));
     }
 
     /// `get` looks up a known metric by name and returns `None` for an

@@ -85,11 +85,120 @@ pub fn run(args: &Args) -> anyhow::Result<()> {
     Ok(())
 }
 
-/// Decodes to UTF-8 (lossily, if the source isn't valid UTF-8) and
-/// normalizes all line endings to LF.
+/// Decodes to UTF-8 (lossily, if the source isn't valid UTF-8), normalizes
+/// all line endings to LF, and decodes raw HTML entities left over from
+/// un-decoded source markup (see [`decode_entities`]).
 pub(crate) fn normalize(raw: &[u8]) -> String {
     let text = String::from_utf8_lossy(raw);
-    text.replace("\r\n", "\n").replace('\r', "\n")
+    let text = text.replace("\r\n", "\n").replace('\r', "\n");
+    decode_entities(&text)
+}
+
+/// Named HTML entities `decode_entities` recognizes, mapped to their
+/// literal replacement text. Deliberately a small, fixed set — the
+/// entities actually observed in this corpus's StackExchange-sourced
+/// source markup — rather than the full HTML5 named-entity table.
+const NAMED_ENTITIES: &[(&str, &str)] = &[
+    ("amp", "&"),
+    ("lt", "<"),
+    ("gt", ">"),
+    ("quot", "\""),
+    ("apos", "'"),
+    ("nbsp", "\u{a0}"),
+    ("mdash", "\u{2014}"),
+    ("ndash", "\u{2013}"),
+    ("hellip", "\u{2026}"),
+    ("rsquo", "\u{2019}"),
+    ("lsquo", "\u{2018}"),
+    ("rdquo", "\u{201d}"),
+    ("ldquo", "\u{201c}"),
+];
+
+/// Upper bound on the number of full decode passes [`decode_entities`]
+/// performs.
+///
+/// A single pass decodes every named entity in [`NAMED_ENTITIES`] and
+/// every decimal (`&#39;`) or hex (`&#x27;`) numeric character reference
+/// it finds — but a *double*-encoded source (`&amp;#39;`, i.e. the literal
+/// `&` of `&#39;` was itself entity-encoded before this text was captured)
+/// only exposes its inner `&#39;` after the outer `&amp;` layer is peeled
+/// off, one pass at a time: pass 1 turns `&amp;#39;` into `&#39;`, pass 2
+/// turns that into `'`. Looping to a fixpoint (stopping as soon as a pass
+/// changes nothing) handles that and any deeper nesting without over- or
+/// under-decoding; the bound just caps the work on adversarial input,
+/// since real corpus text is never encoded more than twice.
+const MAX_DECODE_PASSES: usize = 4;
+
+/// Decodes HTML entities — [`NAMED_ENTITIES`] plus decimal/hex numeric
+/// character references — to their literal characters, repeating to a
+/// fixpoint (bounded by [`MAX_DECODE_PASSES`]) so a double-encoded entity
+/// (`&amp;#39;`) fully decodes rather than stopping one layer short. An
+/// unrecognized or malformed `&...;` sequence is left as-is.
+pub(crate) fn decode_entities(text: &str) -> String {
+    let mut current = text.to_string();
+    for _ in 0..MAX_DECODE_PASSES {
+        let next = decode_entities_once(&current);
+        if next == current {
+            break;
+        }
+        current = next;
+    }
+    current
+}
+
+/// One left-to-right decode pass over `text`: every recognized `&...;`
+/// entity reference is replaced by its literal character(s); everything
+/// else (including any `&` that isn't the start of a recognized entity)
+/// is copied through unchanged.
+fn decode_entities_once(text: &str) -> String {
+    let mut out = String::with_capacity(text.len());
+    let mut rest = text;
+    while let Some(amp_offset) = rest.find('&') {
+        out.push_str(&rest[..amp_offset]);
+        let tail = &rest[amp_offset..];
+        if let Some((replacement, consumed)) = decode_one_entity(tail) {
+            out.push_str(&replacement);
+            rest = &tail[consumed..];
+        } else {
+            out.push('&');
+            rest = &tail['&'.len_utf8()..];
+        }
+    }
+    out.push_str(rest);
+    out
+}
+
+/// Decodes at most one entity reference starting at the beginning of `s`
+/// (which must start with `&`). Returns the decoded replacement text and
+/// the number of bytes of `s` it consumes (from the leading `&` through
+/// the trailing `;`), or `None` if `s` doesn't start with a recognized
+/// entity — either the whole `&name;`/`&#NNN;`/`&#xHHH;` form, or the
+/// name/codepoint isn't recognized/valid.
+fn decode_one_entity(s: &str) -> Option<(String, usize)> {
+    debug_assert!(s.starts_with('&'));
+    let body = &s[1..];
+    // A real entity is short; a `;` found far away is almost certainly an
+    // unrelated stray `&`, not a malformed entity worth scanning for.
+    let semicolon = body.char_indices().take(32).find(|&(_, c)| c == ';')?;
+    let (semicolon_byte, _) = semicolon;
+    let entity = &body[..semicolon_byte];
+    let consumed = 1 + semicolon_byte + 1;
+
+    if let Some(hex) = entity
+        .strip_prefix("#x")
+        .or_else(|| entity.strip_prefix("#X"))
+    {
+        let codepoint = u32::from_str_radix(hex, 16).ok()?;
+        return char::from_u32(codepoint).map(|c| (c.to_string(), consumed));
+    }
+    if let Some(decimal) = entity.strip_prefix('#') {
+        let codepoint: u32 = decimal.parse().ok()?;
+        return char::from_u32(codepoint).map(|c| (c.to_string(), consumed));
+    }
+    NAMED_ENTITIES
+        .iter()
+        .find(|(name, _)| *name == entity)
+        .map(|(_, replacement)| ((*replacement).to_string(), consumed))
 }
 
 /// Strips badge-image-wall and standalone HTML nav/footer/layout tag
@@ -235,5 +344,95 @@ mod tests {
     fn strip_boilerplate_is_deterministic() {
         let input = "![Badge](b.svg)\n\n# Title\n\nProse.\n";
         assert_eq!(strip_boilerplate(input), strip_boilerplate(input));
+    }
+
+    /// Each named entity in [`NAMED_ENTITIES`] decodes to its literal
+    /// character.
+    #[test]
+    fn decode_entities_decodes_named_entities() {
+        assert_eq!(
+            decode_entities("Tom &amp; Jerry: 1 &lt; 2 &gt; 0, &quot;quoted&quot;, doesn&apos;t"),
+            "Tom & Jerry: 1 < 2 > 0, \"quoted\", doesn't"
+        );
+        assert_eq!(decode_entities("a&nbsp;b"), "a\u{a0}b");
+        assert_eq!(decode_entities("wait&hellip;"), "wait\u{2026}");
+        assert_eq!(decode_entities("em&mdash;dash"), "em\u{2014}dash");
+        assert_eq!(decode_entities("en&ndash;dash"), "en\u{2013}dash");
+        assert_eq!(
+            decode_entities("&lsquo;quote&rsquo; &ldquo;double&rdquo;"),
+            "\u{2018}quote\u{2019} \u{201c}double\u{201d}"
+        );
+    }
+
+    /// Decimal numeric character references decode via their Unicode
+    /// codepoint — the exact `&#39;` case the diagnosis calls out, plus a
+    /// multi-digit codepoint.
+    #[test]
+    fn decode_entities_decodes_decimal_numeric_refs() {
+        assert_eq!(decode_entities("doesn&#39;t"), "doesn't");
+        assert_eq!(decode_entities("&#176;"), "\u{b0}");
+    }
+
+    /// Hex numeric character references (both `&#x` and `&#X`) decode via
+    /// their Unicode codepoint.
+    #[test]
+    fn decode_entities_decodes_hex_numeric_refs() {
+        assert_eq!(decode_entities("&#x27;"), "'");
+        assert_eq!(decode_entities("&#X3BB;"), "\u{3bb}");
+    }
+
+    /// A double-encoded entity — the literal `&` of `&#39;` was itself
+    /// entity-encoded to `&amp;` before this text was captured — fully
+    /// decodes to the apostrophe, not just one layer to `&#39;`.
+    #[test]
+    fn decode_entities_fully_decodes_double_encoded_entity() {
+        assert_eq!(decode_entities("doesn&amp;#39;t"), "doesn't");
+        assert_eq!(decode_entities("&amp;amp;"), "&");
+    }
+
+    /// An unrecognized entity name, and a bare `&` not part of any
+    /// entity, are both left untouched rather than dropped or mangled.
+    #[test]
+    fn decode_entities_leaves_unrecognized_and_bare_ampersands_untouched() {
+        assert_eq!(decode_entities("&foo; &bar;"), "&foo; &bar;");
+        assert_eq!(decode_entities("Q&A department"), "Q&A department");
+        assert_eq!(decode_entities("R&D and A&B"), "R&D and A&B");
+    }
+
+    /// A malformed/out-of-range numeric reference (invalid codepoint) is
+    /// left untouched rather than panicking or producing a replacement
+    /// character.
+    #[test]
+    fn decode_entities_leaves_invalid_numeric_ref_untouched() {
+        assert_eq!(decode_entities("&#xD800;"), "&#xD800;");
+        assert_eq!(decode_entities("&#99999999;"), "&#99999999;");
+    }
+
+    /// Decoding the same input twice produces byte-identical output
+    /// (idempotence is what lets the corpus maintenance pass be safely
+    /// rerun).
+    #[test]
+    fn decode_entities_is_deterministic() {
+        let input = "doesn&amp;#39;t &amp; &lt;tags&gt; &#xE9;clair";
+        assert_eq!(decode_entities(input), decode_entities(input));
+    }
+
+    /// Already-decoded text (no entities at all) round-trips unchanged —
+    /// running the maintenance pass on an already-clean doc is a no-op.
+    #[test]
+    fn decode_entities_is_idempotent_on_clean_text() {
+        let input = "Plain prose with no entities, & this bare ampersand.";
+        let once = decode_entities(input);
+        assert_eq!(once, input);
+        assert_eq!(decode_entities(&once), once);
+    }
+
+    /// `normalize` decodes entities as part of the same pass that
+    /// normalizes line endings, matching what both `clean` and `ingest`
+    /// apply to every doc.
+    #[test]
+    fn normalize_decodes_entities() {
+        let text = normalize(b"line one\r\ndoesn&#39;t &amp; won&apos;t\n");
+        assert_eq!(text, "line one\ndoesn't & won't\n");
     }
 }

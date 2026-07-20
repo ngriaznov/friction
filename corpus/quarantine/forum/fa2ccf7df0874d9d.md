@@ -17,11 +17,11 @@ If you expect to do occasional DIY electrical work in the rest of your life, you
 - It has no removable leads that can be accidentally left in the wrong socket.
 - it can *easily* be used with two hands (more so than a typical multimeter)
 - It will operate without batteries.
-- It is relatively inexpensive (&lt;&#163;25 in UK).
+- It is relatively inexpensive (<£25 in UK).
 - It is a major brand - so the design can be expected to incorporate high standards for safety and reliability.
 - It will likely last the rest of your life.
 
-If money is an issue you can get cheaper versions of the above as shop-brand items (e.g. cheapest CPC/Farnell &quot;Tenma&quot; branded device &lt;&#163;8), this is what I use now.
+If money is an issue you can get cheaper versions of the above as shop-brand items (e.g. cheapest CPC/Farnell "Tenma" branded device <£8), this is what I use now.
 
 [![CPC Voltage tester][2]][2]
 
@@ -36,21 +36,21 @@ At the cheapest extreme you might consider one of these instead:
 
 - It does not make you part of the test circuit
 - It will work without batteries
-- Cheap (~ &#163;4 from eBay vendors)
+- Cheap (~ £4 from eBay vendors)
 
 It does have some disadvantages
 
 - It is very cheaply made.
 - The LED indicators are a bit dim and hard to see, especially at lower voltages.
 
-I&#39;m not sure I trust it fully. It is certainly safer, and a better buy, than a &quot;voltage test screwdriver&quot; (see below).
+I'm not sure I trust it fully. It is certainly safer, and a better buy, than a "voltage test screwdriver" (see below).
 
 ---
 
 Non-Contact Voltage (NCV) detector
 --------------------------
 
-Sometimes called a &quot;voltage detector pen&quot; or just &quot;voltage detector&quot;
+Sometimes called a "voltage detector pen" or just "voltage detector"
 
 [![Extech DVA30 voltage and current detector][5]][5]
 
@@ -63,12 +63,12 @@ This type of detector is widely used for the following reasons
 
 It has some disadvantages
 
-- Can be misleading and &quot;detect&quot; voltage several inches (or more) from the wires
+- Can be misleading and "detect" voltage several inches (or more) from the wires
 - Not very good for detecting which specific wire is live in a cable
 - Battery required
 - Can be fiddly to verify correct operation.
 
-The one I have has a thumb-wheel that has to be turned to set the sensitivity, you need to do this each time you use it and a consequence is that the test result isn&#39;t necessarily as clear and distinct as the other types of tester.
+The one I have has a thumb-wheel that has to be turned to set the sensitivity, you need to do this each time you use it and a consequence is that the test result isn't necessarily as clear and distinct as the other types of tester.
 
 Some electricians say that NCV detectors are good for an initial test but that, for safety, you should follow up with a contact based voltage detector like the one at the top of this answer.
 
@@ -79,7 +79,7 @@ See https://diy.stackexchange.com/q/14080/2815
 Multimeter (professional)
 -------------------------
 
-I have several of these bought cheaply from eBay (around &#163;70).
+I have several of these bought cheaply from eBay (around £70).
 
 [![Fluke 77-IV multimeter][6]][6]
 
@@ -94,17 +94,17 @@ Advantages:
 
 **Hold**
 
-A nice feature with this meter is that the &quot;Hold&quot; button is a true hold and not a mere &quot;data hold&quot;. This is useful for those of use with fewer than three arms.
+A nice feature with this meter is that the "Hold" button is a true hold and not a mere "data hold". This is useful for those of use with fewer than three arms.
 
 With a true hold, you can put the multimeter on the floor (or hang it nearby), press the hold button, then take a probe in each hand and make the measurement without looking at the meter display, you stop taking the measurement when the meter beeps, you take your hands away from the wiring then look at the meter to see what value it shows.
 
-With a &quot;data hold&quot;, you have to use a third hand and your other set of eyes to press the hold button during the reading. In practice it can mean using one hand to hold both probes, looking away from what your hands are doing near the wiring (dangerous) and pressing the hold button.
+With a "data hold", you have to use a third hand and your other set of eyes to press the hold button during the reading. In practice it can mean using one hand to hold both probes, looking away from what your hands are doing near the wiring (dangerous) and pressing the hold button.
 
-So the former (rarer) type of &quot;hold&quot; is useful, the latter not.
+So the former (rarer) type of "hold" is useful, the latter not.
 
 **Low-Z**
 
-A problem using multimeters to test for voltage is that they typically have high impedance, typically 10 MΩ and can pick up &quot;ghost voltages&quot;. These are induced voltages caused by proximity of wires. They are not dangerous voltages as no significant current can be supplied *inductively* in typical household wiring. Some meters have a Low-Z setting designed to prevent this measurement artifact.
+A problem using multimeters to test for voltage is that they typically have high impedance, typically 10 MΩ and can pick up "ghost voltages". These are induced voltages caused by proximity of wires. They are not dangerous voltages as no significant current can be supplied *inductively* in typical household wiring. Some meters have a Low-Z setting designed to prevent this measurement artifact.
 
 **Disadvantages**
 
@@ -155,7 +155,7 @@ This is bad. Even though they are cheap and millions of people use them. Buy the
 Test Tools Summary
 -------
 
-Use a reputable simple voltage-tester, a really decent multimeter or a 2-in-1 type tester. An NCV detector is useful for initial tests but be careful not to rely on it too much. Don&#39;t use a tester that makes you part of the circuit and don&#39;t use a cheap multimeter.
+Use a reputable simple voltage-tester, a really decent multimeter or a 2-in-1 type tester. An NCV detector is useful for initial tests but be careful not to rely on it too much. Don't use a tester that makes you part of the circuit and don't use a cheap multimeter.
 
 ---
 
@@ -205,7 +205,7 @@ See https://diy.stackexchange.com/questions/47613/electric-shock-was-i-stupid-un
 
 The main principles are
 
-- turn off the circuit using the circuit-breaker at the main electrical panel. It is prudent to mark, tape or even lock the circuit breaker switch so that someone else doesn&#39;t switch it back on while you are working on the wiring.
+- turn off the circuit using the circuit-breaker at the main electrical panel. It is prudent to mark, tape or even lock the circuit breaker switch so that someone else doesn't switch it back on while you are working on the wiring.
 - keep your hands away from bare metal (wires etc). This is why good probes have prominent finger-guards and probe-tip shields.
 - check and recheck that your test equipment
    - leads are plugged into appropriate sockets

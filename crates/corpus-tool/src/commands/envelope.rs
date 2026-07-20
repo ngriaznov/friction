@@ -1,6 +1,8 @@
-//! `corpus-tool envelope` — estimates per-`(genre, metric)` human
-//! percentile bands from the train-split human corpus and writes them as
-//! a versioned TOML pack.
+//! `corpus-tool envelope` — estimates per-`(genre, metric)` train-derived
+//! stats and writes them as a versioned TOML pack.
+//!
+//! Three things, all from the train split: a human percentile band, an
+//! LLM direction, and a combined-score inclusion flag.
 
 use std::collections::BTreeMap;
 use std::fmt::Write as _;
@@ -8,6 +10,7 @@ use std::path::PathBuf;
 
 use clap::Args as ClapArgs;
 
+use crate::commands::separate::{Direction, mann_whitney_auc};
 use crate::corpus_layout::relpath;
 use crate::hashing::sha256_hex;
 use crate::manifest::{self, Class, Genre, ManifestRecord, Split};
@@ -32,7 +35,7 @@ pub struct Args {
     #[arg(long, default_value = "corpus")]
     pub corpus_dir: PathBuf,
     /// Path to write the versioned envelope pack to.
-    #[arg(long, default_value = "crates/friction-packs/packs/envelope-v1.toml")]
+    #[arg(long, default_value = "crates/friction-packs/packs/envelope-v2.toml")]
     pub out: PathBuf,
     /// Lower percentile of the band (nearest-rank method; see module
     /// docs).
@@ -42,19 +45,47 @@ pub struct Args {
     /// docs).
     #[arg(long, default_value_t = 90.0)]
     pub hi_percentile: f64,
+    /// A `(genre, metric)`'s train-internal AUC (human vs llm, both
+    /// train-split, via [`mann_whitney_auc`]) must reach this to be
+    /// marked `include = true` — i.e. to count toward that genre's
+    /// combined score at all. Below it, the metric is judged
+    /// non-discriminative for that genre *on train-split evidence alone*
+    /// and excluded, never by hand-picking against dev results. Must be
+    /// in `[0.5, 1.0]` (an oriented AUC is never below 0.5).
+    #[arg(long, default_value_t = 0.55)]
+    pub auc_include_threshold: f64,
 }
 
 /// Runs `envelope`.
 ///
-/// For every `human`-class, `train`-split document, parses it and
+/// For every `train`-split document (both classes), parses it and
 /// computes its [`MetricVector`] (via [`FrictionMetricsSource`] — see
 /// `crate::metric_source` for why that indirection exists), groups the
-/// results by genre, and for each `(genre, metric)` pair estimates a
-/// `[lo, hi]` band with the nearest-rank percentile method (see
-/// [`nearest_rank_percentile`]). Writes the result as a versioned TOML
-/// pack to `--out`.
+/// results by genre and class. For each `(genre, metric)` pair this
+/// estimates two independent things, both from the train split only:
 ///
-/// Quarantined (CC-BY-SA) human docs are included in the estimate — the
+/// - a `[lo, hi]` human percentile band (nearest-rank method; see
+///   [`nearest_rank_percentile`]), from `human`-class train docs only —
+///   unchanged from `envelope-v1`;
+/// - a `direction` (which class's values run higher) and an `include`
+///   flag, from the train-internal Mann-Whitney AUC of `human` vs `llm`
+///   train docs (see [`mann_whitney_auc`], the same statistic
+///   `corpus-tool separate` reports on the dev split) — `include` is
+///   `true` iff that AUC reaches `--auc-include-threshold`. This is the
+///   *only* mechanism that ever drops a metric from a genre's combined
+///   score: a train-derived rule, applied uniformly, never a per-genre
+///   hand override tuned against dev results.
+///
+/// If a genre has train-human docs but no train-llm docs at all, the
+/// train-internal AUC is undefined for every metric in that genre: the
+/// pack still gets its percentile bands, but every metric defaults to
+/// `include = true` (there's no train-split evidence to justify
+/// excluding it) with a placeholder `direction` and no `train_auc`
+/// recorded — a warning is printed to stderr.
+///
+/// Writes the result as a versioned TOML pack (`envelope-v2`) to `--out`.
+///
+/// Quarantined (CC-BY-SA) docs are included in both estimates — the
 /// quarantine restriction is about never redistributing the *document
 /// text* itself in a shipped pack, not about excluding its aggregate
 /// statistics from one.
@@ -67,7 +98,8 @@ pub struct Args {
 ///
 /// Returns an error if the manifest, or any referenced document, can't be
 /// read or parsed, if `--lo-percentile`/`--hi-percentile` are out of
-/// `[0, 100]` or not `lo < hi`, or if `--out` can't be written.
+/// `[0, 100]` or not `lo < hi`, if `--auc-include-threshold` is out of
+/// `[0.5, 1.0]`, or if `--out` can't be written.
 pub fn run(args: &Args) -> anyhow::Result<()> {
     let source = FrictionMetricsSource::new()?;
     run_with_source(args, &source)
@@ -90,54 +122,86 @@ fn run_with_source(args: &Args, source: &dyn MetricSource) -> anyhow::Result<()>
         args.lo_percentile,
         args.hi_percentile
     );
+    anyhow::ensure!(
+        (0.5..=1.0).contains(&args.auc_include_threshold),
+        "--auc-include-threshold must be in [0.5, 1.0] (got {})",
+        args.auc_include_threshold
+    );
 
     let manifest_path = args.corpus_dir.join("manifest.jsonl");
     let manifest_bytes = std::fs::read(&manifest_path).unwrap_or_default();
     let records = manifest::read_manifest(&manifest_path)?.unwrap_or_default();
 
-    let mut train_human: Vec<&ManifestRecord> = records
+    let mut train: Vec<&ManifestRecord> = records
         .iter()
-        .filter(|r| r.class == Class::Human && r.split == Some(Split::Train))
+        .filter(|r| r.split == Some(Split::Train))
         .collect();
-    train_human.sort_by(|a, b| a.id.cmp(&b.id));
+    train.sort_by(|a, b| a.id.cmp(&b.id));
 
-    // genre name -> that genre's train-human MetricVectors, in doc-id
-    // order. A `BTreeMap<String, _>` rather than `BTreeMap<Genre, _>` so
-    // the pack's genre sections come out alphabetically sorted, matching
-    // its metric sub-sections (see `render_pack`).
-    let mut by_genre: BTreeMap<String, Vec<MetricVector>> = BTreeMap::new();
-    for record in &train_human {
+    // genre name -> that genre's train-split MetricVectors, by class. A
+    // `BTreeMap<String, _>` rather than `BTreeMap<Genre, _>` so the
+    // pack's genre sections come out alphabetically sorted, matching its
+    // metric sub-sections (see `render_pack`).
+    let mut by_genre: BTreeMap<String, GenreVectors> = BTreeMap::new();
+    for record in &train {
         let path = args.corpus_dir.join(relpath(record));
         let document = load_document(&path, &record.id)?;
         let metrics = source.compute(&document);
-        by_genre
-            .entry(record.genre.to_string())
-            .or_default()
-            .push(metrics);
+        let entry = by_genre.entry(record.genre.to_string()).or_default();
+        match record.class {
+            Class::Human => entry.human.push(metrics),
+            Class::Llm => entry.llm.push(metrics),
+        }
     }
 
     for genre in ALL_GENRES {
-        if !by_genre.contains_key(&genre.to_string()) {
+        let key = genre.to_string();
+        let human_empty = by_genre.get(&key).is_none_or(|g| g.human.is_empty());
+        if human_empty {
             eprintln!(
-                "warning: envelope: no train-split human docs for genre \"{genre}\"; omitted from pack"
+                "warning: envelope: no train-split human docs for genre \"{genre}\"; omitted \
+                 from pack"
+            );
+        } else if by_genre[&key].llm.is_empty() {
+            eprintln!(
+                "warning: envelope: no train-split llm docs for genre \"{genre}\"; \
+                 direction/inclusion defaulted (include=true, no train_auc) for all its metrics"
             );
         }
     }
 
-    let bands = estimate_bands(&by_genre, args.lo_percentile, args.hi_percentile);
+    let bands = estimate_bands(
+        &by_genre,
+        args.lo_percentile,
+        args.hi_percentile,
+        args.auc_include_threshold,
+    );
 
-    let mut docs_per_genre: BTreeMap<String, usize> = BTreeMap::new();
+    let mut human_docs_per_genre: BTreeMap<String, usize> = BTreeMap::new();
+    let mut llm_docs_per_genre: BTreeMap<String, usize> = BTreeMap::new();
+    let mut train_human_doc_count = 0usize;
+    let mut train_llm_doc_count = 0usize;
     for (genre, vectors) in &by_genre {
-        docs_per_genre.insert(genre.clone(), vectors.len());
+        if !vectors.human.is_empty() {
+            human_docs_per_genre.insert(genre.clone(), vectors.human.len());
+        }
+        if !vectors.llm.is_empty() {
+            llm_docs_per_genre.insert(genre.clone(), vectors.llm.len());
+        }
+        train_human_doc_count += vectors.human.len();
+        train_llm_doc_count += vectors.llm.len();
     }
 
     let header = PackHeader {
-        version: "envelope-v1",
+        version: "envelope-v2",
         lo_percentile: args.lo_percentile,
         hi_percentile: args.hi_percentile,
+        auc_include_threshold: args.auc_include_threshold,
         corpus_manifest_sha256: sha256_hex(&manifest_bytes),
-        train_human_doc_count: train_human.len(),
-        docs_per_genre,
+        train_human_doc_count,
+        train_llm_doc_count,
+        human_docs_per_genre,
+        llm_docs_per_genre,
     };
 
     let pack = render_pack(&header, &bands);
@@ -153,6 +217,13 @@ fn run_with_source(args: &Args, source: &dyn MetricSource) -> anyhow::Result<()>
         args.out.display()
     );
     Ok(())
+}
+
+/// A genre's train-split [`MetricVector`]s, by class.
+#[derive(Debug, Default)]
+struct GenreVectors {
+    human: Vec<MetricVector>,
+    llm: Vec<MetricVector>,
 }
 
 /// Nearest-rank percentile of `sorted_values` (ascending, non-empty).
@@ -180,22 +251,86 @@ fn nearest_rank_percentile(sorted_values: &[f64], percentile: f64) -> f64 {
     sorted_values[idx]
 }
 
-/// genre name -> metric name -> `(lo, hi)` band.
-type Bands = BTreeMap<String, BTreeMap<&'static str, (f64, f64)>>;
+/// One `(genre, metric)` pack entry: the train-human percentile band
+/// plus the train-internal direction/inclusion verdict. See
+/// [`estimate_bands`] for how each field is derived.
+#[derive(Debug, Clone, Copy)]
+struct MetricEntry {
+    lo: f64,
+    hi: f64,
+    direction: Direction,
+    include: bool,
+    /// The train-internal Mann-Whitney AUC (human vs llm, train split)
+    /// that `include` was decided from. `None` when that comparison was
+    /// undefined (no train-split llm docs for this genre) — in that case
+    /// `direction` is a meaningless placeholder, not a real verdict.
+    train_auc: Option<f64>,
+}
 
-fn estimate_bands(by_genre: &BTreeMap<String, Vec<MetricVector>>, lo_p: f64, hi_p: f64) -> Bands {
+/// genre name -> metric name -> entry.
+type Bands = BTreeMap<String, BTreeMap<&'static str, MetricEntry>>;
+
+/// Builds [`Bands`] from `by_genre`: a `[lo, hi]` band from each genre's
+/// `human` vectors (nearest-rank percentiles at `lo_p`/`hi_p`, unchanged
+/// from `envelope-v1`), and a `direction`/`include`/`train_auc` from a
+/// train-internal Mann-Whitney AUC of that genre's `human` vs `llm`
+/// vectors, oriented so `include = true` iff the AUC reaches
+/// `auc_include_threshold`.
+///
+/// A genre with no `human` vectors at all is skipped entirely (its
+/// warning is the caller's responsibility, in `run_with_source`, since
+/// this function has no stderr access and no reason to).
+fn estimate_bands(
+    by_genre: &BTreeMap<String, GenreVectors>,
+    lo_p: f64,
+    hi_p: f64,
+    auc_include_threshold: f64,
+) -> Bands {
     let mut bands: Bands = BTreeMap::new();
     for (genre, vectors) in by_genre {
-        let mut metrics: BTreeMap<&'static str, (f64, f64)> = BTreeMap::new();
+        if vectors.human.is_empty() {
+            continue;
+        }
+        let mut metrics: BTreeMap<&'static str, MetricEntry> = BTreeMap::new();
         for name in MetricVector::FIELD_NAMES {
-            let mut values: Vec<f64> = vectors
+            let human_values: Vec<f64> = vectors
+                .human
                 .iter()
                 .map(|v| v.get(name).expect("FIELD_NAMES names a real field"))
                 .collect();
-            values.sort_by(f64::total_cmp);
-            let lo = nearest_rank_percentile(&values, lo_p);
-            let hi = nearest_rank_percentile(&values, hi_p);
-            metrics.insert(name, (lo, hi));
+            let llm_values: Vec<f64> = vectors
+                .llm
+                .iter()
+                .map(|v| v.get(name).expect("FIELD_NAMES names a real field"))
+                .collect();
+
+            let mut sorted_human = human_values.clone();
+            sorted_human.sort_by(f64::total_cmp);
+            let lo = nearest_rank_percentile(&sorted_human, lo_p);
+            let hi = nearest_rank_percentile(&sorted_human, hi_p);
+
+            let (direction, include, train_auc) = match mann_whitney_auc(&human_values, &llm_values)
+            {
+                Some((auc, direction)) => (direction, auc >= auc_include_threshold, Some(auc)),
+                // No train-split llm docs for this genre: the
+                // train-internal comparison is undefined, so there is
+                // no train evidence to exclude this metric on —
+                // default to keeping it. `direction` here is an
+                // arbitrary placeholder; `train_auc: None` is the
+                // signal callers must check before trusting it.
+                None => (Direction::LlmHigher, true, None),
+            };
+
+            metrics.insert(
+                name,
+                MetricEntry {
+                    lo,
+                    hi,
+                    direction,
+                    include,
+                    train_auc,
+                },
+            );
         }
         bands.insert(genre.clone(), metrics);
     }
@@ -206,24 +341,29 @@ struct PackHeader {
     version: &'static str,
     lo_percentile: f64,
     hi_percentile: f64,
+    auc_include_threshold: f64,
     corpus_manifest_sha256: String,
     train_human_doc_count: usize,
-    docs_per_genre: BTreeMap<String, usize>,
+    train_llm_doc_count: usize,
+    human_docs_per_genre: BTreeMap<String, usize>,
+    llm_docs_per_genre: BTreeMap<String, usize>,
 }
 
 /// Renders the envelope pack as TOML text.
 ///
 /// Format: a `[pack]` header table (version, generation parameters, the
-/// manifest's sha256, and doc-count summary), then one `[<genre>.<metric>]`
-/// table per band with `lo`/`hi` keys. Genres and metrics both come out in
-/// ascending alphabetical order (via the `BTreeMap` keys feeding this
-/// function), so the same corpus and arguments always produce
-/// byte-identical output.
+/// manifest's sha256, and doc-count summaries), then one
+/// `[<genre>.<metric>]` table per band with `lo`/`hi`/`direction`/
+/// `include` keys plus `train_auc` when it was defined (see
+/// [`MetricEntry`]). Genres and metrics both come out in ascending
+/// alphabetical order (via the `BTreeMap` keys feeding this function), so
+/// the same corpus and arguments always produce byte-identical output.
 fn render_pack(header: &PackHeader, bands: &Bands) -> String {
     let mut out = String::new();
     writeln!(
         out,
-        "# envelope-v1 pack: per-(genre, metric) human percentile bands."
+        "# envelope-v2 pack: per-(genre, metric) human percentile bands, train-derived llm \
+         direction, and train-AUC combined-score inclusion flag."
     )
     .expect("write to String is infallible");
     writeln!(
@@ -249,6 +389,14 @@ fn render_pack(header: &PackHeader, bands: &Bands) -> String {
     .expect("write to String is infallible");
     writeln!(
         out,
+        "auc_include_threshold = {}",
+        fmt_toml_float(header.auc_include_threshold)
+    )
+    .expect("write to String is infallible");
+    writeln!(out, "auc_method = \"mann-whitney-tie-corrected\"")
+        .expect("write to String is infallible");
+    writeln!(
+        out,
         "corpus_manifest_sha256 = {:?}",
         header.corpus_manifest_sha256
     )
@@ -259,19 +407,36 @@ fn render_pack(header: &PackHeader, bands: &Bands) -> String {
         header.train_human_doc_count
     )
     .expect("write to String is infallible");
+    writeln!(out, "train_llm_doc_count = {}", header.train_llm_doc_count)
+        .expect("write to String is infallible");
     writeln!(out).expect("write to String is infallible");
 
-    writeln!(out, "[pack.docs_per_genre]").expect("write to String is infallible");
-    for (genre, count) in &header.docs_per_genre {
+    writeln!(out, "[pack.human_docs_per_genre]").expect("write to String is infallible");
+    for (genre, count) in &header.human_docs_per_genre {
+        writeln!(out, "{genre} = {count}").expect("write to String is infallible");
+    }
+    writeln!(out).expect("write to String is infallible");
+
+    writeln!(out, "[pack.llm_docs_per_genre]").expect("write to String is infallible");
+    for (genre, count) in &header.llm_docs_per_genre {
         writeln!(out, "{genre} = {count}").expect("write to String is infallible");
     }
 
     for (genre, metrics) in bands {
-        for (metric, &(lo, hi)) in metrics {
+        for (metric, entry) in metrics {
             writeln!(out).expect("write to String is infallible");
             writeln!(out, "[{genre}.{metric}]").expect("write to String is infallible");
-            writeln!(out, "lo = {}", fmt_toml_float(lo)).expect("write to String is infallible");
-            writeln!(out, "hi = {}", fmt_toml_float(hi)).expect("write to String is infallible");
+            writeln!(out, "lo = {}", fmt_toml_float(entry.lo))
+                .expect("write to String is infallible");
+            writeln!(out, "hi = {}", fmt_toml_float(entry.hi))
+                .expect("write to String is infallible");
+            writeln!(out, "direction = {:?}", entry.direction.as_str())
+                .expect("write to String is infallible");
+            writeln!(out, "include = {}", entry.include).expect("write to String is infallible");
+            if let Some(auc) = entry.train_auc {
+                writeln!(out, "train_auc = {}", fmt_toml_float(auc))
+                    .expect("write to String is infallible");
+            }
         }
     }
     out
@@ -364,90 +529,200 @@ mod tests {
         v
     }
 
-    /// A two-genre, one-metric-varying example where the percentile
-    /// result can be checked by hand: `docs` gets `triad_rate` values
-    /// [1,2,3,4,5] (p10 -> value 1, p90 -> value 5); `blog` gets
-    /// `em_dash_density` values [10,20] (p10 -> rank ceil(0.1*2)=1 ->
-    /// value 10, p90 -> rank ceil(0.9*2)=2 -> value 20). Every other
-    /// metric is 0.0 for every doc, so its band is `[0.0, 0.0]`.
+    /// A two-genre example exercising both branches of the
+    /// direction/inclusion verdict:
+    ///
+    /// - `docs`: `triad_rate` is `[1,2,3,4,5]` for human (p10 -> 1, p90
+    ///   -> 5, hand-computed the same way as `envelope-v1`) and
+    ///   `[101,...,105]` for llm — llm always higher, so the raw
+    ///   Mann-Whitney AUC is exactly `1.0`, oriented `LlmHigher`, and
+    ///   `1.0 >= 0.55` so `include` is `true`. Every *other* field is
+    ///   `0.0` for all 5 human and 5 llm docs (identical, tied), so its
+    ///   AUC is the oriented tie value `0.5`, which is `< 0.55` ->
+    ///   `include` is `false` — this is the exact mechanism that drops a
+    ///   non-discriminative metric (e.g. the diagnosis brief's
+    ///   `ritual_marker_rate` at train AUC ~0.50) from a genre's combined
+    ///   score.
+    /// - `blog`: `em_dash_density` is `[10, 20]` for human (p10 -> rank
+    ///   ceil(0.1*2)=1 -> 10, p90 -> rank ceil(0.9*2)=2 -> 20) with *no*
+    ///   llm vectors at all — the train-internal AUC is undefined, so
+    ///   `train_auc` is `None` and `include` defaults to `true`.
     #[test]
     fn estimate_bands_matches_hand_computed_example() {
-        let mut by_genre: BTreeMap<String, Vec<MetricVector>> = BTreeMap::new();
+        let mut by_genre: BTreeMap<String, GenreVectors> = BTreeMap::new();
         by_genre.insert(
             "docs".to_string(),
-            (1..=5)
-                .map(|i| vector_with("triad_rate", f64::from(i)))
-                .collect(),
+            GenreVectors {
+                human: (1..=5)
+                    .map(|i| vector_with("triad_rate", f64::from(i)))
+                    .collect(),
+                llm: (1..=5)
+                    .map(|i| vector_with("triad_rate", f64::from(i) + 100.0))
+                    .collect(),
+            },
         );
         by_genre.insert(
             "blog".to_string(),
-            vec![
-                vector_with("em_dash_density", 10.0),
-                vector_with("em_dash_density", 20.0),
-            ],
+            GenreVectors {
+                human: vec![
+                    vector_with("em_dash_density", 10.0),
+                    vector_with("em_dash_density", 20.0),
+                ],
+                llm: vec![],
+            },
         );
 
-        let bands = estimate_bands(&by_genre, 10.0, 90.0);
+        let bands = estimate_bands(&by_genre, 10.0, 90.0, 0.55);
 
-        assert_eq!(bands["docs"]["triad_rate"], (1.0, 5.0));
-        assert_eq!(bands["docs"]["em_dash_density"], (0.0, 0.0));
-        assert_eq!(bands["blog"]["em_dash_density"], (10.0, 20.0));
+        let docs_triad = bands["docs"]["triad_rate"];
+        assert_eq!((docs_triad.lo, docs_triad.hi), (1.0, 5.0));
+        assert_eq!(docs_triad.direction, Direction::LlmHigher);
+        assert_eq!(docs_triad.train_auc, Some(1.0));
+        assert!(docs_triad.include);
+
+        let docs_em_dash = bands["docs"]["em_dash_density"];
+        assert_eq!((docs_em_dash.lo, docs_em_dash.hi), (0.0, 0.0));
+        assert_eq!(docs_em_dash.train_auc, Some(0.5));
+        assert!(!docs_em_dash.include);
+
+        let blog_em_dash = bands["blog"]["em_dash_density"];
+        assert_eq!((blog_em_dash.lo, blog_em_dash.hi), (10.0, 20.0));
+        assert_eq!(blog_em_dash.train_auc, None);
+        assert!(blog_em_dash.include);
+    }
+
+    /// A genre with no `human` vectors at all is omitted from the
+    /// output, regardless of `llm` data.
+    #[test]
+    fn estimate_bands_skips_genre_with_no_human_vectors() {
+        let mut by_genre: BTreeMap<String, GenreVectors> = BTreeMap::new();
+        by_genre.insert(
+            "forum".to_string(),
+            GenreVectors {
+                human: vec![],
+                llm: vec![vector_with("triad_rate", 1.0)],
+            },
+        );
+        let bands = estimate_bands(&by_genre, 10.0, 90.0, 0.55);
+        assert!(!bands.contains_key("forum"));
     }
 
     /// The rendered pack contains a `[pack]` header with the given
-    /// version/percentiles/hash/count, and one `[<genre>.<metric>]`
-    /// table per band, with genres and metrics in alphabetical order.
+    /// version/percentiles/threshold/hash/counts, one
+    /// `[<genre>.<metric>]` table per band with `lo`/`hi`/`direction`/
+    /// `include`/`train_auc`, and both doc-count sub-tables, with genres
+    /// and metrics in alphabetical order.
     #[test]
     fn render_pack_produces_expected_shape() {
-        let mut by_genre: BTreeMap<String, Vec<MetricVector>> = BTreeMap::new();
-        by_genre.insert("docs".to_string(), vec![vector_with("triad_rate", 1.0)]);
-        let bands = estimate_bands(&by_genre, 10.0, 90.0);
-        let mut docs_per_genre = BTreeMap::new();
-        docs_per_genre.insert("docs".to_string(), 1usize);
+        let mut by_genre: BTreeMap<String, GenreVectors> = BTreeMap::new();
+        by_genre.insert(
+            "docs".to_string(),
+            GenreVectors {
+                human: vec![vector_with("triad_rate", 1.0)],
+                llm: vec![vector_with("triad_rate", 9.0)],
+            },
+        );
+        let bands = estimate_bands(&by_genre, 10.0, 90.0, 0.55);
+
+        let mut human_docs_per_genre = BTreeMap::new();
+        human_docs_per_genre.insert("docs".to_string(), 1usize);
+        let mut llm_docs_per_genre = BTreeMap::new();
+        llm_docs_per_genre.insert("docs".to_string(), 1usize);
 
         let header = PackHeader {
-            version: "envelope-v1",
+            version: "envelope-v2",
             lo_percentile: 10.0,
             hi_percentile: 90.0,
+            auc_include_threshold: 0.55,
             corpus_manifest_sha256: "deadbeef".to_string(),
             train_human_doc_count: 1,
-            docs_per_genre,
+            train_llm_doc_count: 1,
+            human_docs_per_genre,
+            llm_docs_per_genre,
         };
 
         let text = render_pack(&header, &bands);
         assert!(text.contains("[pack]"));
-        assert!(text.contains("version = \"envelope-v1\""));
+        assert!(text.contains("version = \"envelope-v2\""));
         assert!(text.contains("lo_percentile = 10.0"));
         assert!(text.contains("hi_percentile = 90.0"));
+        assert!(text.contains("auc_include_threshold = 0.55"));
         assert!(text.contains("corpus_manifest_sha256 = \"deadbeef\""));
         assert!(text.contains("train_human_doc_count = 1"));
-        assert!(text.contains("[pack.docs_per_genre]"));
+        assert!(text.contains("train_llm_doc_count = 1"));
+        assert!(text.contains("[pack.human_docs_per_genre]"));
+        assert!(text.contains("[pack.llm_docs_per_genre]"));
         assert!(text.contains("docs = 1"));
         assert!(text.contains("[docs.triad_rate]"));
         assert!(text.contains("lo = 1.0"));
         assert!(text.contains("hi = 1.0"));
+        assert!(text.contains("direction = \"llm higher\""));
+        assert!(text.contains("include = true"));
+        assert!(text.contains("train_auc = 1.0"));
+    }
+
+    /// A metric with no train-split llm data for its genre gets no
+    /// `train_auc` line at all (rather than a fabricated value).
+    #[test]
+    fn render_pack_omits_train_auc_when_undefined() {
+        let mut by_genre: BTreeMap<String, GenreVectors> = BTreeMap::new();
+        by_genre.insert(
+            "blog".to_string(),
+            GenreVectors {
+                human: vec![vector_with("triad_rate", 1.0)],
+                llm: vec![],
+            },
+        );
+        let bands = estimate_bands(&by_genre, 10.0, 90.0, 0.55);
+        let header = PackHeader {
+            version: "envelope-v2",
+            lo_percentile: 10.0,
+            hi_percentile: 90.0,
+            auc_include_threshold: 0.55,
+            corpus_manifest_sha256: "deadbeef".to_string(),
+            train_human_doc_count: 1,
+            train_llm_doc_count: 0,
+            human_docs_per_genre: BTreeMap::new(),
+            llm_docs_per_genre: BTreeMap::new(),
+        };
+        let text = render_pack(&header, &bands);
+        assert!(text.contains("[blog.triad_rate]"));
+        assert!(text.contains("include = true"));
+        assert!(!text.contains("train_auc ="));
     }
 
     /// Rendering the same input twice produces byte-identical output.
     #[test]
     fn render_pack_is_deterministic() {
-        let mut by_genre: BTreeMap<String, Vec<MetricVector>> = BTreeMap::new();
+        let mut by_genre: BTreeMap<String, GenreVectors> = BTreeMap::new();
         by_genre.insert(
             "docs".to_string(),
-            vec![
-                vector_with("triad_rate", 1.0),
-                vector_with("em_dash_density", 2.0),
-            ],
+            GenreVectors {
+                human: vec![
+                    vector_with("triad_rate", 1.0),
+                    vector_with("em_dash_density", 2.0),
+                ],
+                llm: vec![vector_with("triad_rate", 3.0)],
+            },
         );
-        by_genre.insert("blog".to_string(), vec![vector_with("triad_rate", 3.0)]);
-        let bands = estimate_bands(&by_genre, 10.0, 90.0);
+        by_genre.insert(
+            "blog".to_string(),
+            GenreVectors {
+                human: vec![vector_with("triad_rate", 3.0)],
+                llm: vec![],
+            },
+        );
+        let bands = estimate_bands(&by_genre, 10.0, 90.0, 0.55);
         let header = PackHeader {
-            version: "envelope-v1",
+            version: "envelope-v2",
             lo_percentile: 10.0,
             hi_percentile: 90.0,
+            auc_include_threshold: 0.55,
             corpus_manifest_sha256: "abc123".to_string(),
             train_human_doc_count: 3,
-            docs_per_genre: BTreeMap::new(),
+            train_llm_doc_count: 1,
+            human_docs_per_genre: BTreeMap::new(),
+            llm_docs_per_genre: BTreeMap::new(),
         };
         let a = render_pack(&header, &bands);
         let b = render_pack(&header, &bands);

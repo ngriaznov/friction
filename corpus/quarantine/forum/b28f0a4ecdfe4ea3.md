@@ -1,13 +1,13 @@
-&gt; Is there any model of digital cameras in the market in 2021 that takes photo like analog cameras without manipulation and artificial improvements?
+> Is there any model of digital cameras in the market in 2021 that takes photo like analog cameras without manipulation and artificial improvements?
 
 This seems to be a fairly common belief held by those who have never shot film or are new to photography. I say that because, well, everything is a manipulation - always has been, always will be.
 
 Take, for example, what [lens choice][1] and the [different distances from which we shoot][2] for those different focal lengths to frame the same subject, does to a human face:
 [![enter image description here][3]][3]
 
-50mm is a &quot;normal&quot; lens and may be closest to what our eyes perceive this man to look like in the world, but note how subtly that changes at 35mm or 70mm and how extreme the changes get by 20mm or 200mm.
+50mm is a "normal" lens and may be closest to what our eyes perceive this man to look like in the world, but note how subtly that changes at 35mm or 70mm and how extreme the changes get by 20mm or 200mm.
 
-Let&#39;s take another example, [this time with film choice][4].
+Let's take another example, [this time with film choice][4].
 [![enter image description here][5]][5]
 
 Fuji Velvia has long been known for its intensely saturated colors and here above is how it compares to Provia and Portra (note that Velvia and Provia are slide/transparency films while Portra is color negative).
@@ -25,7 +25,7 @@ So, to capture a scene, you need to:
 
 There are tools and techniques to alter the resultant image at every step of the above. The same is true for digital, see https://photo.stackexchange.com/questions/105271/what-does-an-unprocessed-raw-file-look-like
 
-What I&#39;m getting at is: your question stands on the premise that there is a way to capture an image without manipulation or &quot;improvement&quot; and your premise is incorrect. In the pursuit of a photograph, many manipulations occur, some deemed improvements and some detriments - beauty is in the eye of the beholder after all.
+What I'm getting at is: your question stands on the premise that there is a way to capture an image without manipulation or "improvement" and your premise is incorrect. In the pursuit of a photograph, many manipulations occur, some deemed improvements and some detriments - beauty is in the eye of the beholder after all.
 
   [1]: https://www.keh.com/blog/picking-the-right-focal-length-lens-for-portrait-photography
   [2]: https://photo.stackexchange.com/q/114679/15871

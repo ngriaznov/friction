@@ -96,15 +96,20 @@ or `license` exactly equal to `"personal-attestation"`.
   success, so CI stays green before the holdout is sealed.
 - **`clean`** — `--incoming <dir> --out <dir>`: reads every
   `.md` file under `--incoming` in sorted order, normalizes it to
-  UTF-8 + LF, strips common README boilerplate (badge-image walls;
-  standalone HTML nav/footer/layout wrapper tag lines such as
-  `<div align="center">`, `<p align="center">`, `<hr>`, bare `<img>`),
-  and writes survivors under `--out`, mirroring the incoming directory's
-  relative layout. Markdown structure (headings, lists, code fences) is
-  left untouched. Docs under 300 words after cleaning are dropped (not
-  written) and reported. This command does not touch the manifest — it
-  only produces cleaned `.md` files; adding manifest entries for them is
-  a separate, manual curation step.
+  UTF-8 + LF, decodes raw HTML entities (`&amp;`, `&lt;`, `&gt;`,
+  `&quot;`, `&apos;`, `&nbsp;`, `&mdash;`, `&ndash;`, `&hellip;`,
+  `&rsquo;`, `&lsquo;`, `&rdquo;`, `&ldquo;`, and any decimal/hex numeric
+  character reference such as `&#39;`/`&#x27;`; double-encoded entities
+  like `&amp;#39;` fully decode via a small bounded fixpoint loop — see
+  `decode_entities` in `src/commands/clean.rs`), strips common README
+  boilerplate (badge-image walls; standalone HTML nav/footer/layout
+  wrapper tag lines such as `<div align="center">`, `<p align="center">`,
+  `<hr>`, bare `<img>`), and writes survivors under `--out`, mirroring the
+  incoming directory's relative layout. Markdown structure (headings,
+  lists, code fences) is left untouched. Docs under 300 words after
+  cleaning are dropped (not written) and reported. This command does not
+  touch the manifest — it only produces cleaned `.md` files; adding
+  manifest entries for them is a separate, manual curation step.
 - **`ingest`** — `--incoming <dir> --corpus-dir <dir>`: folds
   collector-supplied raw human-corpus candidates into the real corpus.
   Reads every `<dir>/<genre>/*.md` file plus its `<dir>/meta-*.jsonl`
@@ -133,31 +138,73 @@ or `license` exactly equal to `"personal-attestation"`.
 - **`generate`** — generates the `llm` corpus
   against a local [Ollama](https://ollama.com) server. See "Generating
   the LLM corpus" below.
-- **`envelope`** — for every `human`-class, `train`-split document,
-  computes its metric vector, groups by genre, and for each
-  `(genre, metric)` pair estimates a `[lo, hi]` percentile band
-  (nearest-rank method; `--lo-percentile`/`--hi-percentile`, default
-  10/90). Writes the result as a versioned TOML pack to `--out`
-  (default `crates/friction-packs/packs/envelope-v1.toml`). Quarantined
-  (CC-BY-SA) human docs are included in the estimate — quarantine
-  restricts redistributing document *text*, not aggregate statistics —
-  and a genre with zero train-split human docs is omitted from the pack
-  (warning to stderr) rather than emitting a degenerate band.
+- **`envelope`** — for every `train`-split document (both classes),
+  computes its metric vector, groups by genre and class, and for each
+  `(genre, metric)` pair estimates, all from the train split only: a
+  `[lo, hi]` human percentile band (nearest-rank method;
+  `--lo-percentile`/`--hi-percentile`, default 10/90, from `human`-class
+  train docs only), plus a `direction` (which class runs higher) and an
+  `include` flag from a train-internal Mann-Whitney AUC of `human` vs
+  `llm` train docs — `include` is `true` iff that AUC reaches
+  `--auc-include-threshold` (default 0.55). `include` is the *only*
+  mechanism that drops a metric from a genre's combined score: a
+  train-derived rule, never a hand-picked override. Writes the result as
+  a versioned TOML pack (`envelope-v2`) to `--out` (default
+  `crates/friction-packs/packs/envelope-v2.toml`). Quarantined (CC-BY-SA)
+  docs are included in both estimates — quarantine restricts
+  redistributing document *text*, not aggregate statistics — and a genre
+  with zero train-split human docs is omitted from the pack (warning to
+  stderr) rather than emitting a degenerate band; a genre with human
+  train docs but no llm train docs still gets its percentile bands, but
+  every metric defaults to `include = true` (no train evidence to
+  exclude it on).
 - **`separate`** — on the dev split, measures how well the metric
   vector separates `llm` docs from `human` docs, per genre and per
   metric (AUC via the Mann-Whitney U statistic, oriented so `AUC > 0.5`
   always means "separates llm from human"), plus a combined per-document
-  score (fraction of metrics falling outside that document's genre's
-  envelope band, loaded from `--envelope`) and that score's own AUC.
-  Writes a markdown report to `--report`. Like `envelope`, quarantined
+  score (the mean, over that document's genre's *included* metrics — see
+  `envelope`'s `include` flag — of a per-metric normalized directional
+  exceedance beyond that metric's train-human envelope band: `0.0` inside
+  the band, else the distance to the nearer edge over the band width,
+  capped at `1.0`; loaded from `--envelope`) and that score's own AUC.
+  Writes a markdown report to `--report`, including, per genre, which
+  metrics the envelope pack excluded and why. Like `envelope`, quarantined
   human docs are not excluded from the dev-split measurement. A genre
   missing data for one class (or missing from the envelope pack) is
   reported as `n/a` rather than a fabricated AUC.
+- **`mine`** — mines 1-, 2-, and 3-gram phrases from `train`-split
+  documents only (pooled across genres, both classes) and ranks them by
+  the same log-odds ratio with an informative Dirichlet prior used
+  elsewhere (Monroe, Colaresi & Quinn 2008, eq. 16 — see
+  `src/commands/mine.rs`'s module doc comment for the exact formula and
+  the punctuation-bounded tokenization rule). `--n` selects order(s)
+  (`1`, `2`, `3`, or `all`, default `all`); `--top` caps how many
+  llm-favored and human-favored entries are kept per order (default 50);
+  `--min-count` filters out n-grams below a combined occurrence
+  threshold (default 5). Writes a markdown report to `--report`. Pure
+  function of its inputs, so re-running against an unchanged corpus
+  reproduces a byte-identical report. This is a discovery tool only —
+  its output is hand-curated afterward into pack files such as
+  `crates/friction-packs/packs/mined-ngrams-v1.toml`, never consumed
+  directly.
 - **`remove`** — `--id <id>` (repeatable): validates every requested id
   is present in the manifest before touching anything, then for each
   deletes its corpus file (`<class>/<genre>/<id>.md`, or
   `quarantine/<genre>/<id>.md` when quarantined) and drops its manifest
   line. The raw doc under `corpus/incoming/` is never touched.
+- **`fix-entities`** — maintenance pass over already-ingested docs
+  (`human`, `llm`, and `quarantine`): for every manifest record, decodes
+  raw HTML entities in its on-disk file with the same transform `clean`
+  applies to newly-ingested docs. Only docs that actually contain
+  entities are rewritten (in place, same path) and get their manifest
+  `sha256` refreshed; every other field (id, class, genre, split,
+  license, path) is untouched, and a doc with nothing to decode is left
+  byte-identical. Deterministic and idempotent — rerunning after a clean
+  pass finds nothing left to change. `--dry-run` reports what would
+  change without writing anything. Needed once, historically: to repair
+  corpus docs ingested before entity decoding was added to `clean`;
+  `ingest` and `clean` decode entities on the way in going forward, so
+  this should stay a no-op on a healthy corpus.
 
 ## Generating the LLM corpus (`generate`)
 

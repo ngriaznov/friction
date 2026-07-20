@@ -38,6 +38,10 @@ enum Command {
     /// Remove one or more docs: drops the manifest record and corpus
     /// file, leaving the raw original under `corpus/incoming/` in place.
     Remove(commands::remove::Args),
+    /// Maintenance pass: decode raw HTML entities left in already-ingested
+    /// corpus docs, rewriting affected files in place and refreshing
+    /// their manifest `sha256`.
+    FixEntities(commands::fix_entities::Args),
     /// Generate the LLM corpus via Ollama.
     Generate(commands::generate::Args),
     /// Estimate per-`(genre, metric)` human percentile bands from the
@@ -46,6 +50,9 @@ enum Command {
     /// On the dev split, report how well the metric vector separates
     /// `llm` docs from `human` docs, per genre and per metric.
     Separate(commands::separate::Args),
+    /// On the train split, mine discriminative 1-/2-/3-gram phrases
+    /// between `llm` and `human` prose.
+    Mine(commands::mine::Args),
 }
 
 /// Parses process arguments and runs the selected subcommand.
@@ -73,6 +80,7 @@ pub fn run() -> anyhow::Result<()> {
         Command::Clean(args) => commands::clean::run(&args),
         Command::Ingest(args) => commands::ingest::run(&args),
         Command::Remove(args) => commands::remove::run(&args),
+        Command::FixEntities(args) => commands::fix_entities::run(&args),
         Command::Generate(args) => {
             let outcome = commands::generate::run(&args)?;
             if outcome.any_models_skipped() {
@@ -82,5 +90,6 @@ pub fn run() -> anyhow::Result<()> {
         }
         Command::Envelope(args) => commands::envelope::run(&args),
         Command::Separate(args) => commands::separate::run(&args),
+        Command::Mine(args) => commands::mine::run(&args),
     }
 }

@@ -11,6 +11,7 @@ fn envelope_args(corpus_dir: &std::path::Path, out: std::path::PathBuf) -> envel
         out,
         lo_percentile: 10.0,
         hi_percentile: 90.0,
+        auc_include_threshold: 0.55,
     }
 }
 
@@ -28,10 +29,14 @@ fn separate_args(
 
 /// Builds a small corpus: one train-split human `docs` doc (feeds the
 /// envelope pack), plus dev-split human and llm `docs` docs (feed the
-/// separation report). Every doc has identical filler content, so with
-/// the placeholder all-zero `MetricSource`, every metric is tied between
-/// classes — the report's AUCs should all land exactly at the oriented
-/// tie value, 0.5.
+/// separation report). Every doc has identical filler content, so every
+/// `MetricVector` field is identical across all of them — every dev-split
+/// metric AUC is tied at the oriented value 0.5, and every dev-split
+/// value sits exactly on its (zero-width, since there's only one
+/// train-human doc) envelope band, so every combined score is exactly
+/// 0.0 and the combined-score AUC is tied at 0.5 too. There's no
+/// train-split llm doc for `docs` at all, so every metric defaults to
+/// `include = true` (see `envelope`'s docs).
 fn build_corpus(dir: &std::path::Path) {
     let words = common::filler_words(320);
 
@@ -67,7 +72,7 @@ fn separate_report_reflects_tied_metrics_and_missing_genres() {
     let dir = tempfile::tempdir().unwrap();
     build_corpus(dir.path());
 
-    let pack_path = dir.path().join("envelope-v1.toml");
+    let pack_path = dir.path().join("envelope-v2.toml");
     envelope::run(&envelope_args(dir.path(), pack_path.clone())).unwrap();
 
     let report_path = dir.path().join("report.md");
@@ -106,7 +111,7 @@ fn separate_report_is_deterministic_across_runs() {
     let dir = tempfile::tempdir().unwrap();
     build_corpus(dir.path());
 
-    let pack_path = dir.path().join("envelope-v1.toml");
+    let pack_path = dir.path().join("envelope-v2.toml");
     envelope::run(&envelope_args(dir.path(), pack_path.clone())).unwrap();
 
     let report_a = dir.path().join("a.md");
@@ -141,7 +146,7 @@ fn separate_report_shows_na_when_one_class_is_absent_in_a_genre() {
 
     common::write_manifest_raw(&dir.path().join("manifest.jsonl"), &[h_train, h_dev]);
 
-    let pack_path = dir.path().join("envelope-v1.toml");
+    let pack_path = dir.path().join("envelope-v2.toml");
     envelope::run(&envelope_args(dir.path(), pack_path.clone())).unwrap();
 
     let report_path = dir.path().join("report.md");
@@ -162,7 +167,7 @@ fn separate_report_states_gate_verdict_from_combined_score_aucs() {
     let dir = tempfile::tempdir().unwrap();
     build_corpus(dir.path());
 
-    let pack_path = dir.path().join("envelope-v1.toml");
+    let pack_path = dir.path().join("envelope-v2.toml");
     envelope::run(&envelope_args(dir.path(), pack_path.clone())).unwrap();
 
     let report_path = dir.path().join("report.md");

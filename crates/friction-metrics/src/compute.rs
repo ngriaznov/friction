@@ -1,7 +1,7 @@
 //! The document → [`MetricVector`] compute boundary: wires the rhythm,
-//! lexical, and symmetry metric families together into one fully-populated
-//! vector, both for a whole document and for each of its paragraphs
-//! individually.
+//! lexical, symmetry, and signals metric families together into one
+//! fully-populated vector, both for a whole document and for each of its
+//! paragraphs individually.
 //!
 //! [`compute`] and [`compute_by_paragraph`] are the only two entry points
 //! other crates need: each takes a [`Document`] as produced by
@@ -11,7 +11,7 @@
 //! boundaries, a [`Tagger`] for the symmetry family's part-of-speech
 //! lookups), and returns a complete vector. Callers never need to remember
 //! to segment a document themselves before computing its metrics, or to
-//! know which of the fourteen fields comes from which family.
+//! know which of the twenty-one fields comes from which family.
 
 use friction_core::{Block, Document, MetricVector, ProseUnit};
 use friction_nlp::{Segmenter, Tagger, segment_document};
@@ -22,9 +22,13 @@ use crate::lexical::{
 use crate::rhythm::{
     em_dash_density, paragraph_shape, semicolon_density, sentence_length_by_document,
 };
+use crate::signals::{
+    bold_span_density, heading_density, human_favored_phrase_rate, list_item_density,
+    llm_favored_phrase_rate, sentence_opener_repeat_rate, top_opener_concentration,
+};
 use crate::symmetry::{bullet_parallelism, participial_closer_rate, triad_rate};
 
-/// Computes the full 14-field [`MetricVector`] for `document`, document-wide.
+/// Computes the full 21-field [`MetricVector`] for `document`, document-wide.
 ///
 /// Segments `document` with `segmenter` first (`document` itself is left
 /// untouched — this operates on the segmented copy), then computes every
@@ -32,9 +36,10 @@ use crate::symmetry::{bullet_parallelism, participial_closer_rate, triad_rate};
 /// [`sentence_length_by_document`] fields, [`paragraph_shape`]'s mean/cv,
 /// the two punctuation densities, and [`crate::rhythm`]'s own contribution
 /// from the rhythm family; the four lexical-marker rates/ratios/densities
-/// from [`crate::lexical`]; and the three tagger-dependent structural rates
-/// from [`crate::symmetry`]. Every one of [`MetricVector`]'s fourteen
-/// fields is written by exactly one of those calls.
+/// from [`crate::lexical`]; the three tagger-dependent structural rates
+/// from [`crate::symmetry`]; and the seven structural/mined-phrase/opener
+/// signals from [`crate::signals`]. Every one of [`MetricVector`]'s
+/// twenty-one fields is written by exactly one of those calls.
 ///
 /// # Panics
 /// Panics if `segmenter` produces a sentence range that escapes its prose
@@ -117,6 +122,13 @@ fn compute_segmented(document: &Document, tagger: &dyn Tagger) -> MetricVector {
         participial_closer_rate: participial_closer_rate(document, tagger),
         not_just_but_rate: not_just_but_rate(document),
         ritual_marker_rate: ritual_marker_rate(document),
+        llm_favored_phrase_rate: llm_favored_phrase_rate(document),
+        human_favored_phrase_rate: human_favored_phrase_rate(document),
+        heading_density: heading_density(document),
+        list_item_density: list_item_density(document),
+        bold_span_density: bold_span_density(document),
+        sentence_opener_repeat_rate: sentence_opener_repeat_rate(document),
+        top_opener_concentration: top_opener_concentration(document),
     }
 }
 
@@ -202,7 +214,7 @@ mod tests {
         }
     }
 
-    /// `compute` reaches every one of the fourteen fields, wired to the
+    /// `compute` reaches every one of the twenty-one fields, wired to the
     /// right family: hand-computed against one single-sentence, single-
     /// paragraph document under the stub segmenter/tagger above.
     ///
@@ -230,6 +242,15 @@ mod tests {
     ///   regardless of the stub tagger's uniform `"NN"` tagging.
     /// - `not_just_but_rate`/`ritual_marker_rate`: no matching pattern,
     ///   no ritual open/close phrase — both `0.0`.
+    /// - `llm_favored_phrase_rate`/`human_favored_phrase_rate`: none of
+    ///   this sentence's word tokens or adjacent-token bigrams match any
+    ///   curated mined-pack entry — both `0.0`.
+    /// - `heading_density`/`list_item_density`/`bold_span_density`: no
+    ///   heading, list, or bold markup at all — all `0.0`.
+    /// - `sentence_opener_repeat_rate`: only one sentence, so no
+    ///   consecutive pair exists — `0.0`.
+    /// - `top_opener_concentration`: the one sentence's leading unigram
+    ///   ("however") is the only opener observed — `1 / 1 = 1.0`.
     #[test]
     fn compute_reaches_every_metric_family() {
         const EPSILON: f64 = 1e-9;
@@ -253,6 +274,13 @@ mod tests {
             participial_closer_rate: 0.0,
             not_just_but_rate: 0.0,
             ritual_marker_rate: 0.0,
+            llm_favored_phrase_rate: 0.0,
+            human_favored_phrase_rate: 0.0,
+            heading_density: 0.0,
+            list_item_density: 0.0,
+            bold_span_density: 0.0,
+            sentence_opener_repeat_rate: 0.0,
+            top_opener_concentration: 1.0,
         };
 
         for (name, value) in metrics.named_values() {

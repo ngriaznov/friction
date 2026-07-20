@@ -121,10 +121,17 @@ mod tests {
     ///   `1.0`, `cv = 0.0` (single-observation convention).
     /// - Every other field (`triad_rate`, `bullet_parallelism`,
     ///   `em_dash_density`, `semicolon_density`, `participial_closer_rate`,
-    ///   `not_just_but_rate`, `ritual_marker_rate`) is `0.0`: none of
-    ///   their trigger patterns (a coordinated list, a dash, a semicolon, a
-    ///   trailing participial clause, `"not just/only ... but"`, a ritual
-    ///   open/close phrase) appears in the text at all.
+    ///   `not_just_but_rate`, `ritual_marker_rate`, `llm_favored_phrase_rate`,
+    ///   `human_favored_phrase_rate`, `heading_density`, `list_item_density`,
+    ///   `bold_span_density`, `sentence_opener_repeat_rate`) is `0.0`: none
+    ///   of their trigger patterns (a coordinated list, a dash, a
+    ///   semicolon, a trailing participial clause, `"not just/only ...
+    ///   but"`, a ritual open/close phrase, a mined-pack phrase, a
+    ///   heading/list/bold span, a second sentence to repeat an opener)
+    ///   appears in the text at all — except `top_opener_concentration`,
+    ///   which is `1.0`: the sole sentence's leading unigram ("however")
+    ///   is the only opener observed, so it is `100%` of the (one-element)
+    ///   opener distribution.
     #[test]
     fn friction_metrics_source_computes_real_pipeline_end_to_end() {
         const EPSILON: f64 = 1e-9;
@@ -148,6 +155,13 @@ mod tests {
             participial_closer_rate: 0.0,
             not_just_but_rate: 0.0,
             ritual_marker_rate: 0.0,
+            llm_favored_phrase_rate: 0.0,
+            human_favored_phrase_rate: 0.0,
+            heading_density: 0.0,
+            list_item_density: 0.0,
+            bold_span_density: 0.0,
+            sentence_opener_repeat_rate: 0.0,
+            top_opener_concentration: 1.0,
         };
 
         for (name, value) in metrics.named_values() {
