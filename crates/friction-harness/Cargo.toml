@@ -1,0 +1,26 @@
+[package]
+name = "friction-harness"
+version = "0.1.0"
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+
+[lints]
+workspace = true
+
+[dependencies]
+friction-core = { path = "../friction-core" }
+friction-parse = { path = "../friction-parse" }
+friction-nlp = { path = "../friction-nlp" }
+friction-metrics = { path = "../friction-metrics" }
+friction-packs = { path = "../friction-packs" }
+serde = { workspace = true }
+serde_json = { workspace = true }
+thiserror = { workspace = true }
+# Not yet in [workspace.dependencies]; added directly here per this
+# workspace's existing crate-local convention (see friction-metrics's own
+# Cargo.toml) — used only for the seed tell-span/pivot pattern tables. No
+# lookaround is required by any pattern transcribed into src/tellspan.rs or
+# src/pivot.rs.
+regex = "1"

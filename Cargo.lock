@@ -735,6 +735,21 @@ dependencies = [
 ]
 
 [[package]]
+name = "friction-harness"
+version = "0.1.0"
+dependencies = [
+ "friction-core",
+ "friction-metrics",
+ "friction-nlp",
+ "friction-packs",
+ "friction-parse",
+ "regex",
+ "serde",
+ "serde_json",
+ "thiserror 2.0.19",
+]
+
+[[package]]
 name = "friction-metrics"
 version = "0.1.0"
 dependencies = [
