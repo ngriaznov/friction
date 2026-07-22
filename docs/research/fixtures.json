@@ -1,0 +1,134 @@
+{
+  "comment": "Literal regression fixtures from the July 2026 validation session. Categories: accept = engine must produce exactly this output; reject = engine must make NO edit to the input (or must not produce the bad_output); rank = scorer must order a above b.",
+
+  "accept": [
+    {
+      "id": "regression1_getting_started",
+      "input": "This guide will walk you through installing the tool, performing a basic scan, and previewing matches before making any deletions. It is important to note that the configuration file simply needs to be placed in the root directory of your project. By following these steps, you can quickly and easily configure the application to suit your needs.",
+      "output": "This guide covers installing the tool, performing a basic scan, and previewing matches before making any deletions. The configuration file needs to be placed in the root directory of your project. By following these steps, you can configure the application.",
+      "notes": "sub + deletions; 'By following these steps,' legitimately survives pass one"
+    },
+    {
+      "id": "composed_four_operation_paragraph",
+      "input": "This guide will walk you through configuring the backup agent for your staging environment. It is important to note that the agent performs validation of the configuration file before each run. Once validation succeeds, the agent conducts an analysis of the snapshot catalog and simply uploads any missing segments. By following these steps, you can quickly and easily verify that your backups are consistent. If you have any questions or require further assistance, please reach out to our support team.",
+      "output": "This guide covers configuring the backup agent for your staging environment. The agent validates the configuration file before each run. Once validation succeeds, the agent analyzes the snapshot catalog and simply uploads any missing segments. By following these steps, you can verify that your backups are consistent.",
+      "notes": "all four operations; gate-held residue ('simply', 'By following these steps,') must be left verbatim; ritual closer deleted"
+    },
+    {
+      "id": "pivot_constructed_cases",
+      "pairs": [
+        ["The system performs an initialization of the database.", "The system initializes the database."],
+        ["The tool performs validation of the configuration file before applying changes.", "The tool validates the configuration file before applying changes."],
+        ["Before deployment, the script conducts an analysis of the dependency graph.", "Before deployment, the script analyzes the dependency graph."],
+        ["You should make a decision soon.", "You should decide soon."],
+        ["The installer performed a comparison of the two versions.", "The installer compared the two versions."]
+      ]
+    },
+    {
+      "id": "pivot_real_corpus",
+      "input": "However, after careful consideration and experimentation, we made the decision to switch from Gerrit to GitHub pull requests.",
+      "output": "However, after careful consideration and experimentation, we decided to switch from Gerrit to GitHub pull requests.",
+      "provenance": "corpus llm/blog/eec3f5d840461e94.md"
+    },
+    {
+      "id": "near_noop_clean_text",
+      "input": "Run the scanner from the project root. Results stream in as they are found, and nothing is deleted without confirmation.",
+      "output": "Run the scanner from the project root. Results stream in as they are found, and nothing is deleted without confirmation.",
+      "notes": "byte-identical passthrough required"
+    }
+  ],
+
+  "reject": [
+    {
+      "id": "pivot_trap_subject_genitive",
+      "input": "Obtain the approval of the committee before merging.",
+      "bad_output": "Approve the committee before merging.",
+      "gate": "pair licensing (approval never licensed with of-phrase)"
+    },
+    {
+      "id": "pivot_trap_modified_nominal",
+      "input": "The migration performs a full initialization of the database.",
+      "gate": "modified nominal (JJ before nominalization)"
+    },
+    {
+      "id": "pivot_trap_quantified",
+      "input": "The tool performs several initializations of the database during testing.",
+      "gate": "modified/plural nominal"
+    },
+    {
+      "id": "pivot_trap_artifact_noun",
+      "input": "Create an index of the most common queries.",
+      "bad_output": "Index the most common queries.",
+      "gate": "pair licensing (create+index is not an LVC; index is an artifact noun)"
+    },
+    {
+      "id": "pivot_trap_non_light_verb",
+      "input": "The wizard facilitates the integration of the plugin with your DAW.",
+      "bad_output": "The wizard integrates the plugin with your DAW.",
+      "gate": "light-verb set (facilitate has meaning; facilitating is not doing)"
+    },
+    {
+      "id": "pivot_trap_passive",
+      "input": "An initialization of the database is performed by the system.",
+      "gate": "active voice only"
+    },
+    {
+      "id": "heading_pivot",
+      "input_block": {"type": "heading", "text": "Making the Decision"},
+      "bad_output": "deciding",
+      "gate": "prose blocks only (gate 7)"
+    },
+    {
+      "id": "bridge_modal_insertion",
+      "input": "When you install audio plugins on a Mac, vendors typically install multiple versions of the same plugin.",
+      "bad_output": "When you install audio plugins on a Mac, vendors can install multiple versions of the same plugin.",
+      "gate": "no insertion; modals are guard tokens; 'typically' is not slop"
+    },
+    {
+      "id": "bridge_connective_insertion",
+      "input": "It's worth noting that most DAWs scan all these plugins on startup.",
+      "bad_outputs": ["Because most DAWs scan all these plugins on startup.", "With most DAWs scan all these plugins on startup."],
+      "good_output": "Most DAWs scan all these plugins on startup.",
+      "gate": "no insertion; connectives are guard tokens; sentence-initial deletion is the correct edit"
+    },
+    {
+      "id": "bridge_content_insertion",
+      "input": "Worse, plugin uninstallers are often unreliable or missing entirely, leaving orphaned files scattered across your Library.",
+      "bad_output": "Worse, plugin uninstallers are often unreliable or missing documentation, leaving orphaned files scattered across your Library.",
+      "gate": "closure; 'entirely' is not slop and no content word may be inserted"
+    },
+    {
+      "id": "bridge_inert_insertion",
+      "input": "Initially, the biggest hurdle was simply getting used to it.",
+      "bad_output": "Initially, the biggest hurdle was to getting used to it.",
+      "good_output": "Initially, the biggest hurdle was getting used to it.",
+      "gate": "no insertion even from inert vocabulary; delete only when seam attests, else keep"
+    },
+    {
+      "id": "word_salad_synthesis",
+      "input": "This bloat matters because most DAWs scan all these plugins on startup, leading to slower load times.",
+      "bad_output": "The web bloat h a daws that we scan and all plugins and use startup time leading our much slower or load of times.",
+      "gate": "open synthesis banned entirely"
+    }
+  ],
+
+  "rank": [
+    {
+      "id": "chatspeak_vs_human",
+      "worse_file": "samples/chatspeak.md",
+      "better_file": "samples/good_docs.md",
+      "notes": "the metric-centroid-optimized chat-speak rewrite must score worse than well-written docs prose despite better band conformance"
+    },
+    {
+      "id": "dumb_human_vs_conservative",
+      "worse": "To get started with the tool, you first you need the dependencies installed. Setting up the environment. You can configure the application. The configuration file needs to be placed in the root directory. This command line tool manage your workflow.",
+      "better": "To get started, you need the dependencies installed. Then set up the environment. Configure the application, and place the configuration file in the root directory. The command-line tool manages your workflow.",
+      "notes": "string-deletion collapse (broken agreement, fragments) must score worse than the conservative rewrite of the same source"
+    }
+  ],
+
+  "inventory_frontier": {
+    "comment": "Known misses from the real-corpus paragraph run: not engine bugs, first mining targets for M1.",
+    "examples": ["we'll delve into", "our development journey", "fortunate enough to have had the opportunity to"]
+  }
+}
