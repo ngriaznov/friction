@@ -1,6 +1,8 @@
-//! The seed tell-span inventory (RITUAL/SUBS/SPANS, transcribed verbatim
-//! from `ref_engine.py`) plus the derivational-pivot family from
-//! [`crate::pivot`], unified into one scan.
+//! The curated tell-span inventory, unified into one scan.
+//!
+//! Ritual frames, substitution pairs, and deletion spans are sourced from
+//! `friction_packs::INVENTORY`; the fourth family, a derivational-pivot
+//! scan, comes from [`crate::pivot`].
 //!
 //! [`tell_span_hits`] is the single entry point every other module in this
 //! crate that needs "how machine-register is this text" goes through:
@@ -8,107 +10,12 @@
 //! [`crate::closure`] reads each hit's `licensed_tokens` to build its
 //! per-input pack vocabulary.
 
-use std::sync::LazyLock;
+use std::ops::Range;
 
 use friction_nlp::Tagger;
-use regex::Regex;
 
 use crate::clean::{clean, split_sentences, tokenize};
 use crate::pivot::{self, PivotOutcome};
-
-/// Transcribed verbatim from `ref_engine.py::RITUAL`, case-insensitive.
-static RITUAL: LazyLock<Vec<(&'static str, Regex)>> = LazyLock::new(|| {
-    build(&[
-        (
-            "ritual.if_you_have_questions",
-            r"(?i)if you have any questions.{0,60}(reach out|contact|let us know)",
-        ),
-        ("ritual.congratulations_open", r"(?i)^congratulations"),
-        ("ritual.happy_verbing_open", r"(?i)^happy \w+ing"),
-        ("ritual.we_hope", r"(?i)we hope (this|you)"),
-    ])
-});
-
-/// Transcribed from `ref_engine.py::SUBS`, case-insensitive, with one
-/// deliberate correction: the reference maps both `utilize`/`utilizes`
-/// (and `leverage`/`leverages`) to the invariant string "uses", which
-/// breaks subject-verb agreement on base-form matches ("you can
-/// utilize" -> "you can uses"). Each is split here into a form-matched
-/// pair instead.
-static SUBS: LazyLock<Vec<(&'static str, Regex, &'static str)>> = LazyLock::new(|| {
-    [
-        (
-            "sub.this_guide_will_walk_you_through",
-            r"(?i)\bthis guide will walk you through\b",
-            "this guide covers",
-        ),
-        (
-            "sub.will_walk_you_through",
-            r"(?i)\bwill walk you through\b",
-            "covers",
-        ),
-        ("sub.in_order_to", r"(?i)\bin order to\b", "to"),
-        ("sub.prior_to", r"(?i)\bprior to\b", "before"),
-        ("sub.utilize_3sg", r"(?i)\butilizes\b", "uses"),
-        ("sub.utilize_base", r"(?i)\butilize\b", "use"),
-        ("sub.leverage_3sg", r"(?i)\bleverages\b", "uses"),
-        ("sub.leverage_base", r"(?i)\bleverage\b", "use"),
-    ]
-    .into_iter()
-    .map(|(id, pattern, replacement)| {
-        (
-            id,
-            Regex::new(pattern).unwrap_or_else(|e| panic!("SUBS pattern {id} must compile: {e}")),
-            replacement,
-        )
-    })
-    .collect()
-});
-
-/// Transcribed verbatim from `ref_engine.py::SPANS`, case-insensitive.
-static SPANS: LazyLock<Vec<(&'static str, Regex)>> = LazyLock::new(|| {
-    build(&[
-        (
-            "span.it_is_important_to_note_that_leading",
-            r"(?i)^it is important to note that\s+",
-        ),
-        (
-            "span.it_is_important_to_note_that_mid",
-            r"(?i)\bit is important to note that\s+",
-        ),
-        (
-            "span.its_worth_noting_that_leading",
-            r"(?i)^it'?s worth noting that\s+",
-        ),
-        (
-            "span.by_following_these_steps_leading",
-            r"(?i)^by following these steps,?\s+",
-        ),
-        ("span.quickly_and_easily", r"(?i)\bquickly and easily\s+"),
-        ("span.simply", r"(?i)\bsimply\s+"),
-        (
-            "span.to_suit_your_needs_trailing",
-            r"(?i)\s+to suit your needs\b",
-        ),
-        ("span.please_note_that_leading", r"(?i)^please note that\s+"),
-    ])
-});
-
-/// Compiles a `(id, pattern)` list into `(id, Regex)`, panicking on a
-/// malformed pattern — every pattern here is a fixed, hand-transcribed
-/// literal, so a compile failure is this module's own bug, not a runtime
-/// condition.
-fn build(patterns: &[(&'static str, &'static str)]) -> Vec<(&'static str, Regex)> {
-    patterns
-        .iter()
-        .map(|(id, pattern)| {
-            (
-                *id,
-                Regex::new(pattern).unwrap_or_else(|e| panic!("pattern {id} must compile: {e}")),
-            )
-        })
-        .collect()
-}
 
 /// Which of the four tell-span families a [`TellSpanHit`] belongs to.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -144,37 +51,63 @@ pub struct TellSpanHit {
 }
 
 /// True if two half-open byte ranges share at least one byte.
-const fn ranges_overlap(a: &std::ops::Range<usize>, b: &std::ops::Range<usize>) -> bool {
+const fn ranges_overlap(a: &Range<usize>, b: &Range<usize>) -> bool {
     a.start < b.end && b.start < a.end
 }
 
-/// Splits `clean(text)` into sentences and scans each one against all four
-/// families.
+/// Greedy longest-match-first interval selection: sorts candidate matches
+/// by descending byte length (ties broken by the payload's own `Ord`,
+/// which every caller here uses as a `pattern_id`-first tuple or plain
+/// `pattern_id`, for determinism), then accepts each in turn if it
+/// doesn't overlap an already-accepted range.
 ///
-/// Scan order: RITUAL (whole-sentence, matched once per pattern), SUBS
-/// (every non-overlapping occurrence counts), SPANS (every non-overlapping
-/// occurrence counts), PIVOT ([`pivot::match_pivot`], counted only when
-/// `Licensed`).
+/// Equivalent to "prefer the more specific pattern" for every case this
+/// module pairs a specific pattern with a general fallback (a specific
+/// pattern's match is always a superset — hence longer — of the general
+/// fallback it's paired with), but correct regardless of the patterns'
+/// declaration or sort order — unlike the pack's own alphabetical-by-id
+/// ordering, which is not "specific before general" (e.g. `sub.delve_into`
+/// sorts before `sub.we_will_delve_into` alphabetically, the wrong
+/// precedence under a naive "first in list order wins" rule).
+fn resolve_overlaps<T: Ord>(mut candidates: Vec<(Range<usize>, T)>) -> Vec<(Range<usize>, T)> {
+    candidates.sort_by(|a, b| {
+        let len_a = a.0.end.saturating_sub(a.0.start);
+        let len_b = b.0.end.saturating_sub(b.0.start);
+        len_b.cmp(&len_a).then_with(|| a.1.cmp(&b.1))
+    });
+
+    let mut accepted: Vec<(Range<usize>, T)> = Vec::new();
+    for (range, payload) in candidates {
+        if accepted.iter().any(|(r, _)| ranges_overlap(r, &range)) {
+            continue;
+        }
+        accepted.push((range, payload));
+    }
+    accepted
+}
+
+/// Splits `clean(text)` into sentences and scans each against all four families.
 ///
-/// Within SUBS and, separately, within SPANS, a pattern's match is skipped
-/// when its byte range overlaps a match an earlier pattern (in the list
-/// order above) already claimed in the same sentence. Both lists
-/// deliberately pair a specific pattern with a more general fallback (e.g.
-/// `sub.this_guide_will_walk_you_through` before the mid-sentence
-/// `sub.will_walk_you_through`, which it contains) so that one conceptual
-/// edit is never counted twice just because two patterns both happen to
-/// match the same span of text.
+/// Ritual frames, substitution pairs, and deletion spans are sourced from
+/// `friction_packs::INVENTORY`; the fourth comes from
+/// [`pivot::match_pivot`].
+///
+/// Scan order: ritual frames (whole-sentence, matched once per pattern),
+/// substitution pairs (every non-overlapping occurrence counts, resolved
+/// via [`resolve_overlaps`]), deletion spans (same), pivot (counted only
+/// when `Licensed`).
 #[must_use]
 pub fn tell_span_hits(text: &str, tagger: &dyn Tagger) -> Vec<TellSpanHit> {
     let cleaned = clean(text);
     let mut hits = Vec::new();
+    let inventory = &friction_packs::INVENTORY.pack;
 
     for (sentence_index, sentence) in split_sentences(&cleaned).into_iter().enumerate() {
-        for (pattern_id, pattern) in RITUAL.iter() {
-            if let Some(m) = pattern.find(sentence) {
+        for ritual in inventory.ritual_frames() {
+            if let Some(m) = ritual.pattern.find(sentence) {
                 hits.push(TellSpanHit {
                     family: TellSpanFamily::Ritual,
-                    pattern_id,
+                    pattern_id: &ritual.id,
                     sentence_index,
                     matched_text: m.as_str().to_string(),
                     licensed_tokens: Vec::new(),
@@ -182,40 +115,36 @@ pub fn tell_span_hits(text: &str, tagger: &dyn Tagger) -> Vec<TellSpanHit> {
             }
         }
 
-        let mut subs_claimed: Vec<std::ops::Range<usize>> = Vec::new();
-        for (pattern_id, pattern, replacement) in SUBS.iter() {
-            for m in pattern.find_iter(sentence) {
-                let range = m.range();
-                if subs_claimed.iter().any(|r| ranges_overlap(r, &range)) {
-                    continue;
-                }
-                subs_claimed.push(range);
-                hits.push(TellSpanHit {
-                    family: TellSpanFamily::Substitution,
-                    pattern_id,
-                    sentence_index,
-                    matched_text: m.as_str().to_string(),
-                    licensed_tokens: tokenize(replacement),
-                });
+        let mut sub_candidates: Vec<(Range<usize>, (&'static str, &'static str))> = Vec::new();
+        for sub in inventory.substitution_pairs() {
+            for m in sub.pattern.find_iter(sentence) {
+                sub_candidates.push((m.range(), (&sub.id, &sub.replacement)));
             }
         }
+        for (range, (pattern_id, replacement)) in resolve_overlaps(sub_candidates) {
+            hits.push(TellSpanHit {
+                family: TellSpanFamily::Substitution,
+                pattern_id,
+                sentence_index,
+                matched_text: sentence[range].to_string(),
+                licensed_tokens: tokenize(replacement),
+            });
+        }
 
-        let mut spans_claimed: Vec<std::ops::Range<usize>> = Vec::new();
-        for (pattern_id, pattern) in SPANS.iter() {
-            for m in pattern.find_iter(sentence) {
-                let range = m.range();
-                if spans_claimed.iter().any(|r| ranges_overlap(r, &range)) {
-                    continue;
-                }
-                spans_claimed.push(range);
-                hits.push(TellSpanHit {
-                    family: TellSpanFamily::Deletion,
-                    pattern_id,
-                    sentence_index,
-                    matched_text: m.as_str().to_string(),
-                    licensed_tokens: Vec::new(),
-                });
+        let mut span_candidates: Vec<(Range<usize>, &'static str)> = Vec::new();
+        for span in inventory.deletion_spans() {
+            for m in span.pattern.find_iter(sentence) {
+                span_candidates.push((m.range(), &span.id));
             }
+        }
+        for (range, pattern_id) in resolve_overlaps(span_candidates) {
+            hits.push(TellSpanHit {
+                family: TellSpanFamily::Deletion,
+                pattern_id,
+                sentence_index,
+                matched_text: sentence[range].to_string(),
+                licensed_tokens: Vec::new(),
+            });
         }
 
         if let PivotOutcome::Licensed(licensed) = pivot::match_pivot(sentence, tagger) {
@@ -290,10 +219,13 @@ mod tests {
     #[test]
     fn seed_inventory_matches_neither_rank_fixture_sample_by_ritual_subs_spans_alone() {
         // Empirically established finding from the investigation summary:
-        // the primary seed inventory is not, by itself, load-bearing for
-        // either rank fixture. This is a guardrail against silently
-        // "fixing" that in a way that would mask the fragment-rate
-        // guardrail's real role.
+        // the full pack's Ritual/Substitution/Deletion families are not,
+        // by themselves, load-bearing for either rank fixture. This is a
+        // guardrail against silently "fixing" that in a way that would
+        // mask the fragment-rate guardrail's real role. If a newly-mined
+        // pack entry ever spuriously fires on either sample, the fix is
+        // tightening that pattern in `inventory-v1.toml`, never loosening
+        // this test.
         let chatspeak = crate::fixtures::CHATSPEAK_MD;
         let good_docs = crate::fixtures::GOOD_DOCS_MD;
         assert_eq!(count_tell_spans(chatspeak, tagger()), 0);
@@ -305,7 +237,7 @@ mod tests {
         // "this guide will walk you through" is matched by both the
         // specific `sub.this_guide_will_walk_you_through` pattern and the
         // more general `sub.will_walk_you_through` fallback it contains;
-        // only the specific (earlier-listed) one should count.
+        // only the longer (specific) match should count.
         let text = "This guide will walk you through the setup.";
         let hits: Vec<_> = tell_span_hits(text, tagger())
             .into_iter()
@@ -323,8 +255,8 @@ mod tests {
     fn overlapping_spans_pattern_pair_counts_once() {
         // A sentence-initial "It is important to note that " is matched by
         // both the anchored `span.it_is_important_to_note_that_leading`
-        // pattern and the unanchored `_mid` fallback; only the
-        // earlier-listed one should count.
+        // pattern and the unanchored `_mid` fallback; only the longer
+        // (anchored) match should count.
         let text = "It is important to note that the tool is fast.";
         let hits: Vec<_> = tell_span_hits(text, tagger())
             .into_iter()
@@ -344,5 +276,37 @@ mod tests {
             tell_span_hits(text, tagger()),
             tell_span_hits(text, tagger())
         );
+    }
+
+    #[test]
+    fn tell_span_hits_fires_on_a_pack_only_ritual_entry_absent_from_the_old_hardcoded_static() {
+        // `ritual.would_you_like_me_to_elaborate` is a genuinely new,
+        // mined pack entry (never part of the prior hardcoded RITUAL
+        // static) — proves the swap to `friction_packs::INVENTORY` is
+        // real, not a no-op refactor.
+        let text = "Would you like me to elaborate on any specific aspect of this setup?";
+        let hits = tell_span_hits(text, tagger());
+        assert!(
+            hits.iter()
+                .any(|h| h.pattern_id == "ritual.would_you_like_me_to_elaborate"),
+            "expected the pack-only ritual entry to fire: {hits:?}"
+        );
+    }
+
+    #[test]
+    fn resolve_overlaps_prefers_the_longer_match_regardless_of_id_order() {
+        let candidates = vec![(0..3, "z_short"), (0..10, "a_long"), (20..25, "m_disjoint")];
+        let accepted = resolve_overlaps(candidates);
+        let mut ids: Vec<&str> = accepted.iter().map(|(_, id)| *id).collect();
+        ids.sort_unstable();
+        assert_eq!(ids, vec!["a_long", "m_disjoint"]);
+    }
+
+    #[test]
+    fn resolve_overlaps_breaks_length_ties_by_payload_order() {
+        let candidates = vec![(0..5, "b"), (0..5, "a")];
+        let accepted = resolve_overlaps(candidates);
+        assert_eq!(accepted.len(), 1);
+        assert_eq!(accepted[0].1, "a");
     }
 }

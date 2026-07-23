@@ -1,30 +1,35 @@
 //! Derivational pivot (light-verb construction collapse) detection.
 //!
 //! Transcribed from `ref_pivot.py`'s `DERIV`/`LV` tables and its `pivot()`
-//! matching logic — the tables themselves now live in
-//! `friction_nlp::lvc` (shared with offline mining; see that module's
-//! docs for why), so this module imports them rather than defining its
-//! own copy. The task brief scoped the seed tell-span inventory to
-//! RITUAL/SUBS/SPANS; this module adds a fourth tell family on top of that,
-//! because without it three of the five accept fixtures
-//! (`pivot_constructed_cases`, `pivot_real_corpus`, and half of
-//! `composed_four_operation_paragraph`) cannot satisfy "output contains
-//! strictly fewer tell spans than input" — the seed RITUAL/SUBS/SPANS
-//! inventory never matches a light-verb-construction sentence at all, so
-//! raw tell-span count is `0` on both sides of every pivot example. This is
+//! matching logic. `LIGHT_VERBS`/`BE_FORMS`/`conjugate`/`LightVerbForm`
+//! still come from `friction_nlp::lvc` — fixed, closed grammatical
+//! classes (the perform/conduct/make/do inflection tables), not
+//! curated pack data — but the licensed (nominalization -> derived verb)
+//! lookup itself is sourced from `friction_packs::INVENTORY.pack.
+//! lvc_lexicon()` instead of `friction_nlp::lvc::DERIVATIONAL_LEXICON`
+//! directly, so the pack's own `lvc_pairs` family (checked against that
+//! same lexicon at load time — see `friction_packs::InventoryPack::parse`)
+//! is the single source of truth for which pairs are licensed at runtime.
+//! This module adds a fourth tell family on top of the ritual/
+//! substitution/deletion families, because without it three of the five
+//! accept fixtures (`pivot_constructed_cases`, `pivot_real_corpus`, and
+//! half of `composed_four_operation_paragraph`) cannot satisfy "output
+//! contains strictly fewer tell spans than input" — those three families
+//! never match a light-verb-construction sentence at all, so raw
+//! tell-span count is `0` on both sides of every pivot example. This is
 //! the same table [`crate::closure`] needs for its "pack-derivable"
 //! allowance, so it earns its place twice over.
 //!
 //! This milestone only detects and reports licensed pivots; it never
 //! rewrites text (that is a later milestone's job — see
-//! [`crate::pending`]).
+//! [`crate::pending`]). Per-(light-verb, nominalization) licensing (as
+//! opposed to "any of the four light verbs plus a licensed
+//! nominalization") stays out of scope this milestone; this module's
+//! actual gating logic is unchanged — only its licensed-pair data source
+//! moved to the pack.
 
-use friction_nlp::lvc::{BE_FORMS, DERIVATIONAL_LEXICON, LIGHT_VERBS, LightVerbForm, conjugate};
+use friction_nlp::lvc::{BE_FORMS, LIGHT_VERBS, LightVerbForm, conjugate};
 use friction_nlp::{TaggedToken, Tagger};
-
-/// Version tag for the seed pivot inventory transcribed into this module,
-/// mirroring the versioning convention the real pack format will use.
-pub const SEED_INVENTORY_VERSION: &str = "seed-0";
 
 /// The outcome of scanning one sentence for a derivational-pivot
 /// construction.
@@ -36,7 +41,9 @@ pub enum PivotOutcome {
     /// even checked, in the same order `ref_pivot.py` checks them.
     Rejected(PivotRejection),
     /// A light verb plus determiner-optional-nominalization was found, but
-    /// the nominalization is not a key in [`DERIV`] — not a licensed pair.
+    /// the nominalization is not a key in
+    /// `friction_packs::INVENTORY.pack.lvc_lexicon()` — not a licensed
+    /// pair.
     Unlicensed,
     /// A licensed light-verb construction, ready to collapse.
     Licensed(LicensedPivot),
@@ -128,13 +135,14 @@ pub fn match_pivot(sentence: &str, tagger: &dyn Tagger) -> PivotOutcome {
             return PivotOutcome::Rejected(PivotRejection::ModifiedNominal);
         }
 
+        let lvc_lexicon = friction_packs::INVENTORY.pack.lvc_lexicon();
         let nom = surface(&tokens[j]).to_lowercase();
         if let Some(stem) = nom.strip_suffix('s')
-            && DERIVATIONAL_LEXICON.contains_key(stem)
+            && lvc_lexicon.contains_key(stem)
         {
             return PivotOutcome::Rejected(PivotRejection::PluralNominal);
         }
-        let Some(base_verb) = DERIVATIONAL_LEXICON.get(nom.as_str()).copied() else {
+        let Some(base_verb) = lvc_lexicon.get(nom.as_str()) else {
             continue;
         };
 

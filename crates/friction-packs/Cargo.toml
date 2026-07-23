@@ -14,7 +14,16 @@ workspace = true
 # returns — this crate performs no parsing, NLP, or metric computation of
 # its own.
 friction-core = { path = "../friction-core" }
+# `InventoryPack::parse` checks every `lvc_pairs` entry against
+# `friction_nlp::lvc::DERIVATIONAL_LEXICON`/`LIGHT_VERBS` — acyclic
+# (friction-nlp does not depend on this crate).
+friction-nlp = { path = "../friction-nlp" }
 serde = { workspace = true }
 sha2 = { workspace = true }
 thiserror = { workspace = true }
 toml = { workspace = true }
+# Not yet in [workspace.dependencies]; added directly here per this
+# workspace's existing crate-local convention (see friction-harness's own
+# Cargo.toml, which needs this same crate for the same seed-pattern
+# tables this crate's inventory pack now owns instead).
+regex = "1"

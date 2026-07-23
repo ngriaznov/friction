@@ -72,6 +72,13 @@ enum Command {
     /// shared vocabulary) that a DMS suffix-automaton index reconstructs
     /// from.
     Index(commands::index::Args),
+    /// Parses and validates an inventory pack (structural checks plus
+    /// disjointness/closure/frequency-hygiene rules).
+    PackCheck(commands::pack_check::Args),
+    /// On the train split, measures how often a fixed literal replacement
+    /// phrase already occurs naturally in the human corpus, for the
+    /// inventory pack's output-frequency hygiene bands.
+    OutputBands(commands::output_bands::Args),
 }
 
 /// Parses process arguments and runs the selected subcommand.
@@ -121,5 +128,7 @@ pub fn run() -> anyhow::Result<()> {
         Command::MineInventory(args) => commands::mine_inventory::run(&args),
         Command::MinePaired(args) => commands::mine_paired::run(&args),
         Command::Index(args) => commands::index::run(&args),
+        Command::PackCheck(args) => commands::pack_check::run(&args),
+        Command::OutputBands(args) => commands::output_bands::run(&args),
     }
 }

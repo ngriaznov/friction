@@ -786,6 +786,8 @@ name = "friction-packs"
 version = "0.1.0"
 dependencies = [
  "friction-core",
+ "friction-nlp",
+ "regex",
  "serde",
  "sha2",
  "thiserror 2.0.19",

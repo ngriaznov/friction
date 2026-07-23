@@ -20,6 +20,8 @@ pub mod mine;
 pub mod mine_inventory;
 pub mod mine_paired;
 pub(crate) mod ngram_mining;
+pub mod output_bands;
+pub mod pack_check;
 pub mod remove;
 pub mod seal;
 pub mod separate;

@@ -91,6 +91,99 @@ pub enum PackError {
         /// The pack's vocabulary size.
         vocab_len: usize,
     },
+
+    /// An inventory pack entry's `pattern` field is not a valid regex
+    /// (see [`crate::InventoryPack::parse`]).
+    #[error("{id}: pattern {pattern:?} does not compile: {message}")]
+    InventoryInvalidPattern {
+        /// The entry's id.
+        id: String,
+        /// The offending pattern source.
+        pattern: String,
+        /// The underlying regex compile error message.
+        message: String,
+    },
+
+    /// A `deletion_spans` entry's `anchor` field is not one of
+    /// `"sentence_initial"`, `"mid_sentence"`, or `"trailing"`.
+    #[error("{id}: {value:?} is not a known anchor")]
+    InventoryUnknownAnchor {
+        /// The entry's id.
+        id: String,
+        /// The offending value, as written in the pack.
+        value: String,
+    },
+
+    /// A `deletion_spans`/`ritual_frames`/`preview_frames` entry's
+    /// `repair` field is not one of `"delete"` or `"diagnostic_only"`.
+    #[error("{id}: {value:?} is not a known repair kind for this family")]
+    InventoryUnknownRepairKind {
+        /// The entry's id.
+        id: String,
+        /// The offending value, as written in the pack.
+        value: String,
+    },
+
+    /// A `substitution_pairs` entry's `repair` field is not literally
+    /// `"substitute"` — by construction, a substitution pair can never
+    /// carry a `diagnostic_only` state.
+    #[error("{id}: {family}'s repair field must be \"substitute\", found {found:?}")]
+    InventoryInvalidRepairForFamily {
+        /// The entry's id.
+        id: String,
+        /// The family name (`"substitution_pairs"`).
+        family: &'static str,
+        /// The offending value, as written in the pack.
+        found: String,
+    },
+
+    /// An `output_frequency_bands` entry's `unit` field is not
+    /// `"per_thousand_words"`.
+    #[error("{frame}: {value:?} is not a known frequency unit")]
+    InventoryUnknownFrequencyUnit {
+        /// The band's frame text.
+        frame: String,
+        /// The offending value, as written in the pack.
+        value: String,
+    },
+
+    /// The same `id` appears in more than one of
+    /// `deletion_spans`/`substitution_pairs`/`ritual_frames`/`preview_frames`.
+    #[error("duplicate id across inventory families: {id:?}")]
+    InventoryDuplicateId {
+        /// The duplicated id.
+        id: String,
+    },
+
+    /// The same `nominalization` appears in more than one `lvc_pairs` entry.
+    #[error("duplicate lvc_pairs nominalization: {nominalization:?}")]
+    InventoryDuplicateLvcNominalization {
+        /// The duplicated nominalization.
+        nominalization: String,
+    },
+
+    /// An `lvc_pairs` entry's `(nominalization, derived_verb)` does not
+    /// resolve in `friction_nlp::lvc::DERIVATIONAL_LEXICON`.
+    #[error(
+        "lvc_pairs: ({nominalization:?}, {derived_verb:?}) does not resolve in \
+         friction_nlp::lvc::DERIVATIONAL_LEXICON"
+    )]
+    InventoryUnresolvableLvcPair {
+        /// The entry's nominalization.
+        nominalization: String,
+        /// The entry's derived verb.
+        derived_verb: String,
+    },
+
+    /// An `lvc_pairs` entry's `light_verb_base` is not a base-form key in
+    /// `friction_nlp::lvc::LIGHT_VERBS`.
+    #[error("lvc_pairs.{nominalization}: {light_verb_base:?} is not a known base-form light verb")]
+    InventoryUnknownLightVerbBase {
+        /// The entry's nominalization.
+        nominalization: String,
+        /// The offending light-verb-base value, as written in the pack.
+        light_verb_base: String,
+    },
 }
 
 impl From<toml::de::Error> for PackError {
@@ -149,6 +242,18 @@ impl Sha256 {
         let mut hasher = Sha2Hasher::new();
         hasher.update(bytes);
         hasher.finalize().as_slice() == self.0
+    }
+
+    /// Computes the sha256 checksum of `bytes` directly, rather than
+    /// parsing one from a hex digest.
+    #[must_use]
+    pub fn of_bytes(bytes: &[u8]) -> Self {
+        let mut hasher = Sha2Hasher::new();
+        hasher.update(bytes);
+        let digest = hasher.finalize();
+        let mut out = [0u8; 32];
+        out.copy_from_slice(digest.as_slice());
+        Self(out)
     }
 }
 
@@ -340,6 +445,14 @@ mod tests {
         let bad = "z".repeat(64);
         let err = Sha256::parse_hex(&bad).unwrap_err();
         assert!(matches!(err, PackError::InvalidChecksum { .. }));
+    }
+
+    /// `Sha256::of_bytes` agrees with `Sha256::parse_hex` on a known digest.
+    #[test]
+    fn sha256_of_bytes_matches_parse_hex() {
+        let hex = "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855";
+        assert_eq!(Sha256::of_bytes(b"").to_string(), hex);
+        assert_eq!(Sha256::of_bytes(b""), Sha256::parse_hex(hex).unwrap());
     }
 
     /// `Sha256::verify` matches the checksum of the exact bytes it was

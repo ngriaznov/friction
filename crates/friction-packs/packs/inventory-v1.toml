@@ -70,6 +70,17 @@
 mine_inventory_report_path = "corpus/MINE_INVENTORY.md"
 mine_paired_report_path = "corpus/MINE_PAIRED.md"
 
+# A small closed function-word list: a substitution replacement's content
+# words must be traceable to its own pattern, `declared_literal_tokens`,
+# or an honestly-noted `attested_replacement_tokens` entry (see
+# `friction_packs::validate::check_closure`) - this list exists so a
+# replacement's ordinary connective/determiner scaffolding (e.g. "before"
+# needing no separate attestation just because it glues two content words
+# together) doesn't have to be attested one substitution at a time. Kept
+# deliberately small: every word here is a genuinely closed-class English
+# function word, not a content word that happens to recur.
+closure_function_word_allowance = ["a", "an", "the", "to", "of", "and", "or"]
+
 [pack]
 version = "inventory-v1"
 corpus_manifest_sha256 = "001d33df8d362ee94ffd2d8e0fcdf811fd4ce1de34cd909a7d852793a34b6969"
@@ -154,6 +165,7 @@ pattern = '(?i)\bcrucial for\b'
 replacement = "important for"
 repair = "substitute"
 source = "mined-paired"
+attested_replacement_tokens = ["important"]
 notes = """
 Mined via corpus-tool mine-paired (topic-cancelled by construction: \
 stock and antislop answer the identical prompt under the identical \
@@ -179,6 +191,7 @@ pattern = '(?i)\bdelve into\b'
 replacement = "cover"
 repair = "substitute"
 source = "curated-seed"
+attested_replacement_tokens = ["cover"]
 notes = """
 Frontier phrase, general form. Train-split measured counts: \
 count_M=5, count_H=0 for "delve into" itself; the constituent word \
@@ -213,6 +226,7 @@ pattern = '(?i)\bis crucial\b'
 replacement = "matters"
 repair = "substitute"
 source = "mined-paired"
+attested_replacement_tokens = ["matters"]
 notes = """
 Mined via corpus-tool mine-paired (topic-cancelled - see sub.crucial_for \
 above for the shared methodology note). Paired-corpus counts: "is \
@@ -246,11 +260,14 @@ pattern = '(?i)\bleverages\b'
 replacement = "uses"
 repair = "substitute"
 source = "seed"
+attested_replacement_tokens = ["uses"]
 notes = """
 Split from the seed's single `\\bleverages?\\b -> "uses"` entry, whose \
 invariant replacement broke subject-verb agreement on base-form \
 matches ("you can leverage" -> "you can uses"). Form-matched pair with \
-sub.leverage_base.
+sub.leverage_base. Replacement "uses" is attested throughout the human \
+train corpus as the plain verb this pack's own sub.utilize_3sg entry \
+also normalizes onto.
 """
 
 [[substitution_pairs]]
@@ -259,7 +276,13 @@ pattern = '(?i)\bleverage\b'
 replacement = "use"
 repair = "substitute"
 source = "seed"
-notes = "Base-form half of the sub.leverage_3sg split; see that entry."
+attested_replacement_tokens = ["use"]
+notes = """
+Base-form half of the sub.leverage_3sg split; see that entry. \
+Replacement "use" is a common closed-register verb attested throughout \
+the human train corpus, the same base form this pack's own \
+sub.utilize_base entry normalizes onto.
+"""
 
 [[substitution_pairs]]
 id = "sub.our_development_journey"
@@ -294,6 +317,13 @@ pattern = '(?i)\bprior to\b'
 replacement = "before"
 repair = "substitute"
 source = "seed"
+attested_replacement_tokens = ["before"]
+notes = """
+Seed entry, transcribed verbatim from the prior runtime inventory. \
+Replacement "before" is a closed-class temporal preposition attested \
+throughout the human train corpus in exactly this framing role (e.g. \
+"before you begin", "before applying changes").
+"""
 
 [[substitution_pairs]]
 id = "sub.this_guide_will_walk_you_through"
@@ -301,6 +331,14 @@ pattern = '(?i)\bthis guide will walk you through\b'
 replacement = "this guide covers"
 repair = "substitute"
 source = "seed"
+attested_replacement_tokens = ["covers"]
+notes = """
+Seed entry, transcribed verbatim from the prior runtime inventory. \
+Replacement "covers" is attested in the human train corpus as an \
+intro-framing verb (e.g. "this guide covers the steps required"), the \
+same slot this pack's own sub.will_walk_you_through / sub.delve_into \
+entries also normalize onto.
+"""
 
 [[substitution_pairs]]
 id = "sub.utilize_3sg"
@@ -308,11 +346,14 @@ pattern = '(?i)\butilizes\b'
 replacement = "uses"
 repair = "substitute"
 source = "seed"
+attested_replacement_tokens = ["uses"]
 notes = """
 Split from the seed's single `\\butilizes?\\b -> "uses"` entry, whose \
 invariant replacement broke subject-verb agreement on base-form \
 matches ("you can utilize" -> "you can uses"). Form-matched pair with \
-sub.utilize_base.
+sub.utilize_base. Replacement "uses" is attested throughout the human \
+train corpus as the plain verb this pack's own sub.leverage_3sg entry \
+also normalizes onto.
 """
 
 [[substitution_pairs]]
@@ -321,7 +362,13 @@ pattern = '(?i)\butilize\b'
 replacement = "use"
 repair = "substitute"
 source = "seed"
-notes = "Base-form half of the sub.utilize_3sg split; see that entry."
+attested_replacement_tokens = ["use"]
+notes = """
+Base-form half of the sub.utilize_3sg split; see that entry. \
+Replacement "use" is a common closed-register verb attested throughout \
+the human train corpus, the same base form this pack's own \
+sub.leverage_base entry normalizes onto.
+"""
 
 [[substitution_pairs]]
 id = "sub.we_will_delve_into"
@@ -329,6 +376,7 @@ pattern = "(?i)\\bwe'?ll delve into\\b"
 replacement = "we cover"
 repair = "substitute"
 source = "curated-seed"
+attested_replacement_tokens = ["we", "cover"]
 notes = """
 Frontier phrase, specific form (paired with the general sub.delve_into \
 fallback below it in id order, the same specific-then-general pairing \
@@ -352,6 +400,14 @@ pattern = '(?i)\bwill walk you through\b'
 replacement = "covers"
 repair = "substitute"
 source = "seed"
+attested_replacement_tokens = ["covers"]
+notes = """
+Seed entry, transcribed verbatim from the prior runtime inventory. \
+Replacement "covers" is attested in the human train corpus as an \
+intro-framing verb (e.g. "this document will cover general methods"), \
+the same slot this pack's own sub.this_guide_will_walk_you_through / \
+sub.delve_into entries also normalize onto.
+"""
 
 # --------------------------------------------------------------------
 # Whole-sentence ritual frames (deleted whole, or - for the one
@@ -516,12 +572,16 @@ the gate cleanly), and the 3-gram "like me to" at 11/0 as well.
 """
 
 # --------------------------------------------------------------------
-# Block-position-conditioned rules. No seed entries exist for this
-# family (it did not exist in the prior runtime's inventory). One
-# candidate was measured this round and explicitly rejected rather
-# than admitted - see corpus/MINING_V2.md for the full counts and
-# reasoning. Section left empty pending a stronger or differently-
-# shaped signal.
+# Block-position-conditioned preview frames ([[preview_frames]] - a
+# pattern plus a flag for whether it requires header-lemma coverage
+# before it licenses anything). No seed entries exist for this family
+# (it did not exist in the prior runtime's inventory). One candidate was
+# measured this round and explicitly rejected rather than admitted - see
+# corpus/MINING_V2.md for the full counts and reasoning. An empty array
+# is a valid, intentional state for this family - nothing parses
+# [[preview_frames]] entries into a runtime detection pass yet - so the
+# section is left empty pending a stronger or differently-shaped signal
+# rather than populated with a placeholder entry.
 # --------------------------------------------------------------------
 
 # --------------------------------------------------------------------
@@ -869,3 +929,93 @@ negation = ["not", "n't", "never", "no", "none", "nobody", "nothing", "neither",
 quantifiers = ["all", "every", "each", "any", "some", "several", "many", "few", "most", "both", "either"]
 modals = ["can", "could", "will", "would", "shall", "should", "may", "might", "must"]
 connectives = ["because", "so", "since", "although", "though", "while", "whereas", "unless", "if", "then", "therefore", "however", "but", "yet"]
+
+# --------------------------------------------------------------------
+# Output-frequency hygiene bands (one per literal replacement string this
+# pack's substitution pairs introduce; "use"/"uses" are two separate
+# entries). `observed_rate` is each frame's measured natural occurrence
+# rate in the train-split human corpus (per 1000 word tokens);
+# `max = observed_rate * 3`, a documented 3x ceiling, except for a
+# frame observed zero times ("we cover"), which gets a documented floor
+# of 0.01 instead of 0x so a single future occurrence in a fixed document
+# is not automatically a hygiene violation.
+#
+# Provenance: `corpus-tool output-bands --corpus-dir corpus --report
+# corpus/OUTPUT_BANDS.md`, train split, human docs only, default
+# `--ceiling-multiplier 3.0`, 264 train-split human docs / 253575 word
+# tokens total. See corpus/OUTPUT_BANDS.md for the full measurement
+# table (occurrence counts, per-frame tokenization).
+# --------------------------------------------------------------------
+
+[[output_frequency_bands]]
+frame = "covers"
+unit = "per_thousand_words"
+observed_rate = 0.027605
+max = 0.082816
+sample_doc_count = 264
+method = "human_train_rate_x3"
+
+[[output_frequency_bands]]
+frame = "to"
+unit = "per_thousand_words"
+observed_rate = 28.863255
+max = 86.589766
+sample_doc_count = 264
+method = "human_train_rate_x3"
+
+[[output_frequency_bands]]
+frame = "before"
+unit = "per_thousand_words"
+observed_rate = 0.772947
+max = 2.318841
+sample_doc_count = 264
+method = "human_train_rate_x3"
+
+[[output_frequency_bands]]
+frame = "use"
+unit = "per_thousand_words"
+observed_rate = 3.170660
+max = 9.511979
+sample_doc_count = 264
+method = "human_train_rate_x3"
+
+[[output_frequency_bands]]
+frame = "uses"
+unit = "per_thousand_words"
+observed_rate = 0.492951
+max = 1.478852
+sample_doc_count = 264
+method = "human_train_rate_x3"
+
+[[output_frequency_bands]]
+frame = "important for"
+unit = "per_thousand_words"
+observed_rate = 0.035492
+max = 0.106477
+sample_doc_count = 264
+method = "human_train_rate_x3"
+
+[[output_frequency_bands]]
+frame = "matters"
+unit = "per_thousand_words"
+observed_rate = 0.078872
+max = 0.236616
+sample_doc_count = 264
+method = "human_train_rate_x3"
+
+[[output_frequency_bands]]
+frame = "we cover"
+unit = "per_thousand_words"
+observed_rate = 0.000000
+max = 0.010000
+sample_doc_count = 264
+method = "zero_baseline_floor"
+notes = "\"we cover\" never occurs in the train-split human corpus (0/253575); the 0.01 floor is a documented ceiling for a frame with no observed baseline, not a rounded multiple of a zero rate."
+
+[[output_frequency_bands]]
+frame = "development"
+unit = "per_thousand_words"
+observed_rate = 0.366755
+max = 1.100266
+sample_doc_count = 264
+method = "human_train_rate_x3"

@@ -49,6 +49,19 @@
 //! milestone builds and unit-tests the reconstruction only; nothing wires
 //! a [`DmsIndex`] into a running fix-time detection pass yet.
 //!
+//! # Inventory pack
+//!
+//! [`InventoryPack`] parses the curated tell-span inventory
+//! (`packs/inventory-v1.toml`, embedded and exposed pre-parsed as
+//! [`INVENTORY`]) into typed, deterministically-sorted tables:
+//! deletion spans, substitution pairs, ritual frames, a (currently empty)
+//! preview-frame family, licensed light-verb-construction pairs, guard
+//! tokens, a closure function-word allowance, and output-frequency
+//! hygiene bands. [`validate`] runs three build-time audits over a parsed
+//! pack — disjointness, closure, and output-frequency hygiene — see that
+//! function's own docs. [`load_dms_pack`] and [`INVENTORY`] both go
+//! through [`LoadedPack`], this crate's one unified pack-registry shape.
+//!
 //! # Determinism
 //!
 //! [`REGISTRY`] is a `Vec`, not a hash-based collection, and preserves the
@@ -61,7 +74,19 @@
 mod artifact;
 mod dms;
 mod envelope;
+mod inventory;
+mod registry;
+mod validate;
 
 pub use artifact::{Artifact, ArtifactKind, PackError, REGISTRY, Sha256, parse_registry};
 pub use dms::{DmsIndex, ModelFamily, Sam, Vocab};
 pub use envelope::{ENVELOPE_V2, EnvelopePack, exceedance};
+pub use inventory::{
+    Anchor, DeletionSpan, FrequencyUnit, GuardTokens, InventoryPack, LvcPair, OutputFrequencyBand,
+    PreviewFrame, RepairKind, RitualFrame, SubstitutionPair,
+};
+pub use registry::{INVENTORY, LoadedPack, load_dms_pack};
+pub use validate::{
+    ClosureViolation, DisjointnessViolation, FrequencyHygieneReason, FrequencyHygieneViolation,
+    Violation, check_closure, check_disjointness, check_frequency_hygiene, validate,
+};
