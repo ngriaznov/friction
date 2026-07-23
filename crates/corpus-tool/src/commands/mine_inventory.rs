@@ -39,6 +39,7 @@ use friction_nlp::lvc::{DERIVATIONAL_LEXICON, LightVerbForm, conjugate, scan_con
 use friction_nlp::{NlpruleTagger, Tagger};
 
 use crate::commands::mine::{ClassCounts, accumulate_ngrams};
+use crate::commands::ngram_mining;
 use crate::manifest::{self, Class, ManifestRecord, Split};
 use crate::metric_source::load_document;
 
@@ -292,7 +293,10 @@ struct PreviewOverlapEvidence {
 /// Splits `sentence`'s canonical tokens into word-runs: maximal runs of
 /// non-punctuation tokens, broken at any [`friction_harness::clean::is_punctuation_token`]
 /// boundary. Used by every n-gram-window family in this module.
-fn word_runs(sentence: &str) -> Vec<Vec<String>> {
+///
+/// `pub(crate)` so `commands::mine_paired` reuses the exact same
+/// tokenization convention rather than re-implementing it.
+pub(crate) fn word_runs(sentence: &str) -> Vec<Vec<String>> {
     let tokens = friction_harness::clean::tokenize(sentence);
     let mut runs = Vec::new();
     let mut current: Vec<String> = Vec::new();
@@ -346,44 +350,12 @@ fn skeleton_word_runs(sentence: &str, tagger: &dyn Tagger) -> Vec<Vec<String>> {
 }
 
 // --- ratio-threshold scoring (shared by literal and skeleton mining) ---
-
-/// `(count_num/total_num + eps/total_num) / (count_den/total_den +
-/// eps/total_den)` — the eps-ratio score, oriented so `count_num`/
-/// `total_num` is the "favored" side. `None` if either total is zero
-/// (no basis for a rate at all).
-fn ratio_score(
-    count_num: u64,
-    total_num: u64,
-    count_den: u64,
-    total_den: u64,
-    eps: f64,
-) -> Option<f64> {
-    if total_num == 0 || total_den == 0 {
-        return None;
-    }
-    #[allow(clippy::cast_precision_loss)]
-    let (count_num, total_num, count_den, total_den) = (
-        count_num as f64,
-        total_num as f64,
-        count_den as f64,
-        total_den as f64,
-    );
-    let numerator = count_num / total_num + eps / total_num;
-    let denominator = count_den / total_den + eps / total_den;
-    Some(numerator / denominator)
-}
-
-/// `true` iff every space-separated token of `ngram` has a human-corpus
-/// frequency (from `human_unigram`) at or above `min_freq`.
-fn passes_human_freq_gate(
-    ngram: &str,
-    human_unigram: &BTreeMap<String, u64>,
-    min_freq: u64,
-) -> bool {
-    ngram
-        .split(' ')
-        .all(|token| human_unigram.get(token).copied().unwrap_or(0) >= min_freq)
-}
+//
+// The scoring core itself (`ratio_score`, the frequency gate, the
+// per-order build/sort/truncate logic) lives in `commands::ngram_mining`
+// now, shared with `mine-paired` — see that module's doc comment. This
+// module keeps only its own report types and the thin adapter that maps
+// onto them, so its rendered output (and existing tests) are unaffected.
 
 /// One scored n-gram entry (literal or skeleton mining).
 #[derive(Debug, Clone)]
@@ -407,6 +379,12 @@ struct OrderReport {
 /// gating on `counts[&1]`'s per-token human frequency and this order's
 /// own machine-count threshold (mirrored onto the human side for the
 /// human-favored direction, per the module docs).
+///
+/// A thin wrapper over `ngram_mining::build_ratio_order_report`
+/// (`counts.llm` = "a" = machine, `counts.human` = "b" = human, per
+/// that module's own documented generic-reuse contract) — pure
+/// extraction, so this produces byte-identical output to the original
+/// inline implementation.
 fn build_literal_order_report(
     order: usize,
     counts: &BTreeMap<usize, ClassCounts>,
@@ -414,75 +392,43 @@ fn build_literal_order_report(
 ) -> OrderReport {
     let class_counts = &counts[&order];
     let human_unigram = &counts[&1].human;
-    let total_machine: u64 = class_counts.llm.values().sum();
-    let total_human: u64 = class_counts.human.values().sum();
     let threshold = min_machine_count(order, args);
 
-    let mut vocab: BTreeSet<&str> = BTreeSet::new();
-    vocab.extend(class_counts.llm.keys().map(String::as_str));
-    vocab.extend(class_counts.human.keys().map(String::as_str));
-
-    let mut machine_favored = Vec::new();
-    let mut human_favored = Vec::new();
-    for ngram in vocab {
-        if !passes_human_freq_gate(ngram, human_unigram, args.min_human_token_freq) {
-            continue;
-        }
-        let count_machine = class_counts.llm.get(ngram).copied().unwrap_or(0);
-        let count_human = class_counts.human.get(ngram).copied().unwrap_or(0);
-
-        if count_machine >= threshold
-            && let Some(score) = ratio_score(
-                count_machine,
-                total_machine,
-                count_human,
-                total_human,
-                args.eps,
-            )
-        {
-            machine_favored.push(LiteralEntry {
-                ngram: ngram.to_string(),
-                count_machine,
-                count_human,
-                score,
-            });
-        }
-        if count_human >= threshold
-            && let Some(score) = ratio_score(
-                count_human,
-                total_human,
-                count_machine,
-                total_machine,
-                args.eps,
-            )
-        {
-            human_favored.push(LiteralEntry {
-                ngram: ngram.to_string(),
-                count_machine,
-                count_human,
-                score,
-            });
-        }
-    }
-    machine_favored.sort_by(|a, b| {
-        b.score
-            .total_cmp(&a.score)
-            .then_with(|| a.ngram.cmp(&b.ngram))
-    });
-    machine_favored.truncate(args.top);
-    human_favored.sort_by(|a, b| {
-        b.score
-            .total_cmp(&a.score)
-            .then_with(|| a.ngram.cmp(&b.ngram))
-    });
-    human_favored.truncate(args.top);
+    let report = ngram_mining::build_ratio_order_report(
+        order,
+        class_counts,
+        human_unigram,
+        args.min_human_token_freq,
+        threshold,
+        threshold,
+        args.top,
+        args.eps,
+    );
 
     OrderReport {
-        order,
-        total_machine,
-        total_human,
-        machine_favored,
-        human_favored,
+        order: report.order,
+        total_machine: report.total_a,
+        total_human: report.total_b,
+        machine_favored: report
+            .a_favored
+            .into_iter()
+            .map(|e| LiteralEntry {
+                ngram: e.ngram,
+                count_machine: e.count_a,
+                count_human: e.count_b,
+                score: e.score,
+            })
+            .collect(),
+        human_favored: report
+            .b_favored
+            .into_iter()
+            .map(|e| LiteralEntry {
+                ngram: e.ngram,
+                count_machine: e.count_a,
+                count_human: e.count_b,
+                score: e.score,
+            })
+            .collect(),
     }
 }
 
@@ -1161,21 +1107,21 @@ mod tests {
         assert!(word_runs("").is_empty());
     }
 
-    // --- ratio_score / passes_human_freq_gate ---
+    // --- ratio_score / passes_token_freq_gate (now in `ngram_mining`) ---
 
     #[test]
     fn ratio_score_matches_hand_computed_example() {
         // count_num=8,total_num=100,count_den=0,total_den=100,eps=0.4:
         // numerator = 8/100 + 0.4/100 = 0.084; denominator = 0/100 +
         // 0.4/100 = 0.004; score = 0.084/0.004 = 21.0.
-        let score = ratio_score(8, 100, 0, 100, 0.4).unwrap();
+        let score = ngram_mining::ratio_score(8, 100, 0, 100, 0.4).unwrap();
         assert!((score - 21.0).abs() < 1e-9, "score={score}");
     }
 
     #[test]
     fn ratio_score_none_when_a_total_is_zero() {
-        assert_eq!(ratio_score(1, 0, 1, 10, 0.4), None);
-        assert_eq!(ratio_score(1, 10, 1, 0, 0.4), None);
+        assert_eq!(ngram_mining::ratio_score(1, 0, 1, 10, 0.4), None);
+        assert_eq!(ngram_mining::ratio_score(1, 10, 1, 0, 0.4), None);
     }
 
     #[test]
@@ -1183,8 +1129,12 @@ mod tests {
         let mut freq = BTreeMap::new();
         freq.insert("delve".to_string(), 0u64);
         freq.insert("into".to_string(), 378u64);
-        assert!(!passes_human_freq_gate("delve into", &freq, 25));
-        assert!(passes_human_freq_gate("into", &freq, 25));
+        assert!(!ngram_mining::passes_token_freq_gate(
+            "delve into",
+            &freq,
+            25
+        ));
+        assert!(ngram_mining::passes_token_freq_gate("into", &freq, 25));
     }
 
     // --- min_machine_count ---

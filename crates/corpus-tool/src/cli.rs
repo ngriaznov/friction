@@ -44,6 +44,8 @@ enum Command {
     FixEntities(commands::fix_entities::Args),
     /// Generate the LLM corpus via Ollama.
     Generate(commands::generate::Args),
+    /// Generate the stock/antislop paired mining corpus via Ollama.
+    GeneratePaired(commands::generate_paired::Args),
     /// Estimate per-`(genre, metric)` human percentile bands from the
     /// train split and write a versioned envelope pack.
     Envelope(commands::envelope::Args),
@@ -62,6 +64,10 @@ enum Command {
     /// POS-skeleton patterns, block-position-conditioned frames, and
     /// light-verb-construction pair rates for the curated inventory pack.
     MineInventory(commands::mine_inventory::Args),
+    /// On the stock/antislop paired mining corpus, mine ratio-threshold
+    /// literal n-grams (2-/3-/4-gram only), with a read-only
+    /// human-train cross-check column.
+    MinePaired(commands::mine_paired::Args),
     /// Builds the per-model-family and human token-id streams (over one
     /// shared vocabulary) that a DMS suffix-automaton index reconstructs
     /// from.
@@ -76,9 +82,9 @@ enum Command {
 /// should treat this as a non-zero exit. See each `commands::*::run` for
 /// what specifically can fail.
 ///
-/// `generate` is the one subcommand that can also make the *process*
-/// exit non-zero on success: if any job was skipped because its model
-/// wasn't available in Ollama, this calls
+/// `generate` and `generate-paired` are the two subcommands that can
+/// also make the *process* exit non-zero on success: if any job was
+/// skipped because its model wasn't available in Ollama, each calls
 /// `std::process::exit(commands::generate::EXIT_CODE_MODELS_SKIPPED)`
 /// after printing the summary, rather than returning `Ok(())` — every
 /// other subcommand's success is a plain `Ok(())`.
@@ -101,11 +107,19 @@ pub fn run() -> anyhow::Result<()> {
             }
             Ok(())
         }
+        Command::GeneratePaired(args) => {
+            let outcome = commands::generate_paired::run(&args)?;
+            if outcome.any_models_skipped() {
+                std::process::exit(commands::generate::EXIT_CODE_MODELS_SKIPPED);
+            }
+            Ok(())
+        }
         Command::Envelope(args) => commands::envelope::run(&args),
         Command::Separate(args) => commands::separate::run(&args),
         Command::SeparateHoldout(args) => commands::separate_holdout::run(&args),
         Command::Mine(args) => commands::mine::run(&args),
         Command::MineInventory(args) => commands::mine_inventory::run(&args),
+        Command::MinePaired(args) => commands::mine_paired::run(&args),
         Command::Index(args) => commands::index::run(&args),
     }
 }

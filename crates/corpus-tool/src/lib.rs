@@ -14,4 +14,6 @@ pub mod hashing;
 pub mod manifest;
 pub mod metric_source;
 pub mod ollama;
+pub mod paired_genconfig;
+pub mod paired_manifest;
 pub mod prompts;

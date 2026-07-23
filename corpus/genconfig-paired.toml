@@ -1,0 +1,33 @@
+# corpus/genconfig-paired.toml — stock/antislop paired generation config,
+# consumed by `cargo run -p corpus-tool -- generate-paired`.
+#
+# The corpus this drives (corpus/paired/) is a MINING RESOURCE: never
+# added to corpus/manifest.jsonl, never split train/dev/holdout. This
+# file is deliberately separate from corpus/genconfig.toml, which drives
+# the manifest-tracked, split eval corpus.
+
+# Distinct from genconfig.toml's base_seed by construction (different
+# file, different hash input — see derive_paired_seed in
+# crates/corpus-tool/src/commands/generate_paired.rs) so paired seeds can
+# never collide with a `generate` job's seed.
+base_seed = 848484
+
+# Fixed for every paired job — no low-temperature or style-prompted
+# slicing, so ratio mining sees only the stock/antislop contrast.
+temperature = 0.7
+
+# First N prompts per genre, ascending id order (matching
+# corpus_tool::prompts::load's own sort). Pinned so the paired corpus's
+# size (5 * N per side) stays fixed even as corpus/prompts/*.toml grows
+# past N for the `generate` recipe. Current catalogs hold 45-50 prompts
+# per genre; this intentionally uses only the first 11.
+prompts_per_genre = 11
+
+[ollama]
+endpoint = "http://localhost:11434"
+num_predict = 1536
+request_timeout_secs = 300
+
+[models]
+stock = "gemma3:12b"
+antislop = "hf.co/mradermacher/gemma-3-12b-it-antislop-GGUF:Q4_K_M"

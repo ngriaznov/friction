@@ -34,7 +34,10 @@ pub const EXIT_CODE_MODELS_SKIPPED: i32 = 3;
 
 /// The frozen genre set, in the fixed order genres are planned and
 /// printed.
-const ALL_GENRES: [Genre; 5] = [
+///
+/// `pub(crate)` so `commands::generate_paired` reuses the exact same
+/// frozen order rather than duplicating it.
+pub(crate) const ALL_GENRES: [Genre; 5] = [
     Genre::Docs,
     Genre::Blog,
     Genre::Readme,

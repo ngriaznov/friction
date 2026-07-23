@@ -15,16 +15,38 @@
 # pass on). Two independent runs produced byte-identical report output
 # (see `corpus/MINING_V2.md` for the determinism check).
 #
+# A second provenance round layered on top of the above: `corpus-tool
+# mine-paired --corpus-dir corpus --paired-dir corpus/paired --report
+# corpus/MINE_PAIRED.md`, over the stock/antislop paired mining corpus
+# (`corpus/paired/`, 55 pairs / 110 docs, never manifest-tracked, never
+# split - see `commands::generate_paired`'s own module docs), default
+# thresholds (eps=0.4, min_antislop_token_freq=8, min_stock_count
+# n2/n3/n4=8/5/4). Because both sides of every pair answer the identical
+# prompt under the identical derived seed, this pass cancels topic at
+# the per-prompt level and lets a curator see genuinely stylistic
+# machine-register tells that pooled machine-vs-human mining (above)
+# couldn't confirm - see `corpus/MINING_V2.md` §8 for the full
+# admitted/rejected list, counts, and the determinism check (two
+# independent runs, byte-identical report).
+#
 # `source` on every entry is one of:
 #   "seed"          - transcribed verbatim from the pre-existing runtime
 #                     inventory (`friction-harness::tellspan`'s RITUAL/
 #                     SUBS/SPANS statics, or `friction-nlp::lvc`'s
 #                     DERIVATIONAL_LEXICON); not re-derived from this
 #                     corpus.
-#   "mined"         - passed the mining pipeline's own thresholds (or, for
-#                     the block-position families, was judged against the
-#                     raw ungated counts the report provides for exactly
-#                     that purpose) and was then hand-approved here.
+#   "mined"         - passed the mine-inventory pipeline's own thresholds
+#                     (or, for the block-position families, was judged
+#                     against the raw ungated counts the report provides
+#                     for exactly that purpose) and was then hand-
+#                     approved here.
+#   "mined-paired"  - passed the mine-paired pipeline's stock/antislop
+#                     ratio-threshold gate (topic-cancelled by
+#                     construction - see above) and was then hand-
+#                     approved here; every substitution replacement is
+#                     still grep-verified against the human TRAIN corpus
+#                     the same way "curated-seed" entries are, with the
+#                     counts recorded in `notes`.
 #   "curated-seed"  - failed the mining thresholds (almost always because
 #                     a constituent word is too rare on this corpus to
 #                     clear the human-frequency gate) but is added by
@@ -43,12 +65,15 @@
 # register (mirrors the same discipline `mined-ngrams-v1.toml` already
 # documents for the discriminative-mining pack) - see
 # `corpus/MINING_V2.md` for the full rejected list with counts and
-# per-entry reasons.
+# per-entry reasons (both the mine-inventory round and the mine-paired
+# round).
 mine_inventory_report_path = "corpus/MINE_INVENTORY.md"
+mine_paired_report_path = "corpus/MINE_PAIRED.md"
 
 [pack]
 version = "inventory-v1"
 corpus_manifest_sha256 = "001d33df8d362ee94ffd2d8e0fcdf811fd4ce1de34cd909a7d852793a34b6969"
+paired_manifest_sha256 = "c67c42b15e19bf6a152fefd9e835694ae509b95585591c26cffe238668a0c9fa"
 
 # --------------------------------------------------------------------
 # Gated span deletion (whole-match removed, no replacement text).
@@ -124,6 +149,31 @@ source = "seed"
 # --------------------------------------------------------------------
 
 [[substitution_pairs]]
+id = "sub.crucial_for"
+pattern = '(?i)\bcrucial for\b'
+replacement = "important for"
+repair = "substitute"
+source = "mined-paired"
+notes = """
+Mined via corpus-tool mine-paired (topic-cancelled by construction: \
+stock and antislop answer the identical prompt under the identical \
+derived seed). Paired-corpus counts: "crucial for" 2-gram stock=15, \
+antislop=3, score=4.6514, human_train_count=1; the tighter 3-gram \
+"is crucial for" (covered by this same pattern) stock=9, antislop=1, \
+score=6.9534, human_train_count=0. Spread across all five paired \
+genres (blog/docs/email/forum/readme), not one prompt's topic - "is \
+crucial for" alone appears in the mining pipeline's own top ranks with \
+0 human-train occurrences, and mine-inventory's separate machine-vs- \
+human pass over the general corpus never surfaced this phrase at all \
+(only a single, thin "a crucial task to" candidate, n=1) - exactly the \
+genuinely-stylistic-but-topic-diluted case mine-paired exists to catch. \
+Replacement "important for" is attested 9 times in the human train \
+corpus (grep-verified) as a plain intro-framing phrase, the same \
+register slot. Paired with sub.is_crucial below for the "is crucial" \
+form without a following "for".
+"""
+
+[[substitution_pairs]]
 id = "sub.delve_into"
 pattern = '(?i)\bdelve into\b'
 replacement = "cover"
@@ -141,6 +191,13 @@ is attested in the human train corpus 9 times as an intro-framing verb \
 (e.g. "this guide covers the steps required", "this document will \
 cover general methods", grep-verified), the same slot already used by \
 this pack's own sub.will_walk_you_through entry.
+
+Paired-mining cross-check (corpus-tool mine-paired, corpus/paired/, 55 \
+pairs): "delve into" appears once, on the stock side only (1 stock / 0 \
+antislop / 0 human_train), directionally consistent but nowhere near \
+any threshold in a 110-doc corpus - paired mining does NOT confirm this \
+phrase with real counts; it remains curated-seed on the strength of the \
+train-split measurement above.
 """
 
 [[substitution_pairs]]
@@ -149,6 +206,39 @@ pattern = '(?i)\bin order to\b'
 replacement = "to"
 repair = "substitute"
 source = "seed"
+
+[[substitution_pairs]]
+id = "sub.is_crucial"
+pattern = '(?i)\bis crucial\b'
+replacement = "matters"
+repair = "substitute"
+source = "mined-paired"
+notes = """
+Mined via corpus-tool mine-paired (topic-cancelled - see sub.crucial_for \
+above for the shared methodology note). Paired-corpus counts: "is \
+crucial" 2-gram stock=16, antislop=8, score=2.0050, human_train_count=1; \
+the more specific 3-gram "this is crucial" (also covered by this \
+pattern) stock=8, antislop=2, score=3.6246, human_train_count=0. Spread \
+across all five paired genres, matching the same "crucial" intensifier \
+mined-ngrams-v1.toml already flags at the single-word level (z=6.4922) \
+but which mine-inventory's phrase-level tables never surfaced (not one \
+"crucial for"/"is crucial" 2-/3-gram appears anywhere in \
+corpus/MINE_INVENTORY.md). Replacement "matters" occurs 12 times in the \
+human train corpus (grep-verified, excluding Title-Case "X Matters" \
+event-name false positives), but only 8 of those 12 are the plain \
+predicate-verb sense this substitution needs ("this matters", "order \
+matters", "your contribution matters", "why and how this matters"); the \
+other 4 are the unrelated noun sense "matters of X" / "such matters" \
+(e.g. "the exultation of...secondary matters of conduct", "in matters \
+of hygiene; notably such matters", "that opens other matters") and do \
+not support the verb-slot claim. 8 verb-sense attestations in the same \
+declarative slot is still the evidence relied on here. If a matched \
+span also contains a trailing "for" \
+(e.g. "is crucial for X"), sub.crucial_for's own pattern also matches \
+that span - the same specific/general overlap already accepted by this \
+pack's sub.delve_into / sub.we_will_delve_into pair; either order of \
+application produces a fluent result.
+"""
 
 [[substitution_pairs]]
 id = "sub.leverage_3sg"
@@ -189,6 +279,13 @@ wrapper and keeps the real content noun, mirroring this pack's own \
 span.simply hedge-stripping pattern. Replacement token "development" \
 is attested 100 times in the train human corpus as a plain content \
 noun (grep-verified).
+
+Paired-mining cross-check (corpus-tool mine-paired, corpus/paired/, 55 \
+pairs): "our development journey" appears 0 times on either side (0 \
+stock / 0 antislop / 0 human_train) - paired mining does NOT confirm \
+this phrase; a 110-doc corpus is simply too small to expect a 3-word \
+phrase this specific to recur even once. It remains curated-seed on the \
+strength of the train-split measurement above.
 """
 
 [[substitution_pairs]]
@@ -241,6 +338,12 @@ count_H=0 for "we'll delve into" / "we will delve into" combined. \
 Replacement "we cover" keeps the pronoun instead of dropping it, since \
 "Cover the setup process" reads as an imperative while the source \
 sentence is declarative ("We'll delve into the setup process").
+
+Paired-mining cross-check (corpus-tool mine-paired, corpus/paired/, 55 \
+pairs): "we'll delve into" / "we will delve into" appears 0 times on \
+either side - paired mining does NOT confirm this phrase with real \
+counts. It remains curated-seed on the strength of the train-split \
+measurement above.
 """
 
 [[substitution_pairs]]
@@ -284,6 +387,12 @@ DMS automaton (see dms-index-v1.toml / friction_packs::dms) is wired \
 into detection, a phrase this long and distinctive is exactly the kind \
 of span differential matching statistics will flag without needing a \
 literal entry at all - that wiring is out of scope this milestone.
+
+Paired-mining cross-check (corpus-tool mine-paired, corpus/paired/, 55 \
+pairs): "fortunate enough to have had the opportunity to" appears 0 \
+times on either side - paired mining does NOT confirm this phrase with \
+real counts. It remains curated-seed, diagnostic-only, on the strength \
+of the train-split measurement above.
 """
 
 [[ritual_frames]]
@@ -317,6 +426,43 @@ pattern = '(?i)if you have any questions.{0,60}(reach out|contact|let us know)'
 scope = "sentence"
 repair = "delete"
 source = "seed"
+
+[[ritual_frames]]
+id = "ritual.let_me_know_if_you_would_like"
+pattern = "(?i)\\blet me know if you(?:['’]d like|\\s+would like)\\b"
+scope = "sentence"
+repair = "delete"
+source = "mined-paired"
+train_stock_count = 9
+train_antislop_count = 1
+train_human_count = 0
+notes = """
+Assistant-voice closing continuation offer ("Let me know if you'd like \
+any refinements/adjustments/modifications!") - the same family as this \
+pack's own ritual.would_you_like_me_to_elaborate, mined via corpus-tool \
+mine-paired instead of mine-inventory (topic-cancelled by construction: \
+stock and antislop answer the identical prompt under the identical \
+derived seed - see sub.crucial_for's notes for the shared methodology). \
+The raw gated 3-gram "me know if" stock=11, antislop=3, score=3.4723, \
+human_train_count=1 (corpus/MINE_PAIRED.md) is broader than the actual \
+tell: the bare phrase "let me know if" also covers ordinary human \
+continuation requests with no chatbot register at all (e.g. \
+corpus/quarantine/forum/a53feca0624ff561.md, a human/train doc: "Good \
+luck, and please let me know if you find that \"magic bullet.\""), which \
+a sentence-deleting rule on the unanchored phrase would wrongly strip \
+from genuine human text. Narrowed here, the same way \
+ritual.would_you_like_me_to_elaborate narrows its own raw n-gram, to the \
+specific continuation-offer construction ("let me know if you'd like" / \
+"let me know if you would like") that the id names. Curator-refined \
+regex measured directly against corpus/paired/: stock=9, antislop=1, \
+spread across blog/email/forum (not one prompt's topic); human_train=0 \
+across the full human+quarantine train corpus (the one human hit above \
+does not match the narrowed continuation form). mine-inventory's \
+separate machine-vs-human pass over the general corpus only ever \
+surfaced a single, thin "let me know if" candidate (n=1, below every \
+formal gate) - the same diluted-by-topic-pooling case sub.crucial_for's \
+notes describe.
+"""
 
 [[ritual_frames]]
 id = "ritual.please_replace_bracketed_placeholders"
