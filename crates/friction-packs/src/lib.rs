@@ -40,14 +40,28 @@
 //! `friction setup` treats an empty registry as a normal, successful
 //! outcome ("nothing to download") rather than an error.
 //!
+//! # DMS index
+//!
+//! [`DmsIndex`] parses the token-id-stream pack `corpus-tool index`
+//! writes (`packs/dms-index-v1.toml`) into a shared [`Vocab`] plus one
+//! suffix automaton ([`Sam`]) per stream — the human corpus and whichever
+//! of the four [`ModelFamily`] generator corpora the pack defines. This
+//! milestone builds and unit-tests the reconstruction only; nothing wires
+//! a [`DmsIndex`] into a running fix-time detection pass yet.
+//!
 //! # Determinism
 //!
 //! [`REGISTRY`] is a `Vec`, not a hash-based collection, and preserves the
 //! declaration order of the embedded `registry.toml` exactly — iterating
-//! it gives identical results on every run and every machine.
+//! it gives identical results on every run and every machine. [`Sam`]'s
+//! internal `next` table is a `HashMap` for point-lookup performance, not
+//! iteration order — see that type's own doc comment for why this does
+//! not compromise determinism.
 
 mod artifact;
+mod dms;
 mod envelope;
 
 pub use artifact::{Artifact, ArtifactKind, PackError, REGISTRY, Sha256, parse_registry};
+pub use dms::{DmsIndex, ModelFamily, Sam, Vocab};
 pub use envelope::{ENVELOPE_V2, EnvelopePack, exceedance};

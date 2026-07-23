@@ -20,8 +20,16 @@ clap.workspace = true
 # and tagger to hand `friction-metrics::compute` a fully-segmented,
 # tagger-ready document.
 friction-core = { path = "../friction-core" }
+# `mine-inventory` reuses the canonical clean/tokenize/split_sentences
+# primitives and the relocated `friction_nlp::lvc` tables (transitively)
+# from this crate rather than re-implementing them.
+friction-harness = { path = "../friction-harness" }
 friction-metrics = { path = "../friction-metrics" }
 friction-nlp = { path = "../friction-nlp" }
+# `index` builds `friction_packs::dms::ModelFamily`-keyed streams; parsing
+# them back into a `Sam`/`DmsIndex` is this crate's job only for
+# `--calibrate` reporting (deferred — see `commands::index`'s docs).
+friction-packs = { path = "../friction-packs" }
 friction-parse = { path = "../friction-parse" }
 serde.workspace = true
 serde_json.workspace = true

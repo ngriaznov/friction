@@ -14,6 +14,10 @@ mod segment_srx;
 pub use segment::{SegmentError, Segmenter, segment_document};
 pub use segment_srx::SrxSegmenter;
 
+/// Light-verb-construction tables and matching, shared between runtime
+/// detection (`friction-harness::pivot`) and offline mining.
+pub mod lvc;
+
 // --- POS tagging, morphology, and inflection (owned by the tagging agent;
 // see src/tag.rs, src/tag_nlprule.rs, src/inflect.rs) ---
 mod inflect;

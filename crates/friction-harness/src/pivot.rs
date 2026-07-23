@@ -1,7 +1,10 @@
 //! Derivational pivot (light-verb construction collapse) detection.
 //!
 //! Transcribed from `ref_pivot.py`'s `DERIV`/`LV` tables and its `pivot()`
-//! matching logic. The task brief scoped the seed tell-span inventory to
+//! matching logic — the tables themselves now live in
+//! `friction_nlp::lvc` (shared with offline mining; see that module's
+//! docs for why), so this module imports them rather than defining its
+//! own copy. The task brief scoped the seed tell-span inventory to
 //! RITUAL/SUBS/SPANS; this module adds a fourth tell family on top of that,
 //! because without it three of the five accept fixtures
 //! (`pivot_constructed_cases`, `pivot_real_corpus`, and half of
@@ -16,115 +19,12 @@
 //! rewrites text (that is a later milestone's job — see
 //! [`crate::pending`]).
 
-use std::collections::{BTreeMap, BTreeSet};
-use std::sync::LazyLock;
-
+use friction_nlp::lvc::{BE_FORMS, DERIVATIONAL_LEXICON, LIGHT_VERBS, LightVerbForm, conjugate};
 use friction_nlp::{TaggedToken, Tagger};
 
 /// Version tag for the seed pivot inventory transcribed into this module,
 /// mirroring the versioning convention the real pack format will use.
 pub const SEED_INVENTORY_VERSION: &str = "seed-0";
-
-/// Transcribed verbatim from `ref_pivot.py::DERIV` (30 entries).
-///
-/// Deliberately absent: `"approval"` (subject-genitive-prone, never
-/// licensed — see `pivot_trap_subject_genitive`) and `"index"` (an
-/// artifact noun, not an LVC nominalization — see
-/// `pivot_trap_artifact_noun`).
-static DERIV: LazyLock<BTreeMap<&'static str, &'static str>> = LazyLock::new(|| {
-    BTreeMap::from([
-        ("initialization", "initialize"),
-        ("configuration", "configure"),
-        ("installation", "install"),
-        ("validation", "validate"),
-        ("optimization", "optimize"),
-        ("migration", "migrate"),
-        ("deletion", "delete"),
-        ("creation", "create"),
-        ("execution", "execute"),
-        ("analysis", "analyze"),
-        ("assessment", "assess"),
-        ("evaluation", "evaluate"),
-        ("comparison", "compare"),
-        ("conversion", "convert"),
-        ("integration", "integrate"),
-        ("implementation", "implement"),
-        ("modification", "modify"),
-        ("verification", "verify"),
-        ("authentication", "authenticate"),
-        ("encryption", "encrypt"),
-        ("compression", "compress"),
-        ("reduction", "reduce"),
-        ("adjustment", "adjust"),
-        ("extraction", "extract"),
-        ("decision", "decide"),
-        ("investigation", "investigate"),
-        ("inspection", "inspect"),
-        ("calculation", "calculate"),
-        ("transformation", "transform"),
-        ("aggregation", "aggregate"),
-        ("synchronization", "synchronize"),
-    ])
-});
-
-/// Which inflectional form a light-verb surface token represents.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum LightVerbForm {
-    /// Bare infinitive/present plural form (`perform`, `conduct`, `make`, `do`).
-    Base,
-    /// Third-person singular present (`performs`, `conducts`, `makes`, `does`).
-    ThirdSg,
-    /// Past tense (`performed`, `conducted`, `made`, `did`).
-    Past,
-    /// Gerund/present participle (`performing`, `conducting`, `making`, `doing`).
-    Gerund,
-}
-
-/// Transcribed verbatim from `ref_pivot.py::LV`: every base/3sg/past/gerund
-/// surface form of the four licensed light verbs, mapped to its inflectional
-/// feature.
-static LV: LazyLock<BTreeMap<&'static str, LightVerbForm>> = LazyLock::new(|| {
-    BTreeMap::from([
-        ("perform", LightVerbForm::Base),
-        ("performs", LightVerbForm::ThirdSg),
-        ("performed", LightVerbForm::Past),
-        ("performing", LightVerbForm::Gerund),
-        ("conduct", LightVerbForm::Base),
-        ("conducts", LightVerbForm::ThirdSg),
-        ("conducted", LightVerbForm::Past),
-        ("conducting", LightVerbForm::Gerund),
-        ("make", LightVerbForm::Base),
-        ("makes", LightVerbForm::ThirdSg),
-        ("made", LightVerbForm::Past),
-        ("making", LightVerbForm::Gerund),
-        ("do", LightVerbForm::Base),
-        ("does", LightVerbForm::ThirdSg),
-        ("did", LightVerbForm::Past),
-        ("doing", LightVerbForm::Gerund),
-    ])
-});
-
-/// Forms of "be" that mark a preceding past-form light verb as passive.
-static BE: LazyLock<BTreeSet<&'static str>> =
-    LazyLock::new(|| BTreeSet::from(["is", "are", "was", "were", "been", "being", "be"]));
-
-/// Transcribed verbatim from `ref_pivot.py::inflect`.
-#[must_use]
-pub fn inflect(verb: &str, form: LightVerbForm) -> String {
-    match form {
-        LightVerbForm::Base => verb.to_string(),
-        LightVerbForm::ThirdSg => verb
-            .strip_suffix('y')
-            .map_or_else(|| format!("{verb}s"), |stem| format!("{stem}ies")),
-        LightVerbForm::Past => verb
-            .strip_suffix('e')
-            .map_or_else(|| format!("{verb}ed"), |stem| format!("{stem}ed")),
-        LightVerbForm::Gerund => {
-            let stem = verb.strip_suffix('e').unwrap_or(verb);
-            format!("{stem}ing")
-        }
-    }
-}
 
 /// The outcome of scanning one sentence for a derivational-pivot
 /// construction.
@@ -199,14 +99,14 @@ pub fn match_pivot(sentence: &str, tagger: &dyn Tagger) -> PivotOutcome {
 
     for i in 0..tokens.len() {
         let lv_lower = surface(&tokens[i]).to_lowercase();
-        let Some(&feat) = LV.get(lv_lower.as_str()) else {
+        let Some(&feat) = LIGHT_VERBS.get(lv_lower.as_str()) else {
             continue;
         };
         saw_light_verb = true;
 
         if feat == LightVerbForm::Past
             && i > 0
-            && BE.contains(surface(&tokens[i - 1]).to_lowercase().as_str())
+            && BE_FORMS.contains(surface(&tokens[i - 1]).to_lowercase().as_str())
         {
             return PivotOutcome::Rejected(PivotRejection::Passive);
         }
@@ -230,15 +130,15 @@ pub fn match_pivot(sentence: &str, tagger: &dyn Tagger) -> PivotOutcome {
 
         let nom = surface(&tokens[j]).to_lowercase();
         if let Some(stem) = nom.strip_suffix('s')
-            && DERIV.contains_key(stem)
+            && DERIVATIONAL_LEXICON.contains_key(stem)
         {
             return PivotOutcome::Rejected(PivotRejection::PluralNominal);
         }
-        let Some(base_verb) = DERIV.get(nom.as_str()).copied() else {
+        let Some(base_verb) = DERIVATIONAL_LEXICON.get(nom.as_str()).copied() else {
             continue;
         };
 
-        let derived_verb = inflect(base_verb, feat);
+        let derived_verb = conjugate(base_verb, feat);
 
         let k = j + 1;
         let has_of = k < tokens.len() && surface(&tokens[k]).to_lowercase() == "of";
@@ -277,12 +177,15 @@ mod tests {
     }
 
     #[test]
-    fn inflect_matches_reference_form_map() {
-        assert_eq!(inflect("initialize", LightVerbForm::Base), "initialize");
-        assert_eq!(inflect("initialize", LightVerbForm::ThirdSg), "initializes");
-        assert_eq!(inflect("decide", LightVerbForm::Past), "decided");
-        assert_eq!(inflect("analyze", LightVerbForm::Gerund), "analyzing");
-        assert_eq!(inflect("verify", LightVerbForm::ThirdSg), "verifies");
+    fn conjugate_matches_reference_form_map() {
+        assert_eq!(conjugate("initialize", LightVerbForm::Base), "initialize");
+        assert_eq!(
+            conjugate("initialize", LightVerbForm::ThirdSg),
+            "initializes"
+        );
+        assert_eq!(conjugate("decide", LightVerbForm::Past), "decided");
+        assert_eq!(conjugate("analyze", LightVerbForm::Gerund), "analyzing");
+        assert_eq!(conjugate("verify", LightVerbForm::ThirdSg), "verifies");
     }
 
     #[test]

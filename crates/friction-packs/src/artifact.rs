@@ -67,6 +67,30 @@ pub enum PackError {
         /// The offending upper bound.
         hi: f64,
     },
+
+    /// A DMS index pack's `[streams.<name>].ids` field is not a
+    /// comma-separated list of `u32` values (see [`crate::DmsIndex::parse`]).
+    #[error("streams.{stream}.ids: {value:?} is not a valid u32 token id")]
+    DmsMalformedIds {
+        /// Which stream's `ids` field was malformed.
+        stream: String,
+        /// The offending comma-separated field.
+        value: String,
+    },
+
+    /// A DMS index pack's stream references a token id past the end of
+    /// its own `[vocab]` table (see [`crate::DmsIndex::parse`]).
+    #[error(
+        "streams.{stream}.ids: token id {id} is out of range for a vocab of {vocab_len} token(s)"
+    )]
+    DmsIdOutOfRange {
+        /// Which stream referenced the out-of-range id.
+        stream: String,
+        /// The offending token id.
+        id: u32,
+        /// The pack's vocabulary size.
+        vocab_len: usize,
+    },
 }
 
 impl From<toml::de::Error> for PackError {

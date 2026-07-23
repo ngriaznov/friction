@@ -29,7 +29,12 @@ static RITUAL: LazyLock<Vec<(&'static str, Regex)>> = LazyLock::new(|| {
     ])
 });
 
-/// Transcribed verbatim from `ref_engine.py::SUBS`, case-insensitive.
+/// Transcribed from `ref_engine.py::SUBS`, case-insensitive, with one
+/// deliberate correction: the reference maps both `utilize`/`utilizes`
+/// (and `leverage`/`leverages`) to the invariant string "uses", which
+/// breaks subject-verb agreement on base-form matches ("you can
+/// utilize" -> "you can uses"). Each is split here into a form-matched
+/// pair instead.
 static SUBS: LazyLock<Vec<(&'static str, Regex, &'static str)>> = LazyLock::new(|| {
     [
         (
@@ -44,8 +49,10 @@ static SUBS: LazyLock<Vec<(&'static str, Regex, &'static str)>> = LazyLock::new(
         ),
         ("sub.in_order_to", r"(?i)\bin order to\b", "to"),
         ("sub.prior_to", r"(?i)\bprior to\b", "before"),
-        ("sub.utilize", r"(?i)\butilizes?\b", "uses"),
-        ("sub.leverage", r"(?i)\bleverages?\b", "uses"),
+        ("sub.utilize_3sg", r"(?i)\butilizes\b", "uses"),
+        ("sub.utilize_base", r"(?i)\butilize\b", "use"),
+        ("sub.leverage_3sg", r"(?i)\bleverages\b", "uses"),
+        ("sub.leverage_base", r"(?i)\bleverage\b", "use"),
     ]
     .into_iter()
     .map(|(id, pattern, replacement)| {

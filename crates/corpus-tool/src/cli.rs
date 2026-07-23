@@ -58,6 +58,14 @@ enum Command {
     /// On the train split, mine discriminative 1-/2-/3-gram phrases
     /// between `llm` and `human` prose.
     Mine(commands::mine::Args),
+    /// On the train split, mine ratio-threshold literal n-grams,
+    /// POS-skeleton patterns, block-position-conditioned frames, and
+    /// light-verb-construction pair rates for the curated inventory pack.
+    MineInventory(commands::mine_inventory::Args),
+    /// Builds the per-model-family and human token-id streams (over one
+    /// shared vocabulary) that a DMS suffix-automaton index reconstructs
+    /// from.
+    Index(commands::index::Args),
 }
 
 /// Parses process arguments and runs the selected subcommand.
@@ -97,5 +105,7 @@ pub fn run() -> anyhow::Result<()> {
         Command::Separate(args) => commands::separate::run(&args),
         Command::SeparateHoldout(args) => commands::separate_holdout::run(&args),
         Command::Mine(args) => commands::mine::run(&args),
+        Command::MineInventory(args) => commands::mine_inventory::run(&args),
+        Command::Index(args) => commands::index::run(&args),
     }
 }

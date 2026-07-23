@@ -323,7 +323,7 @@ fn explain_json_output_is_byte_identical_across_runs() {
 
     let value: serde_json::Value =
         serde_json::from_slice(&first.stdout).expect("explain --format json prints valid JSON");
-    assert!(value["metrics"].as_array().unwrap().len() == 21);
+    assert_eq!(value["metrics"].as_array().unwrap().len(), 21);
     assert_eq!(value["plan"]["entries"].as_array().unwrap().len(), 6);
     assert!(value["fixpoint"]["rounds"].as_u64().unwrap() >= 1);
 }

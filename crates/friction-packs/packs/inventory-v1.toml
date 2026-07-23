@@ -1,0 +1,725 @@
+# inventory-v1 pack: the curated tell-span inventory (deletion spans,
+# substitution pairs, ritual frames, a preview-frame rule slot, licensed
+# light-verb-construction pairs, and guard-token closed classes).
+#
+# This file is NOT machine-generated. `corpus-tool mine-inventory` writes
+# a markdown report only (see `mine_inventory_report_path` below); every
+# entry in this file was hand-transcribed and hand-reviewed from that
+# report by a human curator. Re-running `mine-inventory` does not
+# overwrite this file.
+#
+# Provenance: `corpus-tool mine-inventory --corpus-dir corpus --report
+# corpus/MINE_INVENTORY.md`, train split only, pooled across all five
+# genres (264 human docs / 230 llm docs), default thresholds (eps=0.4,
+# min_human_token_freq=25, min_machine_count n2/n3/n4=8/5/4, skeleton
+# pass on). Two independent runs produced byte-identical report output
+# (see `corpus/MINING_V2.md` for the determinism check).
+#
+# `source` on every entry is one of:
+#   "seed"          - transcribed verbatim from the pre-existing runtime
+#                     inventory (`friction-harness::tellspan`'s RITUAL/
+#                     SUBS/SPANS statics, or `friction-nlp::lvc`'s
+#                     DERIVATIONAL_LEXICON); not re-derived from this
+#                     corpus.
+#   "mined"         - passed the mining pipeline's own thresholds (or, for
+#                     the block-position families, was judged against the
+#                     raw ungated counts the report provides for exactly
+#                     that purpose) and was then hand-approved here.
+#   "curated-seed"  - failed the mining thresholds (almost always because
+#                     a constituent word is too rare on this corpus to
+#                     clear the human-frequency gate) but is added by
+#                     hand anyway, with the exact counts that failed the
+#                     gate recorded in `notes` so the decision is
+#                     auditable.
+#
+# `repair` on every deletion_spans/substitution_pairs/ritual_frames entry
+# is one of "delete", "substitute", or "diagnostic_only" (the last marks
+# an entry that is recorded for honesty but has no safe closed-set
+# rewrite and must not be executed as a rewrite rule).
+#
+# Curation of literal machine-favored n-grams rejected a long list of
+# corpus-topic artifacts that happen to be specific to this corpus's
+# generation prompts or human source documents, not general llm-vs-human
+# register (mirrors the same discipline `mined-ngrams-v1.toml` already
+# documents for the discriminative-mining pack) - see
+# `corpus/MINING_V2.md` for the full rejected list with counts and
+# per-entry reasons.
+mine_inventory_report_path = "corpus/MINE_INVENTORY.md"
+
+[pack]
+version = "inventory-v1"
+corpus_manifest_sha256 = "001d33df8d362ee94ffd2d8e0fcdf811fd4ce1de34cd909a7d852793a34b6969"
+
+# --------------------------------------------------------------------
+# Gated span deletion (whole-match removed, no replacement text).
+# `anchor` is "sentence_initial" (pattern requires `^`), "mid_sentence"
+# (no positional anchor), or "trailing" (pattern requires the sentence's
+# end) - the third value isn't in the original three-way design sketch
+# but is the honest description of `span.to_suit_your_needs_trailing`'s
+# actual regex, and nothing parses this field yet (see the pack-swap
+# deferral note below), so it costs nothing to be precise here.
+# --------------------------------------------------------------------
+
+[[deletion_spans]]
+id = "span.by_following_these_steps_leading"
+pattern = '(?i)^by following these steps,?\s+'
+anchor = "sentence_initial"
+repair = "delete"
+source = "seed"
+
+[[deletion_spans]]
+id = "span.it_is_important_to_note_that_leading"
+pattern = '(?i)^it is important to note that\s+'
+anchor = "sentence_initial"
+repair = "delete"
+source = "seed"
+
+[[deletion_spans]]
+id = "span.it_is_important_to_note_that_mid"
+pattern = '(?i)\bit is important to note that\s+'
+anchor = "mid_sentence"
+repair = "delete"
+source = "seed"
+
+[[deletion_spans]]
+id = "span.its_worth_noting_that_leading"
+pattern = "(?i)^it'?s worth noting that\\s+"
+anchor = "sentence_initial"
+repair = "delete"
+source = "seed"
+
+[[deletion_spans]]
+id = "span.please_note_that_leading"
+pattern = '(?i)^please note that\s+'
+anchor = "sentence_initial"
+repair = "delete"
+source = "seed"
+
+[[deletion_spans]]
+id = "span.quickly_and_easily"
+pattern = '(?i)\bquickly and easily\s+'
+anchor = "mid_sentence"
+repair = "delete"
+source = "seed"
+
+[[deletion_spans]]
+id = "span.simply"
+pattern = '(?i)\bsimply\s+'
+anchor = "mid_sentence"
+repair = "delete"
+source = "seed"
+
+[[deletion_spans]]
+id = "span.to_suit_your_needs_trailing"
+pattern = '(?i)\s+to suit your needs\b'
+anchor = "trailing"
+repair = "delete"
+source = "seed"
+
+# --------------------------------------------------------------------
+# Substitution pairs (matched span replaced with a fixed, plain-register
+# string). Every replacement token below is attested in the TRAIN human
+# corpus itself (spot-checked by grep at curation time, counts in
+# `notes` where the pair is curated-seed rather than seed).
+# --------------------------------------------------------------------
+
+[[substitution_pairs]]
+id = "sub.delve_into"
+pattern = '(?i)\bdelve into\b'
+replacement = "cover"
+repair = "substitute"
+source = "curated-seed"
+notes = """
+Frontier phrase, general form. Train-split measured counts: \
+count_M=5, count_H=0 for "delve into" itself; the constituent word \
+"delve" occurs 0 times anywhere in the 264-doc train human corpus \
+(286 occurrences of "into" alone, so it is "delve" that fails the \
+gate, not the phrase's frequency generally). Below every literal \
+n-gram mining threshold on this corpus (needs human-token-freq >= 25 \
+for every constituent word; "delve" has 0). Replacement token "cover" \
+is attested in the human train corpus 9 times as an intro-framing verb \
+(e.g. "this guide covers the steps required", "this document will \
+cover general methods", grep-verified), the same slot already used by \
+this pack's own sub.will_walk_you_through entry.
+"""
+
+[[substitution_pairs]]
+id = "sub.in_order_to"
+pattern = '(?i)\bin order to\b'
+replacement = "to"
+repair = "substitute"
+source = "seed"
+
+[[substitution_pairs]]
+id = "sub.leverage_3sg"
+pattern = '(?i)\bleverages\b'
+replacement = "uses"
+repair = "substitute"
+source = "seed"
+notes = """
+Split from the seed's single `\\bleverages?\\b -> "uses"` entry, whose \
+invariant replacement broke subject-verb agreement on base-form \
+matches ("you can leverage" -> "you can uses"). Form-matched pair with \
+sub.leverage_base.
+"""
+
+[[substitution_pairs]]
+id = "sub.leverage_base"
+pattern = '(?i)\bleverage\b'
+replacement = "use"
+repair = "substitute"
+source = "seed"
+notes = "Base-form half of the sub.leverage_3sg split; see that entry."
+
+[[substitution_pairs]]
+id = "sub.our_development_journey"
+pattern = '(?i)\bour development journey\b'
+replacement = "development"
+repair = "substitute"
+source = "curated-seed"
+notes = """
+Frontier phrase. Train-split measured counts: count_M=1, count_H=0 for \
+the full 3-gram "our development journey"; the constituent word \
+"journey" occurs 9 times in the 264-doc train human corpus, below the \
+>=25 human-token-frequency gate, so the phrase never reaches the \
+literal-mining tables despite "our development" alone scoring as the \
+#28 machine-favored 2-gram (13 machine / 0 human, score 67.03, visible \
+in corpus/MINE_INVENTORY.md). Strips the ritual "our ... journey" \
+wrapper and keeps the real content noun, mirroring this pack's own \
+span.simply hedge-stripping pattern. Replacement token "development" \
+is attested 100 times in the train human corpus as a plain content \
+noun (grep-verified).
+"""
+
+[[substitution_pairs]]
+id = "sub.prior_to"
+pattern = '(?i)\bprior to\b'
+replacement = "before"
+repair = "substitute"
+source = "seed"
+
+[[substitution_pairs]]
+id = "sub.this_guide_will_walk_you_through"
+pattern = '(?i)\bthis guide will walk you through\b'
+replacement = "this guide covers"
+repair = "substitute"
+source = "seed"
+
+[[substitution_pairs]]
+id = "sub.utilize_3sg"
+pattern = '(?i)\butilizes\b'
+replacement = "uses"
+repair = "substitute"
+source = "seed"
+notes = """
+Split from the seed's single `\\butilizes?\\b -> "uses"` entry, whose \
+invariant replacement broke subject-verb agreement on base-form \
+matches ("you can utilize" -> "you can uses"). Form-matched pair with \
+sub.utilize_base.
+"""
+
+[[substitution_pairs]]
+id = "sub.utilize_base"
+pattern = '(?i)\butilize\b'
+replacement = "use"
+repair = "substitute"
+source = "seed"
+notes = "Base-form half of the sub.utilize_3sg split; see that entry."
+
+[[substitution_pairs]]
+id = "sub.we_will_delve_into"
+pattern = "(?i)\\bwe'?ll delve into\\b"
+replacement = "we cover"
+repair = "substitute"
+source = "curated-seed"
+notes = """
+Frontier phrase, specific form (paired with the general sub.delve_into \
+fallback below it in id order, the same specific-then-general pairing \
+already used by sub.this_guide_will_walk_you_through / \
+sub.will_walk_you_through). Train-split measured counts: count_M=3, \
+count_H=0 for "we'll delve into" / "we will delve into" combined. \
+Replacement "we cover" keeps the pronoun instead of dropping it, since \
+"Cover the setup process" reads as an imperative while the source \
+sentence is declarative ("We'll delve into the setup process").
+"""
+
+[[substitution_pairs]]
+id = "sub.will_walk_you_through"
+pattern = '(?i)\bwill walk you through\b'
+replacement = "covers"
+repair = "substitute"
+source = "seed"
+
+# --------------------------------------------------------------------
+# Whole-sentence ritual frames (deleted whole, or - for the one
+# diagnostic-only entry - recorded without a rewrite because none is
+# safe).
+# --------------------------------------------------------------------
+
+[[ritual_frames]]
+id = "ritual.congratulations_open"
+pattern = "(?i)^congratulations"
+scope = "sentence"
+repair = "delete"
+source = "seed"
+
+[[ritual_frames]]
+id = "ritual.fortunate_enough_to_have_had_the_opportunity_to"
+pattern = '(?i)fortunate enough to have had the opportunity to'
+scope = "sentence"
+repair = "diagnostic_only"
+source = "curated-seed"
+notes = """
+Frontier phrase. Train-split measured counts: count_M=1, count_H=0. \
+Every constituent rare word ("fortunate": 2 human occurrences, \
+"opportunity": 23, both under the >=25 gate) keeps this off every \
+literal-mining table. No safe closed-set rewrite was identified:
+collapsing it correctly means inheriting tense onto an embedded \
+infinitive complement, which is structurally similar to a pivot but is \
+not an LVC (no light verb, no nominalization) and isn't covered by any \
+of the four repair operations this pack's other families use. Shipped \
+diagnostic-only (repair = "diagnostic_only"): recorded so the pack's \
+own history is legible, but must not be executed as a rewrite. Once a \
+DMS automaton (see dms-index-v1.toml / friction_packs::dms) is wired \
+into detection, a phrase this long and distinctive is exactly the kind \
+of span differential matching statistics will flag without needing a \
+literal entry at all - that wiring is out of scope this milestone.
+"""
+
+[[ritual_frames]]
+id = "ritual.happy_verbing_open"
+pattern = '(?i)^happy \w+ing'
+scope = "sentence"
+repair = "delete"
+source = "seed"
+
+[[ritual_frames]]
+id = "ritual.hope_this_email_finds_you_well"
+pattern = '(?i)\bi hope this (email|message) finds you well\b'
+scope = "sentence"
+repair = "delete"
+source = "mined"
+train_machine_count = 16
+train_human_count = 0
+notes = """
+Classic LLM email/message-opener tic. The tighter phrase above is a \
+curator-refined regex measured directly against the train corpus (16 \
+machine occurrences, 0 human); the constituent literal-mining tables in \
+corpus/MINE_INVENTORY.md independently show "this email" as the #3 \
+machine-favored 2-gram (27/0, score 137.07) and "hope this email" as a \
+gated-passing machine-favored 3-gram (12/0, score 60.17) - both formal- \
+gate passes, not raw/ungated counts.
+"""
+
+[[ritual_frames]]
+id = "ritual.if_you_have_questions"
+pattern = '(?i)if you have any questions.{0,60}(reach out|contact|let us know)'
+scope = "sentence"
+repair = "delete"
+source = "seed"
+
+[[ritual_frames]]
+id = "ritual.please_replace_bracketed_placeholders"
+pattern = '(?i)(please )?replace the bracketed placeholders[^.\n]*'
+scope = "sentence"
+repair = "delete"
+source = "mined"
+train_machine_count = 4
+train_human_count = 0
+notes = """
+README-template placeholder instruction leaking verbatim into the \
+generated document (e.g. "Please replace the bracketed placeholders \
+with specific details relevant to your project") - unambiguous \
+machine-register meta-text, not topic content, but a thin count (n=4) \
+that falls below the formal literal-mining gate because "bracketed" \
+and "placeholders" are too rare in the human corpus to clear the \
+per-token human-frequency threshold (the same reason the gate excludes \
+genuinely-rare topic words; here the rarity is incidental to how \
+distinctive the tell is, not evidence against it). Surfaced only in the \
+block-position pass's raw, ungated closing-frame counts \
+(corpus/MINE_INVENTORY.md's "Ritual/closing frame" section), which \
+exists precisely so a curator can judge cases like this on raw counts. \
+Admitted on the strength of 0/4 human/machine separation and the \
+unmistakable nature of the tell, despite the low count; flagged here \
+for a future re-check once more train data exists.
+"""
+
+[[ritual_frames]]
+id = "ritual.we_hope"
+pattern = "(?i)we hope (this|you)"
+scope = "sentence"
+repair = "delete"
+source = "seed"
+
+[[ritual_frames]]
+id = "ritual.would_you_like_me_to_elaborate"
+pattern = '(?i)would you like me to \w+'
+scope = "sentence"
+repair = "delete"
+source = "mined"
+train_machine_count = 9
+train_human_count = 0
+notes = """
+Assistant-voice continuation offer ("Would you like me to elaborate on \
+any specific aspect...?") - a distinctive completion/chat-register tic \
+that has no place in a finished document. The tighter phrase above is a \
+curator-refined regex measured directly (9 machine, 0 human); the \
+formally-gated literal 4-gram tables independently show "would you like \
+me" and "you like me to" each at 11/0 (min_machine_count_n4=4, passing \
+the gate cleanly), and the 3-gram "like me to" at 11/0 as well.
+"""
+
+# --------------------------------------------------------------------
+# Block-position-conditioned rules. No seed entries exist for this
+# family (it did not exist in the prior runtime's inventory). One
+# candidate was measured this round and explicitly rejected rather
+# than admitted - see corpus/MINING_V2.md for the full counts and
+# reasoning. Section left empty pending a stronger or differently-
+# shaped signal.
+# --------------------------------------------------------------------
+
+# --------------------------------------------------------------------
+# Licensed light-verb/nominalization pairs. Counts are measured fresh
+# against the current TRAIN corpus by `mine-inventory`'s LVC section
+# (see corpus/MINE_INVENTORY.md). As that report states plainly: these
+# counts do NOT currently reproduce any historical aggregate-rate
+# figure, and license = false for all but one pair under the
+# within-class test (constr_M > verb_M and verb_H > constr_H) on this
+# corpus. All entries are retained anyway - their validation was at the
+# construction level (hand-built positive/negative test cases), never
+# corpus-rate-based, and this milestone's brief is explicit that
+# re-deriving or re-validating them from today's corpus is out of
+# scope. `light_verb_base` records the most idiomatically natural of
+# the four licensed light verbs (perform | conduct | make | do) for
+# each pair as a curator annotation; the runtime match and this
+# section's own measurement both scan all four light verbs for every
+# pair regardless of this field.
+#
+# Note on count: friction_nlp::lvc::DERIVATIONAL_LEXICON actually holds
+# 31 entries, not the 30 this milestone's brief states throughout - the
+# doc comment on that table itself over-counts by one. All 31 real
+# entries are transcribed below; see corpus/MINING_V2.md.
+# --------------------------------------------------------------------
+
+[[lvc_pairs]]
+light_verb_base = "make"
+nominalization = "adjustment"
+derived_verb = "adjust"
+source = "seed"
+train_construction_count_machine = 0
+train_construction_count_human = 0
+train_verb_count_machine = 84
+train_verb_count_human = 6
+
+[[lvc_pairs]]
+light_verb_base = "perform"
+nominalization = "aggregation"
+derived_verb = "aggregate"
+source = "seed"
+train_construction_count_machine = 0
+train_construction_count_human = 0
+train_verb_count_machine = 0
+train_verb_count_human = 17
+
+[[lvc_pairs]]
+light_verb_base = "conduct"
+nominalization = "analysis"
+derived_verb = "analyze"
+source = "seed"
+train_construction_count_machine = 0
+train_construction_count_human = 0
+train_verb_count_machine = 28
+train_verb_count_human = 14
+
+[[lvc_pairs]]
+light_verb_base = "conduct"
+nominalization = "assessment"
+derived_verb = "assess"
+source = "seed"
+train_construction_count_machine = 0
+train_construction_count_human = 0
+train_verb_count_machine = 6
+train_verb_count_human = 6
+
+[[lvc_pairs]]
+light_verb_base = "perform"
+nominalization = "authentication"
+derived_verb = "authenticate"
+source = "seed"
+train_construction_count_machine = 0
+train_construction_count_human = 0
+train_verb_count_machine = 0
+train_verb_count_human = 2
+
+[[lvc_pairs]]
+light_verb_base = "do"
+nominalization = "calculation"
+derived_verb = "calculate"
+source = "seed"
+train_construction_count_machine = 0
+train_construction_count_human = 1
+train_verb_count_machine = 5
+train_verb_count_human = 14
+
+[[lvc_pairs]]
+light_verb_base = "make"
+nominalization = "comparison"
+derived_verb = "compare"
+source = "seed"
+train_construction_count_machine = 0
+train_construction_count_human = 1
+train_verb_count_machine = 48
+train_verb_count_human = 34
+
+[[lvc_pairs]]
+light_verb_base = "perform"
+nominalization = "compression"
+derived_verb = "compress"
+source = "seed"
+train_construction_count_machine = 0
+train_construction_count_human = 0
+train_verb_count_machine = 12
+train_verb_count_human = 9
+
+[[lvc_pairs]]
+light_verb_base = "perform"
+nominalization = "configuration"
+derived_verb = "configure"
+source = "seed"
+train_construction_count_machine = 0
+train_construction_count_human = 1
+train_verb_count_machine = 73
+train_verb_count_human = 59
+
+[[lvc_pairs]]
+light_verb_base = "perform"
+nominalization = "conversion"
+derived_verb = "convert"
+source = "seed"
+train_construction_count_machine = 0
+train_construction_count_human = 0
+train_verb_count_machine = 6
+train_verb_count_human = 40
+
+[[lvc_pairs]]
+light_verb_base = "perform"
+nominalization = "creation"
+derived_verb = "create"
+source = "seed"
+train_construction_count_machine = 0
+train_construction_count_human = 0
+train_verb_count_machine = 220
+train_verb_count_human = 422
+
+[[lvc_pairs]]
+light_verb_base = "make"
+nominalization = "decision"
+derived_verb = "decide"
+source = "seed"
+train_construction_count_machine = 4
+train_construction_count_human = 2
+train_verb_count_machine = 37
+train_verb_count_human = 36
+
+[[lvc_pairs]]
+light_verb_base = "perform"
+nominalization = "deletion"
+derived_verb = "delete"
+source = "seed"
+train_construction_count_machine = 0
+train_construction_count_human = 1
+train_verb_count_machine = 55
+train_verb_count_human = 82
+
+[[lvc_pairs]]
+light_verb_base = "perform"
+nominalization = "encryption"
+derived_verb = "encrypt"
+source = "seed"
+train_construction_count_machine = 0
+train_construction_count_human = 0
+train_verb_count_machine = 1
+train_verb_count_human = 12
+
+[[lvc_pairs]]
+light_verb_base = "conduct"
+nominalization = "evaluation"
+derived_verb = "evaluate"
+source = "seed"
+train_construction_count_machine = 0
+train_construction_count_human = 0
+train_verb_count_machine = 6
+train_verb_count_human = 53
+
+[[lvc_pairs]]
+light_verb_base = "perform"
+nominalization = "execution"
+derived_verb = "execute"
+source = "seed"
+train_construction_count_machine = 0
+train_construction_count_human = 0
+train_verb_count_machine = 31
+train_verb_count_human = 137
+
+[[lvc_pairs]]
+light_verb_base = "perform"
+nominalization = "extraction"
+derived_verb = "extract"
+source = "seed"
+train_construction_count_machine = 0
+train_construction_count_human = 0
+train_verb_count_machine = 6
+train_verb_count_human = 20
+
+[[lvc_pairs]]
+light_verb_base = "perform"
+nominalization = "implementation"
+derived_verb = "implement"
+source = "seed"
+train_construction_count_machine = 0
+train_construction_count_human = 0
+train_verb_count_machine = 98
+train_verb_count_human = 133
+
+[[lvc_pairs]]
+light_verb_base = "perform"
+nominalization = "initialization"
+derived_verb = "initialize"
+source = "seed"
+train_construction_count_machine = 0
+train_construction_count_human = 0
+train_verb_count_machine = 12
+train_verb_count_human = 15
+
+[[lvc_pairs]]
+light_verb_base = "conduct"
+nominalization = "inspection"
+derived_verb = "inspect"
+source = "seed"
+train_construction_count_machine = 0
+train_construction_count_human = 0
+train_verb_count_machine = 14
+train_verb_count_human = 15
+
+[[lvc_pairs]]
+light_verb_base = "perform"
+nominalization = "installation"
+derived_verb = "install"
+source = "seed"
+train_construction_count_machine = 0
+train_construction_count_human = 1
+train_verb_count_machine = 128
+train_verb_count_human = 219
+
+[[lvc_pairs]]
+light_verb_base = "perform"
+nominalization = "integration"
+derived_verb = "integrate"
+source = "seed"
+train_construction_count_machine = 0
+train_construction_count_human = 1
+train_verb_count_machine = 32
+train_verb_count_human = 30
+
+[[lvc_pairs]]
+light_verb_base = "conduct"
+nominalization = "investigation"
+derived_verb = "investigate"
+source = "seed"
+train_construction_count_machine = 0
+train_construction_count_human = 0
+train_verb_count_machine = 5
+train_verb_count_human = 4
+
+[[lvc_pairs]]
+light_verb_base = "perform"
+nominalization = "migration"
+derived_verb = "migrate"
+source = "seed"
+train_construction_count_machine = 0
+train_construction_count_human = 1
+train_verb_count_machine = 30
+train_verb_count_human = 19
+
+[[lvc_pairs]]
+light_verb_base = "make"
+nominalization = "modification"
+derived_verb = "modify"
+source = "seed"
+train_construction_count_machine = 0
+train_construction_count_human = 0
+train_verb_count_machine = 28
+train_verb_count_human = 30
+
+[[lvc_pairs]]
+light_verb_base = "perform"
+nominalization = "optimization"
+derived_verb = "optimize"
+source = "seed"
+train_construction_count_machine = 0
+train_construction_count_human = 0
+train_verb_count_machine = 49
+train_verb_count_human = 27
+
+[[lvc_pairs]]
+light_verb_base = "make"
+nominalization = "reduction"
+derived_verb = "reduce"
+source = "seed"
+train_construction_count_machine = 0
+train_construction_count_human = 0
+train_verb_count_machine = 94
+train_verb_count_human = 42
+
+[[lvc_pairs]]
+light_verb_base = "perform"
+nominalization = "synchronization"
+derived_verb = "synchronize"
+source = "seed"
+train_construction_count_machine = 0
+train_construction_count_human = 0
+train_verb_count_machine = 3
+train_verb_count_human = 2
+
+[[lvc_pairs]]
+light_verb_base = "perform"
+nominalization = "transformation"
+derived_verb = "transform"
+source = "seed"
+train_construction_count_machine = 0
+train_construction_count_human = 0
+train_verb_count_machine = 11
+train_verb_count_human = 19
+
+[[lvc_pairs]]
+light_verb_base = "perform"
+nominalization = "validation"
+derived_verb = "validate"
+source = "seed"
+train_construction_count_machine = 0
+train_construction_count_human = 0
+train_verb_count_machine = 4
+train_verb_count_human = 20
+
+[[lvc_pairs]]
+light_verb_base = "perform"
+nominalization = "verification"
+derived_verb = "verify"
+source = "seed"
+train_construction_count_machine = 0
+train_construction_count_human = 0
+train_verb_count_machine = 46
+train_verb_count_human = 15
+
+# --------------------------------------------------------------------
+# Guard tokens: closed English syntactic classes, not mined. Transcribed
+# and reviewed the same way RITUAL/SUBS/SPANS were: hand-authored,
+# checked against the standard closed classes they name, not discovered
+# from corpus counts.
+# --------------------------------------------------------------------
+
+[guard_tokens]
+negation = ["not", "n't", "never", "no", "none", "nobody", "nothing", "neither", "nor"]
+quantifiers = ["all", "every", "each", "any", "some", "several", "many", "few", "most", "both", "either"]
+modals = ["can", "could", "will", "would", "shall", "should", "may", "might", "must"]
+connectives = ["because", "so", "since", "although", "though", "while", "whereas", "unless", "if", "then", "therefore", "however", "but", "yet"]
