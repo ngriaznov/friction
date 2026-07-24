@@ -8,21 +8,21 @@ expression: stdout
   "metrics": [
     {
       "name": "sentence_length_mean",
-      "value": 8.681818181818182,
+      "value": 8.761904761904763,
       "lo": 5.079601990049751,
       "hi": 11.36986301369863,
       "in_envelope": true
     },
     {
       "name": "sentence_length_stddev",
-      "value": 7.461332830219128,
+      "value": 7.615177588554021,
       "lo": 4.841157658992773,
       "hi": 9.53557474351129,
       "in_envelope": true
     },
     {
       "name": "sentence_length_cv",
-      "value": 0.85942053541791,
+      "value": 0.8691235291284479,
       "lo": 0.6938000297364706,
       "hi": 1.1063157464161906,
       "in_envelope": true
@@ -36,7 +36,7 @@ expression: stdout
     },
     {
       "name": "triad_rate",
-      "value": 0.045454545454545456,
+      "value": 0.047619047619047616,
       "lo": 0.0,
       "hi": 0.030303030303030304,
       "in_envelope": false
@@ -50,21 +50,21 @@ expression: stdout
     },
     {
       "name": "bullet_parallelism",
-      "value": 1.0,
+      "value": 0.0,
       "lo": 0.0,
       "hi": 1.0,
       "in_envelope": true
     },
     {
       "name": "paragraph_shape_mean",
-      "value": 1.1891891891891893,
+      "value": 1.2,
       "lo": 1.0970149253731343,
       "hi": 1.509433962264151,
       "in_envelope": true
     },
     {
       "name": "paragraph_shape_cv",
-      "value": 0.3293494715043054,
+      "value": 0.33333333333333337,
       "lo": 0.28827503026587703,
       "hi": 0.7259662712736925,
       "in_envelope": true
@@ -106,35 +106,35 @@ expression: stdout
     },
     {
       "name": "llm_favored_phrase_rate",
-      "value": 7.575757575757576,
+      "value": 8.19672131147541,
       "lo": 0.0,
       "hi": 17.89709172259508,
       "in_envelope": true
     },
     {
       "name": "human_favored_phrase_rate",
-      "value": 20.2020202020202,
+      "value": 21.85792349726776,
       "lo": 12.599160055996267,
       "hi": 43.890865954922894,
       "in_envelope": true
     },
     {
       "name": "heading_density",
-      "value": 7.575757575757576,
+      "value": 8.19672131147541,
       "lo": 2.3094688221709005,
       "hi": 14.9812734082397,
       "in_envelope": true
     },
     {
       "name": "list_item_density",
-      "value": 2.525252525252525,
+      "value": 0.0,
       "lo": 0.0,
       "hi": 31.62486368593239,
       "in_envelope": true
     },
     {
       "name": "bold_span_density",
-      "value": 7.575757575757576,
+      "value": 8.19672131147541,
       "lo": 0.0,
       "hi": 14.176663031624864,
       "in_envelope": true
@@ -148,7 +148,7 @@ expression: stdout
     },
     {
       "name": "top_opener_concentration",
-      "value": 0.09523809523809523,
+      "value": 0.1,
       "lo": 0.05454545454545454,
       "hi": 0.16129032258064516,
       "in_envelope": true
@@ -159,31 +159,31 @@ expression: stdout
   "dms": [
     {
       "family": "qwen",
-      "mean_machine": 1.1275626423690206,
-      "mean_human": 13.095671981776766,
-      "differential": -11.968109339407745,
-      "token_count": 439
+      "mean_machine": 1.155388471177945,
+      "mean_human": 13.353383458646617,
+      "differential": -12.197994987468672,
+      "token_count": 399
     },
     {
       "family": "gemma",
-      "mean_machine": 1.275626423690205,
-      "mean_human": 13.095671981776766,
-      "differential": -11.82004555808656,
-      "token_count": 439
+      "mean_machine": 1.300751879699248,
+      "mean_human": 13.353383458646617,
+      "differential": -12.052631578947368,
+      "token_count": 399
     },
     {
       "family": "llama",
-      "mean_machine": 1.2300683371298406,
-      "mean_human": 13.095671981776766,
-      "differential": -11.865603644646924,
-      "token_count": 439
+      "mean_machine": 1.255639097744361,
+      "mean_human": 13.353383458646617,
+      "differential": -12.097744360902256,
+      "token_count": 399
     },
     {
       "family": "granite",
-      "mean_machine": 1.111617312072893,
-      "mean_human": 13.095671981776766,
-      "differential": -11.984054669703873,
-      "token_count": 439
+      "mean_machine": 1.1604010025062657,
+      "mean_human": 13.353383458646617,
+      "differential": -12.192982456140351,
+      "token_count": 399
     }
   ]
 }

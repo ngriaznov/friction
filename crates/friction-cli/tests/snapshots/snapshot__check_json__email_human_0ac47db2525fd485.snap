@@ -8,21 +8,21 @@ expression: stdout
   "metrics": [
     {
       "name": "sentence_length_mean",
-      "value": 7.012820512820513,
+      "value": 6.901315789473684,
       "lo": 3.7147335423197494,
       "hi": 8.367768595041323,
       "in_envelope": true
     },
     {
       "name": "sentence_length_stddev",
-      "value": 7.42827859022117,
+      "value": 7.026977965052232,
       "lo": 3.842935444251814,
       "hi": 8.561427697392949,
       "in_envelope": true
     },
     {
       "name": "sentence_length_cv",
-      "value": 1.0592426508907702,
+      "value": 1.0182084372620965,
       "lo": 0.8694236413682912,
       "hi": 1.1404753291323981,
       "in_envelope": true
@@ -50,21 +50,21 @@ expression: stdout
     },
     {
       "name": "bullet_parallelism",
-      "value": 0.611111111111111,
+      "value": 0.5333333333333333,
       "lo": 0.6319659442724458,
       "hi": 0.8533057851239669,
       "in_envelope": false
     },
     {
       "name": "paragraph_shape_mean",
-      "value": 1.1555555555555554,
+      "value": 1.1515151515151516,
       "lo": 1.0925925925925926,
       "hi": 1.2222222222222223,
       "in_envelope": true
     },
     {
       "name": "paragraph_shape_cv",
-      "value": 0.4195658505629116,
+      "value": 0.4206412463985727,
       "lo": 0.28767186522288957,
       "hi": 0.4872634148780704,
       "in_envelope": true
@@ -78,17 +78,17 @@ expression: stdout
     },
     {
       "name": "semicolon_density",
-      "value": 0.9140767824497258,
+      "value": 0.9532888465204957,
       "lo": 0.0,
       "hi": 1.6207455429497568,
       "in_envelope": true
     },
     {
       "name": "participial_closer_rate",
-      "value": 0.00641025641025641,
+      "value": 0.006578947368421052,
       "lo": 0.0,
       "hi": 0.00641025641025641,
-      "in_envelope": true
+      "in_envelope": false
     },
     {
       "name": "not_just_but_rate",
@@ -106,49 +106,49 @@ expression: stdout
     },
     {
       "name": "llm_favored_phrase_rate",
-      "value": 12.987012987012987,
+      "value": 13.500482160077146,
       "lo": 3.592814371257485,
       "hi": 14.895729890764647,
       "in_envelope": true
     },
     {
       "name": "human_favored_phrase_rate",
-      "value": 25.04638218923933,
+      "value": 26.036644165863066,
       "lo": 10.121457489878543,
       "hi": 27.753686036426714,
       "in_envelope": true
     },
     {
       "name": "heading_density",
-      "value": 5.565862708719852,
+      "value": 5.785920925747348,
       "lo": 5.758157389635317,
       "hi": 19.161676646706585,
-      "in_envelope": false
+      "in_envelope": true
     },
     {
       "name": "list_item_density",
-      "value": 24.11873840445269,
+      "value": 24.108003857280618,
       "lo": 12.258064516129032,
       "hi": 80.2919708029197,
       "in_envelope": true
     },
     {
       "name": "bold_span_density",
-      "value": 4.638218923933209,
+      "value": 4.821600771456123,
       "lo": 0.0,
       "hi": 6.451612903225806,
       "in_envelope": true
     },
     {
       "name": "sentence_opener_repeat_rate",
-      "value": 0.0064516129032258064,
+      "value": 0.006622516556291391,
       "lo": 0.0038022813688212928,
       "hi": 0.04477611940298507,
       "in_envelope": true
     },
     {
       "name": "top_opener_concentration",
-      "value": 0.06716417910447761,
+      "value": 0.06923076923076923,
       "lo": 0.04854368932038835,
       "hi": 0.17391304347826086,
       "in_envelope": true
@@ -159,31 +159,31 @@ expression: stdout
   "dms": [
     {
       "family": "qwen",
-      "mean_machine": 1.1209068010075567,
-      "mean_human": 12.991603694374476,
-      "differential": -11.870696893366919,
-      "token_count": 1191
+      "mean_machine": 1.1194690265486726,
+      "mean_human": 12.532743362831859,
+      "differential": -11.413274336283186,
+      "token_count": 1130
     },
     {
       "family": "gemma",
-      "mean_machine": 1.2745591939546599,
-      "mean_human": 12.991603694374476,
-      "differential": -11.717044500419815,
-      "token_count": 1191
+      "mean_machine": 1.275221238938053,
+      "mean_human": 12.532743362831859,
+      "differential": -11.257522123893805,
+      "token_count": 1130
     },
     {
       "family": "llama",
-      "mean_machine": 1.1771620486985725,
-      "mean_human": 12.991603694374476,
-      "differential": -11.814441645675902,
-      "token_count": 1191
+      "mean_machine": 1.1716814159292035,
+      "mean_human": 12.532743362831859,
+      "differential": -11.361061946902655,
+      "token_count": 1130
     },
     {
       "family": "granite",
-      "mean_machine": 1.0755667506297228,
-      "mean_human": 12.991603694374476,
-      "differential": -11.916036943744754,
-      "token_count": 1191
+      "mean_machine": 1.0778761061946902,
+      "mean_human": 12.532743362831859,
+      "differential": -11.454867256637169,
+      "token_count": 1130
     }
   ]
 }

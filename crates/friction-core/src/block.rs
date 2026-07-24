@@ -76,6 +76,11 @@ pub enum BlockKind {
     },
     /// A thematic break (`---`, `***`, `___`).
     ThematicBreak,
+    /// A YAML frontmatter block at the very start of the document: an
+    /// opening `---` line closed by a `---` or `...` line. Its contents
+    /// are metadata syntax, not markdown, and are excluded from prose
+    /// extraction entirely.
+    FrontMatter,
     /// A raw HTML block.
     HtmlBlock,
     /// A footnote definition.
