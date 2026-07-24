@@ -19,6 +19,7 @@
 //! different callers and must not share a name).
 
 use std::collections::{BTreeMap, BTreeSet};
+use std::ops::Range;
 use std::sync::LazyLock;
 
 use crate::{TaggedToken, Tagger};
@@ -129,6 +130,145 @@ pub fn conjugate(verb: &str, form: LightVerbForm) -> String {
     }
 }
 
+/// Why a candidate light-verb construction was rejected before licensing
+/// was checked.
+///
+/// Relocated verbatim from what used to be a private enum in
+/// `friction-harness::pivot` — that module now re-exports this type so its
+/// own public shape is unchanged; see [`classify_candidate`].
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum PivotRejection {
+    /// The light verb is a past form preceded by a form of "be".
+    Passive,
+    /// The token after the (optional) determiner is tagged `JJ` — an
+    /// adjective or quantifier modifying the nominalization.
+    ModifiedNominal,
+    /// The nominalization is plural.
+    PluralNominal,
+}
+
+/// A licensed `LV (DET)? NOM (of)?` construction found by
+/// [`classify_candidate`].
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct LicensedConstruction {
+    /// Absolute byte range in whatever `text` [`classify_candidate`] was
+    /// called with, from the light verb through the trailing `of` (if
+    /// present) or the nominalization (if not).
+    pub range: Range<usize>,
+    /// Index one past the construction's last token (`of`'s index + 1, or
+    /// the nominalization's index + 1) — lets a caller scanning for every
+    /// match in a sentence resume immediately after this one without
+    /// rescanning tokens already consumed by it.
+    pub end_token_index: usize,
+    /// The derived verb, inflected to match the light verb's own form,
+    /// e.g. `"initializes"`.
+    pub derived_verb: Box<str>,
+    /// The matched nominalization's lowercased surface text.
+    pub nominalization: Box<str>,
+}
+
+/// The outcome of [`classify_candidate`] for one candidate light-verb
+/// position.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum CandidateOutcome {
+    /// `tokens[lv_index]` is not a member of [`LIGHT_VERBS`] at all.
+    NotLightVerb,
+    /// A light verb was found but a guard rejected it before licensing was
+    /// even checked.
+    Rejected(PivotRejection),
+    /// A light verb (optionally followed by a determiner) was found, but
+    /// no token follows to be a candidate nominalization.
+    NoNominalFollows,
+    /// A light-verb-construction shape was found, but the nominalization
+    /// is not a key in the caller's `lexicon` — not a licensed pair.
+    Unlicensed,
+    /// A licensed light-verb construction, ready to collapse.
+    Licensed(LicensedConstruction),
+}
+
+/// Classifies the light-verb-construction candidate rooted at
+/// `tokens[lv_index]`.
+///
+/// `tokens` must already carry the caller's real absolute byte offsets
+/// (`tagger.tag(text, base_offset)` with whatever `base_offset` the
+/// caller's sentence sits at) and `text` must be the exact string those
+/// offsets index into — this function performs no tagging itself, and is
+/// agnostic to whatever `base_offset` the caller used.
+///
+/// Factored out of what was `friction-harness::pivot`'s private loop body
+/// so both that module (which stops at the sentence's first licensed
+/// match, matching `ref_pivot.py::pivot()`) and a detection channel
+/// (which reports every non-overlapping licensed match in a sentence)
+/// share one gate/licensing implementation; each call site's own docs
+/// describe how they differ only in outer-loop policy.
+///
+/// Gate order mirrors `ref_pivot.py::pivot()`: passive check, then the
+/// modified-nominal (`JJ`) check, then the plural-nominal check, then
+/// licensing.
+#[must_use]
+pub fn classify_candidate(
+    tokens: &[TaggedToken],
+    text: &str,
+    lv_index: usize,
+    lexicon: &BTreeMap<Box<str>, Box<str>>,
+) -> CandidateOutcome {
+    let surface = |t: &TaggedToken| -> &str { &text[t.token.range.clone()] };
+
+    let lv_lower = surface(&tokens[lv_index]).to_lowercase();
+    let Some(&feat) = LIGHT_VERBS.get(lv_lower.as_str()) else {
+        return CandidateOutcome::NotLightVerb;
+    };
+
+    if feat == LightVerbForm::Past
+        && lv_index > 0
+        && BE_FORMS.contains(surface(&tokens[lv_index - 1]).to_lowercase().as_str())
+    {
+        return CandidateOutcome::Rejected(PivotRejection::Passive);
+    }
+
+    let mut j = lv_index + 1;
+    if j < tokens.len()
+        && matches!(
+            surface(&tokens[j]).to_lowercase().as_str(),
+            "a" | "an" | "the"
+        )
+    {
+        j += 1;
+    }
+
+    if j >= tokens.len() {
+        return CandidateOutcome::NoNominalFollows;
+    }
+    if tokens[j].pos.as_str() == "JJ" {
+        return CandidateOutcome::Rejected(PivotRejection::ModifiedNominal);
+    }
+
+    let nom = surface(&tokens[j]).to_lowercase();
+    if let Some(stem) = nom.strip_suffix('s')
+        && lexicon.contains_key(stem)
+    {
+        return CandidateOutcome::Rejected(PivotRejection::PluralNominal);
+    }
+    let Some(base_verb) = lexicon.get(nom.as_str()) else {
+        return CandidateOutcome::Unlicensed;
+    };
+
+    let derived_verb = conjugate(base_verb, feat);
+
+    let k = j + 1;
+    let has_of = k < tokens.len() && surface(&tokens[k]).to_lowercase() == "of";
+    let end_idx = if has_of { k } else { j };
+
+    let range = tokens[lv_index].token.range.start..tokens[end_idx].token.range.end;
+
+    CandidateOutcome::Licensed(LicensedConstruction {
+        range,
+        end_token_index: end_idx + 1,
+        derived_verb: derived_verb.into_boxed_str(),
+        nominalization: nom.into_boxed_str(),
+    })
+}
+
 /// One `LV (DET)? NOM (of)?` construction-shape match found by
 /// [`scan_construction_shape`].
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -237,6 +377,79 @@ mod tests {
         assert_eq!(conjugate("decide", LightVerbForm::Past), "decided");
         assert_eq!(conjugate("analyze", LightVerbForm::Gerund), "analyzing");
         assert_eq!(conjugate("verify", LightVerbForm::ThirdSg), "verifies");
+    }
+
+    #[test]
+    fn classify_candidate_byte_range_is_offset_agnostic() {
+        // The real sentence sits at a non-zero offset within a larger
+        // string, proving `classify_candidate` is genuinely offset-aware
+        // rather than hardcoded to `base_offset == 0`.
+        let text = "PREFIX. The system performs an initialization of the database.";
+        let base_offset = "PREFIX. ".len();
+        let sentence = &text[base_offset..];
+        let tokens = tagger().tag(sentence, base_offset);
+        let lv_index = tokens
+            .iter()
+            .position(|t| &text[t.token.range.clone()] == "performs")
+            .expect("tagger must find \"performs\"");
+
+        let lexicon = BTreeMap::from([(
+            Box::from("initialization") as Box<str>,
+            Box::from("initialize") as Box<str>,
+        )]);
+
+        match classify_candidate(&tokens, text, lv_index, &lexicon) {
+            CandidateOutcome::Licensed(lc) => {
+                assert_eq!(&text[lc.range.clone()], "performs an initialization of");
+                assert_eq!(&*lc.derived_verb, "initializes");
+                assert_eq!(&*lc.nominalization, "initialization");
+            }
+            other => panic!("expected Licensed, got {other:?}"),
+        }
+    }
+
+    #[test]
+    fn classify_candidate_rejects_passive() {
+        let text = "An initialization of the database is performed by the system.";
+        let tokens = tagger().tag(text, 0);
+        let lv_index = tokens
+            .iter()
+            .position(|t| &text[t.token.range.clone()] == "performed")
+            .expect("tagger must find \"performed\"");
+        let lexicon = BTreeMap::from([(
+            Box::from("initialization") as Box<str>,
+            Box::from("initialize") as Box<str>,
+        )]);
+        assert_eq!(
+            classify_candidate(&tokens, text, lv_index, &lexicon),
+            CandidateOutcome::Rejected(PivotRejection::Passive)
+        );
+    }
+
+    #[test]
+    fn classify_candidate_reports_not_light_verb_for_a_non_light_verb_token() {
+        let text = "The committee reviewed the plan.";
+        let tokens = tagger().tag(text, 0);
+        let lexicon = BTreeMap::new();
+        assert_eq!(
+            classify_candidate(&tokens, text, 0, &lexicon),
+            CandidateOutcome::NotLightVerb
+        );
+    }
+
+    #[test]
+    fn classify_candidate_reports_unlicensed_for_an_unlicensed_nominalization() {
+        let text = "The wizard performs setup.";
+        let tokens = tagger().tag(text, 0);
+        let lv_index = tokens
+            .iter()
+            .position(|t| &text[t.token.range.clone()] == "performs")
+            .expect("tagger must find \"performs\"");
+        let lexicon = BTreeMap::new();
+        assert_eq!(
+            classify_candidate(&tokens, text, lv_index, &lexicon),
+            CandidateOutcome::Unlicensed
+        );
     }
 
     #[test]

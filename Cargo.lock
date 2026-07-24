@@ -752,6 +752,21 @@ dependencies = [
 ]
 
 [[package]]
+name = "friction-match"
+version = "0.1.0"
+dependencies = [
+ "aho-corasick 1.1.4",
+ "friction-core",
+ "friction-harness",
+ "friction-nlp",
+ "friction-packs",
+ "friction-parse",
+ "proptest",
+ "regex",
+ "thiserror 2.0.19",
+]
+
+[[package]]
 name = "friction-metrics"
 version = "0.1.0"
 dependencies = [

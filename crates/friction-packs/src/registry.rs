@@ -22,6 +22,9 @@ pub struct LoadedPack<T> {
 /// `ENVELOPE_V2_TOML`.
 const INVENTORY_V1_TOML: &str = include_str!("../packs/inventory-v1.toml");
 
+/// The embedded `dms-index-v1.toml` source — ~1.9 MB.
+const DMS_INDEX_V1_TOML: &str = include_str!("../packs/dms-index-v1.toml");
+
 /// The built-in inventory pack, parsed once from the embedded
 /// `inventory-v1.toml` and reused for the life of the process.
 ///
@@ -65,6 +68,25 @@ pub fn load_dms_pack(toml: &str) -> Result<LoadedPack<DmsIndex>, PackError> {
     })
 }
 
+/// The built-in DMS index, parsed once from the embedded
+/// `dms-index-v1.toml` and reused for the life of the process.
+///
+/// ~1.9 MB embedded — the pack this crate's own `dms` module docs said
+/// was "not yet wired into any runtime detection pass"; `friction-match`
+/// is that pass.
+///
+/// # Panics
+/// Panics if the embedded pack fails to parse — a bug in this crate's own
+/// vendored data, not a runtime condition.
+pub static DMS: LazyLock<LoadedPack<DmsIndex>> = LazyLock::new(|| {
+    let pack = DmsIndex::parse(DMS_INDEX_V1_TOML).expect("embedded dms-index-v1.toml must parse");
+    LoadedPack {
+        version: "dms-index-v1".into(),
+        sha256: Sha256::of_bytes(DMS_INDEX_V1_TOML.as_bytes()),
+        pack,
+    }
+});
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -100,6 +122,24 @@ mod tests {
         assert_eq!(&*loaded.version, "dms-index-v1");
         assert_eq!(loaded.pack.vocab().len(), 4);
         assert_eq!(loaded.sha256, Sha256::of_bytes(SAMPLE_DMS_PACK.as_bytes()));
+    }
+
+    #[test]
+    fn dms_static_loads_and_defines_every_family() {
+        assert_eq!(&*DMS.version, "dms-index-v1");
+        for family in crate::ModelFamily::ALL {
+            assert!(
+                DMS.pack.family_sam(family).is_some(),
+                "embedded dms-index-v1.toml has no stream for {family}"
+            );
+        }
+    }
+
+    #[test]
+    fn dms_sha256_matches_recomputed_hash_of_the_embedded_bytes() {
+        let recomputed = Sha256::of_bytes(DMS_INDEX_V1_TOML.as_bytes());
+        assert_eq!(DMS.sha256, recomputed);
+        assert!(recomputed.verify(DMS_INDEX_V1_TOML.as_bytes()));
     }
 
     #[test]

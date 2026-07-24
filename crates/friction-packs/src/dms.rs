@@ -5,10 +5,9 @@
 //! vocabulary to a versioned TOML pack (`dms-index-v1.toml`); this module
 //! is the read side, turning that pack into in-memory, queryable suffix
 //! automata — the same "embedded TOML -> in-memory struct" shape
-//! [`crate::EnvelopePack`] already established for this crate. Nothing
-//! wires a [`DmsIndex`] into an actual fix-time detection pass yet — that
-//! is a later milestone's job (a `friction-match` crate that does not
-//! exist as of this writing).
+//! [`crate::EnvelopePack`] already established for this crate. A
+//! detection crate built on top of this one (`friction-match`) wires a
+//! [`DmsIndex`] into a running fix-time detection pass.
 //!
 //! [`Sam`] is a faithful transcription of the suffix-automaton reference
 //! (`next`/`link`/`len` arrays, the exact clone-handling branch in

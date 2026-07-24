@@ -43,11 +43,11 @@
 //! # DMS index
 //!
 //! [`DmsIndex`] parses the token-id-stream pack `corpus-tool index`
-//! writes (`packs/dms-index-v1.toml`) into a shared [`Vocab`] plus one
-//! suffix automaton ([`Sam`]) per stream — the human corpus and whichever
-//! of the four [`ModelFamily`] generator corpora the pack defines. This
-//! milestone builds and unit-tests the reconstruction only; nothing wires
-//! a [`DmsIndex`] into a running fix-time detection pass yet.
+//! writes (`packs/dms-index-v1.toml`, embedded and exposed pre-parsed as
+//! [`DMS`]) into a shared [`Vocab`] plus one suffix automaton ([`Sam`])
+//! per stream — the human corpus and whichever of the four [`ModelFamily`]
+//! generator corpora the pack defines. A detection crate built on top of
+//! this one wires [`DMS`] into a running fix-time detection pass.
 //!
 //! # Inventory pack
 //!
@@ -85,7 +85,7 @@ pub use inventory::{
     Anchor, DeletionSpan, FrequencyUnit, GuardTokens, InventoryPack, LvcPair, OutputFrequencyBand,
     PreviewFrame, RepairKind, RitualFrame, SubstitutionPair,
 };
-pub use registry::{INVENTORY, LoadedPack, load_dms_pack};
+pub use registry::{DMS, INVENTORY, LoadedPack, load_dms_pack};
 pub use validate::{
     ClosureViolation, DisjointnessViolation, FrequencyHygieneReason, FrequencyHygieneViolation,
     Violation, check_closure, check_disjointness, check_frequency_hygiene, validate,

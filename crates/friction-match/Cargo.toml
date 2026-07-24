@@ -1,0 +1,27 @@
+[package]
+name = "friction-match"
+version = "0.1.0"
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+
+[lints]
+workspace = true
+
+[dependencies]
+friction-core = { path = "../friction-core" }
+friction-parse = { path = "../friction-parse" }
+friction-nlp = { path = "../friction-nlp" }
+friction-packs = { path = "../friction-packs" }
+aho-corasick = { workspace = true }
+regex = "1"
+thiserror = { workspace = true }
+
+[dev-dependencies]
+# Fixture reuse (docs/research/fixtures.json, sample docs) and the pinned
+# tokenize-convention equivalence test only — a dev-dependency back-edge,
+# not a build-graph cycle (friction-harness's own deps do not include this
+# crate).
+friction-harness = { path = "../friction-harness" }
+proptest = { workspace = true }

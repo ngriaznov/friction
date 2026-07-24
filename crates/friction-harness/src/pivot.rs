@@ -1,15 +1,17 @@
 //! Derivational pivot (light-verb construction collapse) detection.
 //!
 //! Transcribed from `ref_pivot.py`'s `DERIV`/`LV` tables and its `pivot()`
-//! matching logic. `LIGHT_VERBS`/`BE_FORMS`/`conjugate`/`LightVerbForm`
-//! still come from `friction_nlp::lvc` — fixed, closed grammatical
-//! classes (the perform/conduct/make/do inflection tables), not
-//! curated pack data — but the licensed (nominalization -> derived verb)
-//! lookup itself is sourced from `friction_packs::INVENTORY.pack.
-//! lvc_lexicon()` instead of `friction_nlp::lvc::DERIVATIONAL_LEXICON`
-//! directly, so the pack's own `lvc_pairs` family (checked against that
-//! same lexicon at load time — see `friction_packs::InventoryPack::parse`)
-//! is the single source of truth for which pairs are licensed at runtime.
+//! matching logic. The per-candidate gating and licensing walk itself
+//! lives in `friction_nlp::lvc::classify_candidate` (fixed, closed
+//! grammatical classes — the perform/conduct/make/do inflection tables —
+//! plus the passive/modified-nominal/plural-nominal guards); this module
+//! keeps only `ref_pivot.py::pivot()`'s outer-loop policy. The licensed
+//! (nominalization -> derived verb) lookup itself is sourced from
+//! `friction_packs::INVENTORY.pack.lvc_lexicon()` instead of
+//! `friction_nlp::lvc::DERIVATIONAL_LEXICON` directly, so the pack's own
+//! `lvc_pairs` family (checked against that same lexicon at load time —
+//! see `friction_packs::InventoryPack::parse`) is the single source of
+//! truth for which pairs are licensed at runtime.
 //! This module adds a fourth tell family on top of the ritual/
 //! substitution/deletion families, because without it three of the five
 //! accept fixtures (`pivot_constructed_cases`, `pivot_real_corpus`, and
@@ -28,8 +30,9 @@
 //! actual gating logic is unchanged — only its licensed-pair data source
 //! moved to the pack.
 
-use friction_nlp::lvc::{BE_FORMS, LIGHT_VERBS, LightVerbForm, conjugate};
-use friction_nlp::{TaggedToken, Tagger};
+use friction_nlp::Tagger;
+pub use friction_nlp::lvc::PivotRejection;
+use friction_nlp::lvc::{CandidateOutcome, classify_candidate};
 
 /// The outcome of scanning one sentence for a derivational-pivot
 /// construction.
@@ -49,19 +52,6 @@ pub enum PivotOutcome {
     Licensed(LicensedPivot),
 }
 
-/// Why a candidate light-verb construction was rejected before licensing
-/// was checked.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum PivotRejection {
-    /// The light verb is a past form preceded by a form of "be".
-    Passive,
-    /// The token after the (optional) determiner is tagged `JJ` — an
-    /// adjective or quantifier modifying the nominalization.
-    ModifiedNominal,
-    /// The nominalization is plural.
-    PluralNominal,
-}
-
 /// A licensed derivational-pivot match: the light-verb-construction span
 /// found, and the single derived verb it collapses to.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -76,16 +66,16 @@ pub struct LicensedPivot {
 /// Faithful transcription of `ref_pivot.py::pivot()`'s *matching* half only
 /// (this milestone never rewrites text).
 ///
-/// Walks `tagger.tag(sentence, 0)` directly — surface text via each
-/// `TaggedToken`'s own byte range, lowercased for every table lookup —
-/// rather than a second, separately tokenized word list:
-/// `friction_nlp::Tagger` tokenizes internally and has no "tag this
-/// pre-split word list" entry point the way NLTK's tagger does, so
-/// aligning a second tokenizer's indices against the tagger's own tags
-/// would be an added, unnecessary failure mode. The only place a POS tag
-/// is consulted at all is the modified-nominal (`JJ`) guard; the LV
-/// lookup, the passive-preceding-`BE` check, and the plural-suffix check
-/// are pure surface-string comparisons, exactly as in `ref_pivot.py`.
+/// Walks `tagger.tag(sentence, 0)` directly — `friction_nlp::Tagger`
+/// tokenizes internally and has no "tag this pre-split word list" entry
+/// point the way NLTK's tagger does, so aligning a second tokenizer's
+/// indices against the tagger's own tags would be an added, unnecessary
+/// failure mode. Per-candidate gating and licensing (the LV lookup, the
+/// passive-preceding-`BE` check, the modified-nominal `JJ` check, the
+/// plural-suffix check, and the licensed-pair lookup) is delegated to
+/// [`friction_nlp::lvc::classify_candidate`] against
+/// `friction_packs::INVENTORY.pack.lvc_lexicon()`; this function is left
+/// with only the outer-loop policy `ref_pivot.py::pivot()` itself encodes.
 ///
 /// Scans every light-verb-table token in the sentence, left to right, the
 /// same way `ref_pivot.py`'s `pivot()` loop does: `Passive`, `ModifiedNominal`,
@@ -100,68 +90,37 @@ pub struct LicensedPivot {
 #[must_use]
 pub fn match_pivot(sentence: &str, tagger: &dyn Tagger) -> PivotOutcome {
     let tokens = tagger.tag(sentence, 0);
-    let surface = |t: &TaggedToken| -> &str { &sentence[t.token.range.clone()] };
+    let lvc_lexicon = friction_packs::INVENTORY.pack.lvc_lexicon();
 
     let mut saw_light_verb = false;
 
     for i in 0..tokens.len() {
-        let lv_lower = surface(&tokens[i]).to_lowercase();
-        let Some(&feat) = LIGHT_VERBS.get(lv_lower.as_str()) else {
-            continue;
-        };
-        saw_light_verb = true;
-
-        if feat == LightVerbForm::Past
-            && i > 0
-            && BE_FORMS.contains(surface(&tokens[i - 1]).to_lowercase().as_str())
-        {
-            return PivotOutcome::Rejected(PivotRejection::Passive);
+        match classify_candidate(&tokens, sentence, i, lvc_lexicon) {
+            CandidateOutcome::NotLightVerb => {}
+            CandidateOutcome::Rejected(rejection) => {
+                return PivotOutcome::Rejected(rejection);
+            }
+            CandidateOutcome::NoNominalFollows | CandidateOutcome::Unlicensed => {
+                saw_light_verb = true;
+            }
+            CandidateOutcome::Licensed(licensed) => {
+                // Reconstructed by joining each matched token's own
+                // surface text with a single space, exactly as
+                // `ref_pivot.py::pivot()` does — not a slice of
+                // `licensed.range`, which would instead reproduce
+                // whatever literal (possibly irregular) whitespace sits
+                // between the matched tokens in `sentence`.
+                let matched_text = tokens[i..licensed.end_token_index]
+                    .iter()
+                    .map(|t| &sentence[t.token.range.clone()])
+                    .collect::<Vec<_>>()
+                    .join(" ");
+                return PivotOutcome::Licensed(LicensedPivot {
+                    matched_text,
+                    derived_verb: licensed.derived_verb.to_string(),
+                });
+            }
         }
-
-        let mut j = i + 1;
-        if j < tokens.len()
-            && matches!(
-                surface(&tokens[j]).to_lowercase().as_str(),
-                "a" | "an" | "the"
-            )
-        {
-            j += 1;
-        }
-
-        if j >= tokens.len() {
-            continue;
-        }
-        if tokens[j].pos.as_str() == "JJ" {
-            return PivotOutcome::Rejected(PivotRejection::ModifiedNominal);
-        }
-
-        let lvc_lexicon = friction_packs::INVENTORY.pack.lvc_lexicon();
-        let nom = surface(&tokens[j]).to_lowercase();
-        if let Some(stem) = nom.strip_suffix('s')
-            && lvc_lexicon.contains_key(stem)
-        {
-            return PivotOutcome::Rejected(PivotRejection::PluralNominal);
-        }
-        let Some(base_verb) = lvc_lexicon.get(nom.as_str()) else {
-            continue;
-        };
-
-        let derived_verb = conjugate(base_verb, feat);
-
-        let k = j + 1;
-        let has_of = k < tokens.len() && surface(&tokens[k]).to_lowercase() == "of";
-        let end_idx = if has_of { k } else { j };
-
-        let matched_text = tokens[i..=end_idx]
-            .iter()
-            .map(surface)
-            .collect::<Vec<_>>()
-            .join(" ");
-
-        return PivotOutcome::Licensed(LicensedPivot {
-            matched_text,
-            derived_verb,
-        });
     }
 
     if saw_light_verb {
@@ -176,6 +135,7 @@ mod tests {
     use std::sync::OnceLock;
 
     use friction_nlp::NlpruleTagger;
+    use friction_nlp::lvc::{LightVerbForm, conjugate};
 
     use super::*;
 
