@@ -4,7 +4,7 @@
 //! model-loaded-once handle for callers that don't want to build a
 //! segmenter, tagger, and envelope pack themselves for every document).
 
-use friction_nlp::{NlpruleTagger, Segmenter, SrxSegmenter, TagError, Tagger};
+use friction_nlp::{PerceptronTagError, PerceptronTagger, Segmenter, SrxSegmenter, Tagger};
 use friction_packs::{ENVELOPE_V2, EnvelopePack};
 use friction_rules::{
     BoldLabelStripRule, ConnectiveSurgery, ContractionRule, FillerPhraseRule, GenreEnvelope,
@@ -128,7 +128,7 @@ impl GenreEnvelope for PackEnvelope<'_> {
 pub enum EngineError {
     /// The embedded English part-of-speech tagger model failed to load.
     #[error("failed to load the embedded English tagger model: {0}")]
-    Tagger(#[from] TagError),
+    Tagger(#[from] PerceptronTagError),
 }
 
 /// A ready-to-use [`fix_document`] handle.
@@ -140,11 +140,11 @@ pub enum EngineError {
 ///
 /// This is the shape corpus-scale callers (an idempotence sweep, a
 /// near-no-op report, `friction-cli`'s eventual `fix` subcommand) want:
-/// [`NlpruleTagger::new`] loads an embedded model and is not something to
+/// [`PerceptronTagger::new`] loads an embedded model and is not something to
 /// pay for once per document.
 pub struct FixEngine {
     segmenter: SrxSegmenter,
-    tagger: NlpruleTagger,
+    tagger: PerceptronTagger,
     envelope_pack: &'static EnvelopePack,
 }
 
@@ -158,7 +158,7 @@ impl FixEngine {
     pub fn new() -> Result<Self, EngineError> {
         Ok(Self {
             segmenter: SrxSegmenter::new(),
-            tagger: NlpruleTagger::new()?,
+            tagger: PerceptronTagger::new()?,
             envelope_pack: &ENVELOPE_V2,
         })
     }
@@ -322,7 +322,7 @@ mod tests {
         use friction_rules::MapEnvelope;
 
         let segmenter = SrxSegmenter::new();
-        let tagger = NlpruleTagger::new().expect("embedded model loads");
+        let tagger = PerceptronTagger::new().expect("embedded model loads");
         // Forces `structural.unbullet` (any list at all) and
         // `rhythm.split` (any document, however low its real
         // `sentence_length_cv`) both into `Gate::Fix`; every other
@@ -336,21 +336,21 @@ mod tests {
                        team member\n\
                        - Installation handles every dependency without manual intervention \
                        required\n\
-                       - Kubernetes handles the rollout to every environment automatically \
+                       - Deployment handles the rollout to every environment automatically \
                        once approved\n";
 
         let (output, _report) = fix_document(source, "docs", &envelope, &segmenter, &tagger)
             .expect("well-formed input must not fail");
 
         assert!(
-            !output.contains("required. Kubernetes"),
+            !output.contains("required. Deployment"),
             "must never split the serial list into a comma splice, got {output:?}"
         );
         assert_eq!(
             output,
             "Configuration handles environment setup automatically for every new team \
              member, installation handles every dependency without manual intervention \
-             required, and Kubernetes handles the rollout to every environment \
+             required, and deployment handles the rollout to every environment \
              automatically once approved.\n",
             "structural.unbullet should still join the list; rhythm.split must decline \
              every boundary rather than introduce a splice"

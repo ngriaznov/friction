@@ -24,7 +24,7 @@ use std::fmt::Write as _;
 use std::fs;
 use std::path::{Path, PathBuf};
 
-use friction_nlp::{NlpruleTagger, SrxSegmenter, Tagger, segment_document};
+use friction_nlp::{PerceptronTagger, SrxSegmenter, Tagger, segment_document};
 use sha2::{Digest, Sha256};
 
 /// Root of the corpus fixture directory, resolved relative to this
@@ -85,7 +85,7 @@ fn hash_document(
     root: &Path,
     path: &Path,
     segmenter: SrxSegmenter,
-    tagger: &NlpruleTagger,
+    tagger: &PerceptronTagger,
     hasher: &mut Sha256,
     line: &mut String,
 ) {
@@ -123,7 +123,7 @@ fn hash_document(
 /// Runs the full parse -> segment -> tag pipeline over every document in
 /// `paths`, in order, and returns the lowercase hex sha256 of the
 /// resulting canonical token stream.
-fn hash_corpus(paths: &[PathBuf], segmenter: SrxSegmenter, tagger: &NlpruleTagger) -> String {
+fn hash_corpus(paths: &[PathBuf], segmenter: SrxSegmenter, tagger: &PerceptronTagger) -> String {
     let root = corpus_root();
     let mut hasher = Sha256::new();
     let mut line = String::new();
@@ -153,7 +153,7 @@ fn corpus_determinism_smoke() {
     let sample = &docs[..20];
 
     let segmenter = SrxSegmenter::new();
-    let tagger = NlpruleTagger::new().expect("embedded model must load");
+    let tagger = PerceptronTagger::new().expect("embedded model must load");
 
     let first = hash_corpus(sample, segmenter, &tagger);
     let second = hash_corpus(sample, segmenter, &tagger);
@@ -183,7 +183,7 @@ fn corpus_determinism_full() {
     );
 
     let segmenter = SrxSegmenter::new();
-    let tagger = NlpruleTagger::new().expect("embedded model must load");
+    let tagger = PerceptronTagger::new().expect("embedded model must load");
 
     let first = hash_corpus(&docs, segmenter, &tagger);
     let second = hash_corpus(&docs, segmenter, &tagger);

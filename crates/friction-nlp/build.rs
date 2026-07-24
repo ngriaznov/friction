@@ -2,11 +2,16 @@
 //! time, decompresses it, and writes it into `OUT_DIR` so `src/tag_nlprule.rs`
 //! can embed it with `include_bytes!`.
 //!
-//! This is the *only* network access anywhere in the tagging/inflection
-//! code this crate owns: `check`/`fix` never download anything at
-//! runtime (see the crate-level determinism and offline discipline this
-//! workspace requires). A hash mismatch fails the build hard rather than
-//! silently trusting an unpinned or tampered download.
+//! This only runs when the `nlprule` feature is enabled — the default
+//! tagger ([`PerceptronTagger`](../src/tag_perceptron.rs)) ships its
+//! weights vendored directly in `weights/perceptron_en.json.gz`, so a
+//! default build touches the network exactly never, at build time or at
+//! run time. When `nlprule` *is* enabled, this remains the only network
+//! access anywhere in the tagging/inflection code this crate owns: `check`/
+//! `fix` never download anything at runtime (see the crate-level
+//! determinism and offline discipline this workspace requires). A hash
+//! mismatch fails the build hard rather than silently trusting an
+//! unpinned or tampered download.
 //!
 //! On an incremental build with an unchanged pin, the cached, already-
 //! verified file in `OUT_DIR` is reused and no network round-trip happens
@@ -41,6 +46,12 @@ const STAMP_NAME: &str = "en_tokenizer.sha256";
 
 fn main() {
     println!("cargo:rerun-if-changed=build.rs");
+    println!("cargo:rerun-if-env-changed=CARGO_FEATURE_NLPRULE");
+    if std::env::var_os("CARGO_FEATURE_NLPRULE").is_none() {
+        // Default build: the perceptron tagger's weights are vendored
+        // in-repo, not downloaded — nothing to do, no network access.
+        return;
+    }
 
     let out_dir =
         PathBuf::from(env::var("OUT_DIR").expect("cargo always sets OUT_DIR for build scripts"));

@@ -12,6 +12,222 @@
 //! identical for a plural noun and a third-person-singular verb, so one
 //! code path covers both.
 
+/// A lemma's real part of speech, and therefore which inflected forms
+/// [`agreeing_forms`] may legitimately derive for it.
+///
+/// Mechanically generating an "-s" form for a lemma regardless of its real
+/// part of speech is a genuine false-positive risk for a caller matching
+/// against generated forms: `"valuable"` (adjective) plus an "-s" suffix
+/// produces `"valuables"`, which is not "more than one valuable thing" but
+/// an *established, differently-meaning* English noun. [`WordClass`] fixes
+/// this at the root: [`agreeing_forms`] only derives the forms a lemma's
+/// actual class can legitimately take.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum WordClass {
+    /// A regular verb: base, third-person-singular/plural (-s/-es), gerund
+    /// (-ing), and past (-ed) forms.
+    Verb,
+    /// A noun: base and plural (-s/-es) forms only.
+    Noun,
+    /// An adjective or adverb: only its own unmodified base form.
+    Adjective,
+}
+
+/// Fixed, unambiguously-regular templates (all forms of the plain regular
+/// verb "use") used only to derive a lemma's own candidate surface forms
+/// via [`inflect`] — see [`agreeing_forms`]'s docs.
+///
+/// Order matters for [`WordClass::Noun`], which uses only
+/// `AGREEMENT_TEMPLATES[0]` (the plural/third-person-singular template).
+const AGREEMENT_TEMPLATES: [&str; 3] = ["uses", "using", "used"];
+
+/// The forms `lemma` can legitimately take as a member of `class`.
+///
+/// Always includes `lemma` itself; [`WordClass::Noun`] additionally
+/// includes the plural form; [`WordClass::Verb`] additionally includes
+/// plural/third-person-singular, gerund, and past. Deduplicated, in a
+/// fixed, deterministic order (base first, then each template in
+/// [`AGREEMENT_TEMPLATES`] order).
+///
+/// Reuses [`inflect`] itself rather than a separate surface-form generator:
+/// applying a lemma to fixed, unambiguously-regular templates runs the same
+/// code path that will later generate an actual replacement, so the two
+/// directions (which surface forms match a lemma, and what a matched
+/// surface form's replacement should look like) can never quietly
+/// disagree.
+///
+/// # Examples
+/// ```
+/// use friction_nlp::{WordClass, agreeing_forms};
+///
+/// let forms = agreeing_forms("leverage", WordClass::Verb);
+/// assert!(forms.contains(&"leverages".to_string()));
+/// assert!(forms.contains(&"leveraging".to_string()));
+///
+/// let forms = agreeing_forms("valuable", WordClass::Adjective);
+/// assert_eq!(forms, vec!["valuable".to_string()]);
+/// ```
+#[must_use]
+pub fn agreeing_forms(lemma: &str, class: WordClass) -> Vec<String> {
+    let templates: &[&str] = match class {
+        WordClass::Adjective => &[],
+        WordClass::Noun => &AGREEMENT_TEMPLATES[..1],
+        WordClass::Verb => &AGREEMENT_TEMPLATES,
+    };
+    let mut forms = vec![lemma.to_string()];
+    for &template in templates {
+        if let Some(form) = inflect(template, lemma)
+            && !forms.contains(&form)
+        {
+            forms.push(form);
+        }
+    }
+    forms
+}
+
+/// Best-effort reverse lemmatization for a tagged surface word: given its
+/// surface text and a coarse Penn tag, guesses the base-form lemma by
+/// generating candidate stems and keeping the one that round-trips back to
+/// `surface` through [`inflect`]'s own forward generation — so this never
+/// duplicates a suffix/irregular rule, it only reuses the forward
+/// direction's own tables and logic in reverse. Falls back to `surface`
+/// itself, lowercased, when no candidate round-trips (matching
+/// [`crate::TaggedToken::lemma`]'s own documented fallback for "the tagger
+/// has no lemma for it").
+///
+/// `pos` is used only to pick which suffix family to try candidates for
+/// (`VBG` gerunds, `VBD`/`VBN` past forms, `VBZ`/`NNS` "-s" forms); any
+/// other tag returns the lowercased surface unchanged, since a base-form
+/// word's lemma is already itself.
+#[must_use]
+pub fn lemmatize(surface: &str, pos: &str) -> Box<str> {
+    let lower = surface.to_lowercase();
+    if !lower.chars().any(char::is_alphabetic) {
+        return Box::from(lower);
+    }
+
+    for &(base, sg3, ing, past) in IRREGULAR_VERBS {
+        if lower == sg3 || lower == ing || lower == past {
+            return Box::from(base);
+        }
+    }
+    for &(singular, plural) in IRREGULAR_NOUNS {
+        if lower == plural {
+            return Box::from(singular);
+        }
+    }
+
+    let (candidates, probe): (Vec<String>, &str) = match pos {
+        "VBG" => (ing_candidates(&lower), "using"),
+        "VBD" | "VBN" => (past_candidates(&lower), "used"),
+        "VBZ" | "NNS" => (suffix_s_candidates(&lower), "uses"),
+        _ => (Vec::new(), ""),
+    };
+    for candidate in candidates {
+        if inflect(probe, &candidate).as_deref() == Some(lower.as_str()) {
+            return candidate.into_boxed_str();
+        }
+    }
+
+    Box::from(lower)
+}
+
+/// Undoes a doubled final consonant before a vowel suffix was stripped
+/// (`"stopp"` -> also try `"stop"`), the reverse of
+/// [`should_double_final_consonant`]'s forward rule.
+fn undoubled(stem: &str) -> Option<String> {
+    let chars: Vec<char> = stem.chars().collect();
+    let n = chars.len();
+    if n >= 2 && chars[n - 1] == chars[n - 2] && !is_vowel(chars[n - 1]) {
+        Some(chars[..n - 1].iter().collect())
+    } else {
+        None
+    }
+}
+
+/// Candidate base-form stems for a word tagged `VBG` (gerund/present
+/// participle, `"-ing"`), in priority order.
+///
+/// Order matters more than it looks: naively stripping `"-ing"` almost
+/// always leaves a stem that trivially regenerates the original surface
+/// through [`inflect`]'s default (no-special-rule) branch, whether or not
+/// that stem is the *real* lemma — so a structurally-informed candidate
+/// (undoing a doubled final consonant, restoring a `"-ie"` ending) has to
+/// be tried *before* the naive stem, or the naive-but-wrong stem would
+/// always win by being checked first. A short (<=2-character) stem is
+/// additionally tried with a restored trailing `"e"` first, since a
+/// bare two-letter consonant-final "word" is rarely a genuine English verb
+/// on its own (`"us"` vs. the real `"use"`).
+fn ing_candidates(word: &str) -> Vec<String> {
+    let Some(stem) = word.strip_suffix("ing") else {
+        return Vec::new();
+    };
+    let mut out = Vec::new();
+    if let Some(un) = undoubled(stem) {
+        out.push(un);
+    }
+    // Only the genuine `"ie"`-verb family (tie/die/lie/vie: root length 1,
+    // stem after stripping `"-ing"` length 2) restores an `"-ie"` ending —
+    // a longer stem ending in `"-ying"` (`"carrying"` -> `"carry"`,
+    // `"worrying"` -> `"worry"`) is the far more common plain
+    // consonant-`"y"` verb, whose own `"-ing"` needs no special handling at
+    // all, so it must not be shadowed by a wrongly-restored `"-ie"` guess.
+    if stem.chars().count() <= 2
+        && let Some(base) = word.strip_suffix("ying")
+    {
+        out.push(format!("{base}ie"));
+    }
+    if stem.chars().count() <= 2 {
+        out.push(format!("{stem}e"));
+        out.push(stem.to_string());
+    } else {
+        out.push(stem.to_string());
+        out.push(format!("{stem}e"));
+    }
+    out
+}
+
+/// Candidate base-form stems for a word tagged `VBD`/`VBN` (past tense /
+/// past participle, `"-ed"`), in priority order — see [`ing_candidates`]'s
+/// docs for why structurally-informed candidates (`"-ied"` -> `"-y"`,
+/// undoubling) must come before the naive stripped stem.
+fn past_candidates(word: &str) -> Vec<String> {
+    let mut out = Vec::new();
+    if let Some(stem) = word.strip_suffix("ied") {
+        out.push(format!("{stem}y"));
+    }
+    let Some(stem) = word.strip_suffix("ed") else {
+        return out;
+    };
+    if let Some(un) = undoubled(stem) {
+        out.push(un);
+    }
+    if stem.chars().count() <= 2 {
+        out.push(format!("{stem}e"));
+        out.push(stem.to_string());
+    } else {
+        out.push(stem.to_string());
+        out.push(format!("{stem}e"));
+    }
+    out
+}
+
+/// Candidate base-form stems for a word tagged `VBZ`/`NNS`
+/// (third-person-singular present / plural, `"-s"`).
+fn suffix_s_candidates(word: &str) -> Vec<String> {
+    let mut out = Vec::new();
+    if let Some(stem) = word.strip_suffix("ies") {
+        out.push(format!("{stem}y"));
+    }
+    if let Some(stem) = word.strip_suffix("es") {
+        out.push(stem.to_string());
+    }
+    if let Some(stem) = word.strip_suffix('s') {
+        out.push(stem.to_string());
+    }
+    out
+}
+
 /// Produces the form of `target_lemma` that agrees with `surface`'s
 /// morphology, with `surface`'s capitalization pattern (lowercase, Title
 /// Case, or ALL CAPS) transferred onto the result.
@@ -495,6 +711,92 @@ mod tests {
                 inflect(surface, target_lemma),
                 inflect(surface, target_lemma)
             );
+        }
+    }
+
+    #[test]
+    fn agreeing_forms_verb_covers_all_four_inflections() {
+        let forms = agreeing_forms("leverage", WordClass::Verb);
+        for expected in ["leverage", "leverages", "leveraging", "leveraged"] {
+            assert!(
+                forms.contains(&expected.to_string()),
+                "missing {expected:?} in {forms:?}"
+            );
+        }
+    }
+
+    #[test]
+    fn agreeing_forms_noun_includes_only_base_and_plural() {
+        let forms = agreeing_forms("individual", WordClass::Noun);
+        assert_eq!(
+            forms,
+            vec!["individual".to_string(), "individuals".to_string()]
+        );
+    }
+
+    /// An adjective only ever matches its own base form — never a
+    /// mechanically-generated "-s" form, which is exactly what keeps
+    /// `"valuable"`/`"vital"`/`"initial"` from spuriously matching the
+    /// unrelated real words `"valuables"`/`"vitals"`/`"initials"`.
+    #[test]
+    fn agreeing_forms_adjective_is_base_form_only() {
+        assert_eq!(
+            agreeing_forms("valuable", WordClass::Adjective),
+            vec!["valuable".to_string()]
+        );
+    }
+
+    /// `(surface, pos, expected_lemma)` triples covering the regular
+    /// gerund/past/"-s" reverse-derivation paths, the irregular-verb and
+    /// irregular-noun tables consulted first, and the documented
+    /// surface-text fallback for a tag this function does not attempt
+    /// (or a candidate that fails to round-trip).
+    const LEMMATIZE_GOLDEN: &[(&str, &str, &str)] = &[
+        ("jumping", "VBG", "jump"),
+        ("using", "VBG", "use"),
+        ("carrying", "VBG", "carry"),
+        ("stopping", "VBG", "stop"),
+        ("tying", "VBG", "tie"),
+        ("walked", "VBD", "walk"),
+        ("used", "VBD", "use"),
+        ("carried", "VBD", "carry"),
+        ("stopped", "VBD", "stop"),
+        ("scans", "VBZ", "scan"),
+        ("foxes", "NNS", "fox"),
+        ("carries", "VBZ", "carry"),
+        ("went", "VBD", "go"),
+        ("children", "NNS", "child"),
+        ("was", "VBD", "be"),
+        ("dog", "NN", "dog"),
+        ("Running", "VBG", "run"),
+    ];
+
+    #[test]
+    fn lemmatize_matches_golden_pairs() {
+        for &(surface, pos, expected) in LEMMATIZE_GOLDEN {
+            assert_eq!(
+                &*lemmatize(surface, pos),
+                expected,
+                "lemmatize({surface:?}, {pos:?})"
+            );
+        }
+    }
+
+    #[test]
+    fn lemmatize_is_deterministic() {
+        for &(surface, pos, _) in LEMMATIZE_GOLDEN {
+            assert_eq!(lemmatize(surface, pos), lemmatize(surface, pos));
+        }
+    }
+
+    #[test]
+    fn agreeing_forms_is_deterministic() {
+        for (lemma, class) in [
+            ("leverage", WordClass::Verb),
+            ("individual", WordClass::Noun),
+            ("robust", WordClass::Adjective),
+        ] {
+            assert_eq!(agreeing_forms(lemma, class), agreeing_forms(lemma, class));
         }
     }
 }

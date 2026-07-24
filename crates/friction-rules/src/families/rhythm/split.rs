@@ -146,7 +146,7 @@ const PER_FIX_EFFECT: f64 = 0.05;
 const COORDINATORS: &[&str] = &[", and ", ", but ", ", so "];
 
 /// Part-of-speech tags (Penn-Treebank-style, matching
-/// `friction_nlp::NlpruleTagger`'s dictionary) this rule accepts as
+/// `friction_nlp::PerceptronTagger`'s dictionary) this rule accepts as
 /// "subject-like" evidence that a coordinator boundary opens a genuine new
 /// clause rather than continuing a flat noun-phrase list: personal and
 /// wh-pronouns (`PRP`, `WP`), determiners (`DT`, `PDT`, `WDT`), and proper
@@ -556,7 +556,7 @@ impl Rule for SentenceSplitRule {
 #[cfg(test)]
 mod tests {
     use friction_core::Envelope;
-    use friction_nlp::{NlpruleTagger, SrxSegmenter};
+    use friction_nlp::{PerceptronTagger, SrxSegmenter};
 
     use super::*;
     use crate::context::MapEnvelope;
@@ -574,8 +574,8 @@ mod tests {
         }
     }
 
-    fn tagger() -> NlpruleTagger {
-        NlpruleTagger::new().expect("embedded tagger model loads")
+    fn tagger() -> PerceptronTagger {
+        PerceptronTagger::new().expect("embedded tagger model loads")
     }
 
     fn apply(source: &str, patch: &Patch) -> String {

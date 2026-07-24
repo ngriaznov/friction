@@ -7,7 +7,7 @@
 //! comparison between adjacent sentences via [`crate::dep::same_subject`]),
 //! a sentence-final participial modifier, and flat `X, Y, and Z`
 //! coordination lists. It assumes the token slice it is given has no
-//! separate whitespace tokens between words (as [`crate::NlpruleTagger`]
+//! separate whitespace tokens between words (as [`crate::PerceptronTagger`]
 //! produces), and it only ever recognizes a relation it has positive
 //! evidence for — every other token gets [`DepRelation::Other`] at low
 //! confidence, which callers should read as "no opinion", not as a

@@ -12,7 +12,7 @@ use std::path::Path;
 
 use anyhow::Context as _;
 use friction_core::{Document, MetricVector};
-use friction_nlp::{NlpruleTagger, SrxSegmenter};
+use friction_nlp::{PerceptronTagger, SrxSegmenter};
 
 /// Computes a document's [`MetricVector`]. See the module docs for why
 /// this indirection exists instead of a direct call to `friction-metrics`.
@@ -27,12 +27,12 @@ pub trait MetricSource {
 ///
 /// Computes [`friction_metrics::compute`] over the real segmentation/
 /// tagging pipeline (`friction-nlp`'s [`SrxSegmenter`] and
-/// [`NlpruleTagger`]). Holds its [`NlpruleTagger`] (which loads the
+/// [`PerceptronTagger`]). Holds its [`PerceptronTagger`] (which loads the
 /// embedded English model) so that cost is paid once per corpus-scale run
 /// — [`FrictionMetricsSource::new`] — rather than once per document.
 pub struct FrictionMetricsSource {
     segmenter: SrxSegmenter,
-    tagger: NlpruleTagger,
+    tagger: PerceptronTagger,
 }
 
 impl FrictionMetricsSource {
@@ -40,10 +40,10 @@ impl FrictionMetricsSource {
     ///
     /// # Errors
     /// Returns an error if the embedded English tagger model fails to
-    /// load (see [`NlpruleTagger::new`]).
+    /// load (see [`PerceptronTagger::new`]).
     pub fn new() -> anyhow::Result<Self> {
         let tagger =
-            NlpruleTagger::new().context("failed to load the embedded English tagger model")?;
+            PerceptronTagger::new().context("failed to load the embedded English tagger model")?;
         Ok(Self {
             segmenter: SrxSegmenter::new(),
             tagger,

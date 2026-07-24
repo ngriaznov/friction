@@ -20,7 +20,7 @@
 //! driver. It is a close copy of `tests/connective_golden.rs`'s own
 //! `run_round`, generalized over which rule and gated metric is under test,
 //! the same way `tests/lexical_golden.rs` generalizes it — except this
-//! harness uses the real `NlpruleTagger`, since both rules under test read
+//! harness uses the real `PerceptronTagger`, since both rules under test read
 //! part-of-speech tags (`ConnectiveSurgery`/the lexical rules never
 //! needed one).
 //!
@@ -48,7 +48,7 @@ use std::fs;
 use std::path::Path;
 
 use friction_core::{Document, Envelope, Finding, MetricVector, Patch, Tier, span};
-use friction_nlp::{NlpruleTagger, SrxSegmenter};
+use friction_nlp::{PerceptronTagger, SrxSegmenter};
 use friction_rules::{
     Gate, MapEnvelope, ParticipialCloserRule, RitualConclusionRule, Rule, RuleContext, StrategyRng,
 };
@@ -88,12 +88,12 @@ fn apply_patches(source: &str, patches: &[Patch]) -> String {
 /// One local, single-round pass of gate -> scan -> (budgeted) fix -> apply,
 /// scoped to whichever `rule` is passed in, gated against `metrics` and a
 /// [`MapEnvelope`] built from `(gated_metric, band)`, using the real
-/// [`NlpruleTagger`]. Returns the resulting text and how many patches were
+/// [`PerceptronTagger`]. Returns the resulting text and how many patches were
 /// applied.
 fn run_round(
     source: &str,
     rule: &dyn Rule,
-    tagger: &NlpruleTagger,
+    tagger: &PerceptronTagger,
     gated_metric: &'static str,
     metrics: MetricVector,
     band: Envelope,
@@ -174,7 +174,7 @@ const PARTICIPIAL_GENEROUS_FIXTURES: &[&str] =
 
 #[test]
 fn participial_golden_fixtures_match_expected_output() {
-    let tagger = NlpruleTagger::new().expect("embedded model loads");
+    let tagger = PerceptronTagger::new().expect("embedded model loads");
     let rule = ParticipialCloserRule::new();
     for &name in PARTICIPIAL_GENEROUS_FIXTURES {
         let (before, after) = read_fixture(name);
@@ -201,7 +201,7 @@ fn participial_golden_fixtures_match_expected_output() {
 /// fixed and the second is left untouched by this round.
 #[test]
 fn participial_budget_stops_mid_document_fixes_only_the_first_finding() {
-    let tagger = NlpruleTagger::new().expect("embedded model loads");
+    let tagger = PerceptronTagger::new().expect("embedded model loads");
     let rule = ParticipialCloserRule::new();
     let (before, after) = read_fixture("participial_budget_stops_mid_document");
     let band = Envelope::new(0.0, 0.5);
@@ -228,7 +228,7 @@ fn participial_budget_stops_mid_document_fixes_only_the_first_finding() {
 /// unconditional, silent **delete** here.
 #[test]
 fn participial_suggest_fixture_applies_zero_patches_even_with_a_generous_budget() {
-    let tagger = NlpruleTagger::new().expect("embedded model loads");
+    let tagger = PerceptronTagger::new().expect("embedded model loads");
     let rule = ParticipialCloserRule::new();
     let (before, after) = read_fixture("participial_suggest_no_object");
     assert_eq!(
@@ -265,7 +265,7 @@ fn participial_suggest_fixture_applies_zero_patches_even_with_a_generous_budget(
 /// to flag), not merely a gate-off check.
 #[test]
 fn participial_no_op_fixture_applies_zero_patches_even_with_a_generous_budget() {
-    let tagger = NlpruleTagger::new().expect("embedded model loads");
+    let tagger = PerceptronTagger::new().expect("embedded model loads");
     let rule = ParticipialCloserRule::new();
     let (before, after) = read_fixture("participial_no_op_human_register");
     assert_eq!(
@@ -288,7 +288,7 @@ fn participial_no_op_fixture_applies_zero_patches_even_with_a_generous_budget() 
 /// ordinary gate-off path (rate inside the envelope).
 #[test]
 fn participial_no_op_fixture_gates_off_inside_the_envelope() {
-    let tagger = NlpruleTagger::new().expect("embedded model loads");
+    let tagger = PerceptronTagger::new().expect("embedded model loads");
     let rule = ParticipialCloserRule::new();
     let (before, _after) = read_fixture("participial_no_op_human_register");
     let (actual, applied) = run_round(
@@ -309,7 +309,7 @@ fn participial_no_op_fixture_gates_off_inside_the_envelope() {
 /// additional patches.
 #[test]
 fn participial_idempotent_across_all_fixtures_given_a_generous_budget() {
-    let tagger = NlpruleTagger::new().expect("embedded model loads");
+    let tagger = PerceptronTagger::new().expect("embedded model loads");
     let rule = ParticipialCloserRule::new();
     for &name in PARTICIPIAL_GENEROUS_FIXTURES {
         let (before, _after) = read_fixture(name);
@@ -357,7 +357,7 @@ const RITUAL_FIX_FIXTURES: &[&str] = &[
 /// including its own trailing blank line, is deleted outright.
 #[test]
 fn ritual_fix_golden_fixtures_match_expected_output() {
-    let tagger = NlpruleTagger::new().expect("embedded model loads");
+    let tagger = PerceptronTagger::new().expect("embedded model loads");
     let rule = RitualConclusionRule::new();
     for &name in RITUAL_FIX_FIXTURES {
         let (before, after) = read_fixture(name);
@@ -383,7 +383,7 @@ fn ritual_fix_golden_fixtures_match_expected_output() {
 /// patch is ever proposed for it.
 #[test]
 fn ritual_suggest_fixture_applies_zero_patches_even_with_a_generous_budget() {
-    let tagger = NlpruleTagger::new().expect("embedded model loads");
+    let tagger = PerceptronTagger::new().expect("embedded model loads");
     let rule = RitualConclusionRule::new();
     let (before, after) = read_fixture("ritual_suggest_new_noun");
     assert_eq!(
@@ -408,7 +408,7 @@ fn ritual_suggest_fixture_applies_zero_patches_even_with_a_generous_budget() {
 /// eligible for a patch).
 #[test]
 fn ritual_no_op_fixture_applies_zero_patches_even_with_a_generous_budget() {
-    let tagger = NlpruleTagger::new().expect("embedded model loads");
+    let tagger = PerceptronTagger::new().expect("embedded model loads");
     let rule = RitualConclusionRule::new();
     let (before, after) = read_fixture("ritual_no_op_no_marker");
     assert_eq!(
@@ -431,7 +431,7 @@ fn ritual_no_op_fixture_applies_zero_patches_even_with_a_generous_budget() {
 /// gate-off path (rate inside the envelope).
 #[test]
 fn ritual_no_op_fixture_gates_off_inside_the_envelope() {
-    let tagger = NlpruleTagger::new().expect("embedded model loads");
+    let tagger = PerceptronTagger::new().expect("embedded model loads");
     let rule = RitualConclusionRule::new();
     let (before, _after) = read_fixture("ritual_no_op_no_marker");
     let (actual, applied) = run_round(
@@ -449,7 +449,7 @@ fn ritual_no_op_fixture_gates_off_inside_the_envelope() {
 /// Idempotence, for every Fix-tier fixture's `before.md`.
 #[test]
 fn ritual_fix_idempotent_across_all_fixtures_given_a_generous_budget() {
-    let tagger = NlpruleTagger::new().expect("embedded model loads");
+    let tagger = PerceptronTagger::new().expect("embedded model loads");
     let rule = RitualConclusionRule::new();
     for &name in RITUAL_FIX_FIXTURES {
         let (before, _after) = read_fixture(name);

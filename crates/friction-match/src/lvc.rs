@@ -57,12 +57,12 @@ mod tests {
     use super::*;
 
     use friction_core::{Block, BlockKind, Document, ProseUnit};
-    use friction_nlp::{NlpruleTagger, SrxSegmenter};
+    use friction_nlp::{PerceptronTagger, SrxSegmenter};
     use std::sync::OnceLock;
 
-    fn tagger() -> &'static NlpruleTagger {
-        static TAGGER: OnceLock<NlpruleTagger> = OnceLock::new();
-        TAGGER.get_or_init(|| NlpruleTagger::new().expect("embedded model must load"))
+    fn tagger() -> &'static PerceptronTagger {
+        static TAGGER: OnceLock<PerceptronTagger> = OnceLock::new();
+        TAGGER.get_or_init(|| PerceptronTagger::new().expect("embedded model must load"))
     }
 
     fn lexicon() -> BTreeMap<Box<str>, Box<str>> {

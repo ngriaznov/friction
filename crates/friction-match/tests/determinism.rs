@@ -4,7 +4,7 @@
 mod support;
 
 use friction_match::MatchEngine;
-use friction_nlp::{NlpruleTagger, SrxSegmenter};
+use friction_nlp::{PerceptronTagger, SrxSegmenter};
 use friction_packs::ModelFamily;
 use support::engine;
 
@@ -37,7 +37,7 @@ fn scanning_the_same_document_twice_produces_byte_identical_reports() {
 fn two_independently_constructed_engines_from_the_same_pack_bytes_agree() {
     let document = friction_parse::parse(SOURCE).expect("valid markdown parses");
 
-    let tagger_a = NlpruleTagger::new().expect("tagger loads");
+    let tagger_a = PerceptronTagger::new().expect("tagger loads");
     let segmenter_a = SrxSegmenter::new();
     let engine_a = MatchEngine::new(
         &friction_packs::INVENTORY.pack,
@@ -48,7 +48,7 @@ fn two_independently_constructed_engines_from_the_same_pack_bytes_agree() {
     )
     .expect("engine builds");
 
-    let tagger_b = NlpruleTagger::new().expect("tagger loads");
+    let tagger_b = PerceptronTagger::new().expect("tagger loads");
     let segmenter_b = SrxSegmenter::new();
     let engine_b = MatchEngine::new(
         &friction_packs::INVENTORY.pack,

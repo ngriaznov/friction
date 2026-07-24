@@ -621,6 +621,39 @@ mod tests {
         }
     }
 
+    /// A tagger that looks each word up (case-insensitively) in a fixed
+    /// table, falling back to `"NN"` for anything not listed — used where a
+    /// test needs a specific, guaranteed tag shape (a verb followed by a
+    /// proper noun, say) regardless of how accurately any particular real
+    /// tagger happens to classify that exact short, context-free phrase.
+    struct FixedTagsTagger(&'static [(&'static str, &'static str)]);
+    impl Tagger for FixedTagsTagger {
+        fn tag(&self, text: &str, base_offset: usize) -> Vec<TaggedToken> {
+            let mut tokens = Vec::new();
+            let mut cursor = 0usize;
+            for word in text.split_whitespace() {
+                let start = text[cursor..].find(word).expect("word found in text") + cursor;
+                let end = start + word.len();
+                cursor = end;
+                let lower = word.to_ascii_lowercase();
+                let pos = self
+                    .0
+                    .iter()
+                    .find(|(w, _)| w.eq_ignore_ascii_case(&lower))
+                    .map_or("NN", |(_, tag)| *tag);
+                tokens.push(TaggedToken {
+                    token: friction_core::Token::new(
+                        (base_offset + start)..(base_offset + end),
+                        CoreTokenKind::Word,
+                    ),
+                    pos: PosTag::new(pos),
+                    lemma: lower.into(),
+                });
+            }
+            tokens
+        }
+    }
+
     fn document(source: &str) -> Document {
         let parsed = friction_parse::parse(source).expect("valid markdown parses");
         friction_nlp::segment_document(&parsed, &SrxSegmenter::new())
@@ -884,11 +917,24 @@ mod tests {
     /// as broken mid-sentence title case: a real tagger's proper-noun tag
     /// is the only thing that keeps an item's own leading letter
     /// capitalized once joined.
+    ///
+    /// Uses [`FixedTagsTagger`] rather than the live default tagger: the
+    /// behavior under test is purely about capitalization handling given a
+    /// correct tag shape (verb, then a proper noun; verb, then an adverb),
+    /// not about whether any particular tagger gets this exact short,
+    /// context-free phrase right — `scan_finds_a_closer_through_the_real_tagger`-
+    /// style coverage of the live tagger lives elsewhere in this module.
     #[test]
     fn fix_lowercases_non_proper_items_but_keeps_a_proper_noun_capitalized() {
         let doc = document("- Runs on Kubernetes\n- Ships fast\n");
         let envelope = MapEnvelope::new();
-        let tagger = friction_nlp::NlpruleTagger::new().expect("embedded model loads");
+        let tagger = FixedTagsTagger(&[
+            ("runs", "VBZ"),
+            ("on", "IN"),
+            ("kubernetes", "NNP"),
+            ("ships", "VBZ"),
+            ("fast", "RB"),
+        ]);
         let ctx = RuleContext::new(&doc, &tagger, "blog", &envelope);
         let rule = UnbulletRule::new();
         let finding = &rule.scan(&ctx)[0];

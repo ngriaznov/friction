@@ -392,7 +392,7 @@ mod tests {
         let doc = friction_parse::parse(source).expect("valid markdown parses");
         let doc = friction_nlp::segment_document(&doc, &friction_nlp::SrxSegmenter::new())
             .expect("segmentation succeeds");
-        let tagger = friction_nlp::NlpruleTagger::new().expect("embedded model loads");
+        let tagger = friction_nlp::PerceptronTagger::new().expect("embedded model loads");
 
         let sentence_count = doc
             .prose()
@@ -469,7 +469,7 @@ mod tests {
         let doc = friction_parse::parse(source).expect("valid markdown parses");
         let doc = friction_nlp::segment_document(&doc, &friction_nlp::SrxSegmenter::new())
             .expect("segmentation succeeds");
-        let tagger = friction_nlp::NlpruleTagger::new().expect("embedded model loads");
+        let tagger = friction_nlp::PerceptronTagger::new().expect("embedded model loads");
         let envelope = MapEnvelope::new();
         let ctx = RuleContext::new(&doc, &tagger, "blog", &envelope);
         let mut rng = StrategyRng::from_seed(0);

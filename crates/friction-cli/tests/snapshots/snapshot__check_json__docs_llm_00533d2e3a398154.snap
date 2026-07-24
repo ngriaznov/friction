@@ -35,10 +35,10 @@ expression: stdout
     },
     {
       "name": "triad_rate",
-      "value": 0.03636363636363636,
+      "value": 0.01818181818181818,
       "lo": 0.0,
       "hi": 0.030303030303030304,
-      "in_envelope": false
+      "in_envelope": true
     },
     {
       "name": "contraction_ratio",
@@ -49,7 +49,7 @@ expression: stdout
     },
     {
       "name": "bullet_parallelism",
-      "value": 0.7833333333333333,
+      "value": 0.8333333333333333,
       "lo": 0.0,
       "hi": 1.0,
       "in_envelope": true
@@ -84,7 +84,7 @@ expression: stdout
     },
     {
       "name": "participial_closer_rate",
-      "value": 0.01818181818181818,
+      "value": 0.0,
       "lo": 0.0,
       "hi": 0.018518518518518517,
       "in_envelope": true
@@ -153,24 +153,5 @@ expression: stdout
       "in_envelope": false
     }
   ],
-  "findings": [
-    {
-      "rule": "symmetry.triad_reduction",
-      "tier": "suggest",
-      "start": 1681,
-      "end": 1826,
-      "line": 20,
-      "column": 26,
-      "message": "flat \"X, Y, and Z\" triad with matching-class items reads as an LLM tic; consider dropping the weakest item or restructuring"
-    },
-    {
-      "rule": "symmetry.triad_reduction",
-      "tier": "suggest",
-      "start": 2401,
-      "end": 2540,
-      "line": 22,
-      "column": 229,
-      "message": "flat \"X, Y, and Z\" triad with matching-class items reads as an LLM tic; consider dropping the weakest item or restructuring"
-    }
-  ]
+  "findings": []
 }

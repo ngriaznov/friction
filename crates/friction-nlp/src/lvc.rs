@@ -359,12 +359,12 @@ pub fn scan_construction_shape(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::NlpruleTagger;
+    use crate::PerceptronTagger;
     use std::sync::OnceLock;
 
-    fn tagger() -> &'static NlpruleTagger {
-        static TAGGER: OnceLock<NlpruleTagger> = OnceLock::new();
-        TAGGER.get_or_init(|| NlpruleTagger::new().expect("embedded model must load"))
+    fn tagger() -> &'static PerceptronTagger {
+        static TAGGER: OnceLock<PerceptronTagger> = OnceLock::new();
+        TAGGER.get_or_init(|| PerceptronTagger::new().expect("embedded weights must load"))
     }
 
     #[test]

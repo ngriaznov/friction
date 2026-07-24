@@ -5,7 +5,7 @@
 use std::sync::OnceLock;
 
 use friction_match::MatchEngine;
-use friction_nlp::{NlpruleTagger, SrxSegmenter};
+use friction_nlp::{PerceptronTagger, SrxSegmenter};
 use friction_packs::ModelFamily;
 
 /// Builds a `MatchEngine` bound to the embedded inventory and DMS packs,
@@ -15,10 +15,11 @@ use friction_packs::ModelFamily;
 /// concern).
 #[allow(dead_code)]
 pub fn engine() -> MatchEngine<'static> {
-    static TAGGER: OnceLock<NlpruleTagger> = OnceLock::new();
+    static TAGGER: OnceLock<PerceptronTagger> = OnceLock::new();
     static SEGMENTER: OnceLock<SrxSegmenter> = OnceLock::new();
 
-    let tagger = TAGGER.get_or_init(|| NlpruleTagger::new().expect("embedded tagger model loads"));
+    let tagger =
+        TAGGER.get_or_init(|| PerceptronTagger::new().expect("embedded tagger model loads"));
     let segmenter = SEGMENTER.get_or_init(SrxSegmenter::new);
 
     MatchEngine::new(

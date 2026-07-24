@@ -18,7 +18,7 @@
 //! findings, not any applied text.
 //!
 //! [`UnbulletRule`]'s own fixtures are driven through the real
-//! [`friction_nlp::NlpruleTagger`], not a stub — this rule's "machine-
+//! [`friction_nlp::PerceptronTagger`], not a stub — this rule's "machine-
 //! flavored stem parallelism" qualifying check (see its own module docs)
 //! is exactly a real part-of-speech-tag comparison, so a fixture whose
 //! items only *look* parallel to a human eye can still fail to qualify
@@ -34,7 +34,7 @@ use std::fs;
 use std::path::Path;
 
 use friction_core::{Envelope, Finding, MetricVector, Patch, Tier, span};
-use friction_nlp::{NlpruleTagger, SrxSegmenter, Tagger};
+use friction_nlp::{PerceptronTagger, SrxSegmenter, Tagger};
 use friction_rules::{
     BoldLabelStripRule, Gate, HeaderMergeRule, MapEnvelope, Rule, RuleContext, StrategyRng,
     UnbulletRule,
@@ -52,8 +52,8 @@ impl Tagger for NoopTagger {
 
 /// The real, embedded tagger — [`UnbulletRule`]'s own stem-parallelism
 /// check needs genuine part-of-speech tags (see the module docs).
-fn real_tagger() -> NlpruleTagger {
-    NlpruleTagger::new().expect("embedded tagger model loads")
+fn real_tagger() -> PerceptronTagger {
+    PerceptronTagger::new().expect("embedded tagger model loads")
 }
 
 fn read_fixture(name: &str) -> (String, String) {

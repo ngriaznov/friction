@@ -6,7 +6,7 @@
 pub enum HarnessError {
     /// The embedded tagger model failed to load.
     #[error("failed to load the embedded tagger model: {0}")]
-    TaggerLoad(#[source] friction_nlp::TagError),
+    TaggerLoad(#[source] friction_nlp::PerceptronTagError),
     /// Parsing the input into a document failed.
     #[error(transparent)]
     Parse(#[from] friction_parse::ParseError),

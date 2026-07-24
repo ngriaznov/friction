@@ -14,7 +14,7 @@ paragraph_shape_mean          1.4651   1.4651  [1.1641, 3.5385]    in -> in
 paragraph_shape_cv            0.4959   0.4959  [0.3858, 0.7954]    in -> in  
 em_dash_density               0.0000   0.0000  [0.0000, 4.2445]    in -> in  
 semicolon_density             0.0000   0.0000  [0.0000, 3.4200]    in -> in  
-participial_closer_rate       0.0476   0.0476  [0.0000, 0.0231]    OUT -> OUT
+participial_closer_rate       0.0635   0.0635  [0.0000, 0.0231]    OUT -> OUT
 not_just_but_rate             0.0159   0.0159  [0.0000, 0.0093]    OUT -> OUT
 ritual_marker_rate            0.0233   0.0233  [0.0000, 0.0000]    OUT -> OUT
 llm_favored_phrase_rate      47.4496  38.0048  [0.9225, 19.3120]   OUT -> OUT
@@ -32,7 +32,7 @@ plan schedule (friction-plan, built from the document's original metrics):
 |  |  | list_item_density | 18.9798 | 0.0000 | 16.8244 | 2.1554 |
 |  |  | heading_density | 8.3037 | 0.6072 | 10.3668 | 0.0000 |
 | symmetry | 0 | not_just_but_rate | 0.0159 | 0.0000 | 0.0093 | 0.0066 |
-|  |  | participial_closer_rate | 0.0476 | 0.0000 | 0.0231 | 0.0245 |
+|  |  | participial_closer_rate | 0.0635 | 0.0000 | 0.0231 | 0.0404 |
 |  |  | ritual_marker_rate | 0.0233 | 0.0000 | 0.0000 | 0.0233 |
 |  |  | triad_rate | 0.0159 | 0.0000 | 0.0870 | 0.0000 |
 | connective | 1 | discourse_marker_density | 4.7450 | 0.0000 | 2.8618 | 1.8831 |

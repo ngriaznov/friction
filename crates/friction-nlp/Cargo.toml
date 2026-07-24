@@ -15,6 +15,16 @@ workspace = true
 ## as of this writing no pinned dependency-parser model is registered in
 ## `friction-packs` for this feature to load (see `dep_onnx`'s module docs).
 onnx = ["dep:ort"]
+## Off by default: pulls in an LGPLv2.1-licensed model binary (LanguageTool
+## v5.2 data via the `nlprule` crate — see src/tag_nlprule.rs's module docs
+## and weights/NOTICE.md for the perceptron tagger's own, clean, sourcing).
+## Exists only as an offline comparison backend; never the shipped default.
+nlprule = ["dep:nlprule", "dep:rayon"]
+## Exposes the training-support helpers `examples/train_perceptron.rs`
+## needs (feature extraction + weight-table save, tab-separated gold-file
+## parsing). Off by default so normal builds don't carry training code as
+## part of their public surface.
+train-tooling = []
 
 [dependencies]
 friction-core = { path = "../friction-core" }
@@ -35,16 +45,28 @@ ort = { version = "2.0.0-rc.12", optional = true }
 # happens at build or run time.
 srx = { version = "0.1.4", features = ["from_xml"] }
 # --- tagging/inflection deps (owned by the tagging agent; see src/tag.rs,
-# src/tag_nlprule.rs, src/inflect.rs) ---
-nlprule = "0.6.4"
-rayon = "1"
+# src/tag_perceptron.rs, src/tag_nlprule.rs, src/inflect.rs) ---
+# Optional: only the `nlprule` comparison backend needs these — see the
+# `nlprule` feature above.
+nlprule = { version = "0.6.4", optional = true }
+rayon = { version = "1", optional = true }
+# Moved from [build-dependencies]: also needed at *runtime* now, to
+# decompress the vendored perceptron weight artifact once at load time.
+flate2 = "1"
+serde = { workspace = true }
+serde_json = { workspace = true }
 
 [build-dependencies]
 # build.rs downloads + sha256-verifies the nlprule English tagger model at
-# build time (never at runtime) and decompresses it into OUT_DIR.
+# build time (never at runtime), only when the `nlprule` feature is on —
+# see build.rs's own doc comment.
 ureq = { workspace = true }
 sha2 = { workspace = true }
 flate2 = "1"
+
+[[example]]
+name = "train_perceptron"
+required-features = ["train-tooling"]
 
 [dev-dependencies]
 friction-parse = { path = "../friction-parse" }
@@ -55,3 +77,13 @@ serde = { workspace = true }
 # Hashes the parse -> segment -> tag token stream for the corpus
 # determinism check (tests/corpus_determinism.rs).
 sha2 = { workspace = true }
+# tests/perceptron_parity.rs (gated behind the `nlprule` feature) drives
+# the real accept/reject verdict logic (`pivot::match_pivot`,
+# `fragment::fragment_rate`) with each tagger in turn. A dev-dependency
+# on a crate that itself depends on this one's library target is not a
+# cycle: Cargo builds this crate's `lib` first, then `friction-harness`
+# (against that already-built `lib`), then this crate's own test
+# binaries (against both) — the cycle only exists at the dev-dependency
+# level, which Cargo's build graph does not consider a normal-dependency
+# cycle at all.
+friction-harness = { path = "../friction-harness" }

@@ -7,7 +7,7 @@ sentence_length_mean         21.5373  21.5373  [7.2222, 22.6122]   in -> in
 sentence_length_stddev        9.7634   9.7634  [6.7106, 12.6994]   in -> in  
 sentence_length_cv            0.4533   0.4533  [0.4975, 1.1375]    OUT -> OUT
 discourse_marker_density      0.0000   0.0000  [0.0000, 2.8618]    in -> in  
-triad_rate                    0.0299   0.0299  [0.0000, 0.0870]    in -> in  
+triad_rate                    0.0149   0.0149  [0.0000, 0.0870]    in -> in  
 contraction_ratio             0.0000   0.0000  [0.0000, 0.7308]    in -> in  
 bullet_parallelism            0.0000   0.0000  [0.0000, 1.0000]    in -> in  
 paragraph_shape_mean          2.3103   2.3103  [1.1641, 3.5385]    in -> in  
@@ -34,7 +34,7 @@ plan schedule (friction-plan, built from the document's original metrics):
 | symmetry | 0 | not_just_but_rate | 0.0000 | 0.0000 | 0.0093 | 0.0000 |
 |  |  | participial_closer_rate | 0.0000 | 0.0000 | 0.0231 | 0.0000 |
 |  |  | ritual_marker_rate | 0.0000 | 0.0000 | 0.0000 | 0.0000 |
-|  |  | triad_rate | 0.0299 | 0.0000 | 0.0870 | 0.0000 |
+|  |  | triad_rate | 0.0149 | 0.0000 | 0.0870 | 0.0000 |
 | connective | 0 | discourse_marker_density | 0.0000 | 0.0000 | 2.8618 | 0.0000 |
 | lexical | 0 | discourse_marker_density | 0.0000 | 0.0000 | 2.8618 | 0.0000 |
 |  |  | llm_favored_phrase_rate | 6.1771 | 0.9225 | 19.3120 | 0.0000 |

@@ -84,7 +84,7 @@ expression: stdout
     },
     {
       "name": "participial_closer_rate",
-      "value": 0.047619047619047616,
+      "value": 0.06349206349206349,
       "lo": 0.0,
       "hi": 0.023076923076923078,
       "in_envelope": false
@@ -261,6 +261,15 @@ expression: stdout
       "line": 28,
       "column": 118,
       "message": "sentence-final participial closer reads as an LLM tic; promoting it to its own sentence preserves the claim"
+    },
+    {
+      "rule": "symmetry.participial_closer",
+      "tier": "suggest",
+      "start": 2549,
+      "end": 2694,
+      "line": 29,
+      "column": 73,
+      "message": "sentence-final participial closer reads as an LLM tic, but it has no clear object to promote; deleting it cannot be verified to preserve the sentence's claim, so this needs a human decision"
     },
     {
       "rule": "lexical.substitution",

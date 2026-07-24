@@ -7,7 +7,7 @@ sentence_length_mean         14.5946  [3.7147, 8.3678]    OUT
 sentence_length_stddev        8.8148  [3.8429, 8.5614]    OUT   
 sentence_length_cv            0.6040  [0.8694, 1.1405]    OUT   
 discourse_marker_density      0.0000  [0.0000, 0.0000]    in    
-triad_rate                    0.0541  [0.0000, 0.0169]    OUT   
+triad_rate                    0.0000  [0.0000, 0.0169]    in    
 contraction_ratio             0.0000  [0.0000, 0.5714]    in    
 bullet_parallelism            0.0000  [0.6320, 0.8533]    OUT   
 paragraph_shape_mean          1.8500  [1.0926, 1.2222]    OUT   
@@ -55,28 +55,6 @@ lexical.substitution
     ·                                                                                                                                            ────┬────
     ·                                                                                                                                                ╰── "assisting" reads as machine-favored register (assist is a formal register synonym of help); "help" is a plain near-synonym
  16 │ 
-    ╰────
-
-symmetry.triad_reduction
-
-  × flat "X, Y, and Z" triad with matching-class items reads as an LLM tic; consider dropping the weakest item or restructuring
-    ╭─[corpus/llm/email/29ff22ba7de18cf6.md:19:265]
- 18 │ 
- 19 │ To celebrate the incredible contributions of our volunteer community, we’re hosting a special appreciation event on **[Date]** at **[Venue]** from **[Time]** to **[Time]**. This will be an opportunity to thank you all for your unwavering support and dedication. We’ll have food, fun activities, and a chance to recognize outstanding volunteers with our annual “Volunteer of the Quarter” awards.
-    ·                                                                                                                                                                                                                                                                       ─────────────────────────────────────────────────────────────────┬─────────────────────────────────────────────────────────────────
-    ·                                                                                                                                                                                                                                                                                                                                        ╰── flat "X, Y, and Z" triad with matching-class items reads as an LLM tic; consider dropping the weakest item or restructuring
- 20 │ 
-    ╰────
-
-symmetry.triad_reduction
-
-  × flat "X, Y, and Z" triad with matching-class items reads as an LLM tic; consider dropping the weakest item or restructuring
-    ╭─[corpus/llm/email/29ff22ba7de18cf6.md:27:41]
- 26 │ 
- 27 │ You can help by donating canned fruits, vegetables, soups, or stews at any of our distribution sites or through our online donation portal: **[Donation Link]**. Every item counts and ensures that we can provide meals to those in need during the holidays and beyond.
-    ·                                         ─────────────────────────────────────────────────┬────────────────────────────────────────────────
-    ·                                                                                          ╰── flat "X, Y, and Z" triad with matching-class items reads as an LLM tic; consider dropping the weakest item or restructuring
- 28 │ 
     ╰────
 
 rhythm.split

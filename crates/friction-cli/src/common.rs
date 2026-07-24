@@ -10,7 +10,7 @@ use std::process::ExitCode;
 
 use clap::ValueEnum;
 use friction_core::Envelope;
-use friction_nlp::{NlpruleTagger, SrxSegmenter, TagError};
+use friction_nlp::{PerceptronTagError, PerceptronTagger, SrxSegmenter};
 use friction_packs::{ENVELOPE_V2, EnvelopePack, PackError};
 use friction_rules::GenreEnvelope;
 
@@ -129,7 +129,7 @@ pub enum CliError {
     },
     /// The embedded English part-of-speech tagger model failed to load.
     #[error("failed to load the embedded English tagger model: {0}")]
-    Tagger(#[from] TagError),
+    Tagger(#[from] PerceptronTagError),
     /// The input failed to parse as markdown.
     #[error("{0}")]
     Parse(#[from] friction_parse::ParseError),
@@ -305,7 +305,7 @@ pub struct Engine {
     /// The sentence segmenter.
     pub segmenter: SrxSegmenter,
     /// The part-of-speech tagger (loads the embedded English model).
-    pub tagger: NlpruleTagger,
+    pub tagger: PerceptronTagger,
 }
 
 impl Engine {
@@ -317,7 +317,7 @@ impl Engine {
     pub fn load() -> Result<Self, CliError> {
         Ok(Self {
             segmenter: SrxSegmenter::new(),
-            tagger: NlpruleTagger::new()?,
+            tagger: PerceptronTagger::new()?,
         })
     }
 }

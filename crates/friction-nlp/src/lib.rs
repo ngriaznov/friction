@@ -22,14 +22,27 @@ pub use segment_srx::SrxSegmenter;
 pub mod lvc;
 
 // --- POS tagging, morphology, and inflection (owned by the tagging agent;
-// see src/tag.rs, src/tag_nlprule.rs, src/inflect.rs) ---
+// see src/tag.rs, src/tag_perceptron.rs, src/tag_nlprule.rs,
+// src/inflect.rs, src/chunk.rs) ---
+mod chunk;
 mod inflect;
 mod tag;
+#[cfg(feature = "nlprule")]
 mod tag_nlprule;
+mod tag_perceptron;
 
-pub use inflect::inflect;
-pub use tag::{PosTag, TaggedToken, Tagger};
+pub use chunk::{
+    Clause, ClauseChunks, CoordinationGroup, FINITE_VERB_TAGS, chunk_clauses, coordination_groups,
+    has_finite_verb, is_complete_after_deletion, is_imperative_initial, opens_with_binding_cue,
+    overlaps_counted_enumeration,
+};
+pub use inflect::{WordClass, agreeing_forms, inflect};
+pub use tag::{PosTag, TaggedToken, Tagger, classify_token_kind, coarse_tag};
+#[cfg(feature = "nlprule")]
 pub use tag_nlprule::{NlpruleTagger, TagError};
+#[cfg(feature = "train-tooling")]
+pub use tag_perceptron::train_support;
+pub use tag_perceptron::{PerceptronTagError, PerceptronTagger};
 // --- end tagging block ---
 
 // --- dependency parsing (owned by the dep-parser agent; see src/dep.rs,

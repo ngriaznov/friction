@@ -6,17 +6,16 @@
 //! `friction-nlp` pipeline (real markdown block extraction, the real SRX
 //! sentence segmenter, the real tagger) rather than the harness's own
 //! naive string-level splitter — this is the component validated
-//! empirically against actual [`friction_nlp::NlpruleTagger`] output on the
+//! empirically against actual [`friction_nlp::PerceptronTagger`] output on the
 //! full markdown sample files, and real prose extraction correctly handles
 //! the block-level structure (code fences, table syntax, link markup) a
 //! regex-based splitter would mis-segment.
 
-use friction_nlp::{SrxSegmenter, Tagger, segment_document};
+use friction_nlp::{
+    SrxSegmenter, Tagger, has_finite_verb, is_imperative_initial, segment_document,
+};
 
 use crate::error::HarnessError;
-
-/// Full Penn tags that count as a finite verb for clause completeness.
-const FINITE_VERB_TAGS: [&str; 4] = ["VBZ", "VBP", "VBD", "MD"];
 
 /// The clause-completeness rule, transcribed as a guardrail: a sentence is
 /// complete if it contains a token tagged `VBZ`/`VBP`/`VBD`/`MD`, or its
@@ -50,11 +49,7 @@ pub fn fragment_rate(
                 continue;
             }
             total += 1;
-            let has_finite_verb = tokens
-                .iter()
-                .any(|t| FINITE_VERB_TAGS.contains(&t.pos.as_str()));
-            let imperative_initial = tokens.first().is_some_and(|t| t.pos.as_str() == "VB");
-            if !has_finite_verb && !imperative_initial {
+            if !has_finite_verb(&tokens) && !is_imperative_initial(&tokens) {
                 incomplete += 1;
             }
         }
@@ -75,13 +70,13 @@ pub fn fragment_rate(
 mod tests {
     use std::sync::OnceLock;
 
-    use friction_nlp::{NlpruleTagger, SrxSegmenter};
+    use friction_nlp::{PerceptronTagger, SrxSegmenter};
 
     use super::*;
 
-    fn tagger() -> &'static NlpruleTagger {
-        static TAGGER: OnceLock<NlpruleTagger> = OnceLock::new();
-        TAGGER.get_or_init(|| NlpruleTagger::new().expect("embedded model must load"))
+    fn tagger() -> &'static PerceptronTagger {
+        static TAGGER: OnceLock<PerceptronTagger> = OnceLock::new();
+        TAGGER.get_or_init(|| PerceptronTagger::new().expect("embedded model must load"))
     }
 
     fn segmenter() -> SrxSegmenter {

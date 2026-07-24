@@ -175,19 +175,19 @@ expression: stdout
     {
       "rule": "symmetry.participial_closer",
       "tier": "suggest",
-      "start": 1770,
-      "end": 1796,
-      "line": 11,
-      "column": 354,
+      "start": 748,
+      "end": 797,
+      "line": 5,
+      "column": 34,
       "message": "sentence-final participial closer reads as an LLM tic, but it has no clear object to promote; deleting it cannot be verified to preserve the sentence's claim, so this needs a human decision"
     },
     {
       "rule": "symmetry.participial_closer",
       "tier": "suggest",
-      "start": 2068,
-      "end": 2175,
-      "line": 15,
-      "column": 211,
+      "start": 1770,
+      "end": 1796,
+      "line": 11,
+      "column": 354,
       "message": "sentence-final participial closer reads as an LLM tic, but it has no clear object to promote; deleting it cannot be verified to preserve the sentence's claim, so this needs a human decision"
     },
     {

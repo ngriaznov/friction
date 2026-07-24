@@ -6,6 +6,20 @@
 //! the compiled binary with `include_bytes!` — nothing here ever touches
 //! the network or the filesystem at runtime, so a `friction` binary built
 //! once works offline forever after.
+//!
+//! # License
+//!
+//! This module and the `nlprule` cargo feature it lives behind are off by
+//! default. The model binary this module downloads (`en_tokenizer.bin.gz`,
+//! from `nlprule`'s own GitHub releases) is, by `nlprule`'s own README,
+//! *"derived from `LanguageTool` v5.2 and licensed under the LGPLv2.1
+//! license"* — data terms this workspace's default build does not carry.
+//! [`crate::PerceptronTagger`] is the shipped default precisely so that a
+//! normal build never pulls this data in at all; enabling `nlprule` is an
+//! explicit, informed opt-in for offline comparison work only, never a
+//! change anyone should make to ship a build. See
+//! `weights/NOTICE.md` for the default tagger's own, unrelated, clean
+//! sourcing.
 
 use friction_core::Token;
 use nlprule::Tokenizer as NlpruleTokenizer;

@@ -171,13 +171,13 @@ pub fn count_tell_spans(text: &str, tagger: &dyn Tagger) -> usize {
 mod tests {
     use std::sync::OnceLock;
 
-    use friction_nlp::NlpruleTagger;
+    use friction_nlp::PerceptronTagger;
 
     use super::*;
 
-    fn tagger() -> &'static NlpruleTagger {
-        static TAGGER: OnceLock<NlpruleTagger> = OnceLock::new();
-        TAGGER.get_or_init(|| NlpruleTagger::new().expect("embedded model must load"))
+    fn tagger() -> &'static PerceptronTagger {
+        static TAGGER: OnceLock<PerceptronTagger> = OnceLock::new();
+        TAGGER.get_or_init(|| PerceptronTagger::new().expect("embedded model must load"))
     }
 
     #[test]

@@ -9,7 +9,7 @@ sentence_length_cv            0.8548  [0.5491, 0.9915]    in
 discourse_marker_density      0.0000  [0.0000, 4.2373]    in    
 triad_rate                    0.0152  [0.0000, 0.0426]    in    
 contraction_ratio             1.0000  [0.2000, 0.9000]    OUT   
-bullet_parallelism            0.5333  [0.0000, 1.0000]    in    
+bullet_parallelism            0.4667  [0.0000, 1.0000]    in    
 paragraph_shape_mean          1.1786  [1.2258, 2.4762]    OUT   
 paragraph_shape_cv            0.4566  [0.3899, 0.7591]    in    
 em_dash_density               0.0000  [0.0000, 2.4155]    in    

@@ -21,7 +21,7 @@ use std::path::{Path, PathBuf};
 use corpus_tool::corpus_layout::relpath;
 use corpus_tool::manifest::{Class, Genre, ManifestRecord, Split, read_manifest};
 use friction_apply::FixEngine;
-use friction_nlp::{NlpruleTagger, SrxSegmenter};
+use friction_nlp::{PerceptronTagger, SrxSegmenter};
 use friction_packs::ENVELOPE_V2;
 
 /// The fixed set of five genres, in report order.
@@ -84,7 +84,7 @@ fn main() {
     let corpus_dir = corpus_dir();
     let engine = FixEngine::new().expect("embedded tagger model must load");
     let segmenter = SrxSegmenter::new();
-    let tagger = NlpruleTagger::new().expect("embedded tagger model must load");
+    let tagger = PerceptronTagger::new().expect("embedded tagger model must load");
 
     let mut per_genre: [GenreScores; 5] = [GenreScores::default(); 5];
     let mut skipped_no_band = 0usize;

@@ -4,7 +4,7 @@
 use std::sync::OnceLock;
 
 use friction_core::MetricVector;
-use friction_nlp::{NlpruleTagger, SrxSegmenter, Tagger};
+use friction_nlp::{PerceptronTagger, SrxSegmenter, Tagger};
 
 use crate::clean::{is_punctuation_token, tokenize};
 use crate::error::HarnessError;
@@ -78,7 +78,7 @@ impl Score {
 /// segmenter every tier needs.
 pub struct Scorer {
     segmenter: SrxSegmenter,
-    tagger: NlpruleTagger,
+    tagger: PerceptronTagger,
 }
 
 impl Scorer {
@@ -88,7 +88,7 @@ impl Scorer {
     /// Returns [`HarnessError::TaggerLoad`] if the embedded tagger model
     /// fails to load.
     pub fn new() -> Result<Self, HarnessError> {
-        let tagger = NlpruleTagger::new().map_err(HarnessError::TaggerLoad)?;
+        let tagger = PerceptronTagger::new().map_err(HarnessError::TaggerLoad)?;
         Ok(Self {
             segmenter: SrxSegmenter::new(),
             tagger,

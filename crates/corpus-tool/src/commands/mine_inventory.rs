@@ -36,7 +36,7 @@ use anyhow::Context as _;
 use clap::Args as ClapArgs;
 use friction_core::{Block, BlockKind, Document, TokenKind};
 use friction_nlp::lvc::{DERIVATIONAL_LEXICON, LightVerbForm, conjugate, scan_construction_shape};
-use friction_nlp::{NlpruleTagger, Tagger};
+use friction_nlp::{PerceptronTagger, Tagger};
 
 use crate::commands::mine::{ClassCounts, accumulate_ngrams};
 use crate::commands::ngram_mining;
@@ -112,7 +112,7 @@ const fn min_machine_count(order: usize, args: &Args) -> u64 {
 /// `--report` can't be written.
 pub fn run(args: &Args) -> anyhow::Result<()> {
     let tagger =
-        NlpruleTagger::new().context("failed to load the embedded English tagger model")?;
+        PerceptronTagger::new().context("failed to load the embedded English tagger model")?;
 
     let manifest_path = args.corpus_dir.join("manifest.jsonl");
     let records = manifest::read_manifest(&manifest_path)?.unwrap_or_default();

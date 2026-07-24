@@ -84,7 +84,7 @@
 //! (generate a lemma's own candidate surface forms, then compare). Rather
 //! than duplicating `inflect`'s silent-e/consonant-y/consonant-doubling
 //! logic — a real risk of the two directions quietly disagreeing —
-//! [`surface_forms`] reuses `inflect` itself: it applies a lemma to fixed,
+//! [`friction_nlp::agreeing_forms`] reuses `inflect` itself: it applies a lemma to fixed,
 //! unambiguously-regular templates (`"uses"`, `"using"`, `"used"`, all
 //! forms of the plain regular verb "use"), so the exact same code path
 //! that will later generate the replacement also generates the candidate
@@ -94,7 +94,7 @@
 //! with `"got"`, the irregular past of the `"acquire"` entry's target
 //! lemma `"get"`, not a fictional regular `"geted"`).
 //!
-//! ## Why each entry is tagged with a [`LemmaClass`]
+//! ## Why each entry is tagged with a [`WordClass`]
 //!
 //! Mechanically generating an "-s" form for *every* lemma, regardless of
 //! its real part of speech, is not just wasted work for an adjective —
@@ -105,11 +105,11 @@
 //! collides with the medical noun "vitals" ("check the patient's
 //! vitals"), and `"initial"` + "-s" collides with "initials" (a name's
 //! abbreviated letters). None of these are what this rule means to match.
-//! [`LemmaClass`] fixes this at the root: [`surface_forms`] only derives
+//! [`WordClass`] fixes this at the root: [`friction_nlp::agreeing_forms`] only derives
 //! the forms a lemma's *actual* class can legitimately take —
-//! [`LemmaClass::Verb`] gets all three templates (present-tense/plural,
-//! gerund, past), [`LemmaClass::Noun`] gets only the plural template, and
-//! [`LemmaClass::Adjective`] (covering adverbs too) gets none at all,
+//! [`WordClass::Verb`] gets all three templates (present-tense/plural,
+//! gerund, past), [`WordClass::Noun`] gets only the plural template, and
+//! [`WordClass::Adjective`] (covering adverbs too) gets none at all,
 //! matching only its own unmodified base form — so a table entry can
 //! never generate a candidate match form it was never meant to (checked
 //! directly by this module's `adjective_forms_do_not_collide_with_
@@ -200,7 +200,7 @@ use std::collections::BTreeMap;
 use std::sync::LazyLock;
 
 use friction_core::{Finding, MetricVector, Patch, RuleId, Tier};
-use friction_nlp::inflect;
+use friction_nlp::{WordClass, agreeing_forms, inflect};
 
 use crate::budget::Budget;
 use crate::context::{GenreEnvelope, RuleContext};
@@ -224,28 +224,13 @@ const GATED_METRIC: &str = "llm_favored_phrase_rate";
 /// later round's fresh `gate` call tops up if still needed.
 const PER_FIX_EFFECT: f64 = 1.0;
 
-/// A [`SubstitutionEntry`]'s real part of speech, and therefore which
-/// inflected forms [`surface_forms`] may legitimately derive for it — see
-/// the module docs' "Why each entry is tagged" section for why this
-/// matters.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-enum LemmaClass {
-    /// A regular verb: matches its base, third-person-singular/plural
-    /// (-s/-es), gerund (-ing), and past (-ed) forms.
-    Verb,
-    /// A noun: matches its base and plural (-s/-es) forms only.
-    Noun,
-    /// An adjective or adverb: matches only its own unmodified base form.
-    Adjective,
-}
-
 /// One [`SUBSTITUTIONS`] entry: a base lemma to match, its real part of
 /// speech, the plain near-synonym lemma to replace it with, and a short
 /// plain-language rationale (also surfaced in this rule's [`Finding`]
 /// messages).
 struct SubstitutionEntry {
     lemma: &'static str,
-    class: LemmaClass,
+    class: WordClass,
     replacement: &'static str,
     note: &'static str,
 }
@@ -258,387 +243,356 @@ struct SubstitutionEntry {
 const SUBSTITUTIONS: &[SubstitutionEntry] = &[
     SubstitutionEntry {
         lemma: "accomplish",
-        class: LemmaClass::Verb,
+        class: WordClass::Verb,
         replacement: "do",
         note: "a plain, shorter verb for the same act",
     },
     SubstitutionEntry {
         lemma: "acquire",
-        class: LemmaClass::Verb,
+        class: WordClass::Verb,
         replacement: "get",
         note: "acquire is a formal register synonym of get",
     },
     SubstitutionEntry {
         lemma: "ameliorate",
-        class: LemmaClass::Verb,
+        class: WordClass::Verb,
         replacement: "improve",
         note: "ameliorate is a rarer, more Latinate synonym of improve",
     },
     SubstitutionEntry {
         lemma: "approximately",
-        class: LemmaClass::Adjective,
+        class: WordClass::Adjective,
         replacement: "about",
         note: "mined llm-favored (MINING.md); about is the everyday equivalent",
     },
     SubstitutionEntry {
         lemma: "ascertain",
-        class: LemmaClass::Verb,
+        class: WordClass::Verb,
         replacement: "learn",
         note: "ascertain (find out for certain) is a formal synonym of learn",
     },
     SubstitutionEntry {
         lemma: "assist",
-        class: LemmaClass::Verb,
+        class: WordClass::Verb,
         replacement: "help",
         note: "assist is a formal register synonym of help",
     },
     SubstitutionEntry {
         lemma: "attain",
-        class: LemmaClass::Verb,
+        class: WordClass::Verb,
         replacement: "reach",
         note: "attain is a formal register synonym of reach",
     },
     SubstitutionEntry {
         lemma: "augment",
-        class: LemmaClass::Verb,
+        class: WordClass::Verb,
         replacement: "increase",
         note: "augment is a formal register synonym of increase",
     },
     SubstitutionEntry {
         lemma: "bolster",
-        class: LemmaClass::Verb,
+        class: WordClass::Verb,
         replacement: "support",
         note: "bolster (strengthen existing support) is a synonym of support",
     },
     SubstitutionEntry {
         lemma: "commence",
-        class: LemmaClass::Verb,
+        class: WordClass::Verb,
         replacement: "start",
         note: "canonical LLM-register tell for start",
     },
     SubstitutionEntry {
         lemma: "comprehend",
-        class: LemmaClass::Verb,
+        class: WordClass::Verb,
         replacement: "understand",
         note: "comprehend is a more Latinate synonym of understand",
     },
     SubstitutionEntry {
         lemma: "crucial",
-        class: LemmaClass::Adjective,
+        class: WordClass::Adjective,
         replacement: "key",
         note: "mined llm-favored (MINING.md, z=6.47); key keeps the emphasis, drops the register",
     },
     SubstitutionEntry {
         lemma: "demonstrate",
-        class: LemmaClass::Verb,
+        class: WordClass::Verb,
         replacement: "show",
         note: "demonstrate is a more formal synonym of show",
     },
     SubstitutionEntry {
         lemma: "eliminate",
-        class: LemmaClass::Verb,
+        class: WordClass::Verb,
         replacement: "remove",
         note: "eliminate is a more formal synonym of remove",
     },
     SubstitutionEntry {
         lemma: "elucidate",
-        class: LemmaClass::Verb,
+        class: WordClass::Verb,
         replacement: "explain",
         note: "elucidate is a rarer, more Latinate synonym of explain",
     },
     SubstitutionEntry {
         lemma: "embark",
-        class: LemmaClass::Verb,
+        class: WordClass::Verb,
         replacement: "start",
         note: "embark (on/upon) is a more formal synonym of start",
     },
     SubstitutionEntry {
         lemma: "encompass",
-        class: LemmaClass::Verb,
+        class: WordClass::Verb,
         replacement: "include",
         note: "encompass is a more formal synonym of include",
     },
     SubstitutionEntry {
         lemma: "endeavor",
-        class: LemmaClass::Verb,
+        class: WordClass::Verb,
         replacement: "try",
         note: "endeavor is a more formal synonym of try",
     },
     SubstitutionEntry {
         lemma: "enhance",
-        class: LemmaClass::Verb,
+        class: WordClass::Verb,
         replacement: "improve",
         note: "enhance is a more formal synonym of improve",
     },
     SubstitutionEntry {
         lemma: "exemplify",
-        class: LemmaClass::Verb,
+        class: WordClass::Verb,
         replacement: "show",
         note: "exemplify is a more formal synonym of show (by example)",
     },
     SubstitutionEntry {
         lemma: "facilitate",
-        class: LemmaClass::Verb,
+        class: WordClass::Verb,
         replacement: "help",
         note: "canonical LLM-register tell for help",
     },
     SubstitutionEntry {
         lemma: "finalize",
-        class: LemmaClass::Verb,
+        class: WordClass::Verb,
         replacement: "finish",
         note: "finalize is a more formal synonym of finish",
     },
     SubstitutionEntry {
         lemma: "foster",
-        class: LemmaClass::Verb,
+        class: WordClass::Verb,
         replacement: "encourage",
         note: "foster is a more formal synonym of encourage",
     },
     SubstitutionEntry {
         lemma: "fundamental",
-        class: LemmaClass::Adjective,
+        class: WordClass::Adjective,
         replacement: "basic",
         note: "fundamental is a more formal synonym of basic",
     },
     SubstitutionEntry {
         lemma: "garner",
-        class: LemmaClass::Verb,
+        class: WordClass::Verb,
         replacement: "earn",
         note: "garner is a more formal synonym of earn",
     },
     SubstitutionEntry {
         lemma: "illustrate",
-        class: LemmaClass::Verb,
+        class: WordClass::Verb,
         replacement: "show",
         note: "illustrate is a more formal synonym of show",
     },
     SubstitutionEntry {
         lemma: "incredibly",
-        class: LemmaClass::Adjective,
+        class: WordClass::Adjective,
         replacement: "very",
         note: "mined llm-favored (MINING.md); very is the plain intensifier",
     },
     SubstitutionEntry {
         lemma: "initial",
-        class: LemmaClass::Adjective,
+        class: WordClass::Adjective,
         replacement: "first",
         note: "mined llm-favored (MINING.md); first is the plain equivalent",
     },
     SubstitutionEntry {
         lemma: "initiate",
-        class: LemmaClass::Verb,
+        class: WordClass::Verb,
         replacement: "start",
         note: "initiate is a more formal synonym of start",
     },
     SubstitutionEntry {
         lemma: "leverage",
-        class: LemmaClass::Verb,
+        class: WordClass::Verb,
         replacement: "use",
         note: "canonical LLM-register tell for use",
     },
     SubstitutionEntry {
         lemma: "locate",
-        class: LemmaClass::Verb,
+        class: WordClass::Verb,
         replacement: "find",
         note: "locate is a more formal synonym of find",
     },
     SubstitutionEntry {
         lemma: "mandatory",
-        class: LemmaClass::Adjective,
+        class: WordClass::Adjective,
         replacement: "required",
         note: "mandatory is a more formal synonym of required",
     },
     SubstitutionEntry {
         lemma: "modification",
-        class: LemmaClass::Noun,
+        class: WordClass::Noun,
         replacement: "change",
         note: "modification is a more formal synonym of change",
     },
     SubstitutionEntry {
         lemma: "necessary",
-        class: LemmaClass::Adjective,
+        class: WordClass::Adjective,
         replacement: "needed",
         note: "mined llm-favored (MINING.md); needed is the plain equivalent",
     },
     SubstitutionEntry {
         lemma: "necessitate",
-        class: LemmaClass::Verb,
+        class: WordClass::Verb,
         replacement: "require",
         note: "necessitate is a more formal synonym of require",
     },
     SubstitutionEntry {
         lemma: "numerous",
-        class: LemmaClass::Adjective,
+        class: WordClass::Adjective,
         replacement: "many",
         note: "canonical LLM-register tell for many",
     },
     SubstitutionEntry {
         lemma: "obtain",
-        class: LemmaClass::Verb,
+        class: WordClass::Verb,
         replacement: "get",
         note: "obtain is a more formal synonym of get",
     },
     SubstitutionEntry {
         lemma: "optimal",
-        class: LemmaClass::Adjective,
+        class: WordClass::Adjective,
         replacement: "ideal",
         note: "optimal and ideal both take a/an; best would force a superlative-only register",
     },
     SubstitutionEntry {
         lemma: "optimize",
-        class: LemmaClass::Verb,
+        class: WordClass::Verb,
         replacement: "improve",
         note: "optimize is a more formal synonym of improve",
     },
     SubstitutionEntry {
         lemma: "paramount",
-        class: LemmaClass::Adjective,
+        class: WordClass::Adjective,
         replacement: "key",
         note: "paramount is a more formal synonym of key",
     },
     SubstitutionEntry {
         lemma: "participate",
-        class: LemmaClass::Verb,
+        class: WordClass::Verb,
         replacement: "join",
         note: "participate is a more formal synonym of join",
     },
     SubstitutionEntry {
         lemma: "pivotal",
-        class: LemmaClass::Adjective,
+        class: WordClass::Adjective,
         replacement: "key",
         note: "pivotal is a more formal synonym of key",
     },
     SubstitutionEntry {
         lemma: "plethora",
-        class: LemmaClass::Noun,
+        class: WordClass::Noun,
         replacement: "range",
         note: "range keeps 'a ... of' grammatical, unlike a vowel-initial target",
     },
     SubstitutionEntry {
         lemma: "powerful",
-        class: LemmaClass::Adjective,
+        class: WordClass::Adjective,
         replacement: "strong",
         note: "mined llm-favored (MINING.md); strong is the plain equivalent",
     },
     SubstitutionEntry {
         lemma: "profound",
-        class: LemmaClass::Adjective,
+        class: WordClass::Adjective,
         replacement: "deep",
         note: "profound is a more formal synonym of deep",
     },
     SubstitutionEntry {
         lemma: "robust",
-        class: LemmaClass::Adjective,
+        class: WordClass::Adjective,
         replacement: "solid",
         note: "mined llm-favored (MINING.md, z=6.29); solid is the plain equivalent",
     },
     SubstitutionEntry {
         lemma: "showcase",
-        class: LemmaClass::Verb,
+        class: WordClass::Verb,
         replacement: "show",
         note: "showcase is a more formal synonym of show",
     },
     SubstitutionEntry {
         lemma: "specific",
-        class: LemmaClass::Adjective,
+        class: WordClass::Adjective,
         replacement: "particular",
         note: "mined llm-favored (MINING.md); particular is a plainer near-synonym",
     },
     SubstitutionEntry {
         lemma: "strive",
-        class: LemmaClass::Verb,
+        class: WordClass::Verb,
         replacement: "try",
         note: "strive is a more formal synonym of try",
     },
     SubstitutionEntry {
         lemma: "subsequently",
-        class: LemmaClass::Adjective,
+        class: WordClass::Adjective,
         replacement: "later",
         note: "canonical LLM-register tell for later",
     },
     SubstitutionEntry {
         lemma: "substantial",
-        class: LemmaClass::Adjective,
+        class: WordClass::Adjective,
         replacement: "large",
         note: "substantial is a more formal synonym of large",
     },
     SubstitutionEntry {
         lemma: "tremendous",
-        class: LemmaClass::Adjective,
+        class: WordClass::Adjective,
         replacement: "huge",
         note: "tremendous is a more formal synonym of huge",
     },
     SubstitutionEntry {
         lemma: "underpin",
-        class: LemmaClass::Verb,
+        class: WordClass::Verb,
         replacement: "support",
         note: "underpin (be the foundation of) is a synonym of support",
     },
     SubstitutionEntry {
         lemma: "utilization",
-        class: LemmaClass::Noun,
+        class: WordClass::Noun,
         replacement: "use",
         note: "canonical LLM-register tell for use (noun form)",
     },
     SubstitutionEntry {
         lemma: "utilize",
-        class: LemmaClass::Verb,
+        class: WordClass::Verb,
         replacement: "use",
         note: "canonical LLM-register tell for use",
     },
     SubstitutionEntry {
         lemma: "valuable",
-        class: LemmaClass::Adjective,
+        class: WordClass::Adjective,
         replacement: "useful",
         note: "mined llm-favored (MINING.md); useful is the plain equivalent",
     },
     SubstitutionEntry {
         lemma: "vital",
-        class: LemmaClass::Adjective,
+        class: WordClass::Adjective,
         replacement: "key",
         note: "vital is a more formal synonym of key",
     },
 ];
 
-/// Fixed, unambiguously-regular templates (all forms of the plain regular
-/// verb "use") used only to derive a lemma's own candidate surface forms
-/// via `inflect` — see the module docs' "Matching" section.
-///
-/// Order matters for [`LemmaClass::Noun`], which uses only
-/// `FORM_TEMPLATES[0]` (the plural/third-person-singular template) — see
-/// [`surface_forms`].
-const FORM_TEMPLATES: [&str; 3] = ["uses", "using", "used"];
-
-/// The candidate lowercase surface forms `lemma` can take, restricted to
-/// what `class` can legitimately inflect to (see the module docs' "Why
-/// each entry is tagged" section): always includes `lemma`'s own base
-/// form; [`LemmaClass::Noun`] additionally includes the plural form;
-/// [`LemmaClass::Verb`] additionally includes all of plural/
-/// third-person-singular, gerund, and past. Deduplicated.
-fn surface_forms(lemma: &str, class: LemmaClass) -> Vec<String> {
-    let templates: &[&str] = match class {
-        LemmaClass::Adjective => &[],
-        LemmaClass::Noun => &FORM_TEMPLATES[..1],
-        LemmaClass::Verb => &FORM_TEMPLATES,
-    };
-    let mut forms = vec![lemma.to_string()];
-    for &template in templates {
-        if let Some(form) = inflect(template, lemma)
-            && !forms.contains(&form)
-        {
-            forms.push(form);
-        }
-    }
-    forms
-}
-
-/// Every [`SUBSTITUTIONS`] entry's [`surface_forms`], indexed by position
-/// in [`SUBSTITUTIONS`] — computed once, lazily, since deriving them calls
-/// `inflect` and this table is reused across every sentence a document has.
+/// Every [`SUBSTITUTIONS`] entry's [`friction_nlp::agreeing_forms`],
+/// indexed by position in [`SUBSTITUTIONS`] — computed once, lazily, since
+/// deriving them calls `inflect` and this table is reused across every
+/// sentence a document has.
 static SUBSTITUTION_FORMS: LazyLock<Vec<Vec<String>>> = LazyLock::new(|| {
     SUBSTITUTIONS
         .iter()
-        .map(|entry| surface_forms(entry.lemma, entry.class))
+        .map(|entry| agreeing_forms(entry.lemma, entry.class))
         .collect()
 });
 
@@ -993,7 +947,7 @@ mod tests {
 
     #[test]
     fn surface_forms_covers_leverage_verb_inflections() {
-        let forms = surface_forms("leverage", LemmaClass::Verb);
+        let forms = agreeing_forms("leverage", WordClass::Verb);
         for expected in ["leverage", "leverages", "leveraging", "leveraged"] {
             assert!(
                 forms.contains(&expected.to_string()),
@@ -1004,7 +958,7 @@ mod tests {
 
     #[test]
     fn surface_forms_noun_class_includes_plural_only() {
-        let forms = surface_forms("individual", LemmaClass::Noun);
+        let forms = agreeing_forms("individual", WordClass::Noun);
         assert!(forms.contains(&"individual".to_string()));
         assert!(forms.contains(&"individuals".to_string()));
         assert_eq!(
@@ -1015,14 +969,14 @@ mod tests {
     }
 
     /// The false-positive fix this module's docs describe: an
-    /// [`LemmaClass::Adjective`] entry matches *only* its own base form,
+    /// [`WordClass::Adjective`] entry matches *only* its own base form,
     /// never a mechanically-generated "-s" form — which is exactly what
     /// prevents `"valuable"`/`"vital"`/`"initial"` from spuriously
     /// matching the unrelated real words `"valuables"`/`"vitals"`/
     /// `"initials"`.
     #[test]
     fn adjective_forms_do_not_collide_with_unrelated_words() {
-        let forms = surface_forms("valuable", LemmaClass::Adjective);
+        let forms = agreeing_forms("valuable", WordClass::Adjective);
         assert_eq!(forms, vec!["valuable".to_string()]);
 
         for (source, unrelated_word) in [

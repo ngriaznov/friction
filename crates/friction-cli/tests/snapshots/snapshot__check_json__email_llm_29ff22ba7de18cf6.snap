@@ -35,10 +35,10 @@ expression: stdout
     },
     {
       "name": "triad_rate",
-      "value": 0.05405405405405406,
+      "value": 0.0,
       "lo": 0.0,
       "hi": 0.01694915254237288,
-      "in_envelope": false
+      "in_envelope": true
     },
     {
       "name": "contraction_ratio",
@@ -180,24 +180,6 @@ expression: stdout
       "line": 15,
       "column": 140,
       "message": "\"assisting\" reads as machine-favored register (assist is a formal register synonym of help); \"help\" is a plain near-synonym"
-    },
-    {
-      "rule": "symmetry.triad_reduction",
-      "tier": "suggest",
-      "start": 1912,
-      "end": 2049,
-      "line": 19,
-      "column": 263,
-      "message": "flat \"X, Y, and Z\" triad with matching-class items reads as an LLM tic; consider dropping the weakest item or restructuring"
-    },
-    {
-      "rule": "symmetry.triad_reduction",
-      "tier": "suggest",
-      "start": 2599,
-      "end": 2697,
-      "line": 27,
-      "column": 41,
-      "message": "flat \"X, Y, and Z\" triad with matching-class items reads as an LLM tic; consider dropping the weakest item or restructuring"
     },
     {
       "rule": "rhythm.split",

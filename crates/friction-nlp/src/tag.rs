@@ -80,10 +80,35 @@ pub struct TaggedToken {
     pub lemma: Box<str>,
 }
 
+/// The coarse part-of-speech tag for `pos`.
+///
+/// Its full tag truncated to the first two characters (`"VBZ"` -> `"VB"`,
+/// `"NNS"` -> `"NN"`), except a tag whose first character is not
+/// alphabetic — a punctuation tag, kept verbatim (a single truncated
+/// character would lose information a punctuation mark's tag never had to
+/// begin with).
+#[must_use]
+pub fn coarse_tag(pos: &PosTag) -> Box<str> {
+    let full = pos.as_str();
+    let Some(first) = full.chars().next() else {
+        return Box::from(full);
+    };
+    if !first.is_alphabetic() {
+        return Box::from(full);
+    }
+    let end = full
+        .char_indices()
+        .nth(2)
+        .map_or(full.len(), |(index, _)| index);
+    Box::from(&full[..end])
+}
+
 /// Classifies `text` — a single token's surface text — into a coarse
-/// [`TokenKind`], the same classification every [`Tagger`] implementation
-/// in this crate should use so `TokenKind` means the same thing regardless
-/// of which one produced it.
+/// [`TokenKind`].
+///
+/// The same classification every [`Tagger`] implementation in this crate
+/// should use so `TokenKind` means the same thing regardless of which one
+/// produced it.
 ///
 /// This is a pure function of `text`'s characters (`char::is_alphabetic`,
 /// `char::is_numeric`; no locale, no ambient state), so it is deterministic
@@ -120,7 +145,7 @@ pub fn classify_token_kind(text: &str) -> TokenKind {
 /// [`friction_core::TokenKind::Symbol`]'s examples (`&`, `%`, an emoji):
 /// those are common in prose but are not "a punctuation mark" in the
 /// sense the surrounding sentence-structure rules care about.
-const fn is_prose_punctuation(c: char) -> bool {
+pub const fn is_prose_punctuation(c: char) -> bool {
     matches!(
         c,
         '.' | ','
@@ -185,6 +210,19 @@ mod tests {
         assert_eq!(classify_token_kind("&"), TokenKind::Symbol);
         assert_eq!(classify_token_kind("%"), TokenKind::Symbol);
         assert_eq!(classify_token_kind(""), TokenKind::Symbol);
+    }
+
+    #[test]
+    fn coarse_tag_truncates_to_two_characters() {
+        assert_eq!(&*coarse_tag(&PosTag::new("VBZ")), "VB");
+        assert_eq!(&*coarse_tag(&PosTag::new("NNS")), "NN");
+        assert_eq!(&*coarse_tag(&PosTag::new("MD")), "MD");
+    }
+
+    #[test]
+    fn coarse_tag_keeps_punctuation_tags_verbatim() {
+        assert_eq!(&*coarse_tag(&PosTag::new(",")), ",");
+        assert_eq!(&*coarse_tag(&PosTag::new("...")), "...");
     }
 
     #[test]

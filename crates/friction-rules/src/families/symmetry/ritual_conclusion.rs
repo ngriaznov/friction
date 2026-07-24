@@ -539,7 +539,7 @@ mod tests {
             Overall, the kit still includes the screws.\n";
         let doc = document(source);
         let envelope = permissive_envelope();
-        let tagger = friction_nlp::NlpruleTagger::new().expect("embedded model loads");
+        let tagger = friction_nlp::PerceptronTagger::new().expect("embedded model loads");
         let ctx = RuleContext::new(&doc, &tagger, "blog", &envelope);
         let findings = RitualConclusionRule::new().scan(&ctx);
         assert_eq!(findings.len(), 1);
@@ -557,27 +557,62 @@ mod tests {
             Ultimately, the vendor never honored the refunds.\n";
         let doc = document(source);
         let envelope = permissive_envelope();
-        let tagger = friction_nlp::NlpruleTagger::new().expect("embedded model loads");
+        let tagger = friction_nlp::PerceptronTagger::new().expect("embedded model loads");
         let ctx = RuleContext::new(&doc, &tagger, "blog", &envelope);
         let findings = RitualConclusionRule::new().scan(&ctx);
         assert_eq!(findings.len(), 1);
         assert_eq!(findings[0].tier, Tier::Suggest);
     }
 
+    /// A [`Tagger`] wrapping a real one but forcing one exact word's tag —
+    /// used only to reproduce, deterministically and independent of
+    /// whichever real tagger this workspace ships as its default, a
+    /// specific mistagging shape a regression test needs to exercise (see
+    /// [`scan_is_suggest_tier_when_a_mistagged_new_verb_reverses_an_earlier_claim`]).
+    struct ForceTagTagger<'a> {
+        inner: &'a dyn friction_nlp::Tagger,
+        word: &'static str,
+        forced_pos: &'static str,
+    }
+
+    impl friction_nlp::Tagger for ForceTagTagger<'_> {
+        fn tag(&self, text: &str, base_offset: usize) -> Vec<friction_nlp::TaggedToken> {
+            self.inner
+                .tag(text, base_offset)
+                .into_iter()
+                .map(|mut token| {
+                    let surface = &text[token.token.range.start - base_offset
+                        ..token.token.range.end - base_offset];
+                    if surface.eq_ignore_ascii_case(self.word) {
+                        token.pos = friction_nlp::PosTag::new(self.forced_pos);
+                    }
+                    token
+                })
+                .collect()
+        }
+    }
+
     /// Regression test for the finding's other example: a final paragraph
     /// that reverses an earlier claim through a *different verb*, with no
     /// negation word at all and no noun this rule's tagger has not already
-    /// seen. This rule's tagger tags the new verb ("broke") as an adjective
-    /// when it sees this short, marker-led sentence in isolation, which is
-    /// exactly why the noun/adjective check (not noun-only) is needed for
-    /// this case to come out Suggest tier rather than Fix.
+    /// seen. The specific failure mode this guards is a tagger mistaking
+    /// the new verb ("broke") for an adjective in this short, marker-led
+    /// sentence — [`ForceTagTagger`] reproduces that shape deterministically
+    /// so the test does not depend on any particular tagger's own accuracy
+    /// — and is exactly why the noun/adjective check (not noun-only) is
+    /// needed for this case to come out Suggest tier rather than Fix.
     #[test]
     fn scan_is_suggest_tier_when_a_mistagged_new_verb_reverses_an_earlier_claim() {
         let source = "The team shipped the update to the server.\n\n\
             Overall, the update broke the server.\n";
         let doc = document(source);
         let envelope = permissive_envelope();
-        let tagger = friction_nlp::NlpruleTagger::new().expect("embedded model loads");
+        let real_tagger = friction_nlp::PerceptronTagger::new().expect("embedded model loads");
+        let tagger = ForceTagTagger {
+            inner: &real_tagger,
+            word: "broke",
+            forced_pos: "JJ",
+        };
         let ctx = RuleContext::new(&doc, &tagger, "blog", &envelope);
         let findings = RitualConclusionRule::new().scan(&ctx);
         assert_eq!(findings.len(), 1);
@@ -591,7 +626,7 @@ mod tests {
             Overall, check the roadmap for what comes next.\n";
         let doc = document(source);
         let envelope = permissive_envelope();
-        let tagger = friction_nlp::NlpruleTagger::new().expect("embedded model loads");
+        let tagger = friction_nlp::PerceptronTagger::new().expect("embedded model loads");
         let ctx = RuleContext::new(&doc, &tagger, "blog", &envelope);
         let findings = RitualConclusionRule::new().scan(&ctx);
         assert_eq!(findings.len(), 1);
@@ -603,7 +638,7 @@ mod tests {
         let source = "The kit includes screws.\n\nIt works well.\n";
         let doc = document(source);
         let envelope = permissive_envelope();
-        let tagger = friction_nlp::NlpruleTagger::new().expect("embedded model loads");
+        let tagger = friction_nlp::PerceptronTagger::new().expect("embedded model loads");
         let ctx = RuleContext::new(&doc, &tagger, "blog", &envelope);
         assert!(RitualConclusionRule::new().scan(&ctx).is_empty());
     }
@@ -613,7 +648,7 @@ mod tests {
         let source = "Overall, it works.\n\nA plain closing paragraph.\n";
         let doc = document(source);
         let envelope = permissive_envelope();
-        let tagger = friction_nlp::NlpruleTagger::new().expect("embedded model loads");
+        let tagger = friction_nlp::PerceptronTagger::new().expect("embedded model loads");
         let ctx = RuleContext::new(&doc, &tagger, "blog", &envelope);
         assert!(RitualConclusionRule::new().scan(&ctx).is_empty());
     }
@@ -628,7 +663,7 @@ mod tests {
             Overall, the kit still includes the screws.\n";
         let doc = document(source);
         let envelope = permissive_envelope();
-        let tagger = friction_nlp::NlpruleTagger::new().expect("embedded model loads");
+        let tagger = friction_nlp::PerceptronTagger::new().expect("embedded model loads");
         let ctx = RuleContext::new(&doc, &tagger, "blog", &envelope);
         let rule = RitualConclusionRule::new();
         let finding = &rule.scan(&ctx)[0];
@@ -646,7 +681,7 @@ mod tests {
             Overall, check the roadmap for what comes next.\n";
         let doc = document(source);
         let envelope = permissive_envelope();
-        let tagger = friction_nlp::NlpruleTagger::new().expect("embedded model loads");
+        let tagger = friction_nlp::PerceptronTagger::new().expect("embedded model loads");
         let ctx = RuleContext::new(&doc, &tagger, "blog", &envelope);
         let rule = RitualConclusionRule::new();
         let finding = &rule.scan(&ctx)[0];
@@ -665,7 +700,7 @@ mod tests {
             Overall, the kit still includes the screws.\n";
         let doc = document(source);
         let envelope = permissive_envelope();
-        let tagger = friction_nlp::NlpruleTagger::new().expect("embedded model loads");
+        let tagger = friction_nlp::PerceptronTagger::new().expect("embedded model loads");
         let rule = RitualConclusionRule::new();
 
         let patch = {

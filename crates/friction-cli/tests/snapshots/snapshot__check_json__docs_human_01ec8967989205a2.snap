@@ -35,7 +35,7 @@ expression: stdout
     },
     {
       "name": "triad_rate",
-      "value": 0.04918032786885246,
+      "value": 0.03278688524590164,
       "lo": 0.0,
       "hi": 0.030303030303030304,
       "in_envelope": false
@@ -157,19 +157,10 @@ expression: stdout
     {
       "rule": "symmetry.triad_reduction",
       "tier": "suggest",
-      "start": 1722,
-      "end": 1929,
-      "line": 41,
-      "column": 19,
-      "message": "flat \"X, Y, and Z\" triad with matching-class items reads as an LLM tic; consider dropping the weakest item or restructuring"
-    },
-    {
-      "rule": "symmetry.triad_reduction",
-      "tier": "suggest",
-      "start": 3072,
-      "end": 3197,
-      "line": 67,
-      "column": 48,
+      "start": 978,
+      "end": 1046,
+      "line": 22,
+      "column": 52,
       "message": "flat \"X, Y, and Z\" triad with matching-class items reads as an LLM tic; consider dropping the weakest item or restructuring"
     },
     {

@@ -62,7 +62,7 @@ pub fn gate_for_fixture_id(id: &str) -> Gate {
 ///
 /// `pivot_trap_quantified` maps to [`PivotRejection::ModifiedNominal`], not
 /// a separate "plural" variant: verified empirically that
-/// [`friction_nlp::NlpruleTagger`] tags "several" as `JJ`, so it is
+/// [`friction_nlp::PerceptronTagger`] tags "several" as `JJ`, so it is
 /// rejected by the modified-nominal guard before the plural-suffix guard
 /// is ever reached.
 #[must_use]

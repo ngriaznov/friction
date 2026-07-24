@@ -24,7 +24,7 @@ use std::fs;
 use std::path::Path;
 
 use friction_core::{Document, Envelope, Finding, MetricVector, Patch, Tier, span};
-use friction_nlp::{NlpruleTagger, SrxSegmenter};
+use friction_nlp::{PerceptronTagger, SrxSegmenter};
 use friction_rules::{Gate, MapEnvelope, Rule, RuleContext, SentenceSplitRule, StrategyRng};
 
 /// The `MetricVector` field `SentenceSplitRule` gates on.
@@ -81,7 +81,7 @@ fn run_round(
     cv: f64,
     band: Envelope,
     genre: &str,
-    tagger: &NlpruleTagger,
+    tagger: &PerceptronTagger,
 ) -> (String, usize) {
     let parsed = friction_parse::parse(source).expect("fixture source is valid markdown");
     let document = friction_nlp::segment_document(&parsed, &SrxSegmenter::new())
@@ -127,8 +127,8 @@ fn read_fixture(name: &str) -> (String, String) {
     (before, after)
 }
 
-fn tagger() -> NlpruleTagger {
-    NlpruleTagger::new().expect("embedded tagger model loads")
+fn tagger() -> PerceptronTagger {
+    PerceptronTagger::new().expect("embedded tagger model loads")
 }
 
 /// Every single-round fixture with the `(cv, envelope band, genre)` that
@@ -277,7 +277,7 @@ fn run_until_fixed_point(
     source: &str,
     band: Envelope,
     genre: &str,
-    tagger: &NlpruleTagger,
+    tagger: &PerceptronTagger,
     max_rounds: usize,
 ) -> (String, Vec<usize>) {
     let segmenter = SrxSegmenter::new();

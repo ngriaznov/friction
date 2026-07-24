@@ -958,7 +958,7 @@ The team shipped the release, allowing customers to upgrade early.\n\
         let document =
             friction_nlp::segment_document(&document, &friction_nlp::SrxSegmenter::new())
                 .expect("segmentation succeeds");
-        let tagger = friction_nlp::NlpruleTagger::new().expect("embedded model loads");
+        let tagger = friction_nlp::PerceptronTagger::new().expect("embedded model loads");
 
         // Four segmented sentences in all: the two paragraph sentences, plus
         // one per tight list item (a list item's text is its own segment

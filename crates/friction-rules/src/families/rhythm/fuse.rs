@@ -181,7 +181,7 @@ impl Rule for SentenceFuseRule {
 #[cfg(test)]
 mod tests {
     use friction_core::Envelope;
-    use friction_nlp::{NlpruleTagger, SrxSegmenter};
+    use friction_nlp::{PerceptronTagger, SrxSegmenter};
 
     use super::*;
     use crate::context::MapEnvelope;
@@ -199,8 +199,8 @@ mod tests {
         }
     }
 
-    fn tagger() -> NlpruleTagger {
-        NlpruleTagger::new().expect("embedded tagger model loads")
+    fn tagger() -> PerceptronTagger {
+        PerceptronTagger::new().expect("embedded tagger model loads")
     }
 
     // ---------------------------------------------------------------

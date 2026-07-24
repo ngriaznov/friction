@@ -784,11 +784,13 @@ version = "0.1.0"
 dependencies = [
  "flate2",
  "friction-core",
+ "friction-harness",
  "friction-parse",
  "nlprule",
  "ort",
  "rayon",
  "serde",
+ "serde_json",
  "sha2",
  "srx",
  "thiserror 2.0.19",

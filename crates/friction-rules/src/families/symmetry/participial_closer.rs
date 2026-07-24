@@ -690,7 +690,7 @@ mod tests {
         let source = "The team shipped the release, allowing customers to upgrade early.\n";
         let doc = document(source);
         let envelope = permissive_envelope();
-        let tagger = friction_nlp::NlpruleTagger::new().expect("embedded model loads");
+        let tagger = friction_nlp::PerceptronTagger::new().expect("embedded model loads");
         let ctx = RuleContext::new(&doc, &tagger, "blog", &envelope);
         let findings = ParticipialCloserRule::new().scan(&ctx);
         assert_eq!(findings.len(), 1);
@@ -705,7 +705,7 @@ mod tests {
         let source = "The team shipped the release. It works well.\n";
         let doc = document(source);
         let envelope = permissive_envelope();
-        let tagger = friction_nlp::NlpruleTagger::new().expect("embedded model loads");
+        let tagger = friction_nlp::PerceptronTagger::new().expect("embedded model loads");
         let ctx = RuleContext::new(&doc, &tagger, "blog", &envelope);
         assert!(ParticipialCloserRule::new().scan(&ctx).is_empty());
     }
@@ -717,7 +717,7 @@ mod tests {
     fn fix_first(source: &str) -> Option<String> {
         let doc = document(source);
         let envelope = permissive_envelope();
-        let tagger = friction_nlp::NlpruleTagger::new().expect("embedded model loads");
+        let tagger = friction_nlp::PerceptronTagger::new().expect("embedded model loads");
         let ctx = RuleContext::new(&doc, &tagger, "blog", &envelope);
         let rule = ParticipialCloserRule::new();
         let finding = rule.scan(&ctx).into_iter().next().expect("a finding");
@@ -752,7 +752,7 @@ mod tests {
         let source = "The outage lasted six hours, exposing a single point of failure in the primary datacenter's power supply.\n";
         let doc = document(source);
         let envelope = permissive_envelope();
-        let tagger = friction_nlp::NlpruleTagger::new().expect("embedded model loads");
+        let tagger = friction_nlp::PerceptronTagger::new().expect("embedded model loads");
         let ctx = RuleContext::new(&doc, &tagger, "blog", &envelope);
         let rule = ParticipialCloserRule::new();
         let finding = rule.scan(&ctx).into_iter().next().expect("a finding");
@@ -792,7 +792,7 @@ mod tests {
         let source = "The team shipped the release, improving.\n";
         let doc = document(source);
         let envelope = permissive_envelope();
-        let tagger = friction_nlp::NlpruleTagger::new().expect("embedded model loads");
+        let tagger = friction_nlp::PerceptronTagger::new().expect("embedded model loads");
         let ctx = RuleContext::new(&doc, &tagger, "blog", &envelope);
         let rule = ParticipialCloserRule::new();
         let finding = rule.scan(&ctx).into_iter().next().expect("a finding");
@@ -816,7 +816,7 @@ mod tests {
         let source = "Paste the following code into the script, adjusting paths if necessary.\n";
         let doc = document(source);
         let envelope = permissive_envelope();
-        let tagger = friction_nlp::NlpruleTagger::new().expect("embedded model loads");
+        let tagger = friction_nlp::PerceptronTagger::new().expect("embedded model loads");
         let ctx = RuleContext::new(&doc, &tagger, "blog", &envelope);
         let rule = ParticipialCloserRule::new();
         let finding = rule.scan(&ctx).into_iter().next().expect("a finding");
@@ -848,7 +848,7 @@ mod tests {
             It also shipped a fix, improving.\n";
         let doc = document(source);
         let envelope = permissive_envelope();
-        let tagger = friction_nlp::NlpruleTagger::new().expect("embedded model loads");
+        let tagger = friction_nlp::PerceptronTagger::new().expect("embedded model loads");
         let mut patches: Vec<Patch> = {
             let ctx = RuleContext::new(&doc, &tagger, "blog", &envelope);
             let rule = ParticipialCloserRule::new();
@@ -880,7 +880,7 @@ mod tests {
     #[test]
     fn fixing_the_same_source_twice_is_byte_identical() {
         let source = "The team shipped the release, allowing customers to upgrade early.\n";
-        let tagger = friction_nlp::NlpruleTagger::new().expect("embedded model loads");
+        let tagger = friction_nlp::PerceptronTagger::new().expect("embedded model loads");
 
         let run = || {
             let doc = document(source);
@@ -908,7 +908,7 @@ mod tests {
         let source = "One. Two, allowing customers to upgrade early.\n";
         let doc = document(source);
         let envelope = permissive_envelope();
-        let tagger = friction_nlp::NlpruleTagger::new().expect("embedded model loads");
+        let tagger = friction_nlp::PerceptronTagger::new().expect("embedded model loads");
         let ctx = RuleContext::new(&doc, &tagger, "blog", &envelope);
         let finding = ParticipialCloserRule::new()
             .scan(&ctx)
