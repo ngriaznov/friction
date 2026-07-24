@@ -4,6 +4,7 @@ expression: stdout
 ---
 {
   "genre": "docs",
+  "family": "qwen",
   "metrics": [
     {
       "name": "sentence_length_mean",
@@ -153,24 +154,36 @@ expression: stdout
       "in_envelope": true
     }
   ],
-  "findings": [
+  "spans": [],
+  "tell_counts": {},
+  "dms": [
     {
-      "rule": "symmetry.triad_reduction",
-      "tier": "suggest",
-      "start": 363,
-      "end": 518,
-      "line": 13,
-      "column": 1,
-      "message": "flat \"X, Y, and Z\" triad with matching-class items reads as an LLM tic; consider dropping the weakest item or restructuring"
+      "family": "qwen",
+      "mean_machine": 1.1275626423690206,
+      "mean_human": 13.095671981776766,
+      "differential": -11.968109339407745,
+      "token_count": 439
     },
     {
-      "rule": "symmetry.triad_reduction",
-      "tier": "suggest",
-      "start": 4509,
-      "end": 4565,
-      "line": 156,
-      "column": 188,
-      "message": "flat \"X, Y, and Z\" triad with matching-class items reads as an LLM tic; consider dropping the weakest item or restructuring"
+      "family": "gemma",
+      "mean_machine": 1.275626423690205,
+      "mean_human": 13.095671981776766,
+      "differential": -11.82004555808656,
+      "token_count": 439
+    },
+    {
+      "family": "llama",
+      "mean_machine": 1.2300683371298406,
+      "mean_human": 13.095671981776766,
+      "differential": -11.865603644646924,
+      "token_count": 439
+    },
+    {
+      "family": "granite",
+      "mean_machine": 1.111617312072893,
+      "mean_human": 13.095671981776766,
+      "differential": -11.984054669703873,
+      "token_count": 439
     }
   ]
 }

@@ -4,6 +4,7 @@ expression: stdout
 ---
 {
   "genre": "readme",
+  "family": "qwen",
   "metrics": [
     {
       "name": "sentence_length_mean",
@@ -153,123 +154,77 @@ expression: stdout
       "in_envelope": true
     }
   ],
-  "findings": [
+  "spans": [
     {
-      "rule": "lexical.substitution",
-      "tier": "fix",
+      "channel": "literal",
+      "frame_id": "sub.leverage_3sg",
       "start": 119,
       "end": 128,
       "line": 5,
       "column": 87,
-      "message": "\"leverages\" reads as machine-favored register (canonical LLM-register tell for use); \"use\" is a plain near-synonym"
+      "score": null
     },
     {
-      "rule": "lexical.substitution",
-      "tier": "fix",
+      "channel": "literal",
+      "frame_id": "sub.utilize_base",
       "start": 506,
       "end": 513,
       "line": 9,
       "column": 4,
-      "message": "\"utilize\" reads as machine-favored register (canonical LLM-register tell for use); \"use\" is a plain near-synonym"
+      "score": null
     },
     {
-      "rule": "lexical.substitution",
-      "tier": "fix",
-      "start": 1349,
-      "end": 1358,
-      "line": 23,
-      "column": 96,
-      "message": "\"optimized\" reads as machine-favored register (optimize is a more formal synonym of improve); \"improve\" is a plain near-synonym"
-    },
-    {
-      "rule": "symmetry.triad_reduction",
-      "tier": "suggest",
-      "start": 1742,
-      "end": 1879,
-      "line": 33,
-      "column": 139,
-      "message": "flat \"X, Y, and Z\" triad with matching-class items reads as an LLM tic; consider dropping the weakest item or restructuring"
-    },
-    {
-      "rule": "lexical.substitution",
-      "tier": "fix",
-      "start": 2100,
-      "end": 2109,
-      "line": 39,
-      "column": 141,
-      "message": "\"optimized\" reads as machine-favored register (optimize is a more formal synonym of improve); \"improve\" is a plain near-synonym"
-    },
-    {
-      "rule": "lexical.substitution",
-      "tier": "fix",
-      "start": 2190,
-      "end": 2198,
-      "line": 39,
-      "column": 231,
-      "message": "\"enhances\" reads as machine-favored register (enhance is a more formal synonym of improve); \"improve\" is a plain near-synonym"
-    },
-    {
-      "rule": "lexical.substitution",
-      "tier": "suggest",
-      "start": 2358,
-      "end": 2366,
-      "line": 41,
-      "column": 118,
-      "message": "\"specific\" reads as machine-favored register (mined llm-favored (MINING.md); particular is a plainer near-synonym); \"particular\" is a plain near-synonym"
-    },
-    {
-      "rule": "lexical.substitution",
-      "tier": "suggest",
-      "start": 3010,
-      "end": 3018,
+      "channel": "literal",
+      "frame_id": "span.simply",
+      "start": 2943,
+      "end": 2949,
       "line": 56,
-      "column": 178,
-      "message": "\"specific\" reads as machine-favored register (mined llm-favored (MINING.md); particular is a plainer near-synonym); \"particular\" is a plain near-synonym"
+      "column": 111,
+      "score": null
     },
     {
-      "rule": "symmetry.triad_reduction",
-      "tier": "suggest",
-      "start": 3243,
-      "end": 3318,
-      "line": 70,
-      "column": 44,
-      "message": "flat \"X, Y, and Z\" triad with matching-class items reads as an LLM tic; consider dropping the weakest item or restructuring"
-    },
-    {
-      "rule": "symmetry.triad_reduction",
-      "tier": "suggest",
-      "start": 3820,
-      "end": 3935,
-      "line": 84,
-      "column": 124,
-      "message": "flat \"X, Y, and Z\" triad with matching-class items reads as an LLM tic; consider dropping the weakest item or restructuring"
-    },
-    {
-      "rule": "lexical.substitution",
-      "tier": "fix",
-      "start": 4401,
-      "end": 4410,
-      "line": 102,
-      "column": 26,
-      "message": "\"necessary\" reads as machine-favored register (mined llm-favored (MINING.md); needed is the plain equivalent); \"needed\" is a plain near-synonym"
-    },
-    {
-      "rule": "symmetry.triad_reduction",
-      "tier": "suggest",
-      "start": 4781,
-      "end": 5002,
+      "channel": "dms",
+      "frame_id": "dms.qwen",
+      "start": 5095,
+      "end": 5130,
       "line": 116,
-      "column": 1,
-      "message": "flat \"X, Y, and Z\" triad with matching-class items reads as an LLM tic; consider dropping the weakest item or restructuring"
+      "column": 315,
+      "score": 16
+    }
+  ],
+  "tell_counts": {
+    "dms": 1,
+    "span": 1,
+    "sub": 2
+  },
+  "dms": [
+    {
+      "family": "qwen",
+      "mean_machine": 1.4961715160796325,
+      "mean_human": 1.551301684532925,
+      "differential": -0.05513016845329255,
+      "token_count": 653
     },
     {
-      "rule": "lexical.substitution",
-      "tier": "fix",
-      "start": 5156,
-      "end": 5164,
-      "line": 116,
-      "column": 376,
-      "message": "\"showcase\" reads as machine-favored register (showcase is a more formal synonym of show); \"show\" is a plain near-synonym"
+      "family": "gemma",
+      "mean_machine": 1.6278713629402757,
+      "mean_human": 1.551301684532925,
+      "differential": 0.07656967840735063,
+      "token_count": 653
+    },
+    {
+      "family": "llama",
+      "mean_machine": 1.5038284839203675,
+      "mean_human": 1.551301684532925,
+      "differential": -0.04747320061255755,
+      "token_count": 653
+    },
+    {
+      "family": "granite",
+      "mean_machine": 14.522205206738132,
+      "mean_human": 1.551301684532925,
+      "differential": 12.970903522205207,
+      "token_count": 653
     }
   ]
 }

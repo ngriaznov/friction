@@ -4,6 +4,7 @@ expression: stdout
 ---
 {
   "genre": "blog",
+  "family": "qwen",
   "metrics": [
     {
       "name": "sentence_length_mean",
@@ -153,15 +154,36 @@ expression: stdout
       "in_envelope": false
     }
   ],
-  "findings": [
+  "spans": [],
+  "tell_counts": {},
+  "dms": [
     {
-      "rule": "symmetry.not_just_but",
-      "tier": "suggest",
-      "start": 432,
-      "end": 470,
-      "line": 5,
-      "column": 78,
-      "message": "\"not just/only X but (also) Y\" reads as an LLM tic; consider reframing which half the sentence emphasizes"
+      "family": "qwen",
+      "mean_machine": 0.8275862068965517,
+      "mean_human": 21.60727969348659,
+      "differential": -20.779693486590038,
+      "token_count": 522
+    },
+    {
+      "family": "gemma",
+      "mean_machine": 0.9923371647509579,
+      "mean_human": 21.60727969348659,
+      "differential": -20.614942528735632,
+      "token_count": 522
+    },
+    {
+      "family": "llama",
+      "mean_machine": 0.946360153256705,
+      "mean_human": 21.60727969348659,
+      "differential": -20.660919540229884,
+      "token_count": 522
+    },
+    {
+      "family": "granite",
+      "mean_machine": 0.8563218390804598,
+      "mean_human": 21.60727969348659,
+      "differential": -20.750957854406128,
+      "token_count": 522
     }
   ]
 }

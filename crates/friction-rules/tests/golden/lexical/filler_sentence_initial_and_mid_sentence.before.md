@@ -1,1 +1,0 @@
-It is worth noting that our new caching layer improved response times significantly. The rollout went smoothly, and needless to say, the team was relieved. At the end of the day, users noticed the difference immediately.

@@ -4,6 +4,7 @@ expression: stdout
 ---
 {
   "genre": "email",
+  "family": "qwen",
   "metrics": [
     {
       "name": "sentence_length_mean",
@@ -153,51 +154,120 @@ expression: stdout
       "in_envelope": true
     }
   ],
-  "findings": [
+  "spans": [
     {
-      "rule": "rhythm.split",
-      "tier": "fix",
-      "start": 733,
-      "end": 739,
-      "line": 9,
-      "column": 318,
-      "message": "sentence is 27 tokens, above this genre's over-long threshold of 15; splitting at the nearest-to-middle coordinator boundary"
+      "channel": "dms",
+      "frame_id": "dms.qwen",
+      "start": 130,
+      "end": 158,
+      "line": 5,
+      "column": 41,
+      "score": 7
     },
     {
-      "rule": "symmetry.participial_closer",
-      "tier": "suggest",
-      "start": 1153,
-      "end": 1258,
+      "channel": "dms",
+      "frame_id": "dms.qwen",
+      "start": 154,
+      "end": 193,
+      "line": 5,
+      "column": 65,
+      "score": 26
+    },
+    {
+      "channel": "dms",
+      "frame_id": "dms.qwen",
+      "start": 889,
+      "end": 914,
       "line": 13,
-      "column": 276,
-      "message": "sentence-final participial closer reads as an LLM tic, but it has no clear object to promote; deleting it cannot be verified to preserve the sentence's claim, so this needs a human decision"
+      "column": 14,
+      "score": 7
     },
     {
-      "rule": "lexical.substitution",
-      "tier": "fix",
-      "start": 1402,
-      "end": 1411,
-      "line": 15,
-      "column": 140,
-      "message": "\"assisting\" reads as machine-favored register (assist is a formal register synonym of help); \"help\" is a plain near-synonym"
+      "channel": "dms",
+      "frame_id": "dms.qwen",
+      "start": 929,
+      "end": 982,
+      "line": 13,
+      "column": 52,
+      "score": 21
     },
     {
-      "rule": "rhythm.split",
-      "tier": "fix",
-      "start": 2910,
-      "end": 2916,
+      "channel": "dms",
+      "frame_id": "dms.qwen",
+      "start": 1024,
+      "end": 1059,
+      "line": 13,
+      "column": 147,
+      "score": 9
+    },
+    {
+      "channel": "dms",
+      "frame_id": "dms.qwen",
+      "start": 1605,
+      "end": 1644,
+      "line": 17,
+      "column": 4,
+      "score": 7
+    },
+    {
+      "channel": "dms",
+      "frame_id": "dms.qwen",
+      "start": 2507,
+      "end": 2525,
+      "line": 25,
+      "column": 234,
+      "score": 6
+    },
+    {
+      "channel": "dms",
+      "frame_id": "dms.qwen",
+      "start": 2989,
+      "end": 3033,
       "line": 31,
-      "column": 53,
-      "message": "sentence is 21 tokens, above this genre's over-long threshold of 15; splitting at the nearest-to-middle coordinator boundary"
+      "column": 130,
+      "score": 18
     },
     {
-      "rule": "lexical.substitution",
-      "tier": "suggest",
-      "start": 3369,
-      "end": 3377,
-      "line": 45,
-      "column": 66,
-      "message": "\"specific\" reads as machine-favored register (mined llm-favored (MINING.md); particular is a plainer near-synonym); \"particular\" is a plain near-synonym"
+      "channel": "dms",
+      "frame_id": "dms.qwen",
+      "start": 3080,
+      "end": 3132,
+      "line": 31,
+      "column": 219,
+      "score": 16
+    }
+  ],
+  "tell_counts": {
+    "dms": 9
+  },
+  "dms": [
+    {
+      "family": "qwen",
+      "mean_machine": 1.7166947723440136,
+      "mean_human": 1.6593591905564924,
+      "differential": 0.057335581787521184,
+      "token_count": 593
+    },
+    {
+      "family": "gemma",
+      "mean_machine": 1.745362563237774,
+      "mean_human": 1.6593591905564924,
+      "differential": 0.08600337268128166,
+      "token_count": 593
+    },
+    {
+      "family": "llama",
+      "mean_machine": 1.8145025295109611,
+      "mean_human": 1.6593591905564924,
+      "differential": 0.15514333895446875,
+      "token_count": 593
+    },
+    {
+      "family": "granite",
+      "mean_machine": 25.446880269814503,
+      "mean_human": 1.6593591905564924,
+      "differential": 23.78752107925801,
+      "token_count": 593
     }
   ]
 }

@@ -6,10 +6,10 @@ expression: stdout
 ---
 Seed is a Rust front-end framework for creating fast and reliable web apps with an Elm-like architecture.
 
-- completely written in Rust, including the templating system (e.g. `div!` macro).
-- built-in state management that is based on the Elm architecture.
-- a batteries-included approach with a focus on developer experience.
-- clear and extensive documentation for Rust beginners and pros alike.
+- Completely written in Rust, including the templating system (e.g. `div!` Macro).
+- Built-in state management that is based on the Elm architecture.
+- A batteries-included approach with a focus on developer experience.
+- Clear and extensive documentation for Rust beginners and pros alike.
 - WebAssembly.
 
 ## Why Seed?
@@ -50,7 +50,7 @@ The [Seed examples](examples/) are another good resource.
 
 [Seed Styles](https://github.com/seed-rs/styles_hooks) is a styling library for Seed to create global and scoped styles.
 
-To use web APIs, there is [web-sys](https://github.com/rustwasm/wasm-bindgen/tree/master/crates/web-sys) which is a part of the [wasm-bindgen](https://github.com/rustwasm/wasm-bindgen) project. wasm-bindgen is a dependency of Seed.
+To use web APIs, there is [web-sys](https://github.com/rustwasm/wasm-bindgen/tree/master/crates/web-sys) which is a part of the [wasm-bindgen](https://github.com/rustwasm/wasm-bindgen) project. Wasm-bindgen is a dependency of Seed.
 
 There are also two template repositories. However, they are not currently up to date.
 - [Quickstart](https://github.com/seed-rs/seed-quickstart)

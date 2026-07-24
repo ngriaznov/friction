@@ -62,6 +62,20 @@
 //! function's own docs. [`load_dms_pack`] and [`INVENTORY`] both go
 //! through [`LoadedPack`], this crate's one unified pack-registry shape.
 //!
+//! # Attestation pack
+//!
+//! [`AttestationPack`] parses the seam-bigram and POS-skeleton mining
+//! output `corpus-tool attest` writes (`packs/attestation-v1.toml`,
+//! embedded and exposed pre-parsed as [`ATTESTATION`]) into a
+//! [`BigramTable`] (has this exact word pair been observed adjacent to
+//! each other in the TRAIN human corpus) and a [`SkeletonSet`] (has this
+//! exact run of coarse part-of-speech tags been observed as a TRAIN human
+//! sentence's skeleton), plus an optional [`NearNoOpCalibration`] filled
+//! in by a later calibration stage. See that module's own doc comment
+//! for why the two tables are built from — and queried through — two
+//! independent tokenizations rather than one shared, positionally-paired
+//! stream.
+//!
 //! # Determinism
 //!
 //! [`REGISTRY`] is a `Vec`, not a hash-based collection, and preserves the
@@ -72,6 +86,7 @@
 //! not compromise determinism.
 
 mod artifact;
+mod attestation;
 mod dms;
 mod envelope;
 mod inventory;
@@ -79,13 +94,14 @@ mod registry;
 mod validate;
 
 pub use artifact::{Artifact, ArtifactKind, PackError, REGISTRY, Sha256, parse_registry};
+pub use attestation::{AttestationPack, BigramTable, NearNoOpCalibration, SkeletonSet};
 pub use dms::{DmsIndex, ModelFamily, Sam, Vocab};
 pub use envelope::{ENVELOPE_V2, EnvelopePack, exceedance};
 pub use inventory::{
     Anchor, DeletionSpan, FrequencyUnit, GuardTokens, InventoryPack, LvcPair, OutputFrequencyBand,
     PreviewFrame, RepairKind, RitualFrame, SubstitutionPair,
 };
-pub use registry::{DMS, INVENTORY, LoadedPack, load_dms_pack};
+pub use registry::{ATTESTATION, DMS, INVENTORY, LoadedPack, load_dms_pack};
 pub use validate::{
     ClosureViolation, DisjointnessViolation, FrequencyHygieneReason, FrequencyHygieneViolation,
     Violation, check_closure, check_disjointness, check_frequency_hygiene, validate,

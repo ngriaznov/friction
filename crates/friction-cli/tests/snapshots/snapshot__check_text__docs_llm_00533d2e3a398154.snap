@@ -23,4 +23,23 @@ heading_density               1.1919  [2.3095, 14.9813]   OUT
 list_item_density            15.4946  [0.0000, 31.6249]   in    
 bold_span_density            22.6460  [0.0000, 14.1767]   OUT   
 sentence_opener_repeat_rate   0.0556  [0.0000, 0.0656]    in    
-top_opener_concentration      0.1852  [0.0545, 0.1613]    OUT
+top_opener_concentration      0.1852  [0.0545, 0.1613]    OUT   
+
+dms (target family: qwen):
+  qwen     mean_machine=1.2706  mean_human=1.6888  differential=-0.4182  tokens=935
+  gemma    mean_machine=23.7850  mean_human=1.6888  differential=22.0963  tokens=935
+  llama    mean_machine=1.4866  mean_human=1.6888  differential=-0.2021  tokens=935
+  granite  mean_machine=1.4909  mean_human=1.6888  differential=-0.1979  tokens=935
+
+tell counts (1 span(s) total):
+  sub: 1
+sub.utilize_3sg
+
+  ⚠ Literal tell: sub.utilize_3sg
+    ╭─[corpus/llm/docs/00533d2e3a398154.md:21:45]
+ 20 │ * **Cache Key Generation:**  A unique key is generated for each query based on its SQL statement, the parameters passed to the query (if any), and potentially a timestamp. This ensures that different queries with identical parameters are treated as distinct entries in the cache.
+ 21 │ * **Cache Storage:** The Query Result Cache utilizes an in-memory data structure – likely a dictionary or hashmap – for fast lookups.  The key is the generated query key, and the value is the result set returned by the database.
+    ·                                             ────┬───
+    ·                                                 ╰── Literal tell: sub.utilize_3sg
+ 22 │ * **Hit/Miss Logic:** When `query()` is called, Ledgerline first checks if the corresponding key exists in the Query Result Cache. If it does (a "cache hit"), the cached result is immediately returned.  If not (a “cache miss”), the query executes against the database, the results are stored in the cache using the generated key, and then finally returned to the user.
+    ╰────

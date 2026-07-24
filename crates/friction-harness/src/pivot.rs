@@ -23,8 +23,10 @@
 //! allowance, so it earns its place twice over.
 //!
 //! This milestone only detects and reports licensed pivots; it never
-//! rewrites text (that is a later milestone's job — see
-//! [`crate::pending`]). Per-(light-verb, nominalization) licensing (as
+//! rewrites text (that is `friction-edit`'s job — its own
+//! `tests/engine_fixtures.rs`, back in this workspace's
+//! `friction-harness` crate, is where the real, byte-exact pivot
+//! rewrites are asserted). Per-(light-verb, nominalization) licensing (as
 //! opposed to "any of the four light verbs plus a licensed
 //! nominalization") stays out of scope this milestone; this module's
 //! actual gating logic is unchanged — only its licensed-pair data source

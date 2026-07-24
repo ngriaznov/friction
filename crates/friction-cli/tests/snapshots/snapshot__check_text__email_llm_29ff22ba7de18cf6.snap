@@ -24,56 +24,110 @@ list_item_density             0.0000  [12.2581, 80.2920]  OUT
 bold_span_density            29.7952  [0.0000, 6.4516]    OUT   
 sentence_opener_repeat_rate   0.0000  [0.0038, 0.0448]    OUT   
 top_opener_concentration      0.0909  [0.0485, 0.1739]    in    
-rhythm.split
 
-  ⚠ sentence is 27 tokens, above this genre's over-long threshold of 15; splitting at the nearest-to-middle coordinator boundary
-    ╭─[corpus/llm/email/29ff22ba7de18cf6.md:9:318]
-  8 │ 
-  9 │ We are thrilled to share that over the past three months, we successfully distributed an impressive **[X,XXX]** meals across our service areas. This remarkable achievement is thanks to the dedication and hard work of our incredible volunteers like you. Your commitment ensures that no one in our community goes hungry, and it’s a testament to what can be accomplished when we unite for a common cause.
-    ·                                                                                                                                                                                                                                                                                                                              ───┬──
-    ·                                                                                                                                                                                                                                                                                                                                 ╰── sentence is 27 tokens, above this genre's over-long threshold of 15; splitting at the nearest-to-middle coordinator boundary
- 10 │ 
-    ╰────
+dms (target family: qwen):
+  qwen     mean_machine=1.7167  mean_human=1.6594  differential=0.0573  tokens=593
+  gemma    mean_machine=1.7454  mean_human=1.6594  differential=0.0860  tokens=593
+  llama    mean_machine=1.8145  mean_human=1.6594  differential=0.1551  tokens=593
+  granite  mean_machine=25.4469  mean_human=1.6594  differential=23.7875  tokens=593
 
-symmetry.participial_closer
+tell counts (9 span(s) total):
+  dms: 9
+dms.qwen
 
-  × sentence-final participial closer reads as an LLM tic, but it has no clear object to promote; deleting it cannot be verified to preserve the sentence's claim, so this needs a human decision
-    ╭─[corpus/llm/email/29ff22ba7de18cf6.md:13:278]
+  ⚠ Dms tell: dms.qwen
+   ╭─[corpus/llm/email/29ff22ba7de18cf6.md:5:41]
+ 4 │ 
+ 5 │ As we wrap up another fantastic quarter at [Nonprofit Food Bank Name], I hope this email finds you well and energized for the work ahead. It’s always inspiring to reflect on how our collective efforts have made a tangible impact in our community, especially during challenging times.
+   ·                                         ──────────────┬─────────────
+   ·                                                       ╰── Dms tell: dms.qwen
+ 6 │ 
+   ╰────
+
+dms.qwen
+
+  ⚠ Dms tell: dms.qwen
+   ╭─[corpus/llm/email/29ff22ba7de18cf6.md:5:65]
+ 4 │ 
+ 5 │ As we wrap up another fantastic quarter at [Nonprofit Food Bank Name], I hope this email finds you well and energized for the work ahead. It’s always inspiring to reflect on how our collective efforts have made a tangible impact in our community, especially during challenging times.
+   ·                                                                 ───────────────────┬───────────────────
+   ·                                                                                    ╰── Dms tell: dms.qwen
+ 6 │ 
+   ╰────
+
+dms.qwen
+
+  ⚠ Dms tell: dms.qwen
+    ╭─[corpus/llm/email/29ff22ba7de18cf6.md:13:14]
  12 │ 
  13 │ In an effort to reach more families in need, we’ve launched a new mobile distribution route this quarter! This initiative allows us to bring food directly to neighborhoods that have limited access to traditional distribution sites. The first route has already made its rounds, delivering essential meals to **[Y]** households and garnering positive feedback from community members.
-    ·                                                                                                                                                                                                                                                                                    ────────────────────────────────────────────────────┬────────────────────────────────────────────────────
-    ·                                                                                                                                                                                                                                                                                                                                        ╰── sentence-final participial closer reads as an LLM tic, but it has no clear object to promote; deleting it cannot be verified to preserve the sentence's claim, so this needs a human decision
+    ·              ────────────┬────────────
+    ·                          ╰── Dms tell: dms.qwen
  14 │ 
     ╰────
 
-lexical.substitution
+dms.qwen
 
-  ⚠ "assisting" reads as machine-favored register (assist is a formal register synonym of help); "help" is a plain near-synonym
-    ╭─[corpus/llm/email/29ff22ba7de18cf6.md:15:142]
+  ⚠ Dms tell: dms.qwen
+    ╭─[corpus/llm/email/29ff22ba7de18cf6.md:13:54]
+ 12 │ 
+ 13 │ In an effort to reach more families in need, we’ve launched a new mobile distribution route this quarter! This initiative allows us to bring food directly to neighborhoods that have limited access to traditional distribution sites. The first route has already made its rounds, delivering essential meals to **[Y]** households and garnering positive feedback from community members.
+    ·                                                    ──────────────────────────┬──────────────────────────
+    ·                                                                              ╰── Dms tell: dms.qwen
  14 │ 
- 15 │ We’re excited about the potential of expanding these routes further and are looking for enthusiastic volunteers who might be interested in assisting with logistics or outreach on future trips. If you’d like to get involved or learn more about how you can help, please reach out to our Outreach Coordinator at **[Contact Information]**.
-    ·                                                                                                                                            ────┬────
-    ·                                                                                                                                                ╰── "assisting" reads as machine-favored register (assist is a formal register synonym of help); "help" is a plain near-synonym
+    ╰────
+
+dms.qwen
+
+  ⚠ Dms tell: dms.qwen
+    ╭─[corpus/llm/email/29ff22ba7de18cf6.md:13:149]
+ 12 │ 
+ 13 │ In an effort to reach more families in need, we’ve launched a new mobile distribution route this quarter! This initiative allows us to bring food directly to neighborhoods that have limited access to traditional distribution sites. The first route has already made its rounds, delivering essential meals to **[Y]** households and garnering positive feedback from community members.
+    ·                                                                                                                                                   ─────────────────┬─────────────────
+    ·                                                                                                                                                                    ╰── Dms tell: dms.qwen
+ 14 │ 
+    ╰────
+
+dms.qwen
+
+  ⚠ Dms tell: dms.qwen
+    ╭─[corpus/llm/email/29ff22ba7de18cf6.md:17:4]
  16 │ 
+ 17 │ **3. Upcoming Volunteer Appreciation Event**
+    ·    ───────────────────┬───────────────────
+    ·                       ╰── Dms tell: dms.qwen
+ 18 │ 
     ╰────
 
-rhythm.split
+dms.qwen
 
-  ⚠ sentence is 21 tokens, above this genre's over-long threshold of 15; splitting at the nearest-to-middle coordinator boundary
-    ╭─[corpus/llm/email/29ff22ba7de18cf6.md:31:53]
+  ⚠ Dms tell: dms.qwen
+    ╭─[corpus/llm/email/29ff22ba7de18cf6.md:25:236]
+ 24 │ 
+ 25 │ As we approach the holiday season, our need for support is greater than ever. Many families are facing food insecurity this time of year, and your generosity can make all the difference. We’re currently in dire need of **[X]** cases of canned goods to stock our emergency food boxes.
+    ·                                                                                                                                                                                                                                          ─────────┬────────
+    ·                                                                                                                                                                                                                                                   ╰── Dms tell: dms.qwen
+ 26 │ 
+    ╰────
+
+dms.qwen
+
+  ⚠ Dms tell: dms.qwen
+    ╭─[corpus/llm/email/29ff22ba7de18cf6.md:31:132]
  30 │ 
  31 │ Your commitment to helping others is truly inspiring, and it’s because of you that [Nonprofit Food Bank Name] continues to thrive. If you have any questions or would like to get involved in a new project, please don’t hesitate to contact us at **[Contact Information]**.
-    ·                                                     ───┬──
-    ·                                                        ╰── sentence is 21 tokens, above this genre's over-long threshold of 15; splitting at the nearest-to-middle coordinator boundary
+    ·                                                                                                                                  ──────────────────────┬─────────────────────
+    ·                                                                                                                                                        ╰── Dms tell: dms.qwen
  32 │ 
     ╰────
 
-lexical.substitution
+dms.qwen
 
-  × "specific" reads as machine-favored register (mined llm-favored (MINING.md); particular is a plainer near-synonym); "particular" is a plain near-synonym
-    ╭─[corpus/llm/email/29ff22ba7de18cf6.md:45:66]
- 44 │ 
- 45 │ **Note:** Ensure that the placeholders such as [X,XXX], [Y], and specific dates are replaced with actual data from your organization's records to make this newsletter accurate and engaging.
-    ·                                                                  ────┬───
-    ·                                                                      ╰── "specific" reads as machine-favored register (mined llm-favored (MINING.md); particular is a plainer near-synonym); "particular" is a plain near-synonym
+  ⚠ Dms tell: dms.qwen
+    ╭─[corpus/llm/email/29ff22ba7de18cf6.md:31:223]
+ 30 │ 
+ 31 │ Your commitment to helping others is truly inspiring, and it’s because of you that [Nonprofit Food Bank Name] continues to thrive. If you have any questions or would like to get involved in a new project, please don’t hesitate to contact us at **[Contact Information]**.
+    ·                                                                                                                                                                                                                           ──────────────────────────┬─────────────────────────
+    ·                                                                                                                                                                                                                                                     ╰── Dms tell: dms.qwen
+ 32 │ 
     ╰────

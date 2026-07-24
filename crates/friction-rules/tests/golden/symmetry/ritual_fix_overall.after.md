@@ -1,2 +1,0 @@
-The kit includes screws.
-

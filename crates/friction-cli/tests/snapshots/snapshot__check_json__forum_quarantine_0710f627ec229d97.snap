@@ -4,6 +4,7 @@ expression: stdout
 ---
 {
   "genre": "forum",
+  "family": "qwen",
   "metrics": [
     {
       "name": "sentence_length_mean",
@@ -153,5 +154,48 @@ expression: stdout
       "in_envelope": true
     }
   ],
-  "findings": []
+  "spans": [
+    {
+      "channel": "literal",
+      "frame_id": "span.simply",
+      "start": 932,
+      "end": 938,
+      "line": 13,
+      "column": 44,
+      "score": null
+    }
+  ],
+  "tell_counts": {
+    "span": 1
+  },
+  "dms": [
+    {
+      "family": "qwen",
+      "mean_machine": 1.0456026058631922,
+      "mean_human": 13.817589576547231,
+      "differential": -12.77198697068404,
+      "token_count": 614
+    },
+    {
+      "family": "gemma",
+      "mean_machine": 1.1921824104234529,
+      "mean_human": 13.817589576547231,
+      "differential": -12.625407166123779,
+      "token_count": 614
+    },
+    {
+      "family": "llama",
+      "mean_machine": 1.1058631921824105,
+      "mean_human": 13.817589576547231,
+      "differential": -12.711726384364821,
+      "token_count": 614
+    },
+    {
+      "family": "granite",
+      "mean_machine": 1.0602605863192183,
+      "mean_human": 13.817589576547231,
+      "differential": -12.757328990228013,
+      "token_count": 614
+    }
+  ]
 }

@@ -4,6 +4,7 @@ expression: stdout
 ---
 {
   "genre": "email",
+  "family": "qwen",
   "metrics": [
     {
       "name": "sentence_length_mean",
@@ -153,87 +154,219 @@ expression: stdout
       "in_envelope": true
     }
   ],
-  "findings": [
+  "spans": [
     {
-      "rule": "symmetry.triad_reduction",
-      "tier": "suggest",
-      "start": 283,
-      "end": 431,
+      "channel": "dms",
+      "frame_id": "dms.qwen",
+      "start": 0,
+      "end": 78,
+      "line": 1,
+      "column": 1,
+      "score": 44
+    },
+    {
+      "channel": "dms",
+      "frame_id": "dms.qwen",
+      "start": 98,
+      "end": 501,
       "line": 5,
-      "column": 186,
-      "message": "flat \"X, Y, and Z\" triad with matching-class items reads as an LLM tic; consider dropping the weakest item or restructuring"
+      "column": 1,
+      "score": 2720
     },
     {
-      "rule": "symmetry.triad_reduction",
-      "tier": "suggest",
-      "start": 583,
-      "end": 763,
+      "channel": "dms",
+      "frame_id": "dms.qwen",
+      "start": 534,
+      "end": 892,
       "line": 9,
-      "column": 50,
-      "message": "flat \"X, Y, and Z\" triad with matching-class items reads as an LLM tic; consider dropping the weakest item or restructuring"
+      "column": 1,
+      "score": 1746
     },
     {
-      "rule": "symmetry.not_just_but",
-      "tier": "suggest",
-      "start": 1262,
-      "end": 1298,
+      "channel": "dms",
+      "frame_id": "dms.qwen",
+      "start": 894,
+      "end": 1341,
       "line": 11,
-      "column": 369,
-      "message": "\"not just/only X but (also) Y\" reads as an LLM tic; consider reframing which half the sentence emphasizes"
+      "column": 1,
+      "score": 3600
     },
     {
-      "rule": "lexical.substitution",
-      "tier": "fix",
-      "start": 1865,
-      "end": 1873,
+      "channel": "dms",
+      "frame_id": "dms.qwen",
+      "start": 1345,
+      "end": 1376,
+      "line": 13,
+      "column": 3,
+      "score": 8
+    },
+    {
+      "channel": "dms",
+      "frame_id": "dms.qwen",
+      "start": 1380,
+      "end": 1849,
+      "line": 15,
+      "column": 1,
+      "score": 2980
+    },
+    {
+      "channel": "dms",
+      "frame_id": "dms.qwen",
+      "start": 1851,
+      "end": 2245,
       "line": 17,
-      "column": 15,
-      "message": "\"showcase\" reads as machine-favored register (showcase is a more formal synonym of show); \"show\" is a plain near-synonym"
+      "column": 1,
+      "score": 2054
     },
     {
-      "rule": "symmetry.participial_closer",
-      "tier": "fix",
-      "start": 2041,
-      "end": 2152,
-      "line": 17,
-      "column": 191,
-      "message": "sentence-final participial closer reads as an LLM tic; promoting it to its own sentence preserves the claim"
+      "channel": "dms",
+      "frame_id": "dms.qwen",
+      "start": 2249,
+      "end": 2299,
+      "line": 19,
+      "column": 3,
+      "score": 19
     },
     {
-      "rule": "symmetry.triad_reduction",
-      "tier": "suggest",
-      "start": 2576,
-      "end": 2656,
+      "channel": "dms",
+      "frame_id": "dms.qwen",
+      "start": 2303,
+      "end": 2657,
       "line": 21,
-      "column": 274,
-      "message": "flat \"X, Y, and Z\" triad with matching-class items reads as an LLM tic; consider dropping the weakest item or restructuring"
+      "column": 1,
+      "score": 2163
     },
     {
-      "rule": "symmetry.participial_closer",
-      "tier": "suggest",
-      "start": 2745,
-      "end": 2805,
+      "channel": "dms",
+      "frame_id": "dms.qwen",
+      "start": 2659,
+      "end": 3061,
       "line": 23,
-      "column": 85,
-      "message": "sentence-final participial closer reads as an LLM tic, but it has no clear object to promote; deleting it cannot be verified to preserve the sentence's claim, so this needs a human decision"
+      "column": 1,
+      "score": 1991
     },
     {
-      "rule": "symmetry.triad_reduction",
-      "tier": "suggest",
-      "start": 3283,
-      "end": 3348,
+      "channel": "dms",
+      "frame_id": "dms.qwen",
+      "start": 3065,
+      "end": 3097,
+      "line": 25,
+      "column": 3,
+      "score": 6
+    },
+    {
+      "channel": "dms",
+      "frame_id": "dms.qwen",
+      "start": 3101,
+      "end": 3171,
+      "line": 27,
+      "column": 1,
+      "score": 76
+    },
+    {
+      "channel": "dms",
+      "frame_id": "dms.qwen",
+      "start": 3217,
+      "end": 3349,
       "line": 30,
-      "column": 69,
-      "message": "flat \"X, Y, and Z\" triad with matching-class items reads as an LLM tic; consider dropping the weakest item or restructuring"
+      "column": 3,
+      "score": 284
     },
     {
-      "rule": "symmetry.triad_reduction",
-      "tier": "suggest",
-      "start": 3454,
-      "end": 3477,
+      "channel": "dms",
+      "frame_id": "dms.qwen",
+      "start": 3357,
+      "end": 3391,
+      "line": 32,
+      "column": 5,
+      "score": 7
+    },
+    {
+      "channel": "dms",
+      "frame_id": "dms.qwen",
+      "start": 3396,
+      "end": 3531,
       "line": 33,
-      "column": 57,
-      "message": "flat \"X, Y, and Z\" triad with matching-class items reads as an LLM tic; consider dropping the weakest item or restructuring"
+      "column": 3,
+      "score": 315
+    },
+    {
+      "channel": "dms",
+      "frame_id": "dms.qwen",
+      "start": 3537,
+      "end": 3569,
+      "line": 35,
+      "column": 5,
+      "score": 11
+    },
+    {
+      "channel": "dms",
+      "frame_id": "dms.qwen",
+      "start": 3574,
+      "end": 3730,
+      "line": 36,
+      "column": 3,
+      "score": 381
+    },
+    {
+      "channel": "dms",
+      "frame_id": "dms.qwen",
+      "start": 3732,
+      "end": 3918,
+      "line": 38,
+      "column": 1,
+      "score": 389
+    },
+    {
+      "channel": "dms",
+      "frame_id": "dms.qwen",
+      "start": 3942,
+      "end": 4189,
+      "line": 42,
+      "column": 1,
+      "score": 1041
+    },
+    {
+      "channel": "dms",
+      "frame_id": "dms.qwen",
+      "start": 4206,
+      "end": 4255,
+      "line": 46,
+      "column": 2,
+      "score": 18
+    }
+  ],
+  "tell_counts": {
+    "dms": 20
+  },
+  "dms": [
+    {
+      "family": "qwen",
+      "mean_machine": 28.951724137931034,
+      "mean_human": 1.48,
+      "differential": 27.471724137931034,
+      "token_count": 725
+    },
+    {
+      "family": "gemma",
+      "mean_machine": 1.433103448275862,
+      "mean_human": 1.48,
+      "differential": -0.04689655172413798,
+      "token_count": 725
+    },
+    {
+      "family": "llama",
+      "mean_machine": 1.3158620689655172,
+      "mean_human": 1.48,
+      "differential": -0.16413793103448282,
+      "token_count": 725
+    },
+    {
+      "family": "granite",
+      "mean_machine": 1.0262068965517241,
+      "mean_human": 1.48,
+      "differential": -0.45379310344827584,
+      "token_count": 725
     }
   ]
 }

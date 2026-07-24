@@ -23,4 +23,12 @@ heading_density               5.5659  [5.7582, 19.1617]   OUT
 list_item_density            24.1187  [12.2581, 80.2920]  in    
 bold_span_density             4.6382  [0.0000, 6.4516]    in    
 sentence_opener_repeat_rate   0.0065  [0.0038, 0.0448]    in    
-top_opener_concentration      0.0672  [0.0485, 0.1739]    in
+top_opener_concentration      0.0672  [0.0485, 0.1739]    in    
+
+dms (target family: qwen):
+  qwen     mean_machine=1.1209  mean_human=12.9916  differential=-11.8707  tokens=1191
+  gemma    mean_machine=1.2746  mean_human=12.9916  differential=-11.7170  tokens=1191
+  llama    mean_machine=1.1772  mean_human=12.9916  differential=-11.8144  tokens=1191
+  granite  mean_machine=1.0756  mean_human=12.9916  differential=-11.9160  tokens=1191
+
+tell counts (0 span(s) total):

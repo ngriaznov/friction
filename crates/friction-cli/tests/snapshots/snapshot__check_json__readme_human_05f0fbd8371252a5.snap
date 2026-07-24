@@ -4,6 +4,7 @@ expression: stdout
 ---
 {
   "genre": "readme",
+  "family": "qwen",
   "metrics": [
     {
       "name": "sentence_length_mean",
@@ -153,5 +154,66 @@ expression: stdout
       "in_envelope": true
     }
   ],
-  "findings": []
+  "spans": [
+    {
+      "channel": "literal",
+      "frame_id": "sub.in_order_to",
+      "start": 3652,
+      "end": 3663,
+      "line": 136,
+      "column": 1,
+      "score": null
+    },
+    {
+      "channel": "literal",
+      "frame_id": "sub.in_order_to",
+      "start": 4719,
+      "end": 4730,
+      "line": 157,
+      "column": 21,
+      "score": null
+    },
+    {
+      "channel": "literal",
+      "frame_id": "sub.in_order_to",
+      "start": 4921,
+      "end": 4932,
+      "line": 164,
+      "column": 1,
+      "score": null
+    }
+  ],
+  "tell_counts": {
+    "sub": 3
+  },
+  "dms": [
+    {
+      "family": "qwen",
+      "mean_machine": 1.032069970845481,
+      "mean_human": 12.956268221574344,
+      "differential": -11.924198250728864,
+      "token_count": 1029
+    },
+    {
+      "family": "gemma",
+      "mean_machine": 1.1477162293488825,
+      "mean_human": 12.956268221574344,
+      "differential": -11.808551992225462,
+      "token_count": 1029
+    },
+    {
+      "family": "llama",
+      "mean_machine": 1.1049562682215743,
+      "mean_human": 12.956268221574344,
+      "differential": -11.85131195335277,
+      "token_count": 1029
+    },
+    {
+      "family": "granite",
+      "mean_machine": 0.9854227405247813,
+      "mean_human": 12.956268221574344,
+      "differential": -11.970845481049563,
+      "token_count": 1029
+    }
+  ]
 }

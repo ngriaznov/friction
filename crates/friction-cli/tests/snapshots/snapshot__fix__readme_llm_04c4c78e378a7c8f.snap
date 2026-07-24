@@ -37,13 +37,13 @@ expression: stdout
 
 3. **Database Configuration:** Feedwell supports SQLite as its default database and PostgreSQL as an alternative. Update the `settings.py` file to configure your preferred database backend. 
 
-4. **Run Migrations:** Create the needed database tables:
+4. **Run Migrations:** Create the necessary database tables:
 
    ```bash
    python manage.py migrate
    ```
 
-5. **First-Time Setup:** Run the following command to create an administrator account and complete first setup:
+5. **First-Time Setup:** Run the following command to create an administrator account and complete initial setup:
 
    ```bash
    python manage.py create_admin_user
@@ -74,7 +74,4 @@ Feel free to contribute to Feedwell's development! We welcome bug reports, featu
 
 **Contact:**
 
-If you have any questions or need assistance, please reach out to us through the issue tracker on GitHub: [https://github.com/your-username/feedwell/issues](https://github.com/your-username/feedwell/issues)
-
-
-We hope you enjoy using Feedwell!
+ [Https://github.com/your-username/feedwell/issues](https://github.com/your-username/feedwell/issues)

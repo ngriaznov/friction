@@ -1,5 +1,4 @@
-//! Plain-text table rendering for `check`'s per-metric table and
-//! `explain`'s before/after comparison table.
+//! Plain-text table rendering for `check`'s per-metric table.
 //!
 //! Every value is formatted with a fixed decimal precision
 //! ([`FLOAT_PRECISION`]) so two runs over the same input produce
@@ -86,142 +85,6 @@ pub fn render_metric_table(rows: &[MetricTableRow<'_>]) -> String {
     out
 }
 
-/// One row of `explain`'s before/after comparison table.
-pub struct ComparisonRow<'a> {
-    pub name: &'a str,
-    pub before: f64,
-    pub after: f64,
-    pub lo: Option<f64>,
-    pub hi: Option<f64>,
-}
-
-/// This metric's movement relative to its envelope band across a fix:
-/// whether it started outside the band and, if so, whether the fix moved
-/// it into the band, out of it, or left it outside either way.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum Movement {
-    /// No band for this metric in this genre's pack: movement is not
-    /// evaluable.
-    NoBand,
-    /// Inside the band both before and after.
-    StayedIn,
-    /// Outside the band before, inside after — the fix worked.
-    MovedIn,
-    /// Inside the band before, outside after — a regression.
-    MovedOut,
-    /// Outside the band both before and after.
-    StayedOut,
-}
-
-impl Movement {
-    /// Classifies movement from `before`/`after` values against an
-    /// optional `(lo, hi)` band.
-    #[must_use]
-    pub fn classify(before: f64, after: f64, band: Option<(f64, f64)>) -> Self {
-        let Some((lo, hi)) = band else {
-            return Self::NoBand;
-        };
-        let contains = |v: f64| v >= lo && v <= hi;
-        match (contains(before), contains(after)) {
-            (true, true) => Self::StayedIn,
-            (false, true) => Self::MovedIn,
-            (true, false) => Self::MovedOut,
-            (false, false) => Self::StayedOut,
-        }
-    }
-
-    /// A short, fixed label for this movement, for table cells.
-    #[must_use]
-    pub const fn label(self) -> &'static str {
-        match self {
-            Self::NoBand => "n/a",
-            Self::StayedIn => "in -> in",
-            Self::MovedIn => "OUT -> in",
-            Self::MovedOut => "in -> OUT",
-            Self::StayedOut => "OUT -> OUT",
-        }
-    }
-}
-
-/// Renders `rows` as a fixed-width, deterministic before/after comparison
-/// table: `METRIC | BEFORE | AFTER | BAND | MOVEMENT`.
-#[must_use]
-pub fn render_comparison_table(rows: &[ComparisonRow<'_>]) -> String {
-    let name_header = "METRIC";
-    let before_header = "BEFORE";
-    let after_header = "AFTER";
-    let band_header = "BAND";
-    let movement_header = "MOVEMENT";
-
-    let format_value = |v: f64| format!("{v:.FLOAT_PRECISION$}");
-    let format_band = |lo: Option<f64>, hi: Option<f64>| match (lo, hi) {
-        (Some(lo), Some(hi)) => format!("[{}, {}]", format_value(lo), format_value(hi)),
-        _ => "n/a".to_string(),
-    };
-
-    let entries: Vec<(String, String, String, Movement)> = rows
-        .iter()
-        .map(|row| {
-            let band = row.lo.zip(row.hi);
-            let movement = Movement::classify(row.before, row.after, band);
-            (
-                format_value(row.before),
-                format_value(row.after),
-                format_band(row.lo, row.hi),
-                movement,
-            )
-        })
-        .collect();
-
-    let name_width = rows
-        .iter()
-        .map(|r| r.name.len())
-        .max()
-        .unwrap_or(0)
-        .max(name_header.len());
-    let before_width = entries
-        .iter()
-        .map(|e| e.0.len())
-        .max()
-        .unwrap_or(0)
-        .max(before_header.len());
-    let after_width = entries
-        .iter()
-        .map(|e| e.1.len())
-        .max()
-        .unwrap_or(0)
-        .max(after_header.len());
-    let band_width = entries
-        .iter()
-        .map(|e| e.2.len())
-        .max()
-        .unwrap_or(0)
-        .max(band_header.len());
-    let movement_width = entries
-        .iter()
-        .map(|e| e.3.label().len())
-        .max()
-        .unwrap_or(0)
-        .max(movement_header.len());
-
-    let mut out = String::new();
-    let _ = writeln!(
-        out,
-        "{name_header:name_width$}  {before_header:>before_width$}  \
-         {after_header:>after_width$}  {band_header:band_width$}  {movement_header:movement_width$}"
-    );
-    for (row, (before, after, band, movement)) in rows.iter().zip(entries.iter()) {
-        let _ = writeln!(
-            out,
-            "{name:name_width$}  {before:>before_width$}  {after:>after_width$}  \
-             {band:band_width$}  {label:movement_width$}",
-            name = row.name,
-            label = movement.label(),
-        );
-    }
-    out
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -269,28 +132,5 @@ mod tests {
             in_envelope: Some(true),
         }];
         assert_eq!(render_metric_table(&rows), render_metric_table(&rows));
-    }
-
-    #[test]
-    fn movement_classify_covers_all_four_band_transitions() {
-        let band = Some((0.0, 10.0));
-        assert_eq!(Movement::classify(5.0, 5.0, band), Movement::StayedIn);
-        assert_eq!(Movement::classify(15.0, 5.0, band), Movement::MovedIn);
-        assert_eq!(Movement::classify(5.0, 15.0, band), Movement::MovedOut);
-        assert_eq!(Movement::classify(15.0, 20.0, band), Movement::StayedOut);
-        assert_eq!(Movement::classify(5.0, 5.0, None), Movement::NoBand);
-    }
-
-    #[test]
-    fn render_comparison_table_includes_movement_labels() {
-        let rows = vec![ComparisonRow {
-            name: "triad_rate",
-            before: 0.9,
-            after: 0.2,
-            lo: Some(0.0),
-            hi: Some(0.5),
-        }];
-        let table = render_comparison_table(&rows);
-        assert!(table.contains("OUT -> in"));
     }
 }

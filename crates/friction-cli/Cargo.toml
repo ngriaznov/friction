@@ -19,18 +19,17 @@ workspace = true
 
 [dependencies]
 clap = { workspace = true }
-friction-apply = { path = "../friction-apply" }
 # `serde` feature: this crate's `--format json` output serializes
-# `MetricVector` (see src/check.rs, src/explain.rs) directly.
+# `MetricVector` (see src/check.rs) directly.
 friction-core = { path = "../friction-core", features = ["serde"] }
+# The four-operation repair engine `fix`/`explain` run.
+friction-edit = { path = "../friction-edit" }
+# Fix-time detection (DMS/literal/LVC spans) `check` reports.
+friction-match = { path = "../friction-match" }
 friction-metrics = { path = "../friction-metrics" }
 friction-nlp = { path = "../friction-nlp" }
 friction-packs = { path = "../friction-packs" }
 friction-parse = { path = "../friction-parse" }
-# `explain`'s plan-schedule section (src/explain.rs) renders a real
-# `friction_plan::Plan` rather than reimplementing its own approximation.
-friction-plan = { path = "../friction-plan" }
-friction-rules = { path = "../friction-rules" }
 serde = { workspace = true }
 serde_json = { workspace = true }
 thiserror = { workspace = true }

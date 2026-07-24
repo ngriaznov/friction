@@ -4,6 +4,7 @@ expression: stdout
 ---
 {
   "genre": "readme",
+  "family": "qwen",
   "metrics": [
     {
       "name": "sentence_length_mean",
@@ -153,5 +154,36 @@ expression: stdout
       "in_envelope": true
     }
   ],
-  "findings": []
+  "spans": [],
+  "tell_counts": {},
+  "dms": [
+    {
+      "family": "qwen",
+      "mean_machine": 1.1198501872659177,
+      "mean_human": 8.685393258426966,
+      "differential": -7.5655430711610485,
+      "token_count": 534
+    },
+    {
+      "family": "gemma",
+      "mean_machine": 1.2640449438202248,
+      "mean_human": 8.685393258426966,
+      "differential": -7.421348314606742,
+      "token_count": 534
+    },
+    {
+      "family": "llama",
+      "mean_machine": 1.198501872659176,
+      "mean_human": 8.685393258426966,
+      "differential": -7.48689138576779,
+      "token_count": 534
+    },
+    {
+      "family": "granite",
+      "mean_machine": 1.0823970037453183,
+      "mean_human": 8.685393258426966,
+      "differential": -7.602996254681648,
+      "token_count": 534
+    }
+  ]
 }

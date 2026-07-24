@@ -4,6 +4,7 @@ expression: stdout
 ---
 {
   "genre": "forum",
+  "family": "qwen",
   "metrics": [
     {
       "name": "sentence_length_mean",
@@ -153,24 +154,36 @@ expression: stdout
       "in_envelope": true
     }
   ],
-  "findings": [
+  "spans": [],
+  "tell_counts": {},
+  "dms": [
     {
-      "rule": "structural.header_merge",
-      "tier": "suggest",
-      "start": 2161,
-      "end": 2382,
-      "line": 59,
-      "column": 1,
-      "message": "heading immediately followed by one short paragraph repeats across this document; consider merging these sections into flowing prose"
+      "family": "qwen",
+      "mean_machine": 0.9305816135084428,
+      "mean_human": 16.54033771106942,
+      "differential": -15.609756097560977,
+      "token_count": 533
     },
     {
-      "rule": "structural.header_merge",
-      "tier": "suggest",
-      "start": 3008,
-      "end": 3125,
-      "line": 75,
-      "column": 1,
-      "message": "heading immediately followed by one short paragraph repeats across this document; consider merging these sections into flowing prose"
+      "family": "gemma",
+      "mean_machine": 1.0919324577861163,
+      "mean_human": 16.54033771106942,
+      "differential": -15.448405253283303,
+      "token_count": 533
+    },
+    {
+      "family": "llama",
+      "mean_machine": 1.026266416510319,
+      "mean_human": 16.54033771106942,
+      "differential": -15.5140712945591,
+      "token_count": 533
+    },
+    {
+      "family": "granite",
+      "mean_machine": 0.975609756097561,
+      "mean_human": 16.54033771106942,
+      "differential": -15.564727954971858,
+      "token_count": 533
     }
   ]
 }

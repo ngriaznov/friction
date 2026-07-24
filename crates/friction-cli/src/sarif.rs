@@ -1,18 +1,19 @@
 //! SARIF 2.1.0 output for `friction check --format sarif`.
 //!
 //! Builds a minimal, schema-valid SARIF log: one `tool.driver.rules[]`
-//! entry per distinct [`RuleId`] actually present among a run's findings
-//! (with a plain-language description — see [`rule_description`]), and one
-//! `results[]` entry per finding, with a `physicalLocation.region` derived
-//! from the finding's byte range via [`crate::common::offset_to_line_col`].
+//! entry per distinct frame id actually present among a run's detection
+//! spans (with a plain-language description derived from the channel that
+//! produced it — see [`channel_description`]), and one `results[]` entry
+//! per span, with a `physicalLocation.region` derived from the span's
+//! byte range via [`crate::common::offset_to_line_col`].
 //!
 //! `tests/sarif_schema.rs` validates this module's output against the
 //! vendored SARIF 2.1.0 JSON schema (`tests/data/sarif-schema-2.1.0.json`)
 //! with the `jsonschema` crate.
 
-use std::collections::BTreeSet;
+use std::collections::BTreeMap;
 
-use friction_core::{Finding, Tier};
+use friction_match::{Channel, MatchSpan};
 use serde::Serialize;
 
 use crate::common::offset_to_line_col;
@@ -20,78 +21,39 @@ use crate::common::offset_to_line_col;
 /// The SARIF schema URI this log declares conformance to.
 const SCHEMA_URI: &str = "https://raw.githubusercontent.com/oasis-tcs/sarif-spec/master/Schemata/sarif-schema-2.1.0.json";
 
-/// A plain-language description for a `friction-rules` rule id, for
+/// A plain-language description of what detection `channel` covers, for
 /// `tool.driver.rules[].shortDescription`.
-///
-/// Covers every id in `friction_apply::registered_rules()`; an id not
-/// found here (impossible for the shipped rule set, but not a panic
-/// either) falls back to a generic description built from the id itself.
 #[must_use]
-fn rule_description(id: &str) -> &'static str {
-    match id {
-        "connective.surgery" => {
-            "Rewrites or removes an overused sentence-initial connective (e.g. \"Moreover,\", \
-             \"Furthermore,\")."
+const fn channel_description(channel: Channel) -> &'static str {
+    match channel {
+        Channel::Dms => {
+            "Differential matching statistics: a span whose local token \
+             continuations are attested far more often in this generator \
+             family's corpus than in the human baseline."
         }
-        "contraction.insert" => {
-            "Inserts a contraction (e.g. \"do not\" -> \"don't\") where the genre's human \
-             baseline expects one."
+        Channel::Literal => {
+            "A curated literal tell: a fixed filler phrase, ritual opening/\
+             closing, or lexical substitution pattern from the inventory \
+             pack."
         }
-        "lexical.filler_phrase" => {
-            "Deletes a discourse-filler phrase that adds no propositional content (e.g. \"it \
-             is worth noting that\")."
+        Channel::Lvc => {
+            "A licensed light-verb construction (e.g. \"performs validation \
+             of\") that the pack allows deriving back to its underlying \
+             verb (e.g. \"validates\")."
         }
-        "lexical.substitution" => {
-            "Substitutes an overused LLM-favored word or phrase for a more natural alternative \
-             (e.g. \"leverage\" -> \"use\")."
-        }
-        "rhythm.fuse" => {
-            "Fuses short, choppy consecutive sentences to restore natural sentence-length \
-             variation."
-        }
-        "rhythm.split" => "Splits an overly long sentence at an existing grammatical boundary.",
-        "structural.bold_label_strip" => {
-            "Strips a bolded lead-in label from a paragraph or list item (e.g. \"**Note:**\")."
-        }
-        "structural.header_merge" => {
-            "Merges an over-segmented heading or section into the surrounding prose."
-        }
-        "structural.unbullet" => {
-            "Converts a short, parallel bullet list into a single serial-comma sentence."
-        }
-        "symmetry.not_just_but" => {
-            "Flags an overused \"not just X but (also) Y\" coordination pattern."
-        }
-        "symmetry.participial_closer" => {
-            "Flags a sentence-final participial closer clause (e.g. \", ensuring reliability.\")."
-        }
-        "symmetry.ritual_conclusion" => {
-            "Flags a ritual opening or closing marker (e.g. \"In conclusion,\", \"Overall,\")."
-        }
-        "symmetry.triad_reduction" => {
-            "Flags an overused three-item coordination pattern (\"X, Y, and Z\")."
-        }
-        _ => "A friction rule finding.",
     }
 }
 
-/// SARIF's `level` for one finding's [`Tier`]: `Tier::Fix` (an
-/// automatically-applicable change exists, so `friction fix` resolves it
-/// on its own) is `"warning"`; `Tier::Suggest` (needs a human's judgment,
-/// so it is the one a reader most needs to see) is the higher `"error"`.
+/// SARIF's `level` for every span this crate reports: `"warning"` — a
+/// span is a candidate `friction fix` can act on, matching that engine's
+/// own `Tier::Fix` framing, not necessarily something that needs a
+/// human's judgment on its own (the repair engine's own gates decide, per
+/// candidate, whether it actually applies or gets held).
 ///
-/// This ordering (`Suggest` outranks `Fix`) must agree with
-/// [`crate::diagnostics`]'s `miette::Severity` ordering for the same
-/// `Tier`s, so that `check`'s `--format text` and `--format sarif`
-/// outputs never disagree about which findings are more urgent — see
-/// `crate::diagnostics`'s `severity_ordering_agrees_with_sarif_level_ordering`
-/// test, which pins both orderings together.
-pub const fn level_for(tier: Tier) -> &'static str {
-    match tier {
-        Tier::Fix => "warning",
-        Tier::Suggest => "error",
-    }
-}
+/// This must agree with [`crate::diagnostics::render_spans`]'s
+/// `miette::Severity` for the same spans, so `check`'s `--format text` and
+/// `--format sarif` outputs never disagree about severity.
+pub const LEVEL: &str = "warning";
 
 #[derive(Debug, Serialize)]
 struct Log {
@@ -172,43 +134,45 @@ struct Region {
     end_column: usize,
 }
 
-/// Renders `findings` (already scanned against `source`) as a SARIF 2.1.0
-/// log, one `results[]` entry per finding in the order given (`check`
-/// hands this a list already sorted by `(range.start, rule, range.end)` —
-/// see `crate::scan::scan`) and one `tool.driver.rules[]` entry per
-/// distinct rule id among them, sorted lexicographically.
+/// Renders `spans` (already scanned against `source`) as a SARIF 2.1.0
+/// log, one `results[]` entry per span in the order given (`check` hands
+/// this a list already sorted by `friction_match::span::merge_spans`) and
+/// one `tool.driver.rules[]` entry per distinct frame id among them,
+/// sorted lexicographically.
 ///
 /// `artifact_uri` is used verbatim as every result's
 /// `physicalLocation.artifactLocation.uri` — the caller-given path (or
 /// `"<stdin>"`; see `crate::common::display_path`), never resolved to an
 /// absolute filesystem path.
 #[must_use]
-pub fn render(findings: &[Finding], source: &str, artifact_uri: &str) -> String {
-    let mut rule_ids: BTreeSet<&str> = BTreeSet::new();
-    for finding in findings {
-        rule_ids.insert(finding.rule.as_str());
+pub fn render(spans: &[MatchSpan], source: &str, artifact_uri: &str) -> String {
+    let mut channel_by_frame_id: BTreeMap<&str, Channel> = BTreeMap::new();
+    for span in spans {
+        channel_by_frame_id
+            .entry(&span.frame_id)
+            .or_insert(span.channel);
     }
 
-    let rules = rule_ids
+    let rules = channel_by_frame_id
         .into_iter()
-        .map(|id| RuleDescriptor {
+        .map(|(id, channel)| RuleDescriptor {
             id: id.to_string(),
             short_description: Message {
-                text: rule_description(id).to_string(),
+                text: channel_description(channel).to_string(),
             },
         })
         .collect();
 
-    let results = findings
+    let results = spans
         .iter()
-        .map(|finding| {
-            let (start_line, start_column) = offset_to_line_col(source, finding.range.start);
-            let (end_line, end_column) = offset_to_line_col(source, finding.range.end);
+        .map(|span| {
+            let (start_line, start_column) = offset_to_line_col(source, span.range.start);
+            let (end_line, end_column) = offset_to_line_col(source, span.range.end);
             SarifResult {
-                rule_id: finding.rule.as_str().to_string(),
-                level: level_for(finding.tier),
+                rule_id: span.frame_id.to_string(),
+                level: LEVEL,
                 message: Message {
-                    text: finding.message.clone(),
+                    text: format!("{:?} tell: {}", span.channel, span.frame_id),
                 },
                 locations: vec![Location {
                     physical_location: PhysicalLocation {
@@ -248,14 +212,23 @@ pub fn render(findings: &[Finding], source: &str, artifact_uri: &str) -> String 
 
 #[cfg(test)]
 mod tests {
-    use friction_core::RuleId;
+    use friction_match::MatchScore;
 
     use super::*;
 
-    /// An empty finding list still renders a well-formed, empty-results
+    fn span(range: std::ops::Range<usize>, channel: Channel, frame_id: &str) -> MatchSpan {
+        MatchSpan {
+            range,
+            channel,
+            frame_id: frame_id.into(),
+            score: MatchScore::Present,
+        }
+    }
+
+    /// An empty span list still renders a well-formed, empty-results
     /// SARIF log.
     #[test]
-    fn render_handles_no_findings() {
+    fn render_handles_no_spans() {
         let json = render(&[], "hello", "file.md");
         let value: serde_json::Value = serde_json::from_str(&json).expect("valid JSON");
         assert_eq!(value["version"], "2.1.0");
@@ -268,33 +241,23 @@ mod tests {
         );
     }
 
-    /// One finding renders one result with a 1-based line/column region
-    /// and a matching rule descriptor, deduplicated across repeats of the
-    /// same rule.
+    /// One span renders one result with a 1-based line/column region and
+    /// a matching rule descriptor, deduplicated across repeats of the
+    /// same frame id.
     #[test]
-    fn render_maps_one_finding_to_one_result_with_deduped_rules() {
-        let source = "one\ntwo not just fast but also reliable.";
-        let range = source.find("not just").unwrap()..source.find("also reliable").unwrap() + 14;
-        let findings = vec![
-            Finding::new(
-                RuleId::new("symmetry.not_just_but"),
-                range.clone(),
-                "not just X but also Y",
-                Tier::Suggest,
-            ),
-            Finding::new(
-                RuleId::new("symmetry.not_just_but"),
-                range,
-                "not just X but also Y (again)",
-                Tier::Suggest,
-            ),
+    fn render_maps_one_span_to_one_result_with_deduped_rules() {
+        let source = "one\ntwo simply validates the input.";
+        let range = source.find("simply").unwrap()..source.find("validates").unwrap();
+        let spans = vec![
+            span(range.clone(), Channel::Literal, "span.simply"),
+            span(range, Channel::Literal, "span.simply"),
         ];
-        let json = render(&findings, source, "doc.md");
+        let json = render(&spans, source, "doc.md");
         let value: serde_json::Value = serde_json::from_str(&json).expect("valid JSON");
         let results = value["runs"][0]["results"].as_array().unwrap();
         assert_eq!(results.len(), 2);
-        assert_eq!(results[0]["ruleId"], "symmetry.not_just_but");
-        assert_eq!(results[0]["level"], "error");
+        assert_eq!(results[0]["ruleId"], "span.simply");
+        assert_eq!(results[0]["level"], "warning");
         let region = &results[0]["locations"][0]["physicalLocation"]["region"];
         assert_eq!(region["startLine"], 2);
         assert_eq!(region["startColumn"], 5);
@@ -302,18 +265,7 @@ mod tests {
         let rules = value["runs"][0]["tool"]["driver"]["rules"]
             .as_array()
             .unwrap();
-        assert_eq!(rules.len(), 1, "the rule id repeats but must appear once");
-        assert_eq!(rules[0]["id"], "symmetry.not_just_but");
-    }
-
-    /// `Tier::Fix` maps to SARIF level `"warning"`, `Tier::Suggest` to
-    /// the higher `"error"` — the same relative ordering as
-    /// `crate::diagnostics`'s `miette::Severity` mapping for the same
-    /// tiers (see `severity_ordering_agrees_with_sarif_level_ordering` in
-    /// that module).
-    #[test]
-    fn level_for_maps_tiers() {
-        assert_eq!(level_for(Tier::Fix), "warning");
-        assert_eq!(level_for(Tier::Suggest), "error");
+        assert_eq!(rules.len(), 1, "the frame id repeats but must appear once");
+        assert_eq!(rules[0]["id"], "span.simply");
     }
 }

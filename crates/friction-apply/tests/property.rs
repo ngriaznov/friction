@@ -7,7 +7,6 @@
 
 use friction_apply::{Candidate, apply_patches, resolve_round};
 use friction_core::{Patch, RuleId, Tier, find_overlaps};
-use friction_rules::RuleFamily;
 use proptest::prelude::*;
 
 /// A source string with a mix of ASCII and multi-byte UTF-8 characters, so
@@ -16,32 +15,19 @@ const fn sample_source() -> &'static str {
     "café, naïve résumé — the quick brown fox jumps over the lazy dog. 日本語もあります。"
 }
 
-/// One family per `u8 % 6`, cycling through every `RuleFamily` variant —
-/// used so generated candidates exercise every conflict-resolution
-/// priority tier, not just one.
-const fn family_from_u8(n: u8) -> RuleFamily {
-    match n % 6 {
-        0 => RuleFamily::Structural,
-        1 => RuleFamily::Symmetry,
-        2 => RuleFamily::Connective,
-        3 => RuleFamily::Lexical,
-        4 => RuleFamily::Rhythm,
-        _ => RuleFamily::Contraction,
-    }
-}
-
 /// A strategy for one candidate patch over `len` bytes: two arbitrary
 /// offsets in `0..=len` (ordered into a range, possibly empty, possibly
 /// off a char boundary), a short replacement string, a rule-id-ish tag,
-/// and a rule family.
+/// and a plain conflict-resolution priority (0..6, exercising every
+/// priority tier a caller might use, not just one).
 fn candidate_strategy(len: usize) -> impl Strategy<Value = Candidate> {
     (0..=len, 0..=len, "[a-zA-Z]{0,4}", 0u8..6, 0u32..8).prop_map(
-        move |(a, b, replacement, family_byte, rule_tag)| {
+        move |(a, b, replacement, priority, rule_tag)| {
             let (start, end) = if a <= b { (a, b) } else { (b, a) };
             let rule = rule_id_for(rule_tag);
             Candidate {
                 patch: Patch::new(start..end, replacement, rule, Tier::Fix),
-                family: family_from_u8(family_byte),
+                priority,
             }
         },
     )

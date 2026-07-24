@@ -1,20 +1,23 @@
 //! Per-round patch conflict resolution and atomic application.
 
 use friction_core::{Patch, span};
-use friction_rules::RuleFamily;
 
-/// A patch proposed by one rule this round, tagged with that rule's family
-/// for conflict-resolution priority.
+/// A patch proposed this round, tagged with a plain priority for
+/// conflict-resolution purposes.
 ///
-/// Public so a caller assembling its own round pipeline (rather than going
-/// through [`crate::run_fixpoint`]) can drive [`resolve_round`] directly.
+/// Public so a caller assembling its own round pipeline can drive
+/// [`resolve_round`] directly. `priority` is a plain `u8` (lower sorts
+/// first) rather than a fixed enum — the family/stage taxonomy that used
+/// to supply it belonged to the rule engine this crate no longer drives; a
+/// caller with its own priority scheme (e.g. a fixed operation order) just
+/// supplies the numbers directly.
 #[derive(Debug, Clone)]
 pub struct Candidate {
     /// The proposed patch.
     pub patch: Patch,
-    /// The family of the rule that produced it, used only for
-    /// conflict-resolution priority (see [`RuleFamily::priority`]).
-    pub family: RuleFamily,
+    /// This candidate's conflict-resolution priority: lower wins a
+    /// full-tie (same start, same length) against a higher value.
+    pub priority: u8,
 }
 
 /// Resolves one round's candidate patches against `source` into the
@@ -64,7 +67,7 @@ pub fn resolve_round(source: &str, candidates: Vec<Candidate>) -> (Vec<Patch>, u
             .start
             .cmp(&b.patch.range.start)
             .then_with(|| patch_len(&b.patch).cmp(&patch_len(&a.patch)))
-            .then_with(|| a.family.priority().cmp(&b.family.priority()))
+            .then_with(|| a.priority.cmp(&b.priority))
             .then_with(|| a.patch.rule.as_str().cmp(b.patch.rule.as_str()))
             .then_with(|| a.patch.replacement.cmp(&b.patch.replacement))
     });
@@ -125,8 +128,8 @@ mod tests {
         Patch::new(range, replacement, RuleId::new(rule), Tier::Fix)
     }
 
-    fn candidate(patch: Patch, family: RuleFamily) -> Candidate {
-        Candidate { patch, family }
+    fn candidate(patch: Patch, priority: u8) -> Candidate {
+        Candidate { patch, priority }
     }
 
     /// Disjoint candidates are all accepted, none dropped.
@@ -134,8 +137,8 @@ mod tests {
     fn resolve_round_accepts_disjoint_candidates() {
         let source = "The quick brown fox jumps.";
         let candidates = vec![
-            candidate(patch(0..3, "A", "lexical.a"), RuleFamily::Lexical),
-            candidate(patch(10..15, "B", "lexical.b"), RuleFamily::Lexical),
+            candidate(patch(0..3, "A", "lexical.a"), 3),
+            candidate(patch(10..15, "B", "lexical.b"), 3),
         ];
         let (accepted, dropped) = resolve_round(source, candidates);
         assert_eq!(accepted.len(), 2);
@@ -148,11 +151,8 @@ mod tests {
     fn resolve_round_prefers_longer_patch_at_same_start() {
         let source = "leveraging the pipeline";
         let candidates = vec![
-            candidate(
-                patch(0..10, "using", "lexical.leverage"),
-                RuleFamily::Lexical,
-            ),
-            candidate(patch(0..3, "u", "lexical.stub"), RuleFamily::Lexical),
+            candidate(patch(0..10, "using", "lexical.leverage"), 3),
+            candidate(patch(0..3, "u", "lexical.stub"), 3),
         ];
         let (accepted, dropped) = resolve_round(source, candidates);
         assert_eq!(accepted.len(), 1);
@@ -161,20 +161,14 @@ mod tests {
     }
 
     /// Of two overlapping candidates that start and end at the same
-    /// point, the higher-priority family (lower `priority()`) wins —
-    /// Structural over Lexical here.
+    /// point, the lower-priority-number candidate wins — `0` over `3`
+    /// here.
     #[test]
     fn resolve_round_prefers_higher_priority_family_on_full_tie() {
         let source = "It leverages the pipeline heavily.";
         let candidates = vec![
-            candidate(
-                patch(3..13, "uses", "lexical.leverage"),
-                RuleFamily::Lexical,
-            ),
-            candidate(
-                patch(3..13, "relies on", "structural.rewrite"),
-                RuleFamily::Structural,
-            ),
+            candidate(patch(3..13, "uses", "lexical.leverage"), 3),
+            candidate(patch(3..13, "relies on", "structural.rewrite"), 0),
         ];
         let (accepted, dropped) = resolve_round(source, candidates);
         assert_eq!(accepted.len(), 1);
@@ -189,8 +183,8 @@ mod tests {
     fn resolve_round_drops_invalid_range_without_panicking() {
         let source = "short";
         let candidates = vec![
-            candidate(patch(0..999, "x", "lexical.bad"), RuleFamily::Lexical),
-            candidate(patch(0..5, "SHORT", "lexical.ok"), RuleFamily::Lexical),
+            candidate(patch(0..999, "x", "lexical.bad"), 3),
+            candidate(patch(0..5, "SHORT", "lexical.ok"), 3),
         ];
         let (accepted, dropped) = resolve_round(source, candidates);
         assert_eq!(accepted.len(), 1);
@@ -205,10 +199,7 @@ mod tests {
         let source = "café bar";
         // 'é' is a 2-byte UTF-8 character occupying bytes 3..5; byte 4
         // sits inside it, not on a character boundary.
-        let candidates = vec![candidate(
-            patch(0..4, "x", "lexical.bad"),
-            RuleFamily::Lexical,
-        )];
+        let candidates = vec![candidate(patch(0..4, "x", "lexical.bad"), 3)];
         let (accepted, dropped) = resolve_round(source, candidates);
         assert!(accepted.is_empty());
         assert_eq!(dropped, 1);
@@ -221,10 +212,10 @@ mod tests {
     fn resolve_round_output_never_overlaps() {
         let source = "aaaaaaaaaaaaaaaaaaaa";
         let candidates = vec![
-            candidate(patch(0..5, "A", "lexical.a"), RuleFamily::Lexical),
-            candidate(patch(2..8, "B", "lexical.b"), RuleFamily::Lexical),
-            candidate(patch(5..10, "C", "lexical.c"), RuleFamily::Lexical),
-            candidate(patch(12..15, "D", "lexical.d"), RuleFamily::Lexical),
+            candidate(patch(0..5, "A", "lexical.a"), 3),
+            candidate(patch(2..8, "B", "lexical.b"), 3),
+            candidate(patch(5..10, "C", "lexical.c"), 3),
+            candidate(patch(12..15, "D", "lexical.d"), 3),
         ];
         let (accepted, _dropped) = resolve_round(source, candidates);
         assert!(friction_core::find_overlaps(&accepted).is_empty());

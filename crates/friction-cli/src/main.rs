@@ -2,11 +2,10 @@
 //!
 //! Provides `friction setup` (downloads and sha256-verifies the pinned NLP
 //! artifact registry into a local cache), `friction check` (detect-only:
-//! metrics, envelope bands, and rule findings), `friction fix` (runs the
-//! full fixpoint engine and writes the fixed text out), and `friction
-//! explain` (runs the same fixpoint engine but reports a before/after
-//! metric comparison and the executed round schedule instead of the fixed
-//! text).
+//! metrics, envelope bands, and fix-time detection spans), `friction fix`
+//! (runs the four-operation repair engine and writes the fixed text out),
+//! and `friction explain` (runs the same repair engine but reports what
+//! fired and what was held, per pass, instead of the fixed text).
 //!
 //! Every subcommand but `setup` is offline and deterministic: no network
 //! access, no wall-clock timestamps, and no absolute filesystem paths in
@@ -19,7 +18,6 @@ mod diagnostics;
 mod explain;
 mod fix;
 mod sarif;
-mod scan;
 mod setup;
 mod table;
 
@@ -38,13 +36,13 @@ enum Command {
     /// Downloads and sha256-verifies the pinned NLP artifact registry into
     /// a local cache directory.
     Setup(setup::SetupArgs),
-    /// Parses, measures, and scans for rule findings, applying no fixes.
+    /// Parses, measures, and runs fix-time detection, applying no fixes.
     Check(check::CheckArgs),
-    /// Runs the full fixpoint engine and writes the fixed text out.
+    /// Runs the four-operation repair engine and writes the fixed text
+    /// out.
     Fix(fix::FixArgs),
-    /// Runs the fixpoint engine and reports a before/after metric
-    /// comparison and the executed round schedule, without emitting the
-    /// fixed text.
+    /// Runs the repair engine and reports what fired and what was held,
+    /// per pass, without emitting the fixed text.
     Explain(explain::ExplainArgs),
 }
 

@@ -194,15 +194,18 @@ fn friction() -> Command {
 
 /// Runs `friction <args...>` against `doc.relpath`, returning stdout as
 /// UTF-8. Exit status is deliberately not asserted here: `check`'s exit
-/// code is a function of the document's own content (findings and
-/// envelope membership), not a success/failure signal for this suite.
+/// code is a function of the document's own content (spans and envelope
+/// membership), not a success/failure signal for this suite.
+///
+/// `--genre`/`--family` are `check`-only (`fix`/`explain` take neither),
+/// so they're appended only when `args` names `check`.
 fn run_stdout(doc: &SelectedDoc, args: &[&str]) -> String {
-    let output = friction()
-        .args(args)
-        .arg(doc.relpath)
-        .args(["--genre", doc.genre])
-        .output()
-        .expect("friction runs");
+    let mut cmd = friction();
+    cmd.args(args).arg(doc.relpath);
+    if args.first() == Some(&"check") {
+        cmd.args(["--genre", doc.genre, "--family", "qwen"]);
+    }
+    let output = cmd.output().expect("friction runs");
     String::from_utf8(output.stdout).expect("stdout is valid UTF-8")
 }
 
@@ -255,8 +258,8 @@ fn check_text_no_color_snapshots() {
 }
 
 /// `explain` (default `--format text`), snapshotted for every selected
-/// document: the before/after metric table, plan schedule, and fixpoint
-/// summary — never the document text itself.
+/// document: which operations fired and which were held, per pass — never
+/// the document text itself.
 #[test]
 fn explain_snapshots() {
     for doc in SELECTED {

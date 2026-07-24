@@ -24,3 +24,13 @@ thiserror = { workspace = true }
 # lookaround is required by any pattern transcribed into src/tellspan.rs or
 # src/pivot.rs.
 regex = "1"
+
+[dev-dependencies]
+# `tests/engine_fixtures.rs` drives the real engine for byte-exact
+# fixture assertions now that one exists; see that crate's own header
+# comment for why this dev-dependency (this crate -> friction-edit) is
+# not a build-graph cycle even though friction-edit's own dev-dependency
+# on corpus-tool eventually reaches back to this crate as a normal
+# dependency (corpus-tool -> friction-harness): dev-dependencies are
+# only needed to build test binaries, never a library target itself.
+friction-edit = { path = "../friction-edit" }

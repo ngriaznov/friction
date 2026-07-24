@@ -13,7 +13,7 @@ but extends it, so that all tensors sent through a
 :class:`python:multiprocessing.Queue`, will have their data moved into shared
 memory and will only send a handle to another process.
 
-.. note::
+.. Note::
 
     When a :class:`~torch.Tensor` is sent to another process, the
     :class:`~torch.Tensor` data is shared. If :attr:`torch.Tensor.grad` is
@@ -34,7 +34,7 @@ CUDA in multiprocessing
 The CUDA runtime does not support the ``fork`` start method; either the ``spawn`` or ``forkserver`` start method are
 required to use CUDA in subprocesses.
 
-.. note::
+.. Note::
   The start method can be set via either creating a context with
   ``multiprocessing.get_context(...)`` or directly using
   ``multiprocessing.set_start_method(...)``.
@@ -98,7 +98,7 @@ however it is very bug prone and should be used with care, and only by advanced
 users. Queues, even though they're sometimes a less elegant solution, will work
 properly in all cases.
 
-.. warning::
+.. Warning::
 
     You should be careful about having global statements, that are not guarded
     with an ``if __name__ == '__main__'``. If a different start method than

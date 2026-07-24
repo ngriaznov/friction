@@ -79,6 +79,9 @@ enum Command {
     /// phrase already occurs naturally in the human corpus, for the
     /// inventory pack's output-frequency hygiene bands.
     OutputBands(commands::output_bands::Args),
+    /// On the train split, builds the seam-bigram membership table and
+    /// POS-skeleton n-gram sets for the attestation pack.
+    Attest(commands::attest::Args),
 }
 
 /// Parses process arguments and runs the selected subcommand.
@@ -130,5 +133,6 @@ pub fn run() -> anyhow::Result<()> {
         Command::Index(args) => commands::index::run(&args),
         Command::PackCheck(args) => commands::pack_check::run(&args),
         Command::OutputBands(args) => commands::output_bands::run(&args),
+        Command::Attest(args) => commands::attest::run(&args),
     }
 }

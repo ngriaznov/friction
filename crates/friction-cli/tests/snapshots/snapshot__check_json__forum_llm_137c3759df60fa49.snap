@@ -4,6 +4,7 @@ expression: stdout
 ---
 {
   "genre": "forum",
+  "family": "qwen",
   "metrics": [
     {
       "name": "sentence_length_mean",
@@ -153,96 +154,76 @@ expression: stdout
       "in_envelope": true
     }
   ],
-  "findings": [
+  "spans": [
     {
-      "rule": "connective.surgery",
-      "tier": "fix",
-      "start": 273,
-      "end": 280,
+      "channel": "dms",
+      "frame_id": "dms.qwen",
+      "start": 16,
+      "end": 45,
+      "line": 1,
+      "column": 17,
+      "score": 6
+    },
+    {
+      "channel": "literal",
+      "frame_id": "sub.crucial_for",
+      "start": 191,
+      "end": 202,
       "line": 3,
-      "column": 221,
-      "message": "sentence-initial connective \"However\" is over this genre's envelope"
+      "column": 139,
+      "score": null
     },
     {
-      "rule": "structural.bold_label_strip",
-      "tier": "fix",
-      "start": 819,
-      "end": 845,
+      "channel": "dms",
+      "frame_id": "dms.qwen",
+      "start": 212,
+      "end": 248,
+      "line": 3,
+      "column": 160,
+      "score": 7
+    },
+    {
+      "channel": "dms",
+      "frame_id": "dms.qwen",
+      "start": 899,
+      "end": 926,
       "line": 11,
-      "column": 4,
-      "message": "bolded lead-in label in a bullet could be plain text"
+      "column": 84,
+      "score": 9
+    }
+  ],
+  "tell_counts": {
+    "dms": 3,
+    "sub": 1
+  },
+  "dms": [
+    {
+      "family": "qwen",
+      "mean_machine": 1.3572778827977316,
+      "mean_human": 1.6521739130434783,
+      "differential": -0.2948960302457466,
+      "token_count": 529
     },
     {
-      "rule": "structural.bold_label_strip",
-      "tier": "fix",
-      "start": 1094,
-      "end": 1115,
-      "line": 13,
-      "column": 4,
-      "message": "bolded lead-in label in a bullet could be plain text"
+      "family": "gemma",
+      "mean_machine": 1.614366729678639,
+      "mean_human": 1.6521739130434783,
+      "differential": -0.037807183364839236,
+      "token_count": 529
     },
     {
-      "rule": "structural.bold_label_strip",
-      "tier": "fix",
-      "start": 1510,
-      "end": 1547,
-      "line": 22,
-      "column": 4,
-      "message": "bolded lead-in label in a bullet could be plain text"
+      "family": "llama",
+      "mean_machine": 1.4291115311909264,
+      "mean_human": 1.6521739130434783,
+      "differential": -0.2230623818525519,
+      "token_count": 529
     },
     {
-      "rule": "structural.bold_label_strip",
-      "tier": "fix",
-      "start": 1831,
-      "end": 1852,
-      "line": 24,
-      "column": 4,
-      "message": "bolded lead-in label in a bullet could be plain text"
-    },
-    {
-      "rule": "connective.surgery",
-      "tier": "fix",
-      "start": 2120,
-      "end": 2124,
-      "line": 32,
-      "column": 75,
-      "message": "sentence-initial connective \"Thus\" is over this genre's envelope"
-    },
-    {
-      "rule": "structural.bold_label_strip",
-      "tier": "fix",
-      "start": 2291,
-      "end": 2311,
-      "line": 34,
-      "column": 4,
-      "message": "bolded lead-in label in a bullet could be plain text"
-    },
-    {
-      "rule": "structural.bold_label_strip",
-      "tier": "fix",
-      "start": 2636,
-      "end": 2657,
-      "line": 36,
-      "column": 4,
-      "message": "bolded lead-in label in a bullet could be plain text"
-    },
-    {
-      "rule": "symmetry.not_just_but",
-      "tier": "suggest",
-      "start": 3506,
-      "end": 3555,
-      "line": 49,
-      "column": 193,
-      "message": "\"not just/only X but (also) Y\" reads as an LLM tic; consider reframing which half the sentence emphasizes"
-    },
-    {
-      "rule": "symmetry.ritual_conclusion",
-      "tier": "suggest",
-      "start": 3635,
-      "end": 3645,
-      "line": 51,
-      "column": 1,
-      "message": "the document's final paragraph opens with the ritual conclusion marker \"In summary\""
+      "family": "granite",
+      "mean_machine": 20.83742911153119,
+      "mean_human": 1.6521739130434783,
+      "differential": 19.185255198487713,
+      "token_count": 529
     }
   ]
 }

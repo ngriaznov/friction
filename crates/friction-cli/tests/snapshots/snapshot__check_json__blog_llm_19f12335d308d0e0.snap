@@ -4,6 +4,7 @@ expression: stdout
 ---
 {
   "genre": "blog",
+  "family": "qwen",
   "metrics": [
     {
       "name": "sentence_length_mean",
@@ -153,150 +154,68 @@ expression: stdout
       "in_envelope": true
     }
   ],
-  "findings": [
+  "spans": [
     {
-      "rule": "lexical.substitution",
-      "tier": "fix",
-      "start": 530,
-      "end": 537,
-      "line": 3,
-      "column": 437,
-      "message": "\"initial\" reads as machine-favored register (mined llm-favored (MINING.md); first is the plain equivalent); \"first\" is a plain near-synonym"
+      "channel": "literal",
+      "frame_id": "span.simply",
+      "start": 4027,
+      "end": 4033,
+      "line": 29,
+      "column": 197,
+      "score": null
     },
     {
-      "rule": "lexical.substitution",
-      "tier": "fix",
-      "start": 636,
-      "end": 643,
-      "line": 3,
-      "column": 543,
-      "message": "\"crucial\" reads as machine-favored register (mined llm-favored (MINING.md, z=6.47); key keeps the emphasis, drops the register); \"key\" is a plain near-synonym"
-    },
-    {
-      "rule": "symmetry.participial_closer",
-      "tier": "suggest",
-      "start": 748,
-      "end": 797,
-      "line": 5,
-      "column": 34,
-      "message": "sentence-final participial closer reads as an LLM tic, but it has no clear object to promote; deleting it cannot be verified to preserve the sentence's claim, so this needs a human decision"
-    },
-    {
-      "rule": "symmetry.participial_closer",
-      "tier": "suggest",
-      "start": 1770,
-      "end": 1796,
-      "line": 11,
-      "column": 354,
-      "message": "sentence-final participial closer reads as an LLM tic, but it has no clear object to promote; deleting it cannot be verified to preserve the sentence's claim, so this needs a human decision"
-    },
-    {
-      "rule": "lexical.substitution",
-      "tier": "fix",
-      "start": 2202,
-      "end": 2209,
-      "line": 17,
+      "channel": "literal",
+      "frame_id": "sub.leverage_base",
+      "start": 5263,
+      "end": 5271,
+      "line": 42,
       "column": 5,
-      "message": "\"initial\" reads as machine-favored register (mined llm-favored (MINING.md); first is the plain equivalent); \"first\" is a plain near-synonym"
+      "score": null
     },
     {
-      "rule": "lexical.substitution",
-      "tier": "fix",
-      "start": 2687,
-      "end": 2695,
-      "line": 21,
-      "column": 46,
-      "message": "\"utilized\" reads as machine-favored register (canonical LLM-register tell for use); \"use\" is a plain near-synonym"
+      "channel": "dms",
+      "frame_id": "dms.qwen",
+      "start": 5725,
+      "end": 5751,
+      "line": 43,
+      "column": 197,
+      "score": 6
+    }
+  ],
+  "tell_counts": {
+    "dms": 1,
+    "span": 1,
+    "sub": 1
+  },
+  "dms": [
+    {
+      "family": "qwen",
+      "mean_machine": 1.3062622309197651,
+      "mean_human": 1.5587084148727985,
+      "differential": -0.2524461839530334,
+      "token_count": 1022
     },
     {
-      "rule": "lexical.substitution",
-      "tier": "suggest",
-      "start": 2834,
-      "end": 2842,
-      "line": 21,
-      "column": 191,
-      "message": "\"specific\" reads as machine-favored register (mined llm-favored (MINING.md); particular is a plainer near-synonym); \"particular\" is a plain near-synonym"
+      "family": "gemma",
+      "mean_machine": 27.7426614481409,
+      "mean_human": 1.5587084148727985,
+      "differential": 26.183953033268104,
+      "token_count": 1022
     },
     {
-      "rule": "symmetry.participial_closer",
-      "tier": "fix",
-      "start": 2852,
-      "end": 2922,
-      "line": 21,
-      "column": 209,
-      "message": "sentence-final participial closer reads as an LLM tic; promoting it to its own sentence preserves the claim"
+      "family": "llama",
+      "mean_machine": 1.4158512720156555,
+      "mean_human": 1.5587084148727985,
+      "differential": -0.14285714285714302,
+      "token_count": 1022
     },
     {
-      "rule": "lexical.substitution",
-      "tier": "suggest",
-      "start": 3460,
-      "end": 3468,
-      "line": 27,
-      "column": 76,
-      "message": "\"specific\" reads as machine-favored register (mined llm-favored (MINING.md); particular is a plainer near-synonym); \"particular\" is a plain near-synonym"
-    },
-    {
-      "rule": "lexical.substitution",
-      "tier": "fix",
-      "start": 4317,
-      "end": 4327,
-      "line": 33,
-      "column": 44,
-      "message": "\"incredibly\" reads as machine-favored register (mined llm-favored (MINING.md); very is the plain intensifier); \"very\" is a plain near-synonym"
-    },
-    {
-      "rule": "lexical.substitution",
-      "tier": "fix",
-      "start": 4353,
-      "end": 4359,
-      "line": 33,
-      "column": 80,
-      "message": "\"robust\" reads as machine-favored register (mined llm-favored (MINING.md, z=6.29); solid is the plain equivalent); \"solid\" is a plain near-synonym"
-    },
-    {
-      "rule": "symmetry.participial_closer",
-      "tier": "fix",
-      "start": 4691,
-      "end": 4748,
-      "line": 35,
-      "column": 49,
-      "message": "sentence-final participial closer reads as an LLM tic; promoting it to its own sentence preserves the claim"
-    },
-    {
-      "rule": "lexical.substitution",
-      "tier": "fix",
-      "start": 4985,
-      "end": 4992,
-      "line": 39,
-      "column": 36,
-      "message": "\"crucial\" reads as machine-favored register (mined llm-favored (MINING.md, z=6.47); key keeps the emphasis, drops the register); \"key\" is a plain near-synonym"
-    },
-    {
-      "rule": "lexical.substitution",
-      "tier": "fix",
-      "start": 5132,
-      "end": 5143,
-      "line": 41,
-      "column": 79,
-      "message": "\"utilization\" reads as machine-favored register (canonical LLM-register tell for use (noun form)); \"use\" is a plain near-synonym"
-    },
-    {
-      "rule": "symmetry.ritual_conclusion",
-      "tier": "suggest",
-      "start": 6035,
-      "end": 6045,
-      "line": 46,
-      "column": 1,
-      "message": "the document's final paragraph opens with the ritual conclusion marker \"Ultimately\""
-    },
-    {
-      "rule": "lexical.substitution",
-      "tier": "fix",
-      "start": 6440,
-      "end": 6446,
-      "line": 46,
-      "column": 404,
-      "message": "\"robust\" reads as machine-favored register (mined llm-favored (MINING.md, z=6.29); solid is the plain equivalent); \"solid\" is a plain near-synonym"
+      "family": "granite",
+      "mean_machine": 1.1966731898238747,
+      "mean_human": 1.5587084148727985,
+      "differential": -0.3620352250489238,
+      "token_count": 1022
     }
   ]
 }

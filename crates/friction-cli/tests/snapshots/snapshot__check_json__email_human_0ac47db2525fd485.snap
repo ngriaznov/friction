@@ -4,6 +4,7 @@ expression: stdout
 ---
 {
   "genre": "email",
+  "family": "qwen",
   "metrics": [
     {
       "name": "sentence_length_mean",
@@ -153,5 +154,36 @@ expression: stdout
       "in_envelope": true
     }
   ],
-  "findings": []
+  "spans": [],
+  "tell_counts": {},
+  "dms": [
+    {
+      "family": "qwen",
+      "mean_machine": 1.1209068010075567,
+      "mean_human": 12.991603694374476,
+      "differential": -11.870696893366919,
+      "token_count": 1191
+    },
+    {
+      "family": "gemma",
+      "mean_machine": 1.2745591939546599,
+      "mean_human": 12.991603694374476,
+      "differential": -11.717044500419815,
+      "token_count": 1191
+    },
+    {
+      "family": "llama",
+      "mean_machine": 1.1771620486985725,
+      "mean_human": 12.991603694374476,
+      "differential": -11.814441645675902,
+      "token_count": 1191
+    },
+    {
+      "family": "granite",
+      "mean_machine": 1.0755667506297228,
+      "mean_human": 12.991603694374476,
+      "differential": -11.916036943744754,
+      "token_count": 1191
+    }
+  ]
 }

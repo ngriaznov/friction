@@ -4,6 +4,7 @@
 
 use std::sync::LazyLock;
 
+use crate::attestation::AttestationPack;
 use crate::dms::DmsIndex;
 use crate::inventory::InventoryPack;
 use crate::validate::validate;
@@ -87,6 +88,27 @@ pub static DMS: LazyLock<LoadedPack<DmsIndex>> = LazyLock::new(|| {
     }
 });
 
+/// The embedded `attestation-v1.toml` source — written by `corpus-tool
+/// attest`.
+const ATTESTATION_V1_TOML: &str = include_str!("../packs/attestation-v1.toml");
+
+/// The built-in attestation pack, parsed once from the embedded
+/// `attestation-v1.toml` and reused for the life of the process.
+///
+/// # Panics
+/// Panics if the embedded `attestation-v1.toml` fails to parse — a bug in
+/// this crate's own vendored data (covered by this crate's attestation
+/// tests), not a condition any caller can recover from by retrying.
+pub static ATTESTATION: LazyLock<LoadedPack<AttestationPack>> = LazyLock::new(|| {
+    let pack = AttestationPack::parse(ATTESTATION_V1_TOML)
+        .expect("embedded attestation-v1.toml must parse: see this crate's attestation tests");
+    LoadedPack {
+        version: "attestation-v1".into(),
+        sha256: Sha256::of_bytes(ATTESTATION_V1_TOML.as_bytes()),
+        pack,
+    }
+});
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -152,5 +174,28 @@ mod tests {
         let noms_a: Vec<&str> = a.lvc_pairs().iter().map(|p| &*p.nominalization).collect();
         let noms_b: Vec<&str> = b.lvc_pairs().iter().map(|p| &*p.nominalization).collect();
         assert_eq!(noms_a, noms_b);
+    }
+
+    #[test]
+    fn attestation_static_loads() {
+        assert_eq!(&*ATTESTATION.version, "attestation-v1");
+        assert!(ATTESTATION.pack.bigram().vocab_len() > 0);
+        assert!(ATTESTATION.pack.skeleton().tag_vocab_len() > 0);
+    }
+
+    #[test]
+    fn attestation_sha256_matches_recomputed_hash_of_the_embedded_bytes() {
+        let recomputed = Sha256::of_bytes(ATTESTATION_V1_TOML.as_bytes());
+        assert_eq!(ATTESTATION.sha256, recomputed);
+        assert!(recomputed.verify(ATTESTATION_V1_TOML.as_bytes()));
+    }
+
+    #[test]
+    fn parsing_the_same_attestation_bytes_twice_is_deterministic() {
+        let a = AttestationPack::parse(ATTESTATION_V1_TOML).unwrap();
+        let b = AttestationPack::parse(ATTESTATION_V1_TOML).unwrap();
+        assert_eq!(a.bigram().edge_count(), b.bigram().edge_count());
+        assert_eq!(a.skeleton().tag5_len(), b.skeleton().tag5_len());
+        assert_eq!(a.skeleton().tag4_len(), b.skeleton().tag4_len());
     }
 }

@@ -23,4 +23,23 @@ heading_density               0.6863  [0.6072, 10.3668]   in
 list_item_density             0.0000  [0.0000, 16.8244]   in    
 bold_span_density             0.0000  [0.0000, 10.6682]   in    
 sentence_opener_repeat_rate   0.0606  [0.0067, 0.1343]    in    
-top_opener_concentration      0.1045  [0.0588, 0.2154]    in
+top_opener_concentration      0.1045  [0.0588, 0.2154]    in    
+
+dms (target family: qwen):
+  qwen     mean_machine=1.0534  mean_human=32.5650  differential=-31.5116  tokens=1593
+  gemma    mean_machine=1.1645  mean_human=32.5650  differential=-31.4005  tokens=1593
+  llama    mean_machine=1.1249  mean_human=32.5650  differential=-31.4401  tokens=1593
+  granite  mean_machine=1.0615  mean_human=32.5650  differential=-31.5035  tokens=1593
+
+tell counts (1 span(s) total):
+  sub: 1
+sub.leverage_3sg
+
+  ⚠ Literal tell: sub.leverage_3sg
+    ╭─[corpus/human/blog/016b54b46d29feb8.md:47:118]
+ 46 │ 
+ 47 │ With the S2O model, funding streams, budgets and subscriptions remain unchanged, which is appealing to librarians.It leverages existing relationships between publishers and customers.. Not every library has been able to start an OA fund, and this was a simple way to support a new OA model.
+    ·                                                                                                                      ────┬────
+    ·                                                                                                                          ╰── Literal tell: sub.leverage_3sg
+ 48 │ 
+    ╰────

@@ -23,4 +23,45 @@ heading_density              14.2388  [10.3806, 43.0464]  in
 list_item_density            33.9540  [4.9261, 98.2659]   in    
 bold_span_density             0.0000  [0.0000, 14.7059]   in    
 sentence_opener_repeat_rate   0.0647  [0.0079, 0.1379]    in    
-top_opener_concentration      0.0923  [0.0442, 0.1609]    in
+top_opener_concentration      0.0923  [0.0442, 0.1609]    in    
+
+dms (target family: qwen):
+  qwen     mean_machine=1.0321  mean_human=12.9563  differential=-11.9242  tokens=1029
+  gemma    mean_machine=1.1477  mean_human=12.9563  differential=-11.8086  tokens=1029
+  llama    mean_machine=1.1050  mean_human=12.9563  differential=-11.8513  tokens=1029
+  granite  mean_machine=0.9854  mean_human=12.9563  differential=-11.9708  tokens=1029
+
+tell counts (3 span(s) total):
+  sub: 3
+sub.in_order_to
+
+  ⚠ Literal tell: sub.in_order_to
+     ╭─[corpus/human/readme/05f0fbd8371252a5.md:136:1]
+ 135 │ 
+ 136 │ In order to resume a session, a session ticket, and a transport
+     · ─────┬─────
+     ·      ╰── Literal tell: sub.in_order_to
+ 137 │ parameters must be fetched from server.  First, run examples/client
+     ╰────
+
+sub.in_order_to
+
+  ⚠ Literal tell: sub.in_order_to
+     ╭─[corpus/human/readme/05f0fbd8371252a5.md:157:21]
+ 156 │ validation completes and lifts some restrictions on server which might
+ 157 │ speed up transfer.  In order to save and/or load a token,
+     ·                     ─────┬─────
+     ·                          ╰── Literal tell: sub.in_order_to
+ 158 │ use --token-file option of examples/client.  The given file is
+     ╰────
+
+sub.in_order_to
+
+  ⚠ Literal tell: sub.in_order_to
+     ╭─[corpus/human/readme/05f0fbd8371252a5.md:164:1]
+ 163 │ 
+ 164 │ In order to make TLS stack integration less painful, we provide a
+     · ─────┬─────
+     ·      ╰── Literal tell: sub.in_order_to
+ 165 │ crypto helper library which offers the basic crypto operations.
+     ╰────

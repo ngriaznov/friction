@@ -4,7 +4,7 @@ expression: stdout
 ---
 **How to Set Up Automatic Database Backups for Corkboard**
 
-Corkboard is your go-to platform for organizing notes and ideas in an intuitive, visual manner. To ensure that all your useful data remains safe and accessible, setting up automatic database backups is key. This guide will walk you through the process of configuring these backups using cron scheduling on a Linux server environment, specifying where to store the backups, and detailing how to restore from a backup file.
+Corkboard is your go-to platform for organizing notes and ideas in an intuitive, visual manner. To ensure that all your valuable data remains safe and accessible, setting up automatic database backups matters. This guide covers the process of configuring these backups using cron scheduling on a Linux server environment, specifying where to store the backups, and detailing how to restore from a backup file.
 
 ### Prerequisites
 
@@ -39,7 +39,7 @@ Next, create a script that will handle the backup process. This script will dump
    sudo nano /usr/local/bin/corkboard-backup.sh
    ```
 
-2. Paste the following code into the script, adjusting paths if needed:
+2. Paste the following code into the script, adjusting paths if necessary:
 
    ```bash
    #!/bin/bash
@@ -105,4 +105,4 @@ In case of data loss or corruption, you can restore Corkboard from any available
 - **Backup Retention**: Consider setting up a policy to keep only the most recent backups and delete older ones periodically to save disk space.
 - **Testing**: Periodically test restoring from a backup to confirm its integrity and process speed.
 
-By following these steps, you've set up automatic database backups for Corkboard, ensuring that your notes remain safe against unexpected data loss. Regularly checking your backup logs will help you stay informed about the success of each backup run.
+You've set up automatic database backups for Corkboard, ensuring that your notes remain safe against unexpected data loss. Regularly checking your backup logs will help you stay informed about the success of each backup run.

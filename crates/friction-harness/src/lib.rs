@@ -22,8 +22,11 @@
 //!   [`score::shared_scorer`].
 //! - [`gates`]: fixture-id-to-gate traceability.
 //! - [`verify`]: reusable per-fixture assertion logic.
-//! - [`pending`]: the deferred byte-exact engine assertion manifest.
 //! - [`error`][error]: [`error::HarnessError`].
+//!
+//! Byte-exact engine assertions (once deferred here as
+//! `pending::pending_engine_assertions`, now that a real engine exists)
+//! live in `tests/engine_fixtures.rs`, a dev-dependency on `friction-edit`.
 
 pub mod clean;
 pub mod closure;
@@ -31,7 +34,6 @@ pub mod error;
 pub mod fixtures;
 pub mod fragment;
 pub mod gates;
-pub mod pending;
 pub mod pivot;
 pub mod score;
 pub mod tellspan;

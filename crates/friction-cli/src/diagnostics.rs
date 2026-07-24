@@ -1,5 +1,5 @@
-//! Renders [`Finding`]s as `miette` labeled-span diagnostics for `friction
-//! check`'s `--format text` output.
+//! Renders [`friction_match::MatchSpan`]s as `miette` labeled-span
+//! diagnostics for `friction check`'s `--format text` output.
 //!
 //! # Color and determinism
 //!
@@ -19,7 +19,8 @@
 use std::fmt;
 use std::io::IsTerminal as _;
 
-use friction_core::{Finding, Tier};
+use friction_core::Tier;
+use friction_match::MatchSpan;
 use miette::{
     Diagnostic, GraphicalReportHandler, GraphicalTheme, LabeledSpan, NamedSource, SourceCode,
 };
@@ -35,18 +36,13 @@ pub fn color_enabled(no_color_flag: bool) -> bool {
     std::io::stdout().is_terminal()
 }
 
-/// One [`Finding`], adapted to `miette`'s [`Diagnostic`] trait: a labeled
-/// span over the finding's rule id (as the diagnostic's `code`), its
-/// message (both as the top-level error text and as the span's own
-/// label), and a severity derived from its [`Tier`] via [`severity_for`]
-/// (`Fix` findings have an automatic remedy that `friction fix` can apply
-/// on its own, so they are downgraded to `Warning`; `Suggest` findings
-/// need a human's judgment and are the ones a reader most needs to see, so
-/// they keep the higher `Error` severity — `Advice` is deliberately *not*
-/// used here despite the name collision with `Tier`). `sarif::level_for`
-/// mirrors this exact ordering (`Suggest` outranks `Fix`) in SARIF's
-/// `level` vocabulary, so the two output formats never disagree about
-/// which findings are more urgent.
+/// One detection span (or, historically, `Finding`), adapted to `miette`'s
+/// [`Diagnostic`] trait: a labeled span over its rule/frame id (as the
+/// diagnostic's `code`), its message (both as the top-level error text and
+/// as the span's own label), and a severity derived from a [`Tier`] via
+/// [`severity_for`] — `Advice` is deliberately *not* used here despite the
+/// name collision with `Tier`. `crate::sarif::LEVEL` uses the same
+/// severity for every span, so the two output formats never disagree.
 struct FindingDiagnostic {
     message: String,
     rule: String,
@@ -112,26 +108,21 @@ impl Diagnostic for FindingDiagnostic {
     }
 }
 
-/// Renders every finding in `findings` as a `miette` labeled-span
-/// diagnostic against `source`, one after another, separated by a blank
-/// line.
+/// Renders every detection span in `spans` as a `miette` labeled-span
+/// diagnostic against `source`, the same rendering [`render_findings`]
+/// gives a [`Finding`] — [`friction_match::MatchSpan`]'s `frame_id` is a
+/// runtime string rather than a `friction_core::RuleId` (which requires a
+/// `'static` string), so this is a small, parallel entry point rather than
+/// a conversion into [`Finding`].
 ///
-/// `path_label` names the source in each diagnostic's header (a real
-/// path, or `"<stdin>"` — see [`crate::common::display_path`]). `color`
-/// should come from [`color_enabled`].
+/// Every span is rendered at [`miette::Severity::Warning`] (the same
+/// severity [`severity_for`] gives a `Tier::Fix` finding): a span is a
+/// candidate `friction fix` can act on, not necessarily something that
+/// needs a human's judgment on its own — the gates inside the repair
+/// engine are what decide, per candidate, whether it actually applies or
+/// gets held.
 #[must_use]
-pub fn render_findings(
-    source: &str,
-    path_label: &str,
-    findings: &[Finding],
-    color: bool,
-) -> String {
-    // A fixed 200-column render width (`GraphicalReportHandler::new`'s
-    // own default, kept explicit here) rather than one probed from the
-    // real terminal: probing would make the same input produce different
-    // byte output depending on the invoking terminal's width, which the
-    // determinism requirement (`check --format text`'s output must be
-    // byte-identical across runs) rules out.
+pub fn render_spans(source: &str, path_label: &str, spans: &[MatchSpan], color: bool) -> String {
     let theme = if color {
         GraphicalTheme::unicode()
     } else {
@@ -139,13 +130,14 @@ pub fn render_findings(
     };
     let handler = GraphicalReportHandler::new_themed(theme).with_width(200);
     let mut out = String::new();
-    for finding in findings {
+    for span in spans {
+        let message = format!("{:?} tell: {}", span.channel, span.frame_id);
         let diagnostic = FindingDiagnostic {
-            message: finding.message.clone(),
-            rule: finding.rule.as_str().to_string(),
-            tier: finding.tier,
-            start: finding.range.start,
-            len: finding.range.len(),
+            message: message.clone(),
+            rule: span.frame_id.to_string(),
+            tier: Tier::Fix,
+            start: span.range.start,
+            len: span.range.len(),
             src: NamedSource::new(path_label, source.to_string()),
         };
         handler
@@ -158,64 +150,44 @@ pub fn render_findings(
 
 #[cfg(test)]
 mod tests {
-    use friction_core::RuleId;
+    use friction_match::{Channel, MatchScore};
 
     use super::*;
+
+    fn span(range: std::ops::Range<usize>, frame_id: &str) -> MatchSpan {
+        MatchSpan {
+            range,
+            channel: Channel::Literal,
+            frame_id: frame_id.into(),
+            score: MatchScore::Present,
+        }
+    }
 
     /// Rendering with color disabled never emits an ANSI escape byte —
     /// the byte-stability guarantee `check --format text` (as piped by
     /// every test in this crate) depends on.
     #[test]
-    fn render_findings_without_color_emits_no_ansi_escapes() {
+    fn render_spans_without_color_emits_no_ansi_escapes() {
         let source = "Moreover, it works.";
-        let findings = vec![Finding::new(
-            RuleId::new("connective.surgery"),
-            0..9,
-            "overused sentence-initial connective",
-            Tier::Fix,
-        )];
-        let rendered = render_findings(source, "doc.md", &findings, false);
+        let spans = vec![span(0..9, "ritual.moreover")];
+        let rendered = render_spans(source, "doc.md", &spans, false);
         assert!(!rendered.contains('\u{1b}'), "got: {rendered:?}");
-        assert!(rendered.contains("connective.surgery"));
-        assert!(rendered.contains("overused sentence-initial connective"));
+        assert!(rendered.contains("ritual.moreover"));
+        assert!(rendered.contains("tell:"));
     }
 
-    /// An empty finding list renders to an empty string.
+    /// An empty span list renders to an empty string.
     #[test]
-    fn render_findings_empty_list_is_empty_string() {
-        assert_eq!(render_findings("text", "doc.md", &[], false), "");
+    fn render_spans_empty_list_is_empty_string() {
+        assert_eq!(render_spans("text", "doc.md", &[], false), "");
     }
 
-    /// Regression test for a real disagreement between this module's
-    /// text/miette severity and `sarif::level_for`'s SARIF `level` for the
-    /// identical `Tier`: text output used to rank `Tier::Suggest` as
-    /// *more* severe than `Tier::Fix` (`Error` > `Warning`) while SARIF
-    /// ranked it as *less* severe (`"note"` < `"warning"`) — a CI gate
-    /// keyed on SARIF `level` would then treat exactly the findings the
-    /// text renderer flags as most urgent as safely ignorable. Both
-    /// formats must rank `Suggest` above `Fix` (or both must rank it
-    /// below); this test fails if they ever diverge again.
+    /// `render_spans` always rates a span at [`miette::Severity::Warning`]
+    /// — the same severity `crate::sarif::LEVEL` ("warning") assigns every
+    /// span, so the two output formats never disagree.
     #[test]
-    fn severity_ordering_agrees_with_sarif_level_ordering() {
-        assert!(
-            severity_for(Tier::Suggest) > severity_for(Tier::Fix),
-            "text/miette severity must rank Suggest above Fix"
-        );
-
-        let sarif_rank = |level: &str| -> u8 {
-            match level {
-                "none" => 0,
-                "note" => 1,
-                "warning" => 2,
-                "error" => 3,
-                other => panic!("unknown SARIF level {other:?}"),
-            }
-        };
-        let fix_rank = sarif_rank(crate::sarif::level_for(Tier::Fix));
-        let suggest_rank = sarif_rank(crate::sarif::level_for(Tier::Suggest));
-        assert!(
-            suggest_rank > fix_rank,
-            "SARIF level must also rank Suggest above Fix, to agree with text/miette output"
-        );
+    fn render_spans_uses_the_same_severity_as_sarif_level() {
+        assert_eq!(severity_for(Tier::Fix), miette::Severity::Warning);
+        assert_eq!(crate::sarif::LEVEL, "warning");
     }
 }

@@ -4,6 +4,7 @@ expression: stdout
 ---
 {
   "genre": "docs",
+  "family": "qwen",
   "metrics": [
     {
       "name": "sentence_length_mean",
@@ -153,51 +154,149 @@ expression: stdout
       "in_envelope": true
     }
   ],
-  "findings": [
+  "spans": [
     {
-      "rule": "lexical.substitution",
-      "tier": "fix",
-      "start": 180,
-      "end": 188,
-      "line": 3,
-      "column": 121,
-      "message": "\"valuable\" reads as machine-favored register (mined llm-favored (MINING.md); useful is the plain equivalent); \"useful\" is a plain near-synonym"
+      "channel": "dms",
+      "frame_id": "dms.qwen",
+      "start": 13,
+      "end": 56,
+      "line": 1,
+      "column": 14,
+      "score": 13
     },
     {
-      "rule": "lexical.substitution",
-      "tier": "fix",
-      "start": 264,
+      "channel": "dms",
+      "frame_id": "dms.qwen",
+      "start": 221,
+      "end": 332,
+      "line": 3,
+      "column": 162,
+      "score": 148
+    },
+    {
+      "channel": "literal",
+      "frame_id": "sub.is_crucial",
+      "start": 261,
       "end": 271,
       "line": 3,
-      "column": 205,
-      "message": "\"crucial\" reads as machine-favored register (mined llm-favored (MINING.md, z=6.47); key keeps the emphasis, drops the register); \"key\" is a plain near-synonym"
+      "column": 202,
+      "score": null
     },
     {
-      "rule": "symmetry.participial_closer",
-      "tier": "suggest",
-      "start": 1700,
-      "end": 1730,
-      "line": 38,
+      "channel": "literal",
+      "frame_id": "sub.this_guide_will_walk_you_through",
+      "start": 273,
+      "end": 305,
+      "line": 3,
+      "column": 214,
+      "score": null
+    },
+    {
+      "channel": "dms",
+      "frame_id": "dms.qwen",
+      "start": 508,
+      "end": 540,
+      "line": 7,
+      "column": 1,
+      "score": 13
+    },
+    {
+      "channel": "dms",
+      "frame_id": "dms.qwen",
+      "start": 1407,
+      "end": 1439,
+      "line": 30,
       "column": 44,
-      "message": "sentence-final participial closer reads as an LLM tic, but it has no clear object to promote; deleting it cannot be verified to preserve the sentence's claim, so this needs a human decision"
+      "score": 8
     },
     {
-      "rule": "lexical.substitution",
-      "tier": "fix",
-      "start": 1721,
-      "end": 1730,
-      "line": 38,
-      "column": 65,
-      "message": "\"necessary\" reads as machine-favored register (mined llm-favored (MINING.md); needed is the plain equivalent); \"needed\" is a plain near-synonym"
+      "channel": "dms",
+      "frame_id": "dms.qwen",
+      "start": 2309,
+      "end": 2342,
+      "line": 58,
+      "column": 4,
+      "score": 12
     },
     {
-      "rule": "symmetry.participial_closer",
-      "tier": "fix",
-      "start": 4049,
-      "end": 4116,
+      "channel": "dms",
+      "frame_id": "dms.qwen",
+      "start": 2405,
+      "end": 2432,
+      "line": 60,
+      "column": 4,
+      "score": 7
+    },
+    {
+      "channel": "dms",
+      "frame_id": "dms.qwen",
+      "start": 2737,
+      "end": 2766,
+      "line": 76,
+      "column": 14,
+      "score": 8
+    },
+    {
+      "channel": "dms",
+      "frame_id": "dms.qwen",
+      "start": 2981,
+      "end": 3012,
+      "line": 82,
+      "column": 66,
+      "score": 8
+    },
+    {
+      "channel": "literal",
+      "frame_id": "span.by_following_these_steps_leading",
+      "start": 3969,
+      "end": 3995,
       "line": 104,
-      "column": 81,
-      "message": "sentence-final participial closer reads as an LLM tic; promoting it to its own sentence preserves the claim"
+      "column": 1,
+      "score": null
+    },
+    {
+      "channel": "dms",
+      "frame_id": "dms.qwen",
+      "start": 4006,
+      "end": 4049,
+      "line": 104,
+      "column": 38,
+      "score": 13
+    }
+  ],
+  "tell_counts": {
+    "dms": 9,
+    "span": 1,
+    "sub": 2
+  },
+  "dms": [
+    {
+      "family": "qwen",
+      "mean_machine": 2.103846153846154,
+      "mean_human": 1.7096153846153845,
+      "differential": 0.3942307692307694,
+      "token_count": 520
+    },
+    {
+      "family": "gemma",
+      "mean_machine": 1.9576923076923076,
+      "mean_human": 1.7096153846153845,
+      "differential": 0.24807692307692308,
+      "token_count": 520
+    },
+    {
+      "family": "llama",
+      "mean_machine": 1.8096153846153846,
+      "mean_human": 1.7096153846153845,
+      "differential": 0.10000000000000009,
+      "token_count": 520
+    },
+    {
+      "family": "granite",
+      "mean_machine": 14.34423076923077,
+      "mean_human": 1.7096153846153845,
+      "differential": 12.634615384615385,
+      "token_count": 520
     }
   ]
 }

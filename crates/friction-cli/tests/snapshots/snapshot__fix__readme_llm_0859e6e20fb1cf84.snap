@@ -24,7 +24,7 @@ To generate your static site, use the following command:
 lumen build
 ```
 
-This command compiles all specified galleries and pages into a fully functional static website improved for deployment on any web server or hosting service that supports static sites (like GitHub Pages, Netlify, etc.).
+This command compiles all specified galleries and pages into a fully functional static website optimized for deployment on any web server or hosting service that supports static sites (like GitHub Pages, Netlify, etc.).
 
 ## Local Preview Server
 
@@ -40,7 +40,7 @@ This command starts a local HTTP server at `http://localhost:8000`, allowing you
 
 Lumen automates thumbnail creation for your images:
 
-1. **Automatic Thumbnails**: When you build your site (`lumen build`), Lumen scans all image files in the `images/` directory and generates improved thumbnails based on predefined sizes (e.g., small, medium, large). This process improves load times without compromising quality.
+1. **Automatic Thumbnails**: When you build your site (`lumen build`), Lumen scans all image files in the `images/` directory and generates optimized thumbnails based on predefined sizes (e.g., small, medium, large). This process enhances load times without compromising quality.
 
 2. **Customization**: You can specify custom thumbnail dimensions or formats by editing the `_config.yml` file under specific gallery directories. For example:
 
@@ -57,7 +57,7 @@ Lumen intelligently extracts captions from image metadata (EXIF data) to provide
 
 1. **Automatic Extraction**: During the build process, Lumen reads the EXIF data of images in your galleries and automatically generates caption fields based on this metadata.
 
-2. **Customization**: If you prefer a different source for captions or wish to override automatic extraction, simply add a `caption` field in the markdown front matter for that specific image:
+2. **Customization**: If you prefer a different source for captions or wish to override automatic extraction, add a `caption` field in the markdown front matter for that specific image:
 
 ```markdown
 ---
@@ -103,7 +103,7 @@ gem install lumen-photography
 lumen init
 ```
 
-This command creates the needed directory structure (`images/`, `pages/`) and populates `_config.yml` with default settings.
+This command creates the necessary directory structure (`images/`, `pages/`) and populates `_config.yml` with default settings.
 
 3. **Add Content**: Place your images in the appropriate gallery directories under `images/`. Write markdown files for each page of your portfolio inside the `pages/` directory.
 
@@ -117,4 +117,4 @@ lumen serve
 
 ## Conclusion
 
-Lumen simplifies the creation and maintenance of photography portfolios by automating repetitive tasks like thumbnail generation, caption extraction from EXIF data, and providing a straightforward configuration system via `_config.yml`. Its intuitive folder structure ensures consistency across galleries and pages, making it an excellent choice for photographers looking to show their work online with minimal effort. Happy creating!
+Lumen simplifies the creation and maintenance of photography portfolios by automating repetitive tasks like thumbnail generation, caption extraction from EXIF data, and providing a straightforward configuration system via `_config.yml`. Its intuitive folder structure ensures consistency across galleries and pages, making it an excellent choice for photographers looking to showcase their work online with minimal effort.

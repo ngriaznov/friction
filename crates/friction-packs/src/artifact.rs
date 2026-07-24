@@ -184,6 +184,50 @@ pub enum PackError {
         /// The offending light-verb-base value, as written in the pack.
         light_verb_base: String,
     },
+
+    /// An attestation pack's `[bigram].lefts`/`[bigram].rights` field
+    /// contains a value that doesn't parse as `u32` (see
+    /// [`crate::AttestationPack::parse`]).
+    #[error("attestation {field}: {value:?} is not a valid u32 token id")]
+    AttestationMalformedId {
+        /// Which field was malformed (`"bigram.lefts"` or
+        /// `"bigram.rights"`).
+        field: &'static str,
+        /// The offending value.
+        value: String,
+    },
+
+    /// An attestation pack's `[bigram]` table references a token id past
+    /// the end of its own `[vocab]` table.
+    #[error(
+        "attestation {field}: token id {id} is out of range for a vocab of {vocab_len} token(s)"
+    )]
+    AttestationIdOutOfRange {
+        /// Which field referenced the out-of-range id.
+        field: &'static str,
+        /// The offending token id.
+        id: u32,
+        /// The pack's vocabulary size.
+        vocab_len: usize,
+    },
+
+    /// An attestation pack's `[bigram].lefts` and `[bigram].rights` don't
+    /// name the same number of groups.
+    #[error("attestation bigram: {lefts} left id(s) but {rights} right-group(s) (must match 1:1)")]
+    AttestationBigramShapeMismatch {
+        /// The number of ids in `lefts`.
+        lefts: usize,
+        /// The number of `;`-delimited groups in `rights`.
+        rights: usize,
+    },
+
+    /// An attestation pack's `[skeleton].tag5`/`tag4` field contains a
+    /// value that doesn't parse as `u64`.
+    #[error("attestation skeleton: {value:?} is not a valid u64 packed tag code")]
+    AttestationMalformedSkeletonCode {
+        /// The offending value.
+        value: String,
+    },
 }
 
 impl From<toml::de::Error> for PackError {

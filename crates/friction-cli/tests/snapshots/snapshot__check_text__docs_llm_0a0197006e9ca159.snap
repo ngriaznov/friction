@@ -24,56 +24,142 @@ list_item_density            45.8333  [0.0000, 31.6249]   OUT
 bold_span_density            14.5833  [0.0000, 14.1767]   OUT   
 sentence_opener_repeat_rate   0.0000  [0.0000, 0.0656]    in    
 top_opener_concentration      0.0833  [0.0545, 0.1613]    in    
-lexical.substitution
 
-  ⚠ "valuable" reads as machine-favored register (mined llm-favored (MINING.md); useful is the plain equivalent); "useful" is a plain near-synonym
-   ╭─[corpus/llm/docs/0a0197006e9ca159.md:3:121]
+dms (target family: qwen):
+  qwen     mean_machine=2.1038  mean_human=1.7096  differential=0.3942  tokens=520
+  gemma    mean_machine=1.9577  mean_human=1.7096  differential=0.2481  tokens=520
+  llama    mean_machine=1.8096  mean_human=1.7096  differential=0.1000  tokens=520
+  granite  mean_machine=14.3442  mean_human=1.7096  differential=12.6346  tokens=520
+
+tell counts (12 span(s) total):
+  dms: 9
+  span: 1
+  sub: 2
+dms.qwen
+
+  ⚠ Dms tell: dms.qwen
+   ╭─[corpus/llm/docs/0a0197006e9ca159.md:1:14]
+ 1 │ **How to Set Up Automatic Database Backups for Corkboard**
+   ·              ─────────────────────┬─────────────────────
+   ·                                   ╰── Dms tell: dms.qwen
+ 2 │ 
+   ╰────
+
+dms.qwen
+
+  ⚠ Dms tell: dms.qwen
+   ╭─[corpus/llm/docs/0a0197006e9ca159.md:3:162]
  2 │ 
  3 │ Corkboard is your go-to platform for organizing notes and ideas in an intuitive, visual manner. To ensure that all your valuable data remains safe and accessible, setting up automatic database backups is crucial. This guide will walk you through the process of configuring these backups using cron scheduling on a Linux server environment, specifying where to store the backups, and detailing how to restore from a backup file.
-   ·                                                                                                                         ────┬───
-   ·                                                                                                                             ╰── "valuable" reads as machine-favored register (mined llm-favored (MINING.md); useful is the plain equivalent); "useful" is a plain near-synonym
+   ·                                                                                                                                                                  ───────────────────────────────────────────────────────┬───────────────────────────────────────────────────────
+   ·                                                                                                                                                                                                                         ╰── Dms tell: dms.qwen
  4 │ 
    ╰────
 
-lexical.substitution
+sub.is_crucial
 
-  ⚠ "crucial" reads as machine-favored register (mined llm-favored (MINING.md, z=6.47); key keeps the emphasis, drops the register); "key" is a plain near-synonym
-   ╭─[corpus/llm/docs/0a0197006e9ca159.md:3:205]
+  ⚠ Literal tell: sub.is_crucial
+   ╭─[corpus/llm/docs/0a0197006e9ca159.md:3:202]
  2 │ 
  3 │ Corkboard is your go-to platform for organizing notes and ideas in an intuitive, visual manner. To ensure that all your valuable data remains safe and accessible, setting up automatic database backups is crucial. This guide will walk you through the process of configuring these backups using cron scheduling on a Linux server environment, specifying where to store the backups, and detailing how to restore from a backup file.
-   ·                                                                                                                                                                                                             ───┬───
-   ·                                                                                                                                                                                                                ╰── "crucial" reads as machine-favored register (mined llm-favored (MINING.md, z=6.47); key keeps the emphasis, drops the register); "key" is a plain near-synonym
+   ·                                                                                                                                                                                                          ─────┬────
+   ·                                                                                                                                                                                                               ╰── Literal tell: sub.is_crucial
  4 │ 
    ╰────
 
-symmetry.participial_closer
+sub.this_guide_will_walk_you_through
 
-  × sentence-final participial closer reads as an LLM tic, but it has no clear object to promote; deleting it cannot be verified to preserve the sentence's claim, so this needs a human decision
-    ╭─[corpus/llm/docs/0a0197006e9ca159.md:38:44]
- 37 │ 
- 38 │ 2. Paste the following code into the script, adjusting paths if necessary:
-    ·                                            ───────────────┬──────────────
-    ·                                                           ╰── sentence-final participial closer reads as an LLM tic, but it has no clear object to promote; deleting it cannot be verified to preserve the sentence's claim, so this needs a human decision
- 39 │ 
+  ⚠ Literal tell: sub.this_guide_will_walk_you_through
+   ╭─[corpus/llm/docs/0a0197006e9ca159.md:3:214]
+ 2 │ 
+ 3 │ Corkboard is your go-to platform for organizing notes and ideas in an intuitive, visual manner. To ensure that all your valuable data remains safe and accessible, setting up automatic database backups is crucial. This guide will walk you through the process of configuring these backups using cron scheduling on a Linux server environment, specifying where to store the backups, and detailing how to restore from a backup file.
+   ·                                                                                                                                                                                                                      ────────────────┬───────────────
+   ·                                                                                                                                                                                                                                      ╰── Literal tell: sub.this_guide_will_walk_you_through
+ 4 │ 
+   ╰────
+
+dms.qwen
+
+  ⚠ Dms tell: dms.qwen
+   ╭─[corpus/llm/docs/0a0197006e9ca159.md:7:1]
+ 6 │ 
+ 7 │ Before we begin, ensure you have:
+   · ────────────────┬───────────────
+   ·                 ╰── Dms tell: dms.qwen
+ 8 │ 
+   ╰────
+
+dms.qwen
+
+  ⚠ Dms tell: dms.qwen
+    ╭─[corpus/llm/docs/0a0197006e9ca159.md:30:44]
+ 29 │ 
+ 30 │ Next, create a script that will handle the backup process. This script will dump your database into a file and save it in the designated backup directory.
+    ·                                            ────────────────┬───────────────
+    ·                                                            ╰── Dms tell: dms.qwen
+ 31 │ 
     ╰────
 
-lexical.substitution
+dms.qwen
 
-  ⚠ "necessary" reads as machine-favored register (mined llm-favored (MINING.md); needed is the plain equivalent); "needed" is a plain near-synonym
-    ╭─[corpus/llm/docs/0a0197006e9ca159.md:38:65]
- 37 │ 
- 38 │ 2. Paste the following code into the script, adjusting paths if necessary:
-    ·                                                                 ────┬────
-    ·                                                                     ╰── "necessary" reads as machine-favored register (mined llm-favored (MINING.md); needed is the plain equivalent); "needed" is a plain near-synonym
- 39 │ 
+  ⚠ Dms tell: dms.qwen
+    ╭─[corpus/llm/docs/0a0197006e9ca159.md:58:4]
+ 57 │ 3. Replace `your_db_user`, `your_db_password`, and `corkboard_database_name` with your actual database credentials.
+ 58 │ 4. Save the file and exit the editor (in nano, press `CTRL+X`, then `Y`, followed by `ENTER`).
+    ·    ────────────────┬────────────────
+    ·                    ╰── Dms tell: dms.qwen
+ 59 │ 
     ╰────
 
-symmetry.participial_closer
+dms.qwen
 
-  ⚠ sentence-final participial closer reads as an LLM tic; promoting it to its own sentence preserves the claim
-     ╭─[corpus/llm/docs/0a0197006e9ca159.md:104:81]
+  ⚠ Dms tell: dms.qwen
+    ╭─[corpus/llm/docs/0a0197006e9ca159.md:60:4]
+ 59 │ 
+ 60 │ 5. Make the script executable:
+    ·    ─────────────┬─────────────
+    ·                 ╰── Dms tell: dms.qwen
+ 61 │ 
+    ╰────
+
+dms.qwen
+
+  ⚠ Dms tell: dms.qwen
+    ╭─[corpus/llm/docs/0a0197006e9ca159.md:76:14]
+ 75 │ 
+ 76 │ 2. Add a new line to run the backup script daily at 2 AM (adjust the time as needed):
+    ·              ──────────────┬──────────────
+    ·                            ╰── Dms tell: dms.qwen
+ 77 │ 
+    ╰────
+
+dms.qwen
+
+  ⚠ Dms tell: dms.qwen
+    ╭─[corpus/llm/docs/0a0197006e9ca159.md:82:66]
+ 81 │ 
+ 82 │ 3. Save and exit the editor. The cron job is now set to run your backup script every day at 2 AM.
+    ·                                                                  ───────────────┬───────────────
+    ·                                                                                 ╰── Dms tell: dms.qwen
+ 83 │ 
+    ╰────
+
+span.by_following_these_steps_leading
+
+  ⚠ Literal tell: span.by_following_these_steps_leading
+     ╭─[corpus/llm/docs/0a0197006e9ca159.md:104:1]
  103 │ 
  104 │ By following these steps, you've set up automatic database backups for Corkboard, ensuring that your notes remain safe against unexpected data loss. Regularly checking your backup logs will help you stay informed about the success of each backup run.
-     ·                                                                                 ─────────────────────────────────┬─────────────────────────────────
-     ·                                                                                                                  ╰── sentence-final participial closer reads as an LLM tic; promoting it to its own sentence preserves the claim
+     · ─────────────┬────────────
+     ·              ╰── Literal tell: span.by_following_these_steps_leading
+     ╰────
+
+dms.qwen
+
+  ⚠ Dms tell: dms.qwen
+     ╭─[corpus/llm/docs/0a0197006e9ca159.md:104:38]
+ 103 │ 
+ 104 │ By following these steps, you've set up automatic database backups for Corkboard, ensuring that your notes remain safe against unexpected data loss. Regularly checking your backup logs will help you stay informed about the success of each backup run.
+     ·                                      ─────────────────────┬─────────────────────
+     ·                                                           ╰── Dms tell: dms.qwen
      ╰────

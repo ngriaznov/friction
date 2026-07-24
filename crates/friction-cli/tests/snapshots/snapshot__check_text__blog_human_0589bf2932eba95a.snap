@@ -24,13 +24,11 @@ list_item_density             0.0000  [0.0000, 16.8244]   in
 bold_span_density             0.0000  [0.0000, 10.6682]   in    
 sentence_opener_repeat_rate   0.2286  [0.0067, 0.1343]    OUT   
 top_opener_concentration      0.2222  [0.0588, 0.2154]    OUT   
-symmetry.not_just_but
 
-  × "not just/only X but (also) Y" reads as an LLM tic; consider reframing which half the sentence emphasizes
-   ╭─[corpus/human/blog/0589bf2932eba95a.md:5:78]
- 4 │ 
- 5 │ The National Aeronautical Space Administration (NASA) remains the lead force not only in space exploration but also in developing products derived from the scientific endeavors necessary to support the increasingly challenging missions NASA performs as it seeks to reach new heights in space exploration.
-   ·                                                                              ───────────────────┬──────────────────
-   ·                                                                                                 ╰── "not just/only X but (also) Y" reads as an LLM tic; consider reframing which half the sentence emphasizes
- 6 │ 
-   ╰────
+dms (target family: qwen):
+  qwen     mean_machine=0.8276  mean_human=21.6073  differential=-20.7797  tokens=522
+  gemma    mean_machine=0.9923  mean_human=21.6073  differential=-20.6149  tokens=522
+  llama    mean_machine=0.9464  mean_human=21.6073  differential=-20.6609  tokens=522
+  granite  mean_machine=0.8563  mean_human=21.6073  differential=-20.7510  tokens=522
+
+tell counts (0 span(s) total):

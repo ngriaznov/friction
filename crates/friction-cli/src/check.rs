@@ -1,27 +1,32 @@
-//! `friction check`: parse + metrics + gate + scan, with no fixes applied.
+//! `friction check`: parse + metrics + fix-time detection (DMS, literal
+//! tell inventory, licensed light-verb constructions), with no fixes
+//! applied.
 //!
-//! Prints a per-metric table (value, envelope band, in/out) and every
-//! surfaced finding, in `--format text` (a plain table plus `miette`
-//! labeled-span diagnostics — see [`crate::diagnostics`]), `--format
-//! json` (stable `serde` structs), or `--format sarif` ([`crate::sarif`]).
+//! Prints a per-metric table (value, envelope band, in/out), a per-family
+//! DMS summary, and every detected span, in `--format text` (a plain
+//! table plus `miette` labeled-span diagnostics — see
+//! [`crate::diagnostics`]), `--format json` (stable `serde` structs), or
+//! `--format sarif` ([`crate::sarif`]).
 //!
 //! Exit code: `0` if every banded metric sits inside its envelope and no
-//! rule surfaced a finding; `1` if either is false; `2` on error (see
+//! span was detected; `1` if either is false; `2` on error (see
 //! [`CliError::report`]).
 
+use std::collections::BTreeMap;
 use std::path::PathBuf;
 use std::process::ExitCode;
 
 use clap::Args;
 use friction_core::MetricVector;
+use friction_match::{Channel, DocumentReport, MatchEngine, MatchScore, MatchSpan};
+use friction_packs::ModelFamily;
 use serde::Serialize;
 
 use crate::common::{
-    CliError, Engine, Format, Genre, Pack, PackEnvelope, display_path, offset_to_line_col,
-    read_input, resolve_genre,
+    CliError, Engine, Family, Format, Genre, Pack, display_path, offset_to_line_col, read_input,
+    resolve_genre,
 };
-use crate::diagnostics::{color_enabled, render_findings};
-use crate::scan::scan;
+use crate::diagnostics::{color_enabled, render_spans};
 use crate::{sarif, table};
 
 /// Arguments for `friction check`.
@@ -34,6 +39,12 @@ pub struct CheckArgs {
     /// omitted).
     #[arg(long, value_enum)]
     genre: Option<Genre>,
+
+    /// Which generator family the DMS channel compares this document
+    /// against. Required: DMS is generator-family-specific, and silently
+    /// picking one would misreport.
+    #[arg(long, value_enum)]
+    family: Family,
 
     /// Override the embedded envelope pack with one loaded from `PATH`.
     #[arg(long, value_name = "PATH")]
@@ -61,27 +72,41 @@ struct MetricRow {
     in_envelope: Option<bool>,
 }
 
-/// One finding, flattened to a stable, serializable shape (1-based
-/// line/column alongside the raw byte range, for a JSON consumer that
-/// wants either).
+/// One detected span, flattened to a stable, serializable shape (1-based
+/// line/column alongside the raw byte range).
 #[derive(Debug, Serialize)]
-struct FindingRow {
-    rule: String,
-    tier: &'static str,
+struct SpanRow {
+    channel: &'static str,
+    frame_id: String,
     start: usize,
     end: usize,
     line: usize,
     column: usize,
-    message: String,
+    /// The DMS differential score (`sum(d)` over the run), when this
+    /// span's channel is [`Channel::Dms`] — `None` for `Literal`/`Lvc`
+    /// spans, whose channels report presence only.
+    score: Option<i64>,
 }
 
-/// The full `--format json` shape: every field a `MetricVector` has, plus
-/// every surfaced finding.
+/// One generator family's document-level DMS statistics.
+#[derive(Debug, Serialize)]
+struct DmsFamilyRow {
+    family: &'static str,
+    mean_machine: f64,
+    mean_human: f64,
+    differential: f64,
+    token_count: usize,
+}
+
+/// The full `--format json` shape.
 #[derive(Debug, Serialize)]
 struct CheckReport {
     genre: &'static str,
+    family: &'static str,
     metrics: Vec<MetricRow>,
-    findings: Vec<FindingRow>,
+    spans: Vec<SpanRow>,
+    tell_counts: BTreeMap<String, usize>,
+    dms: Vec<DmsFamilyRow>,
 }
 
 /// Runs `friction check`.
@@ -95,66 +120,62 @@ pub fn run(args: &CheckArgs) -> ExitCode {
 fn run_inner(args: &CheckArgs) -> Result<ExitCode, CliError> {
     let source = read_input(&args.input)?;
     let genre = resolve_genre(args.genre);
+    let family: ModelFamily = args.family.into();
     let pack = Pack::load(args.pack.as_deref())?;
-    let envelope = PackEnvelope::new(pack.as_pack(), genre.as_str());
     let engine = Engine::load()?;
 
-    let outcome = scan(&source, genre.as_str(), &envelope, &engine)?;
-    let rows = metric_rows(&outcome.metrics, pack.as_pack(), genre.as_str());
+    let document = friction_parse::parse(source.clone())?;
+    let metrics = friction_metrics::compute(&document, &engine.segmenter, &engine.tagger);
+
+    let match_engine = MatchEngine::new(
+        &friction_packs::INVENTORY.pack,
+        &friction_packs::DMS.pack,
+        family,
+        &engine.tagger,
+        &engine.segmenter,
+    )?;
+    let report = match_engine.scan(&document)?;
+
+    let rows = metric_rows(&metrics, pack.as_pack(), genre.as_str());
     let all_in_envelope = rows.iter().all(|row| row.in_envelope.unwrap_or(true));
     let path_label = display_path(&args.input);
 
     match args.format {
         Format::Text => {
             print!("{}", table::render_metric_table(&rows_for_table(&rows)));
+            println!();
+            print!("{}", render_dms_summary(&report));
+            println!();
+            print!("{}", render_tell_counts(&report.spans));
             let color = color_enabled(args.no_color);
-            let rendered = render_findings(&source, path_label, &outcome.findings, color);
+            let rendered = render_spans(&source, path_label, &report.spans, color);
             print!("{rendered}");
         }
         Format::Json => {
-            let report = CheckReport {
+            let check_report = CheckReport {
                 genre: genre.as_str(),
+                family: family.as_str(),
                 metrics: rows,
-                findings: outcome
-                    .findings
-                    .iter()
-                    .map(|f| {
-                        let (line, column) = offset_to_line_col(&source, f.range.start);
-                        FindingRow {
-                            rule: f.rule.as_str().to_string(),
-                            tier: tier_str(f.tier),
-                            start: f.range.start,
-                            end: f.range.end,
-                            line,
-                            column,
-                            message: f.message.clone(),
-                        }
-                    })
-                    .collect(),
+                spans: span_rows(&source, &report.spans),
+                tell_counts: tell_counts(&report.spans),
+                dms: dms_rows(&report),
             };
-            let json = serde_json::to_string_pretty(&report)
+            let json = serde_json::to_string_pretty(&check_report)
                 .expect("CheckReport serializes: every field is plain data");
             println!("{json}");
         }
         Format::Sarif => {
-            let json = sarif::render(&outcome.findings, &source, path_label);
+            let json = sarif::render(&report.spans, &source, path_label);
             println!("{json}");
         }
     }
 
-    let exit_ok = all_in_envelope && outcome.findings.is_empty();
+    let exit_ok = all_in_envelope && report.spans.is_empty();
     Ok(if exit_ok {
         ExitCode::SUCCESS
     } else {
         ExitCode::from(1)
     })
-}
-
-const fn tier_str(tier: friction_core::Tier) -> &'static str {
-    match tier {
-        friction_core::Tier::Fix => "fix",
-        friction_core::Tier::Suggest => "suggest",
-    }
 }
 
 fn metric_rows(
@@ -190,6 +211,103 @@ fn rows_for_table(rows: &[MetricRow]) -> Vec<table::MetricTableRow<'_>> {
         .collect()
 }
 
+const fn channel_str(channel: Channel) -> &'static str {
+    match channel {
+        Channel::Dms => "dms",
+        Channel::Literal => "literal",
+        Channel::Lvc => "lvc",
+    }
+}
+
+const fn span_score(span: &MatchSpan) -> Option<i64> {
+    match span.score {
+        MatchScore::Differential(d) => Some(d),
+        MatchScore::Present => None,
+    }
+}
+
+fn span_rows(source: &str, spans: &[MatchSpan]) -> Vec<SpanRow> {
+    spans
+        .iter()
+        .map(|span| {
+            let (line, column) = offset_to_line_col(source, span.range.start);
+            SpanRow {
+                channel: channel_str(span.channel),
+                frame_id: span.frame_id.to_string(),
+                start: span.range.start,
+                end: span.range.end,
+                line,
+                column,
+                score: span_score(span),
+            }
+        })
+        .collect()
+}
+
+/// This span's `frame_id`, up to (not including) its first `.` — the
+/// grouping key [`tell_counts`] and [`render_tell_counts`] use. Every
+/// channel's frame id is namespaced this way (`"dms.<family>"`,
+/// `"lvc.<nominalization>"`, and the inventory pack's own dotted entry
+/// ids for `Literal`), so this collapses each span to the pack family/
+/// entry-kind that produced it.
+fn frame_prefix(frame_id: &str) -> &str {
+    frame_id.split('.').next().unwrap_or(frame_id)
+}
+
+fn tell_counts(spans: &[MatchSpan]) -> BTreeMap<String, usize> {
+    let mut counts = BTreeMap::new();
+    for span in spans {
+        *counts
+            .entry(frame_prefix(&span.frame_id).to_string())
+            .or_insert(0) += 1;
+    }
+    counts
+}
+
+fn dms_rows(report: &DocumentReport) -> Vec<DmsFamilyRow> {
+    report
+        .dms
+        .families
+        .iter()
+        .map(|family| DmsFamilyRow {
+            family: family.family.as_str(),
+            mean_machine: family.mean_machine,
+            mean_human: family.mean_human,
+            differential: family.differential,
+            token_count: family.token_count,
+        })
+        .collect()
+}
+
+fn render_dms_summary(report: &DocumentReport) -> String {
+    use std::fmt::Write as _;
+    let mut out = String::new();
+    let _ = writeln!(out, "dms (target family: {}):", report.dms.target_family);
+    for family in &report.dms.families {
+        let _ = writeln!(
+            out,
+            "  {:<8} mean_machine={:.4}  mean_human={:.4}  differential={:.4}  tokens={}",
+            family.family.as_str(),
+            family.mean_machine,
+            family.mean_human,
+            family.differential,
+            family.token_count,
+        );
+    }
+    out
+}
+
+fn render_tell_counts(spans: &[MatchSpan]) -> String {
+    use std::fmt::Write as _;
+    let counts = tell_counts(spans);
+    let mut out = String::new();
+    let _ = writeln!(out, "tell counts ({} span(s) total):", spans.len());
+    for (prefix, count) in &counts {
+        let _ = writeln!(out, "  {prefix}: {count}");
+    }
+    out
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -222,5 +340,43 @@ mod tests {
             .expect("em_dash_density row exists");
         assert_eq!(em_dash.lo, None);
         assert_eq!(em_dash.in_envelope, None);
+    }
+
+    /// `frame_prefix` collapses a dotted frame id to its first segment,
+    /// and leaves an unprefixed one alone.
+    #[test]
+    fn frame_prefix_splits_on_first_dot() {
+        assert_eq!(frame_prefix("dms.qwen"), "dms");
+        assert_eq!(frame_prefix("lvc.decision"), "lvc");
+        assert_eq!(frame_prefix("span.simply"), "span");
+        assert_eq!(frame_prefix("noprefix"), "noprefix");
+    }
+
+    /// `tell_counts` groups spans by [`frame_prefix`] and counts them.
+    #[test]
+    fn tell_counts_groups_by_frame_prefix() {
+        let spans = vec![
+            MatchSpan {
+                range: 0..5,
+                channel: Channel::Dms,
+                frame_id: "dms.qwen".into(),
+                score: MatchScore::Differential(3),
+            },
+            MatchSpan {
+                range: 6..10,
+                channel: Channel::Dms,
+                frame_id: "dms.gemma".into(),
+                score: MatchScore::Differential(1),
+            },
+            MatchSpan {
+                range: 11..15,
+                channel: Channel::Lvc,
+                frame_id: "lvc.decision".into(),
+                score: MatchScore::Present,
+            },
+        ];
+        let counts = tell_counts(&spans);
+        assert_eq!(counts["dms"], 2);
+        assert_eq!(counts["lvc"], 1);
     }
 }

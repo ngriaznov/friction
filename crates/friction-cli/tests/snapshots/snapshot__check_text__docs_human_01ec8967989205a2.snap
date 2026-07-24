@@ -24,25 +24,11 @@ list_item_density             0.0000  [0.0000, 31.6249]   in
 bold_span_density             0.0000  [0.0000, 14.1767]   in    
 sentence_opener_repeat_rate   0.0167  [0.0000, 0.0656]    in    
 top_opener_concentration      0.0962  [0.0545, 0.1613]    in    
-symmetry.triad_reduction
 
-  × flat "X, Y, and Z" triad with matching-class items reads as an LLM tic; consider dropping the weakest item or restructuring
-    ╭─[corpus/human/docs/01ec8967989205a2.md:22:52]
- 21 │     
- 22 │ ╭─▶ This allows to implement various training methods, like Hogwild, A3C, or any
- 23 │ ├─▶ others that require asynchronous operation.
-    · ╰──── flat "X, Y, and Z" triad with matching-class items reads as an LLM tic; consider dropping the weakest item or restructuring
- 24 │     
-    ╰────
+dms (target family: qwen):
+  qwen     mean_machine=1.2242  mean_human=22.5324  differential=-21.3083  tokens=678
+  gemma    mean_machine=1.3805  mean_human=22.5324  differential=-21.1519  tokens=678
+  llama    mean_machine=1.2950  mean_human=22.5324  differential=-21.2375  tokens=678
+  granite  mean_machine=1.2345  mean_human=22.5324  differential=-21.2979  tokens=678
 
-symmetry.triad_reduction
-
-  × flat "X, Y, and Z" triad with matching-class items reads as an LLM tic; consider dropping the weakest item or restructuring
-    ╭─[corpus/human/docs/01ec8967989205a2.md:92:64]
- 91 │     of PyTorch objects between processes. It is possible to e.g. inherit the tensors
- 92 │ ╭─▶ and storages already in shared memory, when using the ``fork`` start method,
- 93 │ │   however it is very bug prone and should be used with care, and only by advanced
- 94 │ ├─▶ users. Queues, even though they're sometimes a less elegant solution, will work
-    · ╰──── flat "X, Y, and Z" triad with matching-class items reads as an LLM tic; consider dropping the weakest item or restructuring
- 95 │     properly in all cases.
-    ╰────
+tell counts (0 span(s) total):

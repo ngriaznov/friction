@@ -23,4 +23,23 @@ heading_density               0.0000  [0.0000, 8.1037]    in
 list_item_density            32.0755  [0.0000, 22.2222]   OUT   
 bold_span_density            18.8679  [0.0000, 10.4822]   OUT   
 sentence_opener_repeat_rate   0.0154  [0.0000, 0.1111]    in    
-top_opener_concentration      0.0984  [0.0694, 0.1818]    in
+top_opener_concentration      0.0984  [0.0694, 0.1818]    in    
+
+dms (target family: qwen):
+  qwen     mean_machine=1.5082  mean_human=1.6013  differential=-0.0931  tokens=612
+  gemma    mean_machine=13.1977  mean_human=1.6013  differential=11.5964  tokens=612
+  llama    mean_machine=1.6520  mean_human=1.6013  differential=0.0507  tokens=612
+  granite  mean_machine=1.7059  mean_human=1.6013  differential=0.1046  tokens=612
+
+tell counts (1 span(s) total):
+  dms: 1
+dms.qwen
+
+  ⚠ Dms tell: dms.qwen
+    ╭─[corpus/llm/forum/0720879ca70251ed.md:62:12]
+ 61 │ 
+ 62 │ Now, let's add a composite index that includes the selected columns and the `customer_id`:
+    ·            ─────────────────┬─────────────────
+    ·                             ╰── Dms tell: dms.qwen
+ 63 │ 
+    ╰────

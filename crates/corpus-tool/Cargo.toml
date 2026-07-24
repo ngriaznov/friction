@@ -20,6 +20,10 @@ clap.workspace = true
 # and tagger to hand `friction-metrics::compute` a fully-segmented,
 # tagger-ready document.
 friction-core = { path = "../friction-core" }
+# `attest --calibrate-near-noop` runs the real repair engine over every
+# TRAIN (and, once, DEV) human doc to measure the natural pivot rate a
+# stage-1 (no `[near_noop]` table) attestation pack allows.
+friction-edit = { path = "../friction-edit" }
 # `mine-inventory` reuses the canonical clean/tokenize/split_sentences
 # primitives and the relocated `friction_nlp::lvc` tables (transitively)
 # from this crate rather than re-implementing them.

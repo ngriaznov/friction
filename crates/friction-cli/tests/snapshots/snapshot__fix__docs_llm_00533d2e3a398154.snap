@@ -22,7 +22,7 @@ The core of Ledgerline’s caching is built around storing the *results* of data
 Here's how it works:
 
 * **Cache Key Generation:**  A unique key is generated for each query based on its SQL statement, the parameters passed to the query (if any), and potentially a timestamp. This ensures that different queries with identical parameters are treated as distinct entries in the cache.
-* **Cache Storage:** The Query Result Cache utilizes an in-memory data structure – likely a dictionary or hashmap – for fast lookups.  The key is the generated query key, and the value is the result set returned by the database.
+* **Cache Storage:** The Query Result Cache uses an in-memory data structure – likely a dictionary or hashmap – for fast lookups.  The key is the generated query key, and the value is the result set returned by the database.
 * **Hit/Miss Logic:** When `query()` is called, Ledgerline first checks if the corresponding key exists in the Query Result Cache. If it does (a "cache hit"), the cached result is immediately returned.  If not (a “cache miss”), the query executes against the database, the results are stored in the cache using the generated key, and then finally returned to the user.
 * **TTL (Time-To-Live):** Each cached entry has a TTL associated with it – a configurable time period after which the entry is automatically removed from the cache. This prevents stale data from being served. The default TTL can be adjusted per model or globally.
 

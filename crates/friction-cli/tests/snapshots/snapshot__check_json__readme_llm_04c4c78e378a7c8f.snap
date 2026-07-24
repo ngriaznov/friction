@@ -4,6 +4,7 @@ expression: stdout
 ---
 {
   "genre": "readme",
+  "family": "qwen",
   "metrics": [
     {
       "name": "sentence_length_mean",
@@ -153,60 +154,75 @@ expression: stdout
       "in_envelope": true
     }
   ],
-  "findings": [
+  "spans": [
     {
-      "rule": "symmetry.triad_reduction",
-      "tier": "suggest",
-      "start": 179,
-      "end": 311,
-      "line": 3,
-      "column": 122,
-      "message": "flat \"X, Y, and Z\" triad with matching-class items reads as an LLM tic; consider dropping the weakest item or restructuring"
+      "channel": "dms",
+      "frame_id": "dms.qwen",
+      "start": 508,
+      "end": 550,
+      "line": 8,
+      "column": 63,
+      "score": 14
     },
     {
-      "rule": "lexical.substitution",
-      "tier": "suggest",
-      "start": 1089,
-      "end": 1097,
-      "line": 16,
-      "column": 81,
-      "message": "\"specific\" reads as machine-favored register (mined llm-favored (MINING.md); particular is a plainer near-synonym); \"particular\" is a plain near-synonym"
+      "channel": "dms",
+      "frame_id": "dms.qwen",
+      "start": 1276,
+      "end": 1305,
+      "line": 21,
+      "column": 6,
+      "score": 7
     },
     {
-      "rule": "lexical.substitution",
-      "tier": "fix",
-      "start": 1792,
-      "end": 1801,
-      "line": 36,
-      "column": 35,
-      "message": "\"necessary\" reads as machine-favored register (mined llm-favored (MINING.md); needed is the plain equivalent); \"needed\" is a plain near-synonym"
+      "channel": "dms",
+      "frame_id": "dms.qwen",
+      "start": 2200,
+      "end": 2234,
+      "line": 52,
+      "column": 28,
+      "score": 26
     },
     {
-      "rule": "lexical.substitution",
-      "tier": "fix",
-      "start": 1966,
-      "end": 1973,
-      "line": 42,
-      "column": 100,
-      "message": "\"initial\" reads as machine-favored register (mined llm-favored (MINING.md); first is the plain equivalent); \"first\" is a plain near-synonym"
+      "channel": "dms",
+      "frame_id": "dms.qwen",
+      "start": 2961,
+      "end": 3005,
+      "line": 73,
+      "column": 1,
+      "score": 12
+    }
+  ],
+  "tell_counts": {
+    "dms": 4
+  },
+  "dms": [
+    {
+      "family": "qwen",
+      "mean_machine": 1.7357630979498861,
+      "mean_human": 1.7403189066059226,
+      "differential": -0.004555808656036442,
+      "token_count": 439
     },
     {
-      "rule": "symmetry.triad_reduction",
-      "tier": "suggest",
-      "start": 2042,
-      "end": 2134,
-      "line": 48,
-      "column": 4,
-      "message": "flat \"X, Y, and Z\" triad with matching-class items reads as an LLM tic; consider dropping the weakest item or restructuring"
+      "family": "gemma",
+      "mean_machine": 10.676537585421412,
+      "mean_human": 1.7403189066059226,
+      "differential": 8.93621867881549,
+      "token_count": 439
     },
     {
-      "rule": "symmetry.triad_reduction",
-      "tier": "suggest",
-      "start": 2805,
-      "end": 2864,
-      "line": 69,
-      "column": 52,
-      "message": "flat \"X, Y, and Z\" triad with matching-class items reads as an LLM tic; consider dropping the weakest item or restructuring"
+      "family": "llama",
+      "mean_machine": 1.785876993166287,
+      "mean_human": 1.7403189066059226,
+      "differential": 0.04555808656036442,
+      "token_count": 439
+    },
+    {
+      "family": "granite",
+      "mean_machine": 1.2482915717539864,
+      "mean_human": 1.7403189066059226,
+      "differential": -0.49202733485193617,
+      "token_count": 439
     }
   ]
 }

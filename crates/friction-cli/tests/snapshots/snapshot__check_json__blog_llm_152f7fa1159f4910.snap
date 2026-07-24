@@ -4,6 +4,7 @@ expression: stdout
 ---
 {
   "genre": "blog",
+  "family": "qwen",
   "metrics": [
     {
       "name": "sentence_length_mean",
@@ -153,204 +154,320 @@ expression: stdout
       "in_envelope": true
     }
   ],
-  "findings": [
+  "spans": [
     {
-      "rule": "symmetry.participial_closer",
-      "tier": "fix",
-      "start": 141,
-      "end": 221,
+      "channel": "dms",
+      "frame_id": "dms.qwen",
+      "start": 79,
+      "end": 499,
       "line": 3,
-      "column": 63,
-      "message": "sentence-final participial closer reads as an LLM tic; promoting it to its own sentence preserves the claim"
+      "column": 1,
+      "score": 2303
     },
     {
-      "rule": "symmetry.participial_closer",
-      "tier": "suggest",
-      "start": 247,
-      "end": 366,
-      "line": 3,
-      "column": 167,
-      "message": "sentence-final participial closer reads as an LLM tic, but it has no clear object to promote; deleting it cannot be verified to preserve the sentence's claim, so this needs a human decision"
-    },
-    {
-      "rule": "lexical.substitution",
-      "tier": "fix",
-      "start": 290,
+      "channel": "literal",
+      "frame_id": "sub.is_crucial",
+      "start": 287,
       "end": 297,
       "line": 3,
-      "column": 210,
-      "message": "\"crucial\" reads as machine-favored register (mined llm-favored (MINING.md, z=6.47); key keeps the emphasis, drops the register); \"key\" is a plain near-synonym"
+      "column": 207,
+      "score": null
     },
     {
-      "rule": "lexical.substitution",
-      "tier": "suggest",
-      "start": 431,
-      "end": 439,
-      "line": 3,
-      "column": 351,
-      "message": "\"specific\" reads as machine-favored register (mined llm-favored (MINING.md); particular is a plainer near-synonym); \"particular\" is a plain near-synonym"
-    },
-    {
-      "rule": "lexical.substitution",
-      "tier": "fix",
-      "start": 585,
-      "end": 591,
+      "channel": "dms",
+      "frame_id": "dms.qwen",
+      "start": 518,
+      "end": 928,
       "line": 7,
-      "column": 68,
-      "message": "\"robust\" reads as machine-favored register (mined llm-favored (MINING.md, z=6.29); solid is the plain equivalent); \"solid\" is a plain near-synonym"
+      "column": 1,
+      "score": 2554
     },
     {
-      "rule": "symmetry.not_just_but",
-      "tier": "suggest",
-      "start": 699,
-      "end": 740,
-      "line": 7,
-      "column": 182,
-      "message": "\"not just/only X but (also) Y\" reads as an LLM tic; consider reframing which half the sentence emphasizes"
+      "channel": "dms",
+      "frame_id": "dms.qwen",
+      "start": 948,
+      "end": 1164,
+      "line": 11,
+      "column": 1,
+      "score": 537
     },
     {
-      "rule": "lexical.substitution",
-      "tier": "fix",
-      "start": 1304,
-      "end": 1312,
+      "channel": "dms",
+      "frame_id": "dms.qwen",
+      "start": 1187,
+      "end": 1374,
       "line": 14,
-      "column": 122,
-      "message": "\"powerful\" reads as machine-favored register (mined llm-favored (MINING.md); strong is the plain equivalent); \"strong\" is a plain near-synonym"
+      "column": 5,
+      "score": 390
     },
     {
-      "rule": "lexical.substitution",
-      "tier": "fix",
-      "start": 1467,
+      "channel": "dms",
+      "frame_id": "dms.qwen",
+      "start": 1379,
+      "end": 1540,
+      "line": 15,
+      "column": 5,
+      "score": 309
+    },
+    {
+      "channel": "literal",
+      "frame_id": "sub.is_crucial",
+      "start": 1464,
       "end": 1474,
       "line": 15,
-      "column": 93,
-      "message": "\"crucial\" reads as machine-favored register (mined llm-favored (MINING.md, z=6.47); key keeps the emphasis, drops the register); \"key\" is a plain near-synonym"
+      "column": 90,
+      "score": null
     },
     {
-      "rule": "connective.surgery",
-      "tier": "fix",
-      "start": 1661,
-      "end": 1668,
+      "channel": "dms",
+      "frame_id": "dms.qwen",
+      "start": 1557,
+      "end": 1724,
       "line": 18,
-      "column": 109,
-      "message": "sentence-initial connective \"However\" is over this genre's envelope"
+      "column": 5,
+      "score": 376
     },
     {
-      "rule": "lexical.substitution",
-      "tier": "fix",
-      "start": 2013,
-      "end": 2020,
+      "channel": "dms",
+      "frame_id": "dms.qwen",
+      "start": 1729,
+      "end": 1876,
+      "line": 19,
+      "column": 5,
+      "score": 211
+    },
+    {
+      "channel": "dms",
+      "frame_id": "dms.qwen",
+      "start": 1878,
+      "end": 2128,
       "line": 21,
-      "column": 136,
-      "message": "\"crucial\" reads as machine-favored register (mined llm-favored (MINING.md, z=6.47); key keeps the emphasis, drops the register); \"key\" is a plain near-synonym"
+      "column": 1,
+      "score": 675
     },
     {
-      "rule": "lexical.substitution",
-      "tier": "fix",
-      "start": 2185,
-      "end": 2194,
+      "channel": "dms",
+      "frame_id": "dms.qwen",
+      "start": 2167,
+      "end": 2294,
       "line": 25,
-      "column": 19,
-      "message": "\"paramount\" reads as machine-favored register (paramount is a more formal synonym of key); \"key\" is a plain near-synonym"
+      "column": 1,
+      "score": 142
     },
     {
-      "rule": "symmetry.participial_closer",
-      "tier": "fix",
-      "start": 2429,
-      "end": 2475,
+      "channel": "dms",
+      "frame_id": "dms.qwen",
+      "start": 2316,
+      "end": 2476,
       "line": 28,
-      "column": 118,
-      "message": "sentence-final participial closer reads as an LLM tic; promoting it to its own sentence preserves the claim"
+      "column": 5,
+      "score": 270
     },
     {
-      "rule": "symmetry.participial_closer",
-      "tier": "suggest",
-      "start": 2549,
-      "end": 2694,
+      "channel": "dms",
+      "frame_id": "dms.qwen",
+      "start": 2481,
+      "end": 2695,
       "line": 29,
-      "column": 73,
-      "message": "sentence-final participial closer reads as an LLM tic, but it has no clear object to promote; deleting it cannot be verified to preserve the sentence's claim, so this needs a human decision"
+      "column": 5,
+      "score": 363
     },
     {
-      "rule": "lexical.substitution",
-      "tier": "fix",
-      "start": 2930,
-      "end": 2936,
+      "channel": "dms",
+      "frame_id": "dms.qwen",
+      "start": 2712,
+      "end": 2886,
+      "line": 32,
+      "column": 5,
+      "score": 362
+    },
+    {
+      "channel": "dms",
+      "frame_id": "dms.qwen",
+      "start": 2891,
+      "end": 3030,
       "line": 33,
-      "column": 44,
-      "message": "\"robust\" reads as machine-favored register (mined llm-favored (MINING.md, z=6.29); solid is the plain equivalent); \"solid\" is a plain near-synonym"
+      "column": 5,
+      "score": 143
     },
     {
-      "rule": "lexical.substitution",
-      "tier": "fix",
-      "start": 3468,
-      "end": 3476,
+      "channel": "dms",
+      "frame_id": "dms.qwen",
+      "start": 3032,
+      "end": 3208,
+      "line": 35,
+      "column": 1,
+      "score": 318
+    },
+    {
+      "channel": "dms",
+      "frame_id": "dms.qwen",
+      "start": 3228,
+      "end": 3407,
+      "line": 39,
+      "column": 1,
+      "score": 359
+    },
+    {
+      "channel": "dms",
+      "frame_id": "dms.qwen",
+      "start": 3429,
+      "end": 3603,
       "line": 42,
-      "column": 44,
-      "message": "\"powerful\" reads as machine-favored register (mined llm-favored (MINING.md); strong is the plain equivalent); \"strong\" is a plain near-synonym"
+      "column": 5,
+      "score": 281
     },
     {
-      "rule": "lexical.substitution",
-      "tier": "fix",
-      "start": 3766,
-      "end": 3776,
+      "channel": "dms",
+      "frame_id": "dms.qwen",
+      "start": 3608,
+      "end": 3811,
       "line": 43,
-      "column": 163,
-      "message": "\"optimizing\" reads as machine-favored register (optimize is a more formal synonym of improve); \"improve\" is a plain near-synonym"
+      "column": 5,
+      "score": 405
     },
     {
-      "rule": "lexical.substitution",
-      "tier": "suggest",
-      "start": 3792,
-      "end": 3800,
-      "line": 43,
-      "column": 189,
-      "message": "\"specific\" reads as machine-favored register (mined llm-favored (MINING.md); particular is a plainer near-synonym); \"particular\" is a plain near-synonym"
+      "channel": "dms",
+      "frame_id": "dms.qwen",
+      "start": 3828,
+      "end": 3953,
+      "line": 46,
+      "column": 5,
+      "score": 241
     },
     {
-      "rule": "connective.surgery",
-      "tier": "fix",
-      "start": 4978,
-      "end": 4985,
+      "channel": "dms",
+      "frame_id": "dms.qwen",
+      "start": 3958,
+      "end": 4131,
+      "line": 47,
+      "column": 5,
+      "score": 430
+    },
+    {
+      "channel": "dms",
+      "frame_id": "dms.qwen",
+      "start": 4133,
+      "end": 4440,
+      "line": 49,
+      "column": 1,
+      "score": 1054
+    },
+    {
+      "channel": "dms",
+      "frame_id": "dms.qwen",
+      "start": 4468,
+      "end": 4613,
+      "line": 53,
+      "column": 1,
+      "score": 300
+    },
+    {
+      "channel": "dms",
+      "frame_id": "dms.qwen",
+      "start": 4635,
+      "end": 4750,
+      "line": 56,
+      "column": 5,
+      "score": 170
+    },
+    {
+      "channel": "dms",
+      "frame_id": "dms.qwen",
+      "start": 4755,
+      "end": 4864,
+      "line": 57,
+      "column": 5,
+      "score": 123
+    },
+    {
+      "channel": "dms",
+      "frame_id": "dms.qwen",
+      "start": 4881,
+      "end": 5057,
       "line": 60,
-      "column": 102,
-      "message": "sentence-initial connective \"However\" is over this genre's envelope"
+      "column": 5,
+      "score": 435
     },
     {
-      "rule": "lexical.substitution",
-      "tier": "fix",
-      "start": 5634,
-      "end": 5640,
+      "channel": "dms",
+      "frame_id": "dms.qwen",
+      "start": 5062,
+      "end": 5225,
+      "line": 61,
+      "column": 5,
+      "score": 330
+    },
+    {
+      "channel": "dms",
+      "frame_id": "dms.qwen",
+      "start": 5227,
+      "end": 5455,
+      "line": 63,
+      "column": 1,
+      "score": 677
+    },
+    {
+      "channel": "dms",
+      "frame_id": "dms.qwen",
+      "start": 5474,
+      "end": 5861,
       "line": 67,
-      "column": 159,
-      "message": "\"robust\" reads as machine-favored register (mined llm-favored (MINING.md, z=6.29); solid is the plain equivalent); \"solid\" is a plain near-synonym"
+      "column": 1,
+      "score": 2162
     },
     {
-      "rule": "connective.surgery",
-      "tier": "fix",
-      "start": 5754,
-      "end": 5761,
-      "line": 67,
-      "column": 279,
-      "message": "sentence-initial connective \"However\" is over this genre's envelope"
-    },
-    {
-      "rule": "lexical.substitution",
-      "tier": "suggest",
-      "start": 5830,
-      "end": 5838,
-      "line": 67,
-      "column": 355,
-      "message": "\"specific\" reads as machine-favored register (mined llm-favored (MINING.md); particular is a plainer near-synonym); \"particular\" is a plain near-synonym"
-    },
-    {
-      "rule": "symmetry.ritual_conclusion",
-      "tier": "suggest",
+      "channel": "dms",
+      "frame_id": "dms.qwen",
       "start": 5863,
-      "end": 5873,
+      "end": 6171,
       "line": 69,
       "column": 1,
-      "message": "the document's final paragraph opens with the ritual conclusion marker \"Ultimately\""
+      "score": 1240
+    },
+    {
+      "channel": "lvc",
+      "frame_id": "lvc.decision",
+      "start": 5952,
+      "end": 5969,
+      "line": 69,
+      "column": 90,
+      "score": null
+    }
+  ],
+  "tell_counts": {
+    "dms": 28,
+    "lvc": 1,
+    "sub": 2
+  },
+  "dms": [
+    {
+      "family": "qwen",
+      "mean_machine": 20.004259850905218,
+      "mean_human": 1.6283280085197018,
+      "differential": 18.375931842385516,
+      "token_count": 939
+    },
+    {
+      "family": "gemma",
+      "mean_machine": 1.5686900958466454,
+      "mean_human": 1.6283280085197018,
+      "differential": -0.059637912673056404,
+      "token_count": 939
+    },
+    {
+      "family": "llama",
+      "mean_machine": 1.6166134185303513,
+      "mean_human": 1.6283280085197018,
+      "differential": -0.011714589989350488,
+      "token_count": 939
+    },
+    {
+      "family": "granite",
+      "mean_machine": 1.321618743343983,
+      "mean_human": 1.6283280085197018,
+      "differential": -0.30670926517571884,
+      "token_count": 939
     }
   ]
 }

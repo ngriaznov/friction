@@ -24,24 +24,11 @@ list_item_density             2.5253  [0.0000, 31.6249]   in
 bold_span_density             7.5758  [0.0000, 14.1767]   in    
 sentence_opener_repeat_rate   0.0000  [0.0000, 0.0656]    in    
 top_opener_concentration      0.0952  [0.0545, 0.1613]    in    
-symmetry.triad_reduction
 
-  × flat "X, Y, and Z" triad with matching-class items reads as an LLM tic; consider dropping the weakest item or restructuring
-    ╭─[corpus/human/docs/08d07d7b04ccd440.md:13:1]
- 12 │ 
- 13 │ In this section, we will consider a few problems where developers new to React often reach for inheritance, and show how we can solve them with composition.
-    · ─────────────────────────────────────────────────────────────────────────────┬─────────────────────────────────────────────────────────────────────────────
-    ·                                                                              ╰── flat "X, Y, and Z" triad with matching-class items reads as an LLM tic; consider dropping the weakest item or restructuring
- 14 │ 
-    ╰────
+dms (target family: qwen):
+  qwen     mean_machine=1.1276  mean_human=13.0957  differential=-11.9681  tokens=439
+  gemma    mean_machine=1.2756  mean_human=13.0957  differential=-11.8200  tokens=439
+  llama    mean_machine=1.2301  mean_human=13.0957  differential=-11.8656  tokens=439
+  granite  mean_machine=1.1116  mean_human=13.0957  differential=-11.9841  tokens=439
 
-symmetry.triad_reduction
-
-  × flat "X, Y, and Z" triad with matching-class items reads as an LLM tic; consider dropping the weakest item or restructuring
-     ╭─[corpus/human/docs/08d07d7b04ccd440.md:156:188]
- 155 │ 
- 156 │ Props and composition give you all the flexibility you need to customize a component's look and behavior in an explicit and safe way. Remember that components may accept arbitrary props, including primitive values, React elements, or functions.
-     ·                                                                                                                                                                                            ────────────────────────────┬───────────────────────────
-     ·                                                                                                                                                                                                                        ╰── flat "X, Y, and Z" triad with matching-class items reads as an LLM tic; consider dropping the weakest item or restructuring
- 157 │ 
-     ╰────
+tell counts (0 span(s) total):

@@ -388,6 +388,7 @@ dependencies = [
  "anyhow",
  "clap",
  "friction-core",
+ "friction-edit",
  "friction-harness",
  "friction-metrics",
  "friction-nlp",
@@ -689,16 +690,8 @@ dependencies = [
 name = "friction-apply"
 version = "0.1.0"
 dependencies = [
- "corpus-tool",
  "friction-core",
- "friction-metrics",
- "friction-nlp",
- "friction-packs",
- "friction-parse",
- "friction-plan",
- "friction-rules",
  "proptest",
- "thiserror 2.0.19",
 ]
 
 [[package]]
@@ -708,14 +701,13 @@ dependencies = [
  "assert_cmd",
  "clap",
  "directories",
- "friction-apply",
  "friction-core",
+ "friction-edit",
+ "friction-match",
  "friction-metrics",
  "friction-nlp",
  "friction-packs",
  "friction-parse",
- "friction-plan",
- "friction-rules",
  "insta",
  "jsonschema",
  "miette",
@@ -737,10 +729,24 @@ dependencies = [
 ]
 
 [[package]]
+name = "friction-edit"
+version = "0.1.0"
+dependencies = [
+ "corpus-tool",
+ "friction-core",
+ "friction-match",
+ "friction-nlp",
+ "friction-packs",
+ "friction-parse",
+ "thiserror 2.0.19",
+]
+
+[[package]]
 name = "friction-harness"
 version = "0.1.0"
 dependencies = [
  "friction-core",
+ "friction-edit",
  "friction-metrics",
  "friction-nlp",
  "friction-packs",
@@ -819,28 +825,6 @@ dependencies = [
  "proptest",
  "pulldown-cmark",
  "thiserror 2.0.19",
-]
-
-[[package]]
-name = "friction-plan"
-version = "0.1.0"
-dependencies = [
- "friction-core",
- "friction-rules",
- "serde",
- "serde_json",
-]
-
-[[package]]
-name = "friction-rules"
-version = "0.1.0"
-dependencies = [
- "friction-core",
- "friction-metrics",
- "friction-nlp",
- "friction-parse",
- "regex",
- "xxhash-rust",
 ]
 
 [[package]]
@@ -3125,12 +3109,6 @@ name = "xml-rs"
 version = "0.8.28"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "3ae8337f8a065cfc972643663ea4279e04e7256de865aa66fe25cec5fb912d3f"
-
-[[package]]
-name = "xxhash-rust"
-version = "0.8.17"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "985eec839aaf2a1270af8f4ebcf63cf9401cfd90f0902f97c28d9f104ffbde72"
 
 [[package]]
 name = "yoke"

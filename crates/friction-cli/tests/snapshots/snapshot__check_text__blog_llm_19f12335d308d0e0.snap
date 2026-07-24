@@ -24,176 +24,46 @@ list_item_density             4.2827  [0.0000, 16.8244]   in
 bold_span_density            10.7066  [0.0000, 10.6682]   OUT   
 sentence_opener_repeat_rate   0.0303  [0.0067, 0.1343]    in    
 top_opener_concentration      0.2031  [0.0588, 0.2154]    in    
-lexical.substitution
 
-  ⚠ "initial" reads as machine-favored register (mined llm-favored (MINING.md); first is the plain equivalent); "first" is a plain near-synonym
-   ╭─[corpus/llm/blog/19f12335d308d0e0.md:3:441]
- 2 │ 
- 3 │ Debugging performance issues in production can feel like chasing ghosts. You’ve got alerts, metrics, and logs, but pinpointing the *why* behind the slowdown is often a frustrating, iterative process. I recently experienced this firsthand with a seemingly innocuous memory leak plaguing one of our long-running Node.js worker processes – a process that was handling a significant chunk of our real-time data processing. The journey from initial alerts to identifying the root cause felt like navigating a complex maze, and it highlighted some crucial lessons about monitoring, debugging, and event listener management.
-   ·                                                                                                                                                                                                                                                                                                                                                                                                                                                     ───┬───
-   ·                                                                                                                                                                                                                                                                                                                                                                                                                                                        ╰── "initial" reads as machine-favored register (mined llm-favored (MINING.md); first is the plain equivalent); "first" is a plain near-synonym
- 4 │ 
-   ╰────
+dms (target family: qwen):
+  qwen     mean_machine=1.3063  mean_human=1.5587  differential=-0.2524  tokens=1022
+  gemma    mean_machine=27.7427  mean_human=1.5587  differential=26.1840  tokens=1022
+  llama    mean_machine=1.4159  mean_human=1.5587  differential=-0.1429  tokens=1022
+  granite  mean_machine=1.1967  mean_human=1.5587  differential=-0.3620  tokens=1022
 
-lexical.substitution
+tell counts (3 span(s) total):
+  dms: 1
+  span: 1
+  sub: 1
+span.simply
 
-  ⚠ "crucial" reads as machine-favored register (mined llm-favored (MINING.md, z=6.47); key keeps the emphasis, drops the register); "key" is a plain near-synonym
-   ╭─[corpus/llm/blog/19f12335d308d0e0.md:3:547]
- 2 │ 
- 3 │ Debugging performance issues in production can feel like chasing ghosts. You’ve got alerts, metrics, and logs, but pinpointing the *why* behind the slowdown is often a frustrating, iterative process. I recently experienced this firsthand with a seemingly innocuous memory leak plaguing one of our long-running Node.js worker processes – a process that was handling a significant chunk of our real-time data processing. The journey from initial alerts to identifying the root cause felt like navigating a complex maze, and it highlighted some crucial lessons about monitoring, debugging, and event listener management.
-   ·                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                               ───┬───
-   ·                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                  ╰── "crucial" reads as machine-favored register (mined llm-favored (MINING.md, z=6.47); key keeps the emphasis, drops the register); "key" is a plain near-synonym
- 4 │ 
-   ╰────
-
-symmetry.participial_closer
-
-  × sentence-final participial closer reads as an LLM tic, but it has no clear object to promote; deleting it cannot be verified to preserve the sentence's claim, so this needs a human decision
-   ╭─[corpus/llm/blog/19f12335d308d0e0.md:5:36]
- 4 │ 
- 5 │ Let’s walk through the experience, detailing how we tracked down this “ghost.”
-   ·                                  ──────────────────────┬──────────────────────
-   ·                                                        ╰── sentence-final participial closer reads as an LLM tic, but it has no clear object to promote; deleting it cannot be verified to preserve the sentence's claim, so this needs a human decision
- 6 │ 
-   ╰────
-
-symmetry.participial_closer
-
-  × sentence-final participial closer reads as an LLM tic, but it has no clear object to promote; deleting it cannot be verified to preserve the sentence's claim, so this needs a human decision
-    ╭─[corpus/llm/blog/19f12335d308d0e0.md:11:364]
- 10 │ 
- 11 │ The Grafana dashboard highlighted the key metric: `process.memoryUsage()`. The ‘used’ column was steadily increasing, particularly the ‘heapUsed’ value. This immediately suggested a memory leak – something was accumulating within the process without being released. We set up an alert to trigger when `heapUsed` exceeded 75% of the worker's total memory, hoping to catch it early.
-    ·                                                                                                                                                                                                                                                                                                                                                                  ─────────────┬────────────
-    ·                                                                                                                                                                                                                                                                                                                                                                               ╰── sentence-final participial closer reads as an LLM tic, but it has no clear object to promote; deleting it cannot be verified to preserve the sentence's claim, so this needs a human decision
- 12 │ 
-    ╰────
-
-lexical.substitution
-
-  ⚠ "initial" reads as machine-favored register (mined llm-favored (MINING.md); first is the plain equivalent); "first" is a plain near-synonym
-    ╭─[corpus/llm/blog/19f12335d308d0e0.md:17:5]
- 16 │ 
- 17 │ Our initial hypotheses ranged from database connection issues (we weren't seeing any errors related to our database connections) to inefficient data processing logic. We considered profiling the code using tools like `node --inspect` and Chrome DevTools, but this felt premature – we needed more concrete evidence before investing significant time in detailed performance analysis.
-    ·     ───┬───
-    ·        ╰── "initial" reads as machine-favored register (mined llm-favored (MINING.md); first is the plain equivalent); "first" is a plain near-synonym
- 18 │ 
-    ╰────
-
-lexical.substitution
-
-  ⚠ "utilized" reads as machine-favored register (canonical LLM-register tell for use); "use" is a plain near-synonym
-    ╭─[corpus/llm/blog/19f12335d308d0e0.md:21:46]
- 20 │ 
- 21 │ We decided to take a different approach.  We utilized a heap snapshotting tool called `heapdump-psml`. This tool allows us to capture snapshots of the Node.js process’s memory allocation at specific intervals, providing a detailed breakdown of what was consuming the most memory. 
-    ·                                              ────┬───
-    ·                                                  ╰── "utilized" reads as machine-favored register (canonical LLM-register tell for use); "use" is a plain near-synonym
- 22 │ 
-    ╰────
-
-lexical.substitution
-
-  × "specific" reads as machine-favored register (mined llm-favored (MINING.md); particular is a plainer near-synonym); "particular" is a plain near-synonym
-    ╭─[corpus/llm/blog/19f12335d308d0e0.md:21:193]
- 20 │ 
- 21 │ We decided to take a different approach.  We utilized a heap snapshotting tool called `heapdump-psml`. This tool allows us to capture snapshots of the Node.js process’s memory allocation at specific intervals, providing a detailed breakdown of what was consuming the most memory. 
-    ·                                                                                                                                                                                               ────┬───
-    ·                                                                                                                                                                                                   ╰── "specific" reads as machine-favored register (mined llm-favored (MINING.md); particular is a plainer near-synonym); "particular" is a plain near-synonym
- 22 │ 
-    ╰────
-
-symmetry.participial_closer
-
-  ⚠ sentence-final participial closer reads as an LLM tic; promoting it to its own sentence preserves the claim
-    ╭─[corpus/llm/blog/19f12335d308d0e0.md:21:211]
- 20 │ 
- 21 │ We decided to take a different approach.  We utilized a heap snapshotting tool called `heapdump-psml`. This tool allows us to capture snapshots of the Node.js process’s memory allocation at specific intervals, providing a detailed breakdown of what was consuming the most memory. 
-    ·                                                                                                                                                                                                                 ───────────────────────────────────┬──────────────────────────────────
-    ·                                                                                                                                                                                                                                                    ╰── sentence-final participial closer reads as an LLM tic; promoting it to its own sentence preserves the claim
- 22 │ 
-    ╰────
-
-lexical.substitution
-
-  × "specific" reads as machine-favored register (mined llm-favored (MINING.md); particular is a plainer near-synonym); "particular" is a plain near-synonym
-    ╭─[corpus/llm/blog/19f12335d308d0e0.md:27:76]
- 26 │ 
- 27 │ This was a critical turning point. The heap snapshots pointed us towards a specific event listener within the worker that was responsible for consuming these messages from the queue. This listener was designed to handle incoming data and push it through our processing pipeline.  However, we’d implemented a simplified error handling mechanism – a basic `try...catch` block – but *never* removed the listener after each processed message.
-    ·                                                                            ────┬───
-    ·                                                                                ╰── "specific" reads as machine-favored register (mined llm-favored (MINING.md); particular is a plainer near-synonym); "particular" is a plain near-synonym
+  ⚠ Literal tell: span.simply
+    ╭─[corpus/llm/blog/19f12335d308d0e0.md:29:197]
  28 │ 
+ 29 │ Here's where the ghost revealed itself: The `try...catch` block was catching exceptions during message processing. Instead of releasing the associated objects from the heap, the exception handler simply swallowed the error and continued to hold onto the message object.  Because this listener never exited, it kept accumulating new message objects, leading to a relentless increase in memory usage.
+    ·                                                                                                                                                                                                     ───┬──
+    ·                                                                                                                                                                                                        ╰── Literal tell: span.simply
+ 30 │ 
     ╰────
 
-lexical.substitution
+sub.leverage_base
 
-  ⚠ "incredibly" reads as machine-favored register (mined llm-favored (MINING.md); very is the plain intensifier); "very" is a plain near-synonym
-    ╭─[corpus/llm/blog/19f12335d308d0e0.md:33:46]
- 32 │ 
- 33 │ The solution was surprisingly simple – yet incredibly common. We implemented a robust cleanup mechanism within the event listener that ensured all associated objects were released from the heap after each processed message. This involved explicitly calling `delete` on the message object and potentially triggering garbage collection to help clear out unused memory. 
-    ·                                            ─────┬────
-    ·                                                 ╰── "incredibly" reads as machine-favored register (mined llm-favored (MINING.md); very is the plain intensifier); "very" is a plain near-synonym
- 34 │ 
-    ╰────
-
-lexical.substitution
-
-  ⚠ "robust" reads as machine-favored register (mined llm-favored (MINING.md, z=6.29); solid is the plain equivalent); "solid" is a plain near-synonym
-    ╭─[corpus/llm/blog/19f12335d308d0e0.md:33:82]
- 32 │ 
- 33 │ The solution was surprisingly simple – yet incredibly common. We implemented a robust cleanup mechanism within the event listener that ensured all associated objects were released from the heap after each processed message. This involved explicitly calling `delete` on the message object and potentially triggering garbage collection to help clear out unused memory. 
-    ·                                                                                ───┬──
-    ·                                                                                   ╰── "robust" reads as machine-favored register (mined llm-favored (MINING.md, z=6.29); solid is the plain equivalent); "solid" is a plain near-synonym
- 34 │ 
-    ╰────
-
-symmetry.participial_closer
-
-  ⚠ sentence-final participial closer reads as an LLM tic; promoting it to its own sentence preserves the claim
-    ╭─[corpus/llm/blog/19f12335d308d0e0.md:35:49]
- 34 │ 
- 35 │ We also added logging around the cleanup process, allowing us to verify that it was functioning correctly.  After deploying this change, we monitored the worker's memory usage closely. The increase vanished, and the memory consumption returned to its normal baseline.
-    ·                                                 ────────────────────────────┬────────────────────────────
-    ·                                                                             ╰── sentence-final participial closer reads as an LLM tic; promoting it to its own sentence preserves the claim
- 36 │ 
-    ╰────
-
-lexical.substitution
-
-  ⚠ "crucial" reads as machine-favored register (mined llm-favored (MINING.md, z=6.47); key keeps the emphasis, drops the register); "key" is a plain near-synonym
-    ╭─[corpus/llm/blog/19f12335d308d0e0.md:39:36]
- 38 │ 
- 39 │ This experience reinforced several crucial lessons about debugging performance issues in production:
-    ·                                    ───┬───
-    ·                                       ╰── "crucial" reads as machine-favored register (mined llm-favored (MINING.md, z=6.47); key keeps the emphasis, drops the register); "key" is a plain near-synonym
- 40 │ 
-    ╰────
-
-lexical.substitution
-
-  ⚠ "utilization" reads as machine-favored register (canonical LLM-register tell for use (noun form)); "use" is a plain near-synonym
-    ╭─[corpus/llm/blog/19f12335d308d0e0.md:41:81]
- 40 │ 
+  ⚠ Literal tell: sub.leverage_base
+    ╭─[corpus/llm/blog/19f12335d308d0e0.md:42:5]
  41 │ * **Don’t Ignore Initial Alerts:** Even seemingly minor increases in resource utilization should be investigated promptly.  Early detection can prevent a small problem from escalating into a major outage.
-    ·                                                                               ─────┬─────
-    ·                                                                                    ╰── "utilization" reads as machine-favored register (canonical LLM-register tell for use (noun form)); "use" is a plain near-synonym
  42 │ * **Leverage Monitoring Tools Effectively:** Heap snapshots, memory profiling tools, and detailed metrics are invaluable for pinpointing the source of performance issues. Don't rely solely on logs – they often lack the granularity needed to diagnose complex problems.
+    ·     ────┬───
+    ·         ╰── Literal tell: sub.leverage_base
+ 43 │ * **Event Listener Management is Critical:** Event listeners can be a significant source of memory leaks if not properly managed. Always ensure that listeners are cleaned up after use, especially in long-running processes.  Consider using techniques like `clearInterval`, `clearTimeout`, and proper resource cleanup within your event handlers.
     ╰────
 
-symmetry.ritual_conclusion
+dms.qwen
 
-  × the document's final paragraph opens with the ritual conclusion marker "Ultimately"
-    ╭─[corpus/llm/blog/19f12335d308d0e0.md:46:1]
- 45 │ 
- 46 │ Ultimately, tracking down this memory leak was a testament to the power of systematic investigation, combined with a deep understanding of our application’s architecture and potential pitfalls. It served as a stark reminder that even seemingly well-designed code can harbor unexpected ghosts if not carefully monitored and managed.  And it's a story we now use internally to emphasize the importance of robust event listener management – a lesson that saved us significant time, resources, and potentially, a major production outage.
-    · ─────┬────
-    ·      ╰── the document's final paragraph opens with the ritual conclusion marker "Ultimately"
-    ╰────
-
-lexical.substitution
-
-  ⚠ "robust" reads as machine-favored register (mined llm-favored (MINING.md, z=6.29); solid is the plain equivalent); "solid" is a plain near-synonym
-    ╭─[corpus/llm/blog/19f12335d308d0e0.md:46:406]
- 45 │ 
- 46 │ Ultimately, tracking down this memory leak was a testament to the power of systematic investigation, combined with a deep understanding of our application’s architecture and potential pitfalls. It served as a stark reminder that even seemingly well-designed code can harbor unexpected ghosts if not carefully monitored and managed.  And it's a story we now use internally to emphasize the importance of robust event listener management – a lesson that saved us significant time, resources, and potentially, a major production outage.
-    ·                                                                                                                                                                                                                                                                                                                                                                                                                    ───┬──
-    ·                                                                                                                                                                                                                                                                                                                                                                                                                       ╰── "robust" reads as machine-favored register (mined llm-favored (MINING.md, z=6.29); solid is the plain equivalent); "solid" is a plain near-synonym
+  ⚠ Dms tell: dms.qwen
+    ╭─[corpus/llm/blog/19f12335d308d0e0.md:43:197]
+ 42 │ * **Leverage Monitoring Tools Effectively:** Heap snapshots, memory profiling tools, and detailed metrics are invaluable for pinpointing the source of performance issues. Don't rely solely on logs – they often lack the granularity needed to diagnose complex problems.
+ 43 │ * **Event Listener Management is Critical:** Event listeners can be a significant source of memory leaks if not properly managed. Always ensure that listeners are cleaned up after use, especially in long-running processes.  Consider using techniques like `clearInterval`, `clearTimeout`, and proper resource cleanup within your event handlers.
+    ·                                                                                                                                                                                                     ─────────────┬────────────
+    ·                                                                                                                                                                                                                  ╰── Dms tell: dms.qwen
+ 44 │ * **Test Your Cleanup Logic:** Thoroughly test your cleanup mechanisms to ensure they function correctly under various scenarios – including error conditions.
     ╰────

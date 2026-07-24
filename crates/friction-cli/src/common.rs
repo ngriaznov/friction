@@ -1,7 +1,7 @@
-//! Shared plumbing for `check`, `fix`, and `explain`: genre/format value
-//! types, input reading (file or stdin), envelope pack loading, and the
-//! segmenter/tagger/envelope handle every subcommand needs to run the
-//! rule engine.
+//! Shared plumbing for `check`, `fix`, and `explain`: genre/family/format
+//! value types, input reading (file or stdin), envelope pack loading, and
+//! the segmenter/tagger handle `check`/`explain` need for metric
+//! computation and detection.
 
 use std::fmt;
 use std::io::{Read as _, Write as _};
@@ -9,10 +9,8 @@ use std::path::{Path, PathBuf};
 use std::process::ExitCode;
 
 use clap::ValueEnum;
-use friction_core::Envelope;
 use friction_nlp::{PerceptronTagError, PerceptronTagger, SrxSegmenter};
-use friction_packs::{ENVELOPE_V2, EnvelopePack, PackError};
-use friction_rules::GenreEnvelope;
+use friction_packs::{ENVELOPE_V2, EnvelopePack, ModelFamily, PackError};
 
 /// The genres a document may be classified as, matching
 /// `friction-packs`' envelope-pack genre keys exactly.
@@ -57,10 +55,6 @@ impl fmt::Display for Genre {
 
 /// Resolves an optional `--genre` flag to a concrete [`Genre`], printing a
 /// note to stderr (once) when it had to default.
-///
-/// Shared by every subcommand that takes genre-scoped input (`check`,
-/// `fix`, `explain`) so a defaulted genre is announced identically
-/// everywhere, whether the input came from a file or stdin.
 #[must_use]
 pub fn resolve_genre(explicit: Option<Genre>) -> Genre {
     explicit.unwrap_or_else(|| {
@@ -70,6 +64,29 @@ pub fn resolve_genre(explicit: Option<Genre>) -> Genre {
         );
         Genre::DEFAULT
     })
+}
+
+/// The generator family `friction check`'s DMS channel compares a
+/// document against. Required explicitly (no default): DMS is
+/// generator-family-specific, and silently picking one would misreport.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, ValueEnum)]
+#[value(rename_all = "lower")]
+pub enum Family {
+    Qwen,
+    Gemma,
+    Llama,
+    Granite,
+}
+
+impl From<Family> for ModelFamily {
+    fn from(family: Family) -> Self {
+        match family {
+            Family::Qwen => Self::Qwen,
+            Family::Gemma => Self::Gemma,
+            Family::Llama => Self::Llama,
+            Family::Granite => Self::Granite,
+        }
+    }
 }
 
 /// Output shapes shared by `check`/`fix`/`explain`. Not every subcommand
@@ -87,7 +104,7 @@ pub enum Format {
 }
 
 /// Errors shared by every subcommand: reading input, parsing, loading a
-/// pack, or building the NLP engine.
+/// pack, or running the engine/detection layer.
 #[derive(Debug, thiserror::Error)]
 #[non_exhaustive]
 pub enum CliError {
@@ -136,9 +153,12 @@ pub enum CliError {
     /// The input failed to sentence-segment.
     #[error("{0}")]
     Segment(#[from] friction_nlp::SegmentError),
-    /// The fixpoint driver failed.
+    /// The repair engine failed to run.
     #[error("{0}")]
-    Apply(#[from] friction_apply::ApplyError),
+    Edit(#[from] friction_edit::EditError),
+    /// The detection layer failed to build or run.
+    #[error("{0}")]
+    Match(#[from] friction_match::MatchError),
     /// `--format sarif` was requested for a subcommand that does not
     /// support it.
     #[error("--format sarif is only supported by `friction check`")]
@@ -192,11 +212,6 @@ pub fn read_input(path: &str) -> Result<String, CliError> {
 /// untouched, or it happens after the full new contents are already
 /// durably on disk. Mirrors `setup.rs`'s `ensure_cached`, which writes
 /// downloaded artifacts the same way for the same reason.
-///
-/// Plain `std::fs::write` would instead open `path` with truncation
-/// *before* writing the new bytes, discarding the original content up
-/// front — a mid-write failure would then leave `path` empty or holding a
-/// partial document with no way to recover the original.
 ///
 /// # Errors
 /// Returns [`CliError::WriteOutput`] if the temp file cannot be created
@@ -274,33 +289,9 @@ impl Pack {
     }
 }
 
-/// A [`GenreEnvelope`] view over one genre's slice of a [`Pack`].
-///
-/// Mirrors `friction-apply::fix::PackEnvelope`, which is private to that
-/// crate — `friction-cli` needs the same small adapter for its own
-/// `--pack`-overridable pack, so it is redefined here rather than exposed
-/// as a public dependency between the two crates for a two-line struct.
-pub struct PackEnvelope<'a> {
-    pack: &'a EnvelopePack,
-    genre: &'a str,
-}
-
-impl<'a> PackEnvelope<'a> {
-    /// Builds a view over `pack`'s bands for `genre`.
-    #[must_use]
-    pub const fn new(pack: &'a EnvelopePack, genre: &'a str) -> Self {
-        Self { pack, genre }
-    }
-}
-
-impl GenreEnvelope for PackEnvelope<'_> {
-    fn band(&self, metric: &str) -> Option<Envelope> {
-        self.pack.band(self.genre, metric)
-    }
-}
-
-/// The loaded segmenter and part-of-speech tagger every subcommand needs
-/// to run the rule engine, built once per process.
+/// The loaded segmenter and part-of-speech tagger `check`/`explain` need
+/// for metric computation and (for `check`) building a
+/// [`friction_match::MatchEngine`], built once per process.
 pub struct Engine {
     /// The sentence segmenter.
     pub segmenter: SrxSegmenter,
@@ -328,16 +319,10 @@ impl Engine {
 /// editors use.
 ///
 /// `offset` past `source.len()` clamps to the position one past the last
-/// character, rather than panicking: a defensive fallback for a
-/// pathological byte range no well-formed [`friction_core::Finding`]
-/// should ever carry. An in-bounds `offset` that lands mid-character
-/// (splitting a multi-byte UTF-8 sequence) is likewise walked back to the
-/// nearest preceding character boundary rather than panicking on the
-/// slice below — `offset` is caller-supplied and not guaranteed to be
-/// `source`-char-boundary-valid the way a validated [`friction_core::
-/// Finding`]/[`friction_core::Patch`] range already is (see
-/// `friction_core::span::validate_range`), so this function has to
-/// tolerate it on its own.
+/// character, rather than panicking. An in-bounds `offset` that lands
+/// mid-character (splitting a multi-byte UTF-8 sequence) is likewise
+/// walked back to the nearest preceding character boundary rather than
+/// panicking on the slice below.
 #[must_use]
 pub fn offset_to_line_col(source: &str, offset: usize) -> (usize, usize) {
     let mut offset = offset.min(source.len());
@@ -368,6 +353,14 @@ mod tests {
         assert_eq!(Genre::Readme.as_str(), "readme");
         assert_eq!(Genre::Email.as_str(), "email");
         assert_eq!(Genre::Forum.as_str(), "forum");
+    }
+
+    #[test]
+    fn family_converts_to_model_family() {
+        assert_eq!(ModelFamily::from(Family::Qwen), ModelFamily::Qwen);
+        assert_eq!(ModelFamily::from(Family::Gemma), ModelFamily::Gemma);
+        assert_eq!(ModelFamily::from(Family::Llama), ModelFamily::Llama);
+        assert_eq!(ModelFamily::from(Family::Granite), ModelFamily::Granite);
     }
 
     #[test]

@@ -23,4 +23,23 @@ heading_density               0.0000  [0.0000, 8.1037]    in
 list_item_density            19.6780  [0.0000, 22.2222]   in    
 bold_span_density            10.7335  [0.0000, 10.4822]   OUT   
 sentence_opener_repeat_rate   0.0179  [0.0000, 0.1111]    in    
-top_opener_concentration      0.1481  [0.0694, 0.1818]    in
+top_opener_concentration      0.1481  [0.0694, 0.1818]    in    
+
+dms (target family: qwen):
+  qwen     mean_machine=1.0456  mean_human=13.8176  differential=-12.7720  tokens=614
+  gemma    mean_machine=1.1922  mean_human=13.8176  differential=-12.6254  tokens=614
+  llama    mean_machine=1.1059  mean_human=13.8176  differential=-12.7117  tokens=614
+  granite  mean_machine=1.0603  mean_human=13.8176  differential=-12.7573  tokens=614
+
+tell counts (1 span(s) total):
+  span: 1
+span.simply
+
+  ⚠ Literal tell: span.simply
+    ╭─[corpus/quarantine/forum/0710f627ec229d97.md:13:44]
+ 12 │ 2. **You've pissed off every program that checks permissions on files before starting.**
+ 13 │   `sudo`, `sendmail`, and a host of others simply will not start any more.  They will examine key file permissions, see they're not what they're supposed to be, and kick back an error message.
+    ·                                            ───┬──
+    ·                                               ╰── Literal tell: span.simply
+ 14 │ Similarly `ssh` will break horribly (key files must have specific permissions,  otherwise they're "insecure" and by default SSH will refuse to use them.)
+    ╰────

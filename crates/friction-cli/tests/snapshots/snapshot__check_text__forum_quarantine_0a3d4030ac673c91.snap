@@ -24,28 +24,11 @@ list_item_density            44.0252  [0.0000, 22.2222]   OUT
 bold_span_density            10.4822  [0.0000, 10.4822]   in    
 sentence_opener_repeat_rate   0.0351  [0.0000, 0.1111]    in    
 top_opener_concentration      0.1207  [0.0694, 0.1818]    in    
-structural.header_merge
 
-  × heading immediately followed by one short paragraph repeats across this document; consider merging these sections into flowing prose
-    ╭─[corpus/quarantine/forum/0a3d4030ac673c91.md:59:1]
- 58 │     
- 59 │ ╭─▶ THE WAIT
- 60 │ │   -------------------------
- 61 │ ├─▶ With the dishwasher empty, the first bit of the program made an awful lot of noise, with cold water hitting the inside of the empty dishwasher. After that it kind-of returned to normal.
-    · ╰──── heading immediately followed by one short paragraph repeats across this document; consider merging these sections into flowing prose
- 62 │     
- 63 │     STEP 4 - Results
-    ╰────
+dms (target family: qwen):
+  qwen     mean_machine=0.9306  mean_human=16.5403  differential=-15.6098  tokens=533
+  gemma    mean_machine=1.0919  mean_human=16.5403  differential=-15.4484  tokens=533
+  llama    mean_machine=1.0263  mean_human=16.5403  differential=-15.5141  tokens=533
+  granite  mean_machine=0.9756  mean_human=16.5403  differential=-15.5647  tokens=533
 
-structural.header_merge
-
-  × heading immediately followed by one short paragraph repeats across this document; consider merging these sections into flowing prose
-    ╭─[corpus/quarantine/forum/0a3d4030ac673c91.md:75:1]
- 74 │     
- 75 │ ╭─▶ Conclusion
- 76 │ │   =======================
- 77 │ ├─▶ The answer is then a wholehearted "Yes: this is possible!". **Try this at home!**
-    · ╰──── heading immediately followed by one short paragraph repeats across this document; consider merging these sections into flowing prose
- 78 │     
- 79 │       [1]: https://i.sstatic.net/bQSvm.jpg
-    ╰────
+tell counts (0 span(s) total):
