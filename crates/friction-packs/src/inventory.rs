@@ -375,12 +375,60 @@ impl InventoryPack {
     }
 }
 
+/// Rewrites every literal space in `pattern_source` into `\s+`, leaving
+/// spaces inside a character class and escaped spaces alone.
+///
+/// Patterns are authored as running text (`will walk you through`), but the
+/// text they run against is Markdown, and Markdown is routinely hard-wrapped
+/// at a fixed column. A wrap puts a newline in the middle of a phrase, so a
+/// pattern written with literal spaces silently stops matching: `"if you
+/// have any questions or require further\nassistance"` matched nothing at
+/// all, and the failure is invisible — the engine simply reports no finding,
+/// which is indistinguishable from clean text.
+///
+/// Done here rather than by authoring `\s+` in each pattern by hand: a
+/// pattern is a statement about words, the wrapping is an artifact of how
+/// the file happens to be stored, and 31 hand-written separators is 31
+/// chances to forget one.
+fn whitespace_flexible(pattern_source: &str) -> String {
+    let mut out = String::with_capacity(pattern_source.len());
+    let mut chars = pattern_source.chars();
+    let mut in_class = false;
+    while let Some(c) = chars.next() {
+        match c {
+            '\\' => {
+                out.push(c);
+                if let Some(escaped) = chars.next() {
+                    out.push(escaped);
+                }
+            }
+            '[' => {
+                in_class = true;
+                out.push(c);
+            }
+            ']' => {
+                in_class = false;
+                out.push(c);
+            }
+            ' ' if !in_class => out.push_str(r"\s+"),
+            _ => out.push(c),
+        }
+    }
+    out
+}
+
 fn compile_pattern(id: &str, pattern_source: &str) -> Result<Regex, PackError> {
-    Regex::new(pattern_source).map_err(|e| PackError::InventoryInvalidPattern {
-        id: id.to_string(),
-        pattern: pattern_source.to_string(),
-        message: e.to_string(),
-    })
+    // `dot_matches_new_line` for the same reason: a pattern using `.` to
+    // skip over intervening words means "any words", and a hard wrap in the
+    // middle of those words should not end the match.
+    regex::RegexBuilder::new(&whitespace_flexible(pattern_source))
+        .dot_matches_new_line(true)
+        .build()
+        .map_err(|e| PackError::InventoryInvalidPattern {
+            id: id.to_string(),
+            pattern: pattern_source.to_string(),
+            message: e.to_string(),
+        })
 }
 
 impl DeletionSpan {
