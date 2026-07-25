@@ -28,34 +28,171 @@
 //! hardcode the threshold, since how conservative to be is a rule's
 //! decision, not a parser's.
 
-use friction_core::span;
+use std::fmt;
+use std::str::FromStr;
 
 use crate::tag::TaggedToken;
 
 /// The dependency relation a [`DepEdge`] assigns its token, relative to its
 /// head.
 ///
-/// This is deliberately the minimal vocabulary the rules in this
-/// workspace's plan need: nominal subjects, direct objects, list/triad
-/// coordination, and sentence-final participial modifiers. Every other
-/// relation — including the sentence's syntactic root, which by
-/// construction has no head to relate to — is [`Self::Other`].
+/// These are the ClearNLP/OntoNotes relation names, not Universal
+/// Dependencies v2 names — a deliberate choice, not an oversight. UD would
+/// spell several of these differently (`obj` for [`Self::Dobj`], `obl` for
+/// what this vocabulary folds into [`Self::Prep`]/[`Self::Pobj`], `case`
+/// for a plain adposition, `aux:pass` for [`Self::AuxPass`], `nsubj:pass`
+/// for [`Self::NsubjPass`]), but every consumer of a [`SentenceParse`] in
+/// this workspace was written matching against the `ClearNLP` spellings.
+/// Swapping in UD names would not fail loudly — it would leave those
+/// matches silently matching nothing, which is worse than the naming
+/// mismatch this comment is documenting.
+///
+/// [`Self::Root`] is not itself an arc label: a root token's [`DepEdge`]
+/// carries `head: None`, so there is no head for the label to describe.
+/// It exists as a variant purely so a relation is always nameable (a
+/// caller asking "what is this token's relation" never has to special-case
+/// "well, nothing, it's the root" as a missing value) — but the arc-eager
+/// transition system's action space
+/// ([`crate::dep_arceager::Transition::LeftArc`] /
+/// [`crate::dep_arceager::Transition::RightArc`]) is only ever labelled
+/// with one of the other twenty variants, never `Root`.
+///
+/// [`Self::Other`] is the collapse target for any relation this crate does
+/// not model as its own variant.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 #[non_exhaustive]
 pub enum DepRelation {
-    /// A nominal subject of its head.
-    Subject,
-    /// A direct object of its head.
-    Object,
-    /// A conjunct coordinated with its head in a list (`X, Y, and Z`): the
-    /// head is the list's first conjunct.
-    Coordination,
-    /// A participial phrase modifying its head, typically attached at the
-    /// end of a sentence (`..., raising concerns about scalability.`).
-    ParticipialModifier,
-    /// Any relation not covered by another variant, including the
-    /// sentence's root token (which carries `head: None`).
+    /// The sentence's syntactic root. Not an arc label — see the enum
+    /// docs.
+    Root,
+    /// A clausal modifier of a noun (a relative or reduced-relative
+    /// clause): "the file **that changed**".
+    Acl,
+    /// An adverbial clause modifier: "shipped **because tests passed**".
+    Advcl,
+    /// The demoted logical subject of a passive verb, introduced by "by":
+    /// "reviewed **by the team**".
+    Agent,
+    /// An adjectival modifier of a noun: "the **quick** fox".
+    Amod,
+    /// A non-passive auxiliary or modal verb: "**will** ship", "**has**
+    /// shipped".
+    Aux,
+    /// The passive auxiliary "be": "**was** shipped".
+    AuxPass,
+    /// A coordinating conjunction: "screws, bolts, **and** washers".
+    Cc,
+    /// A clausal complement with its own subject: "said **[the build
+    /// failed]**".
+    Ccomp,
+    /// A conjunct coordinated with its head in a flat list (`X, Y, and Z`):
+    /// the head is the list's first conjunct.
+    Conj,
+    /// A clausal subject: "**[what she said]** surprised everyone".
+    Csubj,
+    /// A determiner: "**the** kit".
+    Det,
+    /// A direct object of its head verb.
+    Dobj,
+    /// A subordinating marker introducing a finite clause: "**because**
+    /// tests passed", "**if** it fails".
+    Mark,
+    /// A nominal subject of its (active-voice) head verb.
+    Nsubj,
+    /// A nominal subject of its passive-voice head verb.
+    NsubjPass,
+    /// The object of a preposition: "about **scalability**".
+    Pobj,
+    /// A prepositional modifier: "raising concerns **about** scalability".
+    Prep,
+    /// An open clausal complement with no subject of its own, controlled
+    /// by its head: "wants **[to leave]**".
+    Xcomp,
+    /// A punctuation mark attached as a leaf.
+    Punct,
+    /// Any relation not covered by another variant.
     Other,
+}
+
+impl DepRelation {
+    /// This relation's lowercase canonical name — the same spelling
+    /// [`DepRelation::from_str`] parses back, so a gold file's text labels
+    /// round-trip through this type exactly.
+    #[must_use]
+    pub const fn as_str(self) -> &'static str {
+        match self {
+            Self::Root => "root",
+            Self::Acl => "acl",
+            Self::Advcl => "advcl",
+            Self::Agent => "agent",
+            Self::Amod => "amod",
+            Self::Aux => "aux",
+            Self::AuxPass => "auxpass",
+            Self::Cc => "cc",
+            Self::Ccomp => "ccomp",
+            Self::Conj => "conj",
+            Self::Csubj => "csubj",
+            Self::Det => "det",
+            Self::Dobj => "dobj",
+            Self::Mark => "mark",
+            Self::Nsubj => "nsubj",
+            Self::NsubjPass => "nsubjpass",
+            Self::Pobj => "pobj",
+            Self::Prep => "prep",
+            Self::Xcomp => "xcomp",
+            Self::Punct => "punct",
+            Self::Other => "other",
+        }
+    }
+}
+
+impl fmt::Display for DepRelation {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.write_str(self.as_str())
+    }
+}
+
+/// A relation name outside [`DepRelation`]'s vocabulary was given to
+/// [`DepRelation::from_str`].
+#[derive(Debug, thiserror::Error)]
+#[error("unrecognized dependency relation name: {0:?}")]
+pub struct ParseDepRelationError(Box<str>);
+
+impl FromStr for DepRelation {
+    type Err = ParseDepRelationError;
+
+    /// Parses a relation's lowercase canonical name, the exact inverse of
+    /// [`DepRelation::as_str`]. Case-sensitive and space-sensitive by
+    /// design: a gold file's labels are expected to already be normalized
+    /// to this vocabulary's exact spelling, and silently accepting near
+    /// misses (`"Nsubj"`, `"nsubj_pass"`) would hide a gold-file bug this
+    /// type's whole purpose is to catch at load time.
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        Ok(match s {
+            "root" => Self::Root,
+            "acl" => Self::Acl,
+            "advcl" => Self::Advcl,
+            "agent" => Self::Agent,
+            "amod" => Self::Amod,
+            "aux" => Self::Aux,
+            "auxpass" => Self::AuxPass,
+            "cc" => Self::Cc,
+            "ccomp" => Self::Ccomp,
+            "conj" => Self::Conj,
+            "csubj" => Self::Csubj,
+            "det" => Self::Det,
+            "dobj" => Self::Dobj,
+            "mark" => Self::Mark,
+            "nsubj" => Self::Nsubj,
+            "nsubjpass" => Self::NsubjPass,
+            "pobj" => Self::Pobj,
+            "prep" => Self::Prep,
+            "xcomp" => Self::Xcomp,
+            "punct" => Self::Punct,
+            "other" => Self::Other,
+            other => return Err(ParseDepRelationError(other.into())),
+        })
+    }
 }
 
 /// A confidence margin in `[0.0, 1.0]` for a single dependency decision.
@@ -219,57 +356,9 @@ pub trait DepParser {
     fn parse(&self, source: &str, tokens: &[TaggedToken]) -> Result<SentenceParse, DepParseError>;
 }
 
-/// The comparison key [`same_subject`] uses for a sentence's subject: its
-/// tagger-assigned lemma (already lowercase by [`crate::TaggedToken`]'s own
-/// contract), if [`SentenceParse`] found a subject at all.
-fn subject_lemma<'t>(tokens: &'t [TaggedToken], parse: &SentenceParse) -> Option<&'t str> {
-    let edge = parse.by_relation(DepRelation::Subject).next()?;
-    tokens.get(edge.token).map(|token| &*token.lemma)
-}
-
-/// The exact surface text of `tokens`' syntactic subject in `source`, if
-/// `parse` found one.
-#[must_use]
-pub fn subject_text<'s>(
-    source: &'s str,
-    tokens: &[TaggedToken],
-    parse: &SentenceParse,
-) -> Option<&'s str> {
-    let edge = parse.by_relation(DepRelation::Subject).next()?;
-    let token = tokens.get(edge.token)?;
-    span::slice(source, &token.token.range).ok()
-}
-
-/// Approximates whether two adjacent sentences share the same grammatical
-/// subject, by comparing each sentence's detected subject token's lemma.
-///
-/// Returns `false` — not an error — if either sentence has no detected
-/// subject; a missing subject is not evidence of a match.
-#[must_use]
-pub fn same_subject(
-    a: (&[TaggedToken], &SentenceParse),
-    b: (&[TaggedToken], &SentenceParse),
-) -> bool {
-    match (subject_lemma(a.0, a.1), subject_lemma(b.0, b.1)) {
-        (Some(x), Some(y)) => x == y,
-        _ => false,
-    }
-}
-
 #[cfg(test)]
 mod tests {
-    use friction_core::{Token, TokenKind};
-
     use super::*;
-    use crate::tag::PosTag;
-
-    fn tok(range: std::ops::Range<usize>, pos: &str, lemma: &str) -> TaggedToken {
-        TaggedToken {
-            token: Token::new(range, TokenKind::Word),
-            pos: PosTag::new(pos),
-            lemma: lemma.into(),
-        }
-    }
 
     /// A well-formed, densely-indexed edge list is accepted.
     #[test]
@@ -278,13 +367,13 @@ mod tests {
             DepEdge {
                 token: 0,
                 head: Some(1),
-                relation: DepRelation::Subject,
+                relation: DepRelation::Nsubj,
                 confidence: Confidence::CERTAIN,
             },
             DepEdge {
                 token: 1,
                 head: None,
-                relation: DepRelation::Other,
+                relation: DepRelation::Root,
                 confidence: Confidence::CERTAIN,
             },
         ];
@@ -340,77 +429,51 @@ mod tests {
         assert!((Confidence::new(0.5).value() - 0.5).abs() < f32::EPSILON);
     }
 
-    /// `same_subject` matches two sentences whose detected subjects share a
-    /// lemma, even with different surface forms.
+    /// Every [`DepRelation`] variant's canonical name round-trips through
+    /// [`DepRelation::as_str`] then [`DepRelation::from_str`] back to the
+    /// same variant — the property a gold file's text labels depend on.
     #[test]
-    fn same_subject_matches_via_lemma() {
-        let tokens_a = vec![tok(0..4, "PRP", "they")];
-        let parse_a = SentenceParse::new(vec![DepEdge {
-            token: 0,
-            head: None,
-            relation: DepRelation::Subject,
-            confidence: Confidence::CERTAIN,
-        }])
-        .unwrap();
-
-        let tokens_b = vec![tok(0..4, "NN", "they")];
-        let parse_b = SentenceParse::new(vec![DepEdge {
-            token: 0,
-            head: None,
-            relation: DepRelation::Subject,
-            confidence: Confidence::CERTAIN,
-        }])
-        .unwrap();
-
-        assert!(same_subject((&tokens_a, &parse_a), (&tokens_b, &parse_b)));
+    fn dep_relation_round_trips_every_variant() {
+        const ALL: [DepRelation; 21] = [
+            DepRelation::Root,
+            DepRelation::Acl,
+            DepRelation::Advcl,
+            DepRelation::Agent,
+            DepRelation::Amod,
+            DepRelation::Aux,
+            DepRelation::AuxPass,
+            DepRelation::Cc,
+            DepRelation::Ccomp,
+            DepRelation::Conj,
+            DepRelation::Csubj,
+            DepRelation::Det,
+            DepRelation::Dobj,
+            DepRelation::Mark,
+            DepRelation::Nsubj,
+            DepRelation::NsubjPass,
+            DepRelation::Pobj,
+            DepRelation::Prep,
+            DepRelation::Xcomp,
+            DepRelation::Punct,
+            DepRelation::Other,
+        ];
+        for relation in ALL {
+            let name = relation.as_str();
+            assert_eq!(
+                name.parse::<DepRelation>().unwrap(),
+                relation,
+                "round-trip failed for {name:?}"
+            );
+        }
     }
 
-    /// `same_subject` returns `false`, not a panic, when one sentence has
-    /// no detected subject.
+    /// An unrecognized name is rejected rather than silently coerced to
+    /// [`DepRelation::Other`] — a gold file's typo should surface as a
+    /// load-time error, not disappear into the catch-all bucket.
     #[test]
-    fn same_subject_false_when_subject_missing() {
-        let tokens_a = vec![tok(0..4, "PRP", "they")];
-        let parse_a = SentenceParse::new(vec![DepEdge {
-            token: 0,
-            head: None,
-            relation: DepRelation::Subject,
-            confidence: Confidence::CERTAIN,
-        }])
-        .unwrap();
-
-        let tokens_b = vec![tok(0..3, "VBD", "run")];
-        let parse_b = SentenceParse::new(vec![DepEdge {
-            token: 0,
-            head: None,
-            relation: DepRelation::Other,
-            confidence: Confidence::CERTAIN,
-        }])
-        .unwrap();
-
-        assert!(!same_subject((&tokens_a, &parse_a), (&tokens_b, &parse_b)));
-    }
-
-    /// `subject_text` returns the exact source slice of the detected
-    /// subject token.
-    #[test]
-    fn subject_text_returns_surface_form() {
-        let source = "We shipped";
-        let tokens = vec![tok(0..2, "PRP", "we"), tok(3..10, "VBD", "ship")];
-        let parse = SentenceParse::new(vec![
-            DepEdge {
-                token: 0,
-                head: Some(1),
-                relation: DepRelation::Subject,
-                confidence: Confidence::CERTAIN,
-            },
-            DepEdge {
-                token: 1,
-                head: None,
-                relation: DepRelation::Other,
-                confidence: Confidence::CERTAIN,
-            },
-        ])
-        .unwrap();
-        assert_eq!(subject_text(source, &tokens, &parse), Some("We"));
+    fn dep_relation_from_str_rejects_unknown_names() {
+        assert!("Nsubj".parse::<DepRelation>().is_err());
+        assert!("obj".parse::<DepRelation>().is_err());
+        assert!("".parse::<DepRelation>().is_err());
     }
 }

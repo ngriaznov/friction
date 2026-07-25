@@ -10,8 +10,8 @@
 //! walking the document's prose units and their sentences in source order,
 //! and never reach for a dependency parser: the patterns below are shallow
 //! surface patterns over a part-of-speech tag sequence, precise enough on
-//! their own that layering `HeuristicParser`'s clause-structure guesses on
-//! top would only add another source of error without sharpening what
+//! their own that layering a dependency parse's clause-structure guesses
+//! on top would only add another source of error without sharpening what
 //! "same broad class" or "present participle" already mean directly from
 //! tags.
 
@@ -30,11 +30,12 @@ use friction_nlp::{TaggedToken, Tagger};
 ///
 /// Folding is driven entirely by the tagger's Penn-Treebank-style tag
 /// prefix (`"NN"`, `"VB"`, `"JJ"`, `"RB"` — the same convention
-/// `friction-nlp`'s heuristic dependency parser uses for its own coarse
-/// categories). A tag matching none of those prefixes — including the
-/// tagger's own `"UNKNOWN"` sentinel for an out-of-vocabulary word — folds
-/// to [`BroadClass::Other`], its own comparable bucket rather than a
-/// wildcard that would trivially "match" everything.
+/// `friction-nlp`'s own coarse part-of-speech categories use, e.g. in its
+/// coordination-chunking logic). A tag matching none of those prefixes —
+/// including the tagger's own `"UNKNOWN"` sentinel for an
+/// out-of-vocabulary word — folds to [`BroadClass::Other`], its own
+/// comparable bucket rather than a wildcard that would trivially "match"
+/// everything.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 enum BroadClass {
     /// Any noun tag (`NN`, `NNS`, `NNP`, `NNPS`).

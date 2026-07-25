@@ -20,11 +20,12 @@
 //! model's output tensors into [`SentenceParse`] edges without knowing
 //! what those tensors mean, and inventing one for a model that does not
 //! exist would be worse than the honest "not available" error this module
-//! actually returns. The heuristic parser (`HeuristicParser`, always
-//! available, no feature flag) is `friction-nlp`'s dependency parser for
-//! the foreseeable future; this module exists so wiring in a real model
-//! later is a matter of filling in decode logic, not designing a new
-//! integration point.
+//! actually returns. `friction-nlp` has no inference-time [`DepParser`]
+//! implementation to fall back on today (`crate::dep_arceager` is a
+//! training-time transition system a future model is driven through, not
+//! a parser in its own right); this module exists so wiring in a real
+//! model later is a matter of filling in decode logic, not designing a
+//! new integration point.
 
 use std::path::Path;
 

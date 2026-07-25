@@ -9,10 +9,15 @@
 //!   *hypothetical* deletion, without re-running the tagger on spliced
 //!   text — each [`Clause`] records its own finite-verb token indices so a
 //!   caller can subtract an index range instead.
-//! - Coordination: [`coordination_groups`] reuses
-//!   [`crate::dep_heuristic::HeuristicParser`]'s existing flat `X, Y, and
-//!   Z` detector rather than reimplementing pattern matching a second time
-//!   here.
+//! - Coordination: [`coordination_groups`] detects flat `X, Y, and Z`
+//!   lists directly over part-of-speech categories (see
+//!   [`CoordCategory`]), the same pattern this crate's retired heuristic
+//!   dependency parser used to detect [`crate::dep::DepRelation::Conj`]
+//!   edges — kept here now that coordination chunking has no
+//!   [`crate::dep::DepParser`] to route through: the arc-eager transition
+//!   system that replaced the heuristic parser is a training-time oracle
+//!   over already-known trees, not an inference-time parser this crate
+//!   could call on arbitrary text.
 //!
 //! [`opens_with_binding_cue`] answers a third, related question (does this
 //! sentence open with something a neighboring sentence's deletion could
@@ -25,8 +30,6 @@ use std::ops::Range;
 
 use friction_core::TokenKind;
 
-use crate::dep::{DepParser, DepRelation};
-use crate::dep_heuristic::HeuristicParser;
 use crate::tag::TaggedToken;
 
 /// Full Penn tags that count as a finite verb for clause completeness.
@@ -234,7 +237,7 @@ pub fn is_complete_after_deletion(
 pub struct CoordinationGroup {
     /// The list's first conjunct's head token index — the anchor every
     /// other conjunct's head attaches to (see
-    /// [`crate::dep::DepRelation::Coordination`]).
+    /// [`crate::dep::DepRelation::Conj`]).
     pub anchor: usize,
     /// Every other conjunct's head token index, in token order.
     pub conjuncts: Vec<usize>,
@@ -243,25 +246,136 @@ pub struct CoordinationGroup {
     pub token_range: Range<usize>,
 }
 
+/// A coarse category [`find_coordination`] scans over, folded from a
+/// token's tagger-assigned part-of-speech tag plus (for punctuation, where
+/// the tag alone is ambiguous) its own [`TokenKind`]/lemma — the same
+/// signals [`is_comma`]/[`is_strong_boundary`]/[`is_coordinator`] above
+/// already key off, rather than slicing surface text a second time.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum CoordCategory {
+    /// A noun or pronoun: a candidate conjunct head.
+    Nominal,
+    /// A finite/base verb, modal, or participle: also a candidate conjunct
+    /// head (coordination doesn't need to tell these apart the way
+    /// subject/object/root detection would).
+    VerbOrParticiple,
+    /// A determiner, adjective, adverb, or numeral: skippable while
+    /// scanning a segment for its head, and a last-resort head when a
+    /// segment has nothing stronger.
+    Modifier,
+    /// A coordinating conjunction (`and`, `or`, `but`, ...).
+    Coordinator,
+    /// A comma.
+    Comma,
+    /// Sentence-internal strong punctuation (`.`, `;`, `:`, `!`, `?`) that
+    /// bounds a clause.
+    StrongBoundary,
+    /// Anything not covered above (prepositions, particles, ...).
+    Other,
+}
+
+/// Classifies one token's [`CoordCategory`].
+fn coord_category(token: &TaggedToken) -> CoordCategory {
+    if is_comma(token) {
+        return CoordCategory::Comma;
+    }
+    if is_strong_boundary(token) {
+        return CoordCategory::StrongBoundary;
+    }
+    if is_coordinator(token) {
+        return CoordCategory::Coordinator;
+    }
+    match token.pos.as_str() {
+        "PRP" | "WP" => CoordCategory::Nominal,
+        "JJ" | "JJR" | "JJS" | "RB" | "RBR" | "RBS" | "DT" | "PDT" | "WDT" | "PRP$" | "CD" => {
+            CoordCategory::Modifier
+        }
+        p if p.starts_with("NN") => CoordCategory::Nominal,
+        p if p.starts_with("VB") => CoordCategory::VerbOrParticiple,
+        _ => CoordCategory::Other,
+    }
+}
+
+/// Every recognized coordination edge as `(dependent, anchor)`: a flat
+/// `X, Y, and Z` list where `X`'s head becomes the anchor every other
+/// conjunct's head attaches to.
+fn find_coordination(categories: &[CoordCategory]) -> Vec<(usize, usize)> {
+    let mut result = Vec::new();
+    for c in 0..categories.len() {
+        if !matches!(categories[c], CoordCategory::Coordinator) {
+            continue;
+        }
+        if c == 0 || !matches!(categories[c - 1], CoordCategory::Comma) {
+            continue;
+        }
+        let comma_b = c - 1;
+        let Some(comma_a) = (0..comma_b)
+            .rev()
+            .find(|&i| matches!(categories[i], CoordCategory::Comma))
+        else {
+            continue;
+        };
+
+        let seg1_start = (0..comma_a)
+            .rev()
+            .find(|&i| {
+                matches!(
+                    categories[i],
+                    CoordCategory::StrongBoundary | CoordCategory::Comma
+                )
+            })
+            .map_or(0, |i| i + 1);
+        let seg3_end = ((c + 1)..categories.len())
+            .find(|&i| {
+                matches!(
+                    categories[i],
+                    CoordCategory::StrongBoundary | CoordCategory::Comma
+                )
+            })
+            .unwrap_or(categories.len());
+
+        let Some(anchor) = head_of_segment(categories, seg1_start..comma_a) else {
+            continue;
+        };
+        for segment in [(comma_a + 1)..comma_b, (c + 1)..seg3_end] {
+            if let Some(head) = head_of_segment(categories, segment) {
+                result.push((head, anchor));
+            }
+        }
+    }
+    result
+}
+
+/// The rightmost strong content word (noun, verb, or participle) in
+/// `range`, falling back to the rightmost modifier (adjective/numeral) if
+/// the segment has no stronger candidate. `None` for an empty or
+/// all-function-word segment.
+fn head_of_segment(categories: &[CoordCategory], range: Range<usize>) -> Option<usize> {
+    range
+        .clone()
+        .rev()
+        .find(|&i| {
+            matches!(
+                categories[i],
+                CoordCategory::Nominal | CoordCategory::VerbOrParticiple
+            )
+        })
+        .or_else(|| {
+            range
+                .rev()
+                .find(|&i| matches!(categories[i], CoordCategory::Modifier))
+        })
+}
+
 /// Groups coordination edges found in `tokens` by their shared anchor head.
-///
-/// Reuses [`HeuristicParser`]'s existing
-/// [`crate::dep::DepRelation::Coordination`] flat-list detector rather than
-/// reimplementing coordination pattern matching here.
-///
-/// Returns no groups (rather than erroring) if the heuristic parser cannot
-/// build a parse for `tokens` at all — a parse failure is not evidence of
-/// coordination, just of no signal.
 #[must_use]
-pub fn coordination_groups(source: &str, tokens: &[TaggedToken]) -> Vec<CoordinationGroup> {
-    let Ok(parse) = HeuristicParser::new().parse(source, tokens) else {
-        return Vec::new();
-    };
+pub fn coordination_groups(tokens: &[TaggedToken]) -> Vec<CoordinationGroup> {
+    let categories: Vec<CoordCategory> = tokens.iter().map(coord_category).collect();
 
     let mut by_anchor: BTreeMap<usize, Vec<usize>> = BTreeMap::new();
-    for edge in parse.by_relation(DepRelation::Coordination) {
-        if let Some(head) = edge.head {
-            by_anchor.entry(head).or_default().push(edge.token);
+    for (dependent, anchor) in find_coordination(&categories) {
+        if dependent != anchor {
+            by_anchor.entry(anchor).or_default().push(dependent);
         }
     }
 
@@ -352,10 +466,10 @@ mod tests {
 
     /// Builds a sentence's tagged tokens from `(surface, pos, lemma)`
     /// triples, laying out contiguous byte spans (one space between
-    /// tokens) so the returned source and tokens agree — the same helper
-    /// shape `dep_heuristic.rs`'s own tests use, so this module's tests
+    /// tokens) so the returned source and tokens agree — hand-built
+    /// fixtures rather than a live-tagged sentence, so this module's tests
     /// exercise the clause/coordination *logic* directly rather than
-    /// depending on a live tagger's accuracy on arbitrary sentences.
+    /// depending on a tagger's accuracy on arbitrary sentences.
     fn sentence(words: &[(&str, &str, &str)]) -> (String, Vec<TaggedToken>) {
         let mut source = String::new();
         let mut tokens = Vec::with_capacity(words.len());
@@ -638,7 +752,7 @@ mod tests {
 
     #[test]
     fn coordination_groups_finds_the_triad_fixture() {
-        let (source, tokens) = sentence(&[
+        let (_, tokens) = sentence(&[
             ("The", "DT", "the"),
             ("kit", "NN", "kit"),
             ("includes", "VBZ", "include"),
@@ -650,31 +764,31 @@ mod tests {
             ("washers", "NNS", "washer"),
             (".", ".", "."),
         ]);
-        let groups = coordination_groups(&source, &tokens);
+        let groups = coordination_groups(&tokens);
         assert_eq!(groups.len(), 1);
         assert_eq!(groups[0].conjuncts.len(), 2);
     }
 
     #[test]
     fn coordination_groups_negative_case_phrase_internal_and_still_reported_as_flat_list() {
-        // Not a "no coordination at all" case (the heuristic parser does
-        // detect this shape) -- the negative case that matters here is
-        // that a plain modifier-noun phrase with no list at all produces
-        // no coordination group.
-        let (source, tokens) = sentence(&[
+        // Not a "no coordination at all" case (a determiner-adjective-noun
+        // phrase has no comma/coordinator shape to even attempt) -- the
+        // negative case that matters here is that a plain modifier-noun
+        // phrase with no list at all produces no coordination group.
+        let (_, tokens) = sentence(&[
             ("The", "DT", "the"),
             ("quick", "JJ", "quick"),
             ("fox", "NN", "fox"),
             ("jumps", "VBZ", "jump"),
             (".", ".", "."),
         ]);
-        let groups = coordination_groups(&source, &tokens);
+        let groups = coordination_groups(&tokens);
         assert!(groups.is_empty());
     }
 
     #[test]
     fn overlaps_counted_enumeration_flags_a_partial_deletion() {
-        let (source, tokens) = sentence(&[
+        let (_, tokens) = sentence(&[
             ("The", "DT", "the"),
             ("kit", "NN", "kit"),
             ("includes", "VBZ", "include"),
@@ -686,7 +800,7 @@ mod tests {
             ("washers", "NNS", "washer"),
             (".", ".", "."),
         ]);
-        let groups = coordination_groups(&source, &tokens);
+        let groups = coordination_groups(&tokens);
         assert_eq!(groups.len(), 1);
         let mid = groups[0].anchor + 1;
         assert!(overlaps_counted_enumeration(&(mid..(mid + 1)), &groups));
@@ -694,7 +808,7 @@ mod tests {
 
     #[test]
     fn overlaps_counted_enumeration_ignores_a_disjoint_range() {
-        let (source, tokens) = sentence(&[
+        let (_, tokens) = sentence(&[
             ("The", "DT", "the"),
             ("kit", "NN", "kit"),
             ("includes", "VBZ", "include"),
@@ -706,13 +820,13 @@ mod tests {
             ("washers", "NNS", "washer"),
             (".", ".", "."),
         ]);
-        let groups = coordination_groups(&source, &tokens);
+        let groups = coordination_groups(&tokens);
         assert!(!overlaps_counted_enumeration(&(0..1), &groups));
     }
 
     #[test]
     fn overlaps_counted_enumeration_allows_deleting_the_whole_group() {
-        let (source, tokens) = sentence(&[
+        let (_, tokens) = sentence(&[
             ("The", "DT", "the"),
             ("kit", "NN", "kit"),
             ("includes", "VBZ", "include"),
@@ -724,7 +838,7 @@ mod tests {
             ("washers", "NNS", "washer"),
             (".", ".", "."),
         ]);
-        let groups = coordination_groups(&source, &tokens);
+        let groups = coordination_groups(&tokens);
         assert_eq!(groups.len(), 1);
         assert!(!overlaps_counted_enumeration(
             &groups[0].token_range,

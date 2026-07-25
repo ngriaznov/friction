@@ -1,9 +1,12 @@
 //! Sentence segmentation, POS tagging, inflection, and dependency parsing.
 //!
 //! Provides [`Segmenter`] (implemented by [`SrxSegmenter`]), `trait
-//! Tagger`, the inflection service, and [`DepParser`] with
-//! [`HeuristicParser`] (always available) and, behind the `onnx` cargo
-//! feature, `OnnxParser`.
+//! Tagger`, the inflection service, and the dependency-parsing types:
+//! [`DepParser`] plus, behind the `onnx` cargo feature, `OnnxParser`; and
+//! [`dep_arceager`], the arc-eager transition system a trainer drives to
+//! turn a gold [`SentenceParse`] into training data (or, later, an
+//! actual [`DepParser`] implementation) rather than a ready-to-use parser
+//! itself.
 //!
 //! Segmentation, tagging, inflection, and dependency parsing are all
 //! implemented in this crate.
@@ -41,17 +44,26 @@ pub use tag_perceptron::{PerceptronTagError, PerceptronTagger};
 // --- end tagging block ---
 
 // --- dependency parsing (owned by the dep-parser agent; see src/dep.rs,
-// src/dep_heuristic.rs, src/dep_onnx.rs) ---
+// src/dep_arceager.rs, src/dep_onnx.rs) ---
 mod dep;
-mod dep_heuristic;
 #[cfg(feature = "onnx")]
 mod dep_onnx;
 
-pub use dep::{
-    Confidence, DepEdge, DepParseError, DepParser, DepRelation, SentenceParse, same_subject,
-    subject_text,
-};
-pub use dep_heuristic::HeuristicParser;
+pub use dep::{Confidence, DepEdge, DepParseError, DepParser, DepRelation, SentenceParse};
 #[cfg(feature = "onnx")]
 pub use dep_onnx::{OnnxParser, softmax_top2_margin};
+
+/// The arc-eager transition system a trainer drives.
+///
+/// [`Configuration`](dep_arceager::Configuration) and
+/// [`Transition`](dep_arceager::Transition), plus the static
+/// [`oracle`](dep_arceager::oracle) that turns a gold [`SentenceParse`]
+/// into the transition sequence a trainer learns from. Kept in its own
+/// namespace rather than flattened into this crate's root re-exports (the
+/// convention every other block on this page follows): `oracle` and
+/// `derive` are generic enough names that flattening them would risk
+/// shadowing a future unrelated export, and every consumer of this system
+/// is expected to spell out `dep_arceager::` anyway to keep "the
+/// transition system" and "the parser" visually distinct at call sites.
+pub mod dep_arceager;
 // --- end dependency-parsing block ---
