@@ -229,14 +229,19 @@ unindexed family will largely pass the statistical channel untouched (the
 literal inventory still applies). Growing coverage means growing the data — see
 below — not cleverer search.
 
-Two limits worth knowing before you rely on it. Register rephrasing is scoped to
-**technical documentation**: its target band was measured on that genre, and a
-README measured as a different register close enough to share the band but far
-enough that pooling the two was rejected. Running it on prose from another genre
-aims at the wrong target, and nothing at runtime will stop you. Separately, the
-gates check whether an edit preserves meaning and grammar — not whether the
-result reads *better*. A rewrite can be licensed, correct, and still flatter
-than what it replaced, and only a reader catches that.
+Two limits worth knowing before you rely on it.
+
+Register rephrasing is scoped to **technical documentation**, and that scope is
+narrower than it sounds. The band was measured on reference documentation.
+READMEs measured as a *different* register — two of the three features differ
+with non-overlapping confidence intervals, and their correlation structure
+differs too — so pooling the two was rejected and the documentation target is
+used for both. Running it on prose from another genre aims at the wrong target,
+and nothing at runtime will stop you.
+
+Separately, the gates check whether an edit preserves meaning and grammar — not
+whether the result reads *better*. A rewrite can be licensed, correct, and
+still flatter than what it replaced. Only a reader catches that.
 
 ## The data behind it
 
@@ -251,6 +256,9 @@ detection frame, or introduces an unattested content word, fails the build):
   matching-statistics channel.
 - `attestation-v1.toml` — human-corpus bigram seams, tag-skeleton sets, and the
   near-no-op calibration.
+- `register-v1.toml` — the per-feature bands register homes toward, as the 10th
+  and 90th percentiles of the per-document rate across 58 human documentation
+  files. The band, not its centre, is the target.
 
 They are produced by `corpus-tool` (`mine-inventory`, `mine-paired`, `index`,
 `attest`) from the repository's document corpus — machine text from six local
@@ -259,15 +267,41 @@ so mining isolates pure style; the human side of every pair comes exclusively
 from license-vetted, pre-2022 human documents. All tuning uses the train split;
 a sealed holdout is guarded by CI and never touched.
 
+The tagger and parser are trained from the same corpus, by a pipeline that
+drafts annotations with an offline tool and corrects them mechanically. That
+gold data is **not** committed: it is derived, no build reads it, and every
+retrain would add megabytes to history permanently. `tools/requirements.txt`
+pins the environment that reproduces it byte-for-byte — the pin matters, since
+a different model version parses differently and would silently produce
+different gold while every check still passed.
+
 For the algorithms themselves — the matching-statistics construction, mining
 thresholds, gate definitions, and the validated reference prototypes — see
 [docs/research/ALGORITHMS.md](docs/research/ALGORITHMS.md) and
-[docs/research/ref/](docs/research/ref/).
+[docs/research/ref/](docs/research/ref/). For how the register targets were
+measured, including what the corpus turned out not to support, see
+[docs/research/regvec/TARGET_ESTIMATION.md](docs/research/regvec/TARGET_ESTIMATION.md).
 
 ## Development
 
-Rust 2024 workspace. `cargo fmt --check`, `cargo clippy --workspace
+Rust 2024 workspace, MSRV 1.96. `cargo fmt --check`, `cargo clippy --workspace
 --all-targets -- -D warnings`, and `cargo test --workspace` must all pass; the
 test suite includes the literal accept/reject/rank fixtures from the validation
 research (`docs/research/fixtures.json`) — if a change makes a reject fixture
 pass or an accept fixture fail, the change is wrong, not the fixture.
+
+Two invariants are worth knowing before changing anything. A **sealed holdout
+split** is verified by CI and must never be read; all tuning uses the train
+split. And the register feature extractor is pinned against a **reference
+parity fixture** that carries both the reference parse and the counts derived
+from it, so a failure tells you whether the counting or the parsing broke —
+without that separation, a miscounted feature is invisible in the output.
+
+## License
+
+MIT ([LICENSE-MIT](LICENSE-MIT)) or Apache-2.0 ([LICENSE-APACHE](LICENSE-APACHE)),
+at your option.
+
+The vendored corpus under `corpus/` is third-party material under its own
+licenses; every document's provenance and license is recorded in
+`corpus/manifest.jsonl`.
