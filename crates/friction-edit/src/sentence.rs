@@ -23,31 +23,37 @@ const RULE_PIVOT: RuleId = RuleId::new("pivot.lvc");
 const RULE_SPAN: RuleId = RuleId::new("span.delete");
 const RULE_RECAPITALIZE: RuleId = RuleId::new("edit.recapitalize");
 
-/// `true` if nothing but non-word characters precedes `start` in `text` —
-/// so a match there is opening its line, whatever punctuation or markup
-/// sits in front of it.
+/// `true` if a replacement at `start` would open a line or a sentence,
+/// looking past any inline markup in between.
 ///
-/// A substitution replaces text with a fixed lowercase form, and whether
-/// the result should be capitalized depends on where it landed. Testing
-/// only for offset zero misses every case where the author put markup
-/// first: `"* **Leverage Monitoring Tools Effectively:**"` produced
-/// `"* **use Monitoring Tools..."`, because the emphasis markers pushed
-/// the match off position zero.
+/// A substitution replaces matched text with a fixed lowercase form, so
+/// whether to restore a capital depends on where the match landed.
+/// Checking offset zero alone missed both positions that occur in real
+/// Markdown, each measured on a corpus document: `"* **Leverage
+/// Monitoring Tools Effectively:**"` produced `"* **use Monitoring
+/// Tools..."` because the bullet and emphasis markers pushed the match
+/// off zero, and `"**...patterns.** Utilize tools"` produced `"** use
+/// tools"` because the sentence-ending period sat behind a closing `**`.
 ///
-/// Deliberately not "is this a sentence start" — the segmenter does not
-/// call a bolded list-item lead-in a sentence, and this is exactly the
-/// position where that disagreement shows. Deliberately not "is the
-/// matched text capitalized" alone either: that would capitalize a
-/// genuine mid-sentence match, where the author's capital is a quirk
-/// rather than a sentence opening.
-fn opens_its_line(text: &str, start: usize) -> bool {
-    text.get(..start).is_some_and(|prefix| {
-        prefix
-            .chars()
-            .rev()
-            .take_while(|c| *c != '\n')
-            .all(|c| !c.is_alphanumeric())
-    })
+/// So the scan walks back over whitespace and inline-markup characters
+/// and asks what the first real character is. Nothing (start of line) or
+/// sentence-terminal punctuation both mean the replacement is opening
+/// something and needs its capital; a letter or digit means it is
+/// genuinely mid-sentence and must stay lowercase.
+///
+/// Deliberately not keyed on the segmenter's sentence boundaries: it does
+/// not treat a bolded list-item lead-in as a sentence, and that is
+/// precisely the position where this goes wrong.
+fn opens_line_or_sentence(text: &str, start: usize) -> bool {
+    let Some(prefix) = text.get(..start) else {
+        return false;
+    };
+    prefix
+        .chars()
+        .rev()
+        .take_while(|c| *c != '\n')
+        .find(|c| !c.is_whitespace() && !matches!(c, '*' | '_' | '`' | '#' | '>' | '~'))
+        .is_none_or(|c| matches!(c, '.' | '!' | '?' | ':' | ';'))
 }
 
 /// The result of running the four-operation pipeline over one sentence.
@@ -366,7 +372,7 @@ fn run_substitution(
         }
         for range in ranges.into_iter().rev() {
             let mut replacement = pair.replacement.to_string();
-            if opens_its_line(&working, range.start)
+            if opens_line_or_sentence(&working, range.start)
                 && working[range.clone()]
                     .chars()
                     .next()
