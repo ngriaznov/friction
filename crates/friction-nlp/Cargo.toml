@@ -1,6 +1,7 @@
 [package]
 name = "friction-nlp"
 version = "0.1.0"
+description = "Sentence segmentation, part-of-speech tagging, and dependency parsing, from vendored weights."
 edition.workspace = true
 rust-version.workspace = true
 license.workspace = true

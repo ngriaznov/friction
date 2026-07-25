@@ -5,15 +5,17 @@ documentation — the ritual closers, filler spans, hedge phrases, and light-ver
 constructions that make text read as machine-written — without touching the
 information.
 
-friction never synthesizes text. Every word it emits is either already present in
-the input or derived from an input word through a static morphology table
-("performs validation of" → "validates"). Where no safe edit exists, it reports
-instead of rewriting. No model runs at fix time; everything is offline, integer-
-and-regex-level, and byte-deterministic.
+friction never invents content. Every content word it emits is already present in
+the input or derived from one through a static table ("performs validation of" →
+"validates"). It may introduce function words, but only from a fixed set declared
+per operation — `was`, `were`, `is`, `are`, and nothing else — never a word chosen
+by searching for one that fits. Where no safe edit exists, it reports instead of
+rewriting. No model runs at fix time; everything is offline, table-driven, and
+byte-deterministic.
 
 ## What it does
 
-Exactly four operations edit text. Nothing else does.
+Five operations edit text. Nothing else does.
 
 1. **Ritual deletion** — sentences matching ritual frames are removed whole:
    *"If you have any questions or require further assistance, please reach out
@@ -30,14 +32,38 @@ Exactly four operations edit text. Nothing else does.
    root verb, inheriting tense and agreement: *"the agent performs validation of
    the config file"* → *"the agent validates the config file"*, *"we made the
    decision to switch"* → *"we decided to switch"*.
+5. **Register rephrasing** — the only operation that can *raise* a construction
+   rather than remove one. Language models under-produce the agentless passive
+   relative to human technical writing, consistently and across every model
+   measured, and no amount of deleting fixes an under-use. So a clause with a
+   recoverable agent may be demoted: *"as you make changes"* → *"as changes are
+   made"*, *"how we handle code reviews"* → *"how code reviews are handled"*. A
+   nominalization may also be unpacked: *"the integration of SQS"* →
+   *"integrating SQS"*.
+
+   It fires only while the document sits outside a band measured from human
+   documents, and stops at the band's edge rather than its centre — every
+   document landing on the same coordinates would be a tell of its own. On the
+   corpus it edits roughly one machine document in ten.
 
 Every edit passes a stack of hard gates: no content word may enter the text
 (closure), the sentence must stay clause-complete, edits never touch code spans,
 links, numbers, identifiers, negation, quantifiers, modals, or logical
-connectives, and edits fire only inside prose blocks — never in headings, code,
-tables, or link text. On human-written text the whole engine is calibrated to be
-a near-no-op. When a gate says no, the candidate is kept verbatim and reported
-as a suggestion — doing nothing is the designed fallback, not a failure mode.
+connectives, quoted text is left alone because it is someone's example rather
+than the author's own register, and edits fire only inside prose blocks — never
+in headings, code, tables, or link text. On human-written text the whole engine
+is calibrated to be a near-no-op. When a gate says no, the candidate is kept
+verbatim and reported as a suggestion — doing nothing is the designed fallback,
+not a failure mode.
+
+Most of what the gates encode was learned by running the engine over the corpus
+and reading what it produced. Passivizing across a preposition turned *"as we
+continue down this path"* into *"as this path is continued"*; promoting a
+post-modified object turned *"inspected each board for knots and defects"* into
+*"each board for knots and defects was inspected"*, which no longer says what
+the inspection was for. Neither is caught by a grammar check — both are
+meaning changes that read fine. The guards that refuse them are in the source
+with the sentence that motivated each one.
 
 Detection (what finds the candidates) runs three channels: a mined literal
 inventory, a shallow tag-pattern scan for light-verb constructions, and a
@@ -151,13 +177,18 @@ that declined.
   third pass changes nothing (enforced by a CI canary over fixtures and real
   corpus documents).
 - **Near-no-op on human text** — edits per document on curated human writing
-  stay under a corpus-calibrated threshold (~1.8 edits per 1000 words, ceiling).
+  stay under a corpus-calibrated threshold (1.87 edits per 1000 words, ceiling),
+  recalibrated whenever the packs are rebuilt and cross-checked against a
+  held-out split that never feeds back into the threshold.
 - **Span-honest** — every reported range slices your original bytes to exactly
   the text the finding is about.
-- **Closed** — there is no code path that can insert a searched-for word. The
-  approaches that would (bridge insertion, corpus-path synthesis,
-  metric-centroid rewriting) were tried during research, failed, and are pinned
-  as red tests so they can't come back.
+- **Closed** — no code path can insert a *searched-for* word. Content words are
+  always input-derived. Function words may be introduced only from a fixed set
+  declared per operation, checked on every candidate before it is applied, so
+  the guarantee is enforced structurally rather than asserted. The approaches
+  that would break it (bridge insertion, corpus-path synthesis) were tried
+  during research, failed, and are pinned as red tests so they cannot come
+  back.
 
 ## What it deliberately won't do
 
@@ -169,6 +200,15 @@ shipped indexes cover qwen/gemma/llama/granite-style output, so prose from an
 unindexed family will largely pass the statistical channel untouched (the
 literal inventory still applies). Growing coverage means growing the data — see
 below — not cleverer search.
+
+Two limits worth knowing before you rely on it. Register rephrasing is scoped to
+**technical documentation**: its target band was measured on that genre, and a
+README measured as a different register close enough to share the band but far
+enough that pooling the two was rejected. Running it on prose from another genre
+aims at the wrong target, and nothing at runtime will stop you. Separately, the
+gates check whether an edit preserves meaning and grammar — not whether the
+result reads *better*. A rewrite can be licensed, correct, and still flatter
+than what it replaced, and only a reader catches that.
 
 ## The data behind it
 

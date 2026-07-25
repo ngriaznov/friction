@@ -14,12 +14,13 @@ import json
 import pathlib
 import sys
 
-sys.path.insert(0, "/Users/nikitagriaznov/Documents/Work/POC/friction/docs/research/regvec")
+# Both paths are derived from this file's own location, so the script runs
+# from any checkout and any working directory.
+ROOT = pathlib.Path(__file__).resolve().parents[2]
+sys.path.insert(0, str(ROOT / "docs" / "research" / "regvec"))
 
 import biber  # noqa: E402
-import spacy  # noqa: E402
 
-ROOT = pathlib.Path("/Users/nikitagriaznov/Documents/Work/POC/friction")
 NLP = biber.NLP
 
 # Relations the register module reads, plus the ones the transducers license on.
