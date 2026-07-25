@@ -155,6 +155,94 @@ worse rather than better.
 6. `email` (n = 30) is undersized for every method applied here and should not
    carry a shipped target without more documents.
 
+## `docs` and `readme` do not pool
+
+Scoping the module to technical documentation and dropping the genre
+parameter makes `docs` + `readme` the natural target register — 115 human
+train documents instead of 58. They cannot be pooled.
+
+| feature | docs (n=58) | readme (n=57) | CIs overlap? |
+|---|---|---|---|
+| `present_participial` | 5.06 [4.40, 5.79] | 4.46 [3.64, 5.32] | yes |
+| `nominalization` | 29.77 [26.44, 33.37] | 22.46 [19.74, 25.20] | **no** |
+| `agentless_passive` | 12.50 [10.80, 14.33] | 8.38 [7.22, 9.61] | **no** |
+
+Two of three homing features differ with non-overlapping bootstrap CIs. Box's
+M rejects equal covariance (M = 16.60, χ² = 16.12, df = 6, p = 0.0131), and
+the `present_participial`↔`nominalization` correlation *flips sign* between
+them: r = −0.041 in docs, r = +0.263 in readme. Formal technical prose and
+project-README voice are different registers, and a single pooled μ is wrong
+for both.
+
+Pooling does not even buy conditioning. Pooled Ledoit-Wolf at n = 115 gives
+δ = 0.055 and condition 12.79, against docs-only at 11.97 and readme-only at
+9.16 — slightly *worse*, because the two correlation structures partly cancel
+rather than reinforce. Doubling n lowers the required shrinkage; it does not
+improve the estimate.
+
+**LLM output collapses the distinction human writers maintain.** On the
+machine side, Box's M gives p = 0.669 — no covariance difference at all — and
+only `nominalization` differs by sub-genre (d = 0.45, p = 0.034). Human
+writers adapt register between reference documentation and READMEs; these
+models largely do not. That is a document-level property rather than a
+span-level one, so it is a diagnostic rather than something the four
+operations or the transducers can act on.
+
+**Decision:** use the `docs` target. README-style text is then served by a
+target that is measurably too formal for it, which is a known cost rather
+than an oversight. At the operating threshold chosen below the practical
+effect is small (98.2% of human README documents fall inside the shell and
+are never touched), but it is a real limitation and it is the reason a
+sub-register signal would be worth having if one ever becomes available
+cheaply.
+
+## The χ² termination criterion is the wrong shape
+
+The plan terminates rewriting at `D² ≤ χ²(k, 0.5)`. Two problems, and the
+second is fatal to that specific formula.
+
+**The distribution is not χ².** Human D² over docs+readme (n = 115): min
+0.107, median 1.974, 90th percentile 5.062, max 13.389, against χ²(3)'s
+median 2.366 and 90th percentile 6.251. KS test versus χ²(3): D = 0.173,
+**p = 0.0018 — reject**. Docs-only alone also rejects (D = 0.210, p = 0.0099).
+The empirical distribution sits below the χ²(3) curve through most of its
+range, so χ²-derived thresholds systematically over-admit: at nominal
+q = 0.50, 60% of human documents fall inside, not 50%.
+
+**The median is untenable with the module on by default.** Even reading the
+nominal quantile generously, a median shell edits roughly 40% of genuine human
+technical documentation — 45.6% of README-genre documents specifically.
+
+Empirical-quantile thresholds, taken from the human D² sample directly:
+
+| q | threshold | human inside | llm inside | separation |
+|---|---|---|---|---|
+| 0.50 | 1.974 | 50.4% | 23.9% | 26.5 |
+| 0.75 | 2.898 | 74.8% | 38.0% | **36.7** |
+| **0.90** | **5.062** | **89.6%** | **65.2%** | 24.3 |
+| 0.95 | 6.051 | 94.8% | 72.8% | 22.0 |
+| 0.99 | 11.328 | 98.3% | 91.3% | 7.0 |
+
+**Decision: empirical q = 0.90, not `chi2.ppf(0.5, 3)`.** 89.6% of human
+documents pass through untouched; 34.8% of machine documents are caught. q =
+0.75 separates the classes best in raw terms but accepts a 25% false-edit rate
+on real human documentation, which an always-on module cannot justify. q =
+0.99 is useless — separation collapses to 7 points.
+
+**The honest limitation:** no quantile achieves human-inside above 95% and
+llm-inside below 50% at the same time. The three-feature vector is not a clean
+document-level discriminator; the class distributions genuinely overlap. The
+shell is a reasonable termination criterion and a weak trigger, and it should
+not be described as the latter.
+
+**Open, and not measurable until the transducers exist:** how many edits a
+false-positive human document actually receives. A document just outside the
+shell needs few edits to get inside, so a 10.4% false-positive *rate* may
+still carry a small false-positive *magnitude* — which is what the near-no-op
+guarantee is actually stated in (edits per 1000 words, not documents
+touched). This must be measured against the existing calibration before the
+module ships on by default.
+
 ## Not measured
 
 Formal sub-clustering within `docs`/`blog`/`forum` (inferred from provenance
