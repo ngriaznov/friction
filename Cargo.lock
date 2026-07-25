@@ -709,6 +709,17 @@ dependencies = [
 ]
 
 [[package]]
+name = "friction-register"
+version = "0.1.0"
+dependencies = [
+ "friction-core",
+ "friction-nlp",
+ "friction-parse",
+ "serde_json",
+ "thiserror 2.0.19",
+]
+
+[[package]]
 name = "futures-channel"
 version = "0.3.33"
 source = "registry+https://github.com/rust-lang/crates.io-index"
