@@ -263,10 +263,63 @@ not a weaker gate.
 risk, but it is a public API removal and belongs in the same change as the
 replacement rather than trailing it.
 
+## Integration: inside the fix pipeline
+
+Register is part of `friction fix`, not a separate pass or a second command.
+Recorded here because it shapes what the parser must supply; the mechanics are
+specified with the transducers.
+
+**Register runs after the four operations converge, not before and not
+interleaved.** Rates are per 1000 words, and the four operations are
+subtractive — a ritual deletion removes a whole sentence. Running register
+first would compute deltas against a denominator the four operations then
+change, so the rates it achieved would not be the rates the shipped text has.
+Running it last means it homes the vector of the text that actually ships.
+Interleaving within a pass risks oscillation for no benefit, since the
+objective terminates on its own once inside the shell.
+
+**Precedence on shared constructions is therefore the four operations'.** This
+matters in one concrete place: the derivational pivot and the nominalization
+transducer target the same construction. `performs validation of the config`
+pivots to `validates the config`; the transducer would give
+`validating the config`. The pivot is closed, higher-confidence, and already
+calibrated, so it wins, and register sees the already-pivoted text with the
+nominalization already gone.
+
+**Register inherits the whole existing gate stack, which is the main argument
+for integrating rather than bolting on.** Prose-blocks-only scoping, the guard
+token classes, the quoted-span mention guard, the ordered-list-item
+protection, the recapitalization guard, byte-honest spans, and the
+`Patch`/resolve/apply machinery are all about *where it is safe to edit*,
+independent of *what edit*. A separate pass would have to reimplement every
+one of them.
+
+Three things this requires that do not exist yet:
+
+1. **Genre must reach `fix`.** Targets are genre-conditioned and a target from
+   the wrong genre is worse than none. `check` already takes `--genre`; `fix`
+   does not. Register stays inactive unless genre is supplied, so `fix` with no
+   genre behaves exactly as it does today — which also keeps the near-no-op
+   calibration on human text untouched by default.
+2. **A second selection mechanism.** `resolve` accepts leftmost-first by span
+   non-overlap. Register's selection is a document-level objective over
+   candidate subsets, and span non-overlap is provably insufficient for it:
+   two edits on disjoint spans still interacted in the prototype, producing
+   the voice-mismatched coordination in `output_rewritten.md`. Register
+   candidates need a conflict graph over dependency scope — which is another
+   reason the parser must produce complete, well-formed trees rather than only
+   the labelled edges the features read.
+3. **Realizations must be audited against the detection frames.** The pack
+   loader already rejects a substitution whose replacement re-triggers any
+   detection frame, which is what makes the engine idempotent by
+   construction. Register's realization constants get the same audit. If no
+   realization can re-trigger a frame, register needs no re-convergence pass
+   after it, and the existing two-pass bound stands unchanged.
+
 ## What this does not settle
 
-Whether register runs as a fifth operation inside `friction fix` or as a
-separate pass afterward. It matters — the four operations delete text, which
-changes word counts, which changes every per-1000-word rate and therefore the
-objective — but it does not affect the parser, and it is specified with the
-transducers.
+Whether register is on by default once a genre is supplied, or requires its
+own opt-in. It is a contract change — the closed engine gains synthesis — so a
+user running `fix --genre docs` today would silently get a different class of
+edit. That argues for an explicit opt-in, but it is a one-line decision that
+does not affect the parser.
