@@ -1,4 +1,17 @@
-# `perceptron_en.json.gz` — provenance and licensing
+# Weight artifacts — provenance and licensing
+
+> **The gold files this document describes are not tracked in git.**
+> `gold_pos_en.tsv` and `gold_dep_en.conllu` are derived data: no build
+> reads them (only the `train-tooling` examples do), and each regeneration
+> would add several megabytes to history permanently. The artifacts trained
+> *from* them — `perceptron_en.json.gz` and `parser_en.json.gz` — are
+> committed, because they are compiled into the binary.
+>
+> Rebuild them from `corpus/` with the pipeline described below, using the
+> pinned environment in `tools/requirements.txt`. The pin matters: a
+> different model version parses differently and would silently produce
+> different gold, so "byte-reproducible" holds only against spaCy 3.8.14
+> with `en_core_web_sm` 3.8.0.
 
 This directory's weight artifact backs `PerceptronTagger`, the default
 (and only) `Tagger` implementation. Nothing here derives from

@@ -1,0 +1,16 @@
+# Pinned so the gold files regenerate byte-for-byte.
+#
+# The gold data these tools produce is deliberately not committed — it is
+# derived, it is not read by any build, and each regeneration would otherwise
+# add several megabytes to history permanently. Reproducing it instead
+# requires reproducing this environment exactly, because a different model
+# version parses differently and would silently produce different gold.
+#
+#   python3 -m venv tools/gold_dep/venv
+#   tools/gold_dep/venv/bin/pip install -r tools/requirements.txt
+#   tools/gold_dep/venv/bin/python -m spacy download en_core_web_sm
+#
+# Verify the model version after downloading; pip cannot pin it for us:
+#   python -c "import spacy; print(spacy.load('en_core_web_sm').meta['version'])"
+#   expected: 3.8.0
+spacy==3.8.14

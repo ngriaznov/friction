@@ -16,3 +16,15 @@ Thumbs.db
 # download en_core_web_sm` in a fresh venv at that path.
 tools/gold_dep/venv/
 tools/gold_dep/__pycache__/
+
+# Gold training data for the tagger and dependency parser.
+#
+# Derived, not source: regenerated from `corpus/` by `tools/gold_pos` and
+# `tools/gold_dep` (see `tools/requirements.txt` for the pinned environment
+# that makes it byte-reproducible). No build reads it — only the
+# `train-tooling` examples do — so committing it would add several megabytes
+# to history on every retrain for data that can be rebuilt on demand. The
+# trained artifacts it produces ARE committed, because they are compiled into
+# the binary.
+crates/friction-nlp/weights/gold_pos_en.tsv
+crates/friction-nlp/weights/gold_dep_en.conllu
