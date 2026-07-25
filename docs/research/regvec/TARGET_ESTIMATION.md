@@ -243,6 +243,46 @@ guarantee is actually stated in (edits per 1000 words, not documents
 touched). This must be measured against the existing calibration before the
 module ships on by default.
 
+## The bands actually shipped, and what they imply
+
+Only two of the three surviving features have a transducer that can move
+them. The participial transducers were dropped because they select on `acl`
+and `advcl`, which the shipped parser resolves at 52–58% F1 — they would fire
+wrongly about half the time. `present_participial` therefore stays measured
+and reported, but nothing acts on it.
+
+For the two that remain, per-document rate quantiles over the 58 human `docs`
+train documents:
+
+| feature | p10 | p50 | p90 | LLM p50 | direction |
+|---|---|---|---|---|---|
+| `nominalization` | 15.47 | 28.21 | 50.56 | 32.29 | reduce |
+| `agentless_passive` | 5.43 | 11.73 | 21.49 | **4.35** | increase |
+| `present_participial` | 2.00 | 4.86 | 8.91 | 7.89 | *(no transducer)* |
+
+The band is `[p10, p90]`, and a document inside it is done — the shell, not the
+centroid. Optimizing to the median would land every document on the same
+coordinates, which is a tell in its own right.
+
+**This is where the module's value actually is, and it is lopsided:**
+
+| feature | machine documents already inside the band |
+|---|---|
+| `nominalization` | **37 of 46** |
+| `agentless_passive` | **19 of 46** |
+
+The human `nominalization` band is wide enough (15 to 51) that most machine
+documents already qualify, so the unpacking transducer has little to do. The
+machine `agentless_passive` median sits *below* the human 10th percentile, so
+27 of 46 documents need the passive transducer.
+
+The value concentrates almost entirely in the one transducer that fires
+*upward* — which is also the feature with the strongest cross-model evidence,
+under-used by all six models and most sharply in this genre. That is a
+coherent outcome rather than a lucky one: an under-use tell is exactly what a
+purely subtractive engine cannot address, and it is the reason this module
+justifies its own contract.
+
 ## Not measured
 
 Formal sub-clustering within `docs`/`blog`/`forum` (inferred from provenance
