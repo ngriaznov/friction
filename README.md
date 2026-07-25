@@ -46,8 +46,10 @@ Five operations edit text. Nothing else does.
    document landing on the same coordinates would be a tell of its own. On the
    corpus it edits roughly one machine document in ten.
 
-Every edit passes a stack of hard gates: no content word may enter the text
-(closure), the sentence must stay clause-complete, edits never touch code spans,
+Every edit passes a stack of hard gates: closure as described above — content
+words input-derived, function words only from the declared set — is checked on
+every candidate before it is applied. Beyond that, the sentence must stay
+clause-complete, edits never touch code spans,
 links, numbers, identifiers, negation, quantifiers, modals, or logical
 connectives, quoted text is left alone because it is someone's example rather
 than the author's own register, and edits fire only inside prose blocks — never
@@ -65,11 +67,14 @@ the inspection was for. Neither is caught by a grammar check — both are
 meaning changes that read fine. The guards that refuse them are in the source
 with the sentence that motivated each one.
 
-Detection (what finds the candidates) runs three channels: a mined literal
-inventory, a shallow tag-pattern scan for light-verb constructions, and a
-differential matching-statistics profile computed against per-generator-family
-suffix-automaton indexes — which also powers the document-level report in
-`friction check`.
+Detection (what finds the candidates) runs four channels. Three are span-level:
+a mined literal inventory, a shallow tag-pattern scan for light-verb
+constructions, and a differential matching-statistics profile computed against
+per-generator-family suffix-automaton indexes — which also powers the
+document-level report in `friction check`. The fourth is document-level: a
+count of register-marking constructions over a dependency parse, compared
+against the human band. It answers a question the others cannot, because a
+construction that is *missing* has no span to detect.
 
 ## Install
 
@@ -78,8 +83,10 @@ cargo build --release -p friction-cli
 ```
 
 The binary lands at `target/release/friction`. The build is fully
-self-contained — the bundled part-of-speech model is a 452 KB vendored artifact,
-and nothing is downloaded at build or run time.
+self-contained: the part-of-speech tagger (1.4 MB) and dependency parser
+(6.5 MB) are vendored weight artifacts compiled into the binary, and nothing is
+downloaded at build or run time. Both are fixed tables, so the runtime stays
+deterministic — there is no inference engine here, only lookups.
 
 ## Usage
 
@@ -107,31 +114,41 @@ assistance, please reach out to our support team.
 Output:
 
 ```text
-This guide covers configuring the backup agent for your staging environment.
-The agent validates the configuration file before each run. Once validation
-succeeds, the agent conducts an analysis of the snapshot catalog and simply
-uploads any missing segments. You can verify that your backups are consistent.
+This guide covers configuring the backup agent for your staging
+environment. The agent validates the
+configuration file before each run. Once validation succeeds, the agent
+conducts an analysis of the snapshot catalog and simply uploads any missing
+segments. You can verify that
+your backups are consistent.
 ```
 
 ```
-friction fix: 2 pass(es), 8 patch(es) applied
+friction fix: 3 pass(es), 8 patch(es) applied
   edit.recapitalize: 2
   pivot.lvc: 1
   ritual.delete: 1
   span.delete: 3
   sub.apply: 1
-  suggest: 2 finding(s) remain
+  suggest: 0 finding(s) remain
 ```
+
+That is the engine's real output, line breaks included: friction edits bytes
+and leaves the input's own wrapping alone rather than reflowing paragraphs it
+touched.
 
 Note what it kept: "conducts an analysis of" was a valid second pivot but the
 per-document budget held it, and "simply" stayed because deleting it would
-create a word seam unattested in human writing. Both are reported, not forced.
+create a word seam unattested in human writing. Neither is forced, and both are
+named — by `friction explain`, which lists every hold with the gate that
+declined it. The `suggest:` line above counts a different thing: findings the
+detector surfaced that no operation claimed at all.
 
 Clean text passes through byte-identical:
 
 ```
 $ friction fix clean.md
-friction fix: 1 pass(es), 0 patch(es) applied
+friction fix: 2 pass(es), 0 patch(es) applied
+  suggest: 0 finding(s) remain
 ```
 
 ### `friction check` — detect and measure, change nothing
@@ -157,18 +174,29 @@ statistical channel — see limits below.
 ```
 $ friction explain draft.md
 pass 1: 8 operation(s) fired
-  sub.apply                0..32   -> "This guide covers"
-  span.delete              92..121   (deleted)
+  sub.apply                0..32  -> "This guide covers"
+  span.delete              92..121  (deleted)
+  edit.recapitalize        121..122  -> "T"
   pivot.lvc                131..153  -> "validates"
+  span.delete              316..342  (deleted)
+  edit.recapitalize        342..343  -> "Y"
+  span.delete              350..369  (deleted)
   ritual.delete            409..504  (deleted)
   2 held:
     pivot.lvc              194..315  KEPT (pivot held: near-no-op budget exhausted)
     span.delete            194..315  KEPT (deletion span.simply held: SeamNotAttested)
 pass 2: 0 operation(s) fired — converged
+  2 held:
+    pivot.lvc              137..258  KEPT (pivot held: near-no-op budget exhausted)
+    span.delete            137..258  KEPT (deletion span.simply held: SeamNotAttested)
+pass 3: 0 operation(s) fired — converged
 ```
 
-Every range is a byte offset into your original file. Every hold names the gate
-that declined.
+Every range is a byte offset into your original file, and every hold names the
+gate that declined. Deleting a span can leave a lowercase word opening a
+sentence, which is why `edit.recapitalize` follows each one. The same two holds
+reappear in pass 2 at shifted offsets: the earlier deletions moved the bytes,
+and the gates decline again on the same grounds.
 
 ## Guarantees
 
