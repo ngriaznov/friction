@@ -537,6 +537,40 @@ fn object_is_licensable(
         return false;
     }
 
+    // No preposition may stand between the verb and its object.
+    //
+    // A direct object sits adjacent to its verb, separated at most by the
+    // determiners and modifiers inside its own noun phrase. A preposition
+    // in that gap means the noun is the object of the *preposition*, and
+    // the parser mislabelled it — which is a mistake to detect
+    // structurally rather than one to trust.
+    //
+    // Measured on real prose: `"As we continue down this path"` parsed
+    // with `path` as a direct object of `continue`, when it is really the
+    // object of `down`. Passivizing it gave `"As this path is
+    // continued"` — grammatical, and worse than what it replaced, because
+    // the transform was applied to a relation that was not there.
+    //
+    // Particles (`RP`) are rejected alongside prepositions, which is the
+    // less obvious half. `"we continue down this path"` and `"we gave up
+    // the plan"` tag identically — `RP` particle, `dobj` noun — so no
+    // structural rule separates them, and refusing both is the only
+    // option that refuses the first. The apparent cost is the good
+    // phrasal-verb passive (`"the server was set up"`); the measured cost
+    // over the whole corpus was three rewrites, all three of them the
+    // stilted case this guard exists to remove. The good phrasal case
+    // does not survive the other conditions often enough to show up, so
+    // the trade is real in principle and free in practice — worth
+    // rechecking if those conditions ever loosen.
+    let preposition_before_object = (verb_token + 1..obj_first).any(|index| {
+        tokens
+            .get(index)
+            .is_some_and(|t| matches!(t.pos.as_str(), "IN" | "RP"))
+    });
+    if preposition_before_object {
+        return false;
+    }
+
     // Nothing that belongs to the verb may sit after the object.
     //
     // The rewrite replaces subject-through-object and leaves the rest of
