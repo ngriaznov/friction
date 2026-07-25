@@ -15,8 +15,8 @@ friction-nlp = { path = "../friction-nlp" }
 # Not yet in [workspace.dependencies]; added directly here (rather than at
 # the workspace root) to avoid a concurrent root-file edit while sibling
 # metric modules are being written in parallel. Already present in
-# Cargo.lock as a transitive dependency (srx/nlprule), so this adds no new
-# crate to the build.
+# Cargo.lock as a transitive dependency, so this adds no new crate to the
+# build.
 regex = "1"
 # Both already in `[workspace.dependencies]`: used only to parse the
 # embedded `mined-ngrams-v1.toml` pack at process start (see

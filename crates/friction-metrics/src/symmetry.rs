@@ -942,7 +942,7 @@ mod tests {
     // -------------------------------------------------------------
 
     /// All three metrics computed through the real segmenter and the real
-    /// `nlprule`-backed tagger, on one hand-picked document, exercising the
+    /// default tagger, on one hand-picked document, exercising the
     /// full pipeline rather than a stub. Expected values were confirmed
     /// against this tagger's actual output for this exact text.
     #[test]

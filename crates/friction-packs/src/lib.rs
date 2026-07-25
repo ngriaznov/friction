@@ -1,44 +1,22 @@
-//! Versioned data packs: the downloadable-artifact registry and the
-//! per-`(genre, metric)` human envelope bands `friction-rules` gates on.
-//! Lexical substitution/filler tables are not a pack — `friction-rules`
-//! ships them hand-curated and compiled in; see that crate's docs for why.
+//! Versioned data packs: the curated tell inventory, the per-family DMS
+//! index streams, the human-corpus attestation data, and the
+//! per-`(genre, metric)` human envelope bands.
 //!
 //! # Envelope bands
 //!
 //! [`EnvelopePack`] parses the TOML file `corpus-tool envelope` writes
 //! (`packs/envelope-v2.toml`, embedded into this crate and exposed
 //! pre-parsed as [`ENVELOPE_V2`]) into a `(genre, metric) -> [lo, hi]`
-//! lookup. This is the "packs" a caller building `friction-rules`'
-//! `GenreEnvelope` trait for a genre reads from — see
-//! `friction-apply::FixEngine` for the adapter that wires the two
-//! together.
+//! lookup, used by `friction check`'s metric guardrails.
 //!
-//! # Artifact registry
+//! # Offline by construction
 //!
-//! [`REGISTRY`] is the built-in list of downloadable, sha256-pinned NLP
-//! artifacts that `friction setup` fetches into a local runtime cache
-//! directory. Each entry names a stable version, a source URL, an expected
-//! size, and an expected sha256 checksum; nothing is fetched by this
-//! crate itself — `friction-cli`'s `setup` subcommand is responsible for
-//! downloading and verifying entries into a local cache, and for failing
-//! hard on a checksum mismatch rather than ever trusting unverified bytes.
-//!
-//! [`REGISTRY`] is currently empty, and correctly so: every NLP asset
-//! `friction-nlp` uses today is either vendored directly into the repo
-//! (its sentence-segmentation ruleset) or downloaded, verified, and
-//! embedded at *build* time by that crate's own `build.rs` (its
-//! part-of-speech tagger model) — neither needs a runtime cache directory
-//! to exist for a compiled `friction` binary to work, so listing them
-//! here would describe a fetch path nothing actually takes. No
-//! dependency-parser model is registered for the same reason it isn't
-//! used: no downloadable ONNX English dependency parser under roughly
-//! 100 MB has been located as of this writing (see `friction-nlp`'s
-//! crate docs for what that means for `DepParser`). An entry can be added
-//! here the moment one is sourced and independently verified, without
-//! changing how `friction setup` or any consumer of [`REGISTRY`] works —
-//! see `registry.toml`'s own header comment for the full accounting.
-//! `friction setup` treats an empty registry as a normal, successful
-//! outcome ("nothing to download") rather than an error.
+//! Every asset this workspace's NLP layer uses is vendored directly into
+//! the repo (the sentence-segmentation ruleset, the part-of-speech
+//! tagger's weight artifact) and every pack in this crate is embedded via
+//! `include_str!` — nothing is fetched at build time or at run time, and
+//! no runtime cache directory needs to exist for a compiled `friction`
+//! binary to work.
 //!
 //! # DMS index
 //!
@@ -78,12 +56,11 @@
 //!
 //! # Determinism
 //!
-//! [`REGISTRY`] is a `Vec`, not a hash-based collection, and preserves the
-//! declaration order of the embedded `registry.toml` exactly — iterating
-//! it gives identical results on every run and every machine. [`Sam`]'s
-//! internal `next` table is a `HashMap` for point-lookup performance, not
-//! iteration order — see that type's own doc comment for why this does
-//! not compromise determinism.
+//! Every pack parses into sorted or declaration-ordered collections, so
+//! iterating any of them gives identical results on every run and every
+//! machine. [`Sam`]'s internal `next` table is a `HashMap` for
+//! point-lookup performance, not iteration order — see that type's own
+//! doc comment for why this does not compromise determinism.
 
 mod artifact;
 mod attestation;
@@ -93,7 +70,7 @@ mod inventory;
 mod registry;
 mod validate;
 
-pub use artifact::{Artifact, ArtifactKind, PackError, REGISTRY, Sha256, parse_registry};
+pub use artifact::{PackError, Sha256};
 pub use attestation::{AttestationPack, BigramTable, NearNoOpCalibration, SkeletonSet};
 pub use dms::{DmsIndex, ModelFamily, Sam, Vocab};
 pub use envelope::{ENVELOPE_V2, EnvelopePack, exceedance};

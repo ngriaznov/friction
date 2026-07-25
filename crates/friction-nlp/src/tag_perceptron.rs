@@ -1,6 +1,6 @@
 //! Averaged-perceptron [`Tagger`] implementation: the default backend.
 //!
-//! Unlike [`crate::tag_nlprule::NlpruleTagger`], this tagger's weights are
+//! This tagger's weights are
 //! not downloaded at build time — they are vendored directly in this
 //! crate's own `weights/perceptron_en.json.gz`, trained on a small,
 //! hand-curated gold-tag corpus drawn from this project's own vendored
@@ -9,7 +9,7 @@
 //! command). Nothing here ever touches the network, at build time or at
 //! run time.
 //!
-//! # Tokenization is its own, not `nlprule`'s
+//! # Tokenization is its own
 //!
 //! [`tokenize`] is a small manual scanner producing spans that satisfy
 //! [`crate::tag::classify_token_kind`]'s tokenization rule directly:
@@ -57,9 +57,8 @@
 //!
 //! # Per-call sentence-reset semantics
 //!
-//! Unlike [`crate::tag_nlprule::NlpruleTagger::tag`], which re-segments
-//! multi-sentence `text` internally, [`PerceptronTagger::tag`] does **not**
-//! re-segment: it treats the whole `text` argument as one tag-history
+//! [`PerceptronTagger::tag`] does **not**
+//! re-segment multi-sentence `text` internally: it treats the whole `text` argument as one tag-history
 //! sequence, resetting the start-of-sequence sentinels once. Every
 //! production call site in this workspace already calls `tag()` per
 //! already-segmented sentence, so this is a safe simplification — but a

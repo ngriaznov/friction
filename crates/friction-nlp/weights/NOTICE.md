@@ -1,10 +1,11 @@
 # `perceptron_en.json.gz` — provenance and licensing
 
 This directory's weight artifact backs `PerceptronTagger`, the default
-`Tagger` implementation. Unlike the optional `nlprule` comparison backend
-(`src/tag_nlprule.rs`, gated behind the `nlprule` cargo feature — see that
-module's own doc comment), nothing here derives from LanguageTool/nlprule
-data, and nothing here is downloaded at build time. This file records
+(and only) `Tagger` implementation. Nothing here derives from
+LanguageTool/nlprule data, and nothing here is downloaded at build time.
+(An `nlprule`-backed comparison backend existed in this crate's history
+and was removed once the perceptron was validated against it; the
+historical references below describe that one-time offline process.) This file records
 exactly where the training signal came from, how it was produced, and how
 to reproduce the artifact byte-for-byte.
 
@@ -28,8 +29,8 @@ scanned for candidate sentences.
    filtered to sentences of 4-40 whitespace-separated words, pure ASCII,
    and free of the tagger's own `UNKNOWN` sentinel. This produced 6,433
    candidate sentences (78,182 tokens).
-2. **Drafting.** `NlpruleTagger` (this crate's own `nlprule`-feature
-   backend, LGPLv2.1-derived data — see `src/tag_nlprule.rs`) tagged every
+2. **Drafting.** `NlpruleTagger` (this crate's since-removed
+   `nlprule`-feature backend, LGPLv2.1-derived data) tagged every
    candidate sentence as a **one-time, offline drafting aid only**. Its raw
    output was never treated as ground truth and never became the shipped
    training signal directly — see "Correction" below. This is the only

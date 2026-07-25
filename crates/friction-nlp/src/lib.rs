@@ -21,14 +21,11 @@ pub use segment_srx::SrxSegmenter;
 /// [`lvc::classify_candidate`]) and offline mining.
 pub mod lvc;
 
-// --- POS tagging, morphology, and inflection (owned by the tagging agent;
-// see src/tag.rs, src/tag_perceptron.rs, src/tag_nlprule.rs,
-// src/inflect.rs, src/chunk.rs) ---
+// --- POS tagging, morphology, and inflection; see src/tag.rs,
+// src/tag_perceptron.rs, src/inflect.rs, src/chunk.rs ---
 mod chunk;
 mod inflect;
 mod tag;
-#[cfg(feature = "nlprule")]
-mod tag_nlprule;
 mod tag_perceptron;
 
 pub use chunk::{
@@ -38,8 +35,6 @@ pub use chunk::{
 };
 pub use inflect::{WordClass, agreeing_forms, inflect};
 pub use tag::{PosTag, TaggedToken, Tagger, classify_token_kind, coarse_tag};
-#[cfg(feature = "nlprule")]
-pub use tag_nlprule::{NlpruleTagger, TagError};
 #[cfg(feature = "train-tooling")]
 pub use tag_perceptron::train_support;
 pub use tag_perceptron::{PerceptronTagError, PerceptronTagger};

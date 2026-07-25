@@ -1,16 +1,14 @@
 //! `friction` command-line interface.
 //!
-//! Provides `friction setup` (downloads and sha256-verifies the pinned NLP
-//! artifact registry into a local cache), `friction check` (detect-only:
-//! metrics, envelope bands, and fix-time detection spans), `friction fix`
-//! (runs the four-operation repair engine and writes the fixed text out),
-//! and `friction explain` (runs the same repair engine but reports what
-//! fired and what was held, per pass, instead of the fixed text).
+//! Provides `friction check` (detect-only: metrics, envelope bands, and
+//! fix-time detection spans), `friction fix` (runs the four-operation
+//! repair engine and writes the fixed text out), and `friction explain`
+//! (runs the same repair engine but reports what fired and what was held,
+//! per pass, instead of the fixed text).
 //!
-//! Every subcommand but `setup` is offline and deterministic: no network
-//! access, no wall-clock timestamps, and no absolute filesystem paths in
-//! any output — see each subcommand's own module docs for its exact
-//! output contract.
+//! Every subcommand is offline and deterministic: no network access, no
+//! wall-clock timestamps, and no absolute filesystem paths in any output —
+//! see each subcommand's own module docs for its exact output contract.
 
 mod check;
 mod common;
@@ -18,7 +16,6 @@ mod diagnostics;
 mod explain;
 mod fix;
 mod sarif;
-mod setup;
 mod table;
 
 use clap::{Parser, Subcommand};
@@ -33,9 +30,6 @@ struct Cli {
 
 #[derive(Debug, Subcommand)]
 enum Command {
-    /// Downloads and sha256-verifies the pinned NLP artifact registry into
-    /// a local cache directory.
-    Setup(setup::SetupArgs),
     /// Parses, measures, and runs fix-time detection, applying no fixes.
     Check(check::CheckArgs),
     /// Runs the four-operation repair engine and writes the fixed text
@@ -49,7 +43,6 @@ enum Command {
 fn main() -> std::process::ExitCode {
     let cli = Cli::parse();
     match cli.command {
-        Command::Setup(args) => setup::run(&args),
         Command::Check(args) => check::run(&args),
         Command::Fix(args) => fix::run(&args),
         Command::Explain(args) => explain::run(&args),

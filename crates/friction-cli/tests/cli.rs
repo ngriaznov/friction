@@ -366,15 +366,3 @@ fn explain_rejects_sarif_format() {
         .assert()
         .code(2);
 }
-
-// ---------------------------------------------------------------------
-// setup (regression: still wired up after this crate's other subcommands
-// were added)
-// ---------------------------------------------------------------------
-
-/// `friction setup` on the (currently empty) registry still succeeds —
-/// this crate's other subcommands must not have disturbed it.
-#[test]
-fn setup_still_works_on_an_empty_registry() {
-    friction().arg("setup").assert().success();
-}

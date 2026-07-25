@@ -2,8 +2,8 @@
 //! [`friction_core::Token`]s.
 //!
 //! [`Tagger`] is the boundary between this crate and its
-//! implementation(s) — currently a single one, [`crate::NlpruleTagger`], in
-//! [`crate::tag_nlprule`] — so other crates only ever need to depend on the
+//! implementation(s) — currently a single one, [`crate::PerceptronTagger`],
+//! in `tag_perceptron` — so other crates only ever need to depend on the
 //! trait. Unlike [`crate::Segmenter`], a `Tagger` produces the token spans
 //! themselves (not just enriches pre-existing ones): tokenization and POS
 //! tagging are the same pass in every backend worth having, so splitting
@@ -32,8 +32,8 @@ pub trait Tagger {
 /// A part-of-speech tag.
 ///
 /// A thin newtype over the tagger's own tag string (for
-/// [`crate::NlpruleTagger`], the Penn-Treebank-style tags of its
-/// dictionary, e.g. `"NN"`, `"VBZ"`, `"JJ"`) rather than a closed enum:
+/// [`crate::PerceptronTagger`], Penn-Treebank-style tags,
+/// e.g. `"NN"`, `"VBZ"`, `"JJ"`) rather than a closed enum:
 /// different taggers use different tagsets, and callers that only care
 /// about a handful of coarse categories can match on
 /// [`PosTag::as_str`] themselves.

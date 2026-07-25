@@ -33,14 +33,6 @@ friction-parse = { path = "../friction-parse" }
 serde = { workspace = true }
 serde_json = { workspace = true }
 thiserror = { workspace = true }
-ureq = { workspace = true }
-
-# Resolves an XDG-compliant cache directory on Linux, with the platform
-# equivalent on macOS/Windows. Not yet covered by [workspace.dependencies]
-# (see the friction-nlp/friction-packs/friction-cli task brief) — added
-# here rather than at the workspace root to avoid a concurrent root-file
-# edit.
-directories = "6"
 
 # `check`'s text-mode findings are rendered as labeled-span diagnostics
 # with miette's fancy renderer (see src/diagnostics.rs); not yet covered
