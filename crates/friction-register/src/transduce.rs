@@ -845,6 +845,29 @@ pub fn t5_nominalization(
         else {
             continue;
         };
+
+        // A modified nominalization has nowhere to put its modifier.
+        //
+        // This rewrite replaces everything from the determiner through the
+        // argument with a verb form and that argument, so an adjective
+        // sitting between them is simply deleted: `"The seamless
+        // integration of SQS with other AWS services"` became
+        // `"integrating SQS with other AWS services"`, losing `seamless`
+        // outright. That is content loss, not a register change, and it is
+        // the one failure mode this whole module is supposed to be
+        // incapable of.
+        //
+        // Carrying the modifier across is not an option either. The verbal
+        // form needs an adverb (`seamlessly integrating`), and deriving one
+        // means generating a word the input never contained — exactly the
+        // synthesis this engine refuses to do. So the construction is
+        // declined instead.
+        if children_with_relation(parse, index, DepRelation::Amod)
+            .next()
+            .is_some()
+        {
+            continue;
+        }
         let Some(of_prep) = children_with_relation(parse, index, DepRelation::Prep)
             .find(|edge| token_text(source, tokens, edge.token).eq_ignore_ascii_case("of"))
         else {
