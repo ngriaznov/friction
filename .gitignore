@@ -6,3 +6,6 @@
 Thumbs.db
 /corpus-staging
 /corpus/incoming/
+
+# IDE
+/.idea/
