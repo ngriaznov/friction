@@ -251,3 +251,43 @@ pub fn capitalize(text: &str) -> String {
         out
     })
 }
+
+/// `true` if `range` falls inside (or crosses the boundary of) a
+/// double-quoted span of `text`.
+///
+/// Quoted text is a mention (an example, a citation, a string someone
+/// else wrote), not the author's own register, so no operation may
+/// rewrite it.
+///
+/// Straight `"` marks are tracked by parity: an odd count before
+/// `range.start` means the range starts inside a quotation. Curly
+/// `\u{201c}`/`\u{201d}` marks are directional, so they are tracked by
+/// nesting depth instead. A matched slice that itself contains any
+/// double-quote character crosses a quotation boundary and is treated as
+/// quoted too — conservative in exactly the direction a hold should be.
+#[must_use]
+pub fn in_quoted_span(text: &str, range: &std::ops::Range<usize>) -> bool {
+    let is_quote = |c: char| c == '"' || c == '\u{201c}' || c == '\u{201d}';
+    if text
+        .get(range.clone())
+        .is_some_and(|slice| slice.chars().any(is_quote))
+    {
+        return true;
+    }
+    let Some(prefix) = text.get(..range.start) else {
+        // A range that does not fall on character boundaries never came
+        // from a scan of `text`; refuse to certify it as unquoted.
+        return true;
+    };
+    let mut straight = 0usize;
+    let mut curly_depth = 0isize;
+    for c in prefix.chars() {
+        match c {
+            '"' => straight += 1,
+            '\u{201c}' => curly_depth += 1,
+            '\u{201d}' => curly_depth -= 1,
+            _ => {}
+        }
+    }
+    straight % 2 == 1 || curly_depth > 0
+}

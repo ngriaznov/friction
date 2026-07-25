@@ -129,12 +129,24 @@ pub fn edit_document(
                 _ => true,
             };
             let sentences = &unit.sentences;
+            // A sentence that is the entire prose content of a numbered
+            // list item: its unit is the item's only prose unit, it is
+            // the unit's only sentence, and the item's tightest enclosing
+            // list block is ordered.
+            let sole_item_content = sentences.len() == 1
+                && prose_units
+                    .iter()
+                    .filter(|other| other.block == unit.block)
+                    .count()
+                    == 1
+                && in_ordered_list_item(with_sentences.blocks(), unit.block);
             for (i, sentence) in sentences.iter().enumerate() {
                 let position = SentencePosition {
                     range: sentence.range.clone(),
                     prev_end: (i > 0).then(|| sentences[i - 1].range.end),
                     next_range: sentences.get(i + 1).map(|s| s.range.clone()),
                     is_sentence_start: i > 0 || unit_starts_new_sentence,
+                    sole_content_of_ordered_list_item: sole_item_content,
                 };
                 casing
                     .record_sentence(&current[sentence.range.clone()], position.is_sentence_start);
@@ -173,6 +185,30 @@ pub fn edit_document(
     }
 
     Ok((current, report))
+}
+
+/// `true` if `blocks[block_index]` is a list item whose tightest
+/// enclosing list block is ordered (numbered).
+///
+/// Blocks carry no parent links, so the enclosing list is found by range
+/// containment: among all `List` blocks whose range contains the item's
+/// range, the one starting latest is the innermost.
+fn in_ordered_list_item(blocks: &[friction_core::Block], block_index: usize) -> bool {
+    let Some(item) = blocks.get(block_index) else {
+        return false;
+    };
+    if !matches!(item.kind, friction_core::BlockKind::ListItem) {
+        return false;
+    }
+    blocks
+        .iter()
+        .filter(|b| b.range.start <= item.range.start && item.range.end <= b.range.end)
+        .filter_map(|b| match b.kind {
+            friction_core::BlockKind::List { ordered, .. } => Some((b.range.start, ordered)),
+            _ => None,
+        })
+        .max_by_key(|(start, _)| *start)
+        .is_some_and(|(_, ordered)| ordered)
 }
 
 /// `true` if `text`, after trimming trailing whitespace and any trailing

@@ -68,20 +68,24 @@ friction fix draft.md --suggest   # also list what was detected but held
 
 Input:
 
-> This guide will walk you through configuring the backup agent for your staging
-> environment. It is important to note that the agent performs validation of the
-> configuration file before each run. Once validation succeeds, the agent
-> conducts an analysis of the snapshot catalog and simply uploads any missing
-> segments. By following these steps, you can quickly and easily verify that
-> your backups are consistent. If you have any questions or require further
-> assistance, please reach out to our support team.
+```text
+This guide will walk you through configuring the backup agent for your staging
+environment. It is important to note that the agent performs validation of the
+configuration file before each run. Once validation succeeds, the agent
+conducts an analysis of the snapshot catalog and simply uploads any missing
+segments. By following these steps, you can quickly and easily verify that
+your backups are consistent. If you have any questions or require further
+assistance, please reach out to our support team.
+```
 
 Output:
 
-> This guide covers configuring the backup agent for your staging environment.
-> The agent validates the configuration file before each run. Once validation
-> succeeds, the agent conducts an analysis of the snapshot catalog and simply
-> uploads any missing segments. You can verify that your backups are consistent.
+```text
+This guide covers configuring the backup agent for your staging environment.
+The agent validates the configuration file before each run. Once validation
+succeeds, the agent conducts an analysis of the snapshot catalog and simply
+uploads any missing segments. You can verify that your backups are consistent.
+```
 
 ```
 friction fix: 2 pass(es), 8 patch(es) applied

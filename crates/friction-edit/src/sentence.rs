@@ -64,6 +64,11 @@ pub struct SentencePosition {
     /// `true` for a sentence that isn't first in its prose unit — only a
     /// unit's own first sentence can be a continuation.
     pub is_sentence_start: bool,
+    /// `true` if this sentence is the entire prose content of an item in
+    /// an ordered (numbered) list — deleting it whole would leave a bare
+    /// item marker and break the counted enumeration, so a whole-sentence
+    /// ritual deletion is held instead.
+    pub sole_content_of_ordered_list_item: bool,
 }
 
 /// The packs and tools every stage of [`edit_sentence`] shares — bundled
@@ -172,12 +177,12 @@ pub fn edit_sentence(
         verb_words: gates::original_finite_verb_words(&original_tags, original_text),
     };
 
-    if let Some(outcome) = try_ritual_deletion(source, position, ctx) {
+    let mut held: Vec<Finding> = Vec::new();
+    if let Some(outcome) = try_ritual_deletion(source, position, ctx, &mut held) {
         return outcome;
     }
 
     let mut splicer = SentenceSplicer::new(source, sentence_range.clone());
-    let mut held: Vec<Finding> = Vec::new();
 
     run_substitution(&mut splicer, &mut held, &sentence_range, ctx, &original);
     run_pivot(&mut splicer, &mut held, &sentence_range, ctx, pivot_budget);
@@ -200,30 +205,70 @@ pub fn edit_sentence(
 }
 
 /// Operation 1 (ritual deletion). Returns `Some` (a whole-sentence
-/// deletion) if a ritual frame matched, `None` if the sentence should
-/// proceed to the other three operations.
+/// deletion) if a ritual frame matched and no hold applies, `None` if the
+/// sentence should proceed to the other three operations (pushing a
+/// Suggest-tier hold onto `held` when a frame matched but could not be
+/// acted on).
 ///
-/// Unconditional on a match, mirroring `fix_sentence`'s own ritual step
-/// exactly: `for pat in RITUAL: if pat.search(s): return "", [...]` — no
-/// discourse-binding check on the following sentence. (A block-level
-/// ritual — a whole preview paragraph, gated on its content being
-/// covered by adjacent structure — is a distinct case this function does
-/// not implement at all; it is not a broader license to hold an ordinary
-/// sentence-level ritual match.)
+/// Unconditional on an actionable match, mirroring `fix_sentence`'s own
+/// ritual step exactly: `for pat in RITUAL: if pat.search(s): return "",
+/// [...]` — no discourse-binding check on the following sentence. (A
+/// block-level ritual — a whole preview paragraph, gated on its content
+/// being covered by adjacent structure — is a distinct case this function
+/// does not implement at all; it is not a broader license to hold an
+/// ordinary sentence-level ritual match.) Two holds do apply:
+/// - a frame matching only inside a double-quoted span is a mention of a
+///   ritual phrase, not a use of one ([`gates::in_quoted_span`]);
+/// - a sentence that is the entire content of a numbered list item is
+///   never deleted whole — that would leave a bare item marker and break
+///   the counted enumeration.
 fn try_ritual_deletion(
     source: &str,
     position: &SentencePosition,
     ctx: &EditContext<'_>,
+    held: &mut Vec<Finding>,
 ) -> Option<SentenceOutcome> {
     let sentence_range = position.range.clone();
     let original_text = &source[sentence_range.clone()];
 
-    let matched = ctx
-        .inventory
-        .ritual_frames()
-        .iter()
-        .any(|frame| frame.pattern.is_match(original_text));
-    if !matched {
+    let mut quoted_frame = None;
+    let mut acting_frame = None;
+    for frame in ctx.inventory.ritual_frames() {
+        for m in frame.pattern.find_iter(original_text) {
+            if gates::in_quoted_span(original_text, &m.range()) {
+                quoted_frame.get_or_insert(frame);
+            } else {
+                acting_frame = Some(frame);
+                break;
+            }
+        }
+        if acting_frame.is_some() {
+            break;
+        }
+    }
+    let frame = match (acting_frame, quoted_frame) {
+        (Some(frame), _) => frame,
+        (None, Some(frame)) => {
+            held.push(Finding::new(
+                RULE_RITUAL,
+                sentence_range,
+                format!("ritual {} held: matched inside quotation", frame.id),
+                Tier::Suggest,
+            ));
+            return None;
+        }
+        (None, None) => return None,
+    };
+    if position.sole_content_of_ordered_list_item {
+        held.push(Finding::new(
+            RULE_RITUAL,
+            sentence_range,
+            format!(
+                "ritual {} held: deleting it would empty a numbered list item",
+                frame.id
+            ),
+            Tier::Suggest,
+        ));
         return None;
     }
 
@@ -234,7 +279,7 @@ fn try_ritual_deletion(
     };
     Some(SentenceOutcome {
         patches: vec![Patch::new(delete_range, "", RULE_RITUAL, Tier::Fix)],
-        held: Vec::new(),
+        held: std::mem::take(held),
         whole_sentence_deleted: true,
     })
 }
@@ -279,11 +324,19 @@ fn run_substitution(
             continue;
         }
 
-        let ranges: Vec<Range<usize>> = pair
+        let (quoted, ranges): (Vec<Range<usize>>, Vec<Range<usize>>) = pair
             .pattern
             .find_iter(&working)
             .map(|m| m.range())
-            .collect();
+            .partition(|range| gates::in_quoted_span(&working, range));
+        if !quoted.is_empty() {
+            held.push(Finding::new(
+                RULE_SUB,
+                sentence_range.clone(),
+                format!("substitution {} held: matched inside quotation", pair.id),
+                Tier::Suggest,
+            ));
+        }
         for range in ranges.into_iter().rev() {
             let mut replacement = pair.replacement.to_string();
             if range.start == 0
@@ -326,6 +379,15 @@ fn run_pivot(
                 | CandidateOutcome::NoNominalFollows
                 | CandidateOutcome::Unlicensed => {}
                 CandidateOutcome::Licensed(construction) => {
+                    if gates::in_quoted_span(&working, &construction.range) {
+                        held.push(Finding::new(
+                            RULE_PIVOT,
+                            sentence_range.clone(),
+                            "pivot held: matched inside quotation",
+                            Tier::Suggest,
+                        ));
+                        continue;
+                    }
                     licensed = Some(construction);
                     break;
                 }
@@ -373,6 +435,15 @@ fn run_deletion(
         let Some(m) = span.pattern.find(&working) else {
             continue;
         };
+        if gates::in_quoted_span(&working, &m.range()) {
+            held.push(Finding::new(
+                RULE_SPAN,
+                sentence_range.clone(),
+                format!("deletion {} held: matched inside quotation", span.id),
+                Tier::Suggest,
+            ));
+            continue;
+        }
         let outcome = gates::check_deletion_gates(
             &working,
             m.range(),
