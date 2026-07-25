@@ -23,6 +23,33 @@ const RULE_PIVOT: RuleId = RuleId::new("pivot.lvc");
 const RULE_SPAN: RuleId = RuleId::new("span.delete");
 const RULE_RECAPITALIZE: RuleId = RuleId::new("edit.recapitalize");
 
+/// `true` if nothing but non-word characters precedes `start` in `text` —
+/// so a match there is opening its line, whatever punctuation or markup
+/// sits in front of it.
+///
+/// A substitution replaces text with a fixed lowercase form, and whether
+/// the result should be capitalized depends on where it landed. Testing
+/// only for offset zero misses every case where the author put markup
+/// first: `"* **Leverage Monitoring Tools Effectively:**"` produced
+/// `"* **use Monitoring Tools..."`, because the emphasis markers pushed
+/// the match off position zero.
+///
+/// Deliberately not "is this a sentence start" — the segmenter does not
+/// call a bolded list-item lead-in a sentence, and this is exactly the
+/// position where that disagreement shows. Deliberately not "is the
+/// matched text capitalized" alone either: that would capitalize a
+/// genuine mid-sentence match, where the author's capital is a quirk
+/// rather than a sentence opening.
+fn opens_its_line(text: &str, start: usize) -> bool {
+    text.get(..start).is_some_and(|prefix| {
+        prefix
+            .chars()
+            .rev()
+            .take_while(|c| *c != '\n')
+            .all(|c| !c.is_alphanumeric())
+    })
+}
+
 /// The result of running the four-operation pipeline over one sentence.
 #[derive(Debug, Default)]
 pub struct SentenceOutcome {
@@ -339,7 +366,7 @@ fn run_substitution(
         }
         for range in ranges.into_iter().rev() {
             let mut replacement = pair.replacement.to_string();
-            if range.start == 0
+            if opens_its_line(&working, range.start)
                 && working[range.clone()]
                     .chars()
                     .next()

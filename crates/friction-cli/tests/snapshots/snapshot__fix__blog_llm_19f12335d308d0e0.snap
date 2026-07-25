@@ -43,7 +43,7 @@ We also added logging around the cleanup process, allowing us to verify that it 
 This experience reinforced several crucial lessons about debugging performance issues in production:
 
 * **Don’t Ignore Initial Alerts:** Even seemingly minor increases in resource utilization should be investigated promptly.  Early detection can prevent a small problem from escalating into a major outage.
-* **use Monitoring Tools Effectively:** Heap snapshots, memory profiling tools, and detailed metrics are invaluable for pinpointing the source of performance issues. Don't rely solely on logs – they often lack the granularity needed to diagnose complex problems.
+* **Use Monitoring Tools Effectively:** Heap snapshots, memory profiling tools, and detailed metrics are invaluable for pinpointing the source of performance issues. Don't rely solely on logs – they often lack the granularity needed to diagnose complex problems.
 * **Event Listener Management is Critical:** Event listeners can be a significant source of memory leaks if not properly managed. Always ensure that listeners are cleaned up after use, especially in long-running processes.  Consider using techniques like `clearInterval`, `clearTimeout`, and proper resource cleanup within your event handlers.
 * **Test Your Cleanup Logic:** Thoroughly test your cleanup mechanisms to ensure they function correctly under various scenarios – including error conditions.
 
