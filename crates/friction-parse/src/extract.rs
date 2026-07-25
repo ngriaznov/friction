@@ -46,6 +46,12 @@
 //! Links and images are excluded structurally (`[`, `](url)`) but their
 //! label *is* prose, so their `Start`/`End` force a real break on both
 //! sides rather than bridging — the label becomes its own separate run.
+//!
+//! A leading YAML frontmatter block (see [`frontmatter_len`]) is carved
+//! off *before* `pulldown-cmark` ever sees the document — its own
+//! [`BlockKind::FrontMatter`] block, contributing no prose — because the
+//! generic block grammar would otherwise reinterpret the closing `---` as
+//! a setext-heading underline and surface the metadata lines as prose.
 
 use std::ops::Range;
 
@@ -71,7 +77,17 @@ pub fn extract(source: &str) -> (Vec<Block>, Vec<ProseUnit>) {
         source,
         ..ExtractState::default()
     };
-    for (event, range) in Parser::new_ext(source, OPTIONS).into_offset_iter() {
+    // A leading YAML frontmatter block is metadata syntax, not markdown:
+    // handing it to `pulldown-cmark` would reinterpret the closing `---`
+    // as a setext-heading underline and surface `id: ...` lines as prose.
+    // Carve it off as its own block and parse only the body, shifting
+    // every event range back into whole-document byte offsets.
+    let body_start = frontmatter_len(source);
+    if body_start > 0 {
+        state.push_block(BlockKind::FrontMatter, 0..body_start);
+    }
+    for (event, range) in Parser::new_ext(&source[body_start..], OPTIONS).into_offset_iter() {
+        let range = range.start + body_start..range.end + body_start;
         match event {
             Event::Start(tag) => state.on_start(&tag, range),
             Event::End(tag_end) => state.on_end(tag_end, range),
@@ -163,6 +179,47 @@ impl Session {
             .into_iter()
             .map(|range| ProseUnit::new(self.block, range, Vec::new()))
             .collect()
+    }
+}
+
+/// The byte length of the YAML frontmatter block `source` opens with, or
+/// `0` if it doesn't open with one.
+///
+/// Frontmatter is an exact `---` line at the very start of the document,
+/// closed by the next exact `---` or `...` line; the returned length
+/// covers both fences and the closing line's terminator. A `---` opener
+/// with no closing fence is *not* frontmatter (it's an ordinary thematic
+/// break) and yields `0`.
+fn frontmatter_len(source: &str) -> usize {
+    let Some(open_len) = fence_line_len(source, "---") else {
+        return 0;
+    };
+    let mut offset = open_len;
+    while offset < source.len() {
+        let line_end = source[offset..]
+            .find('\n')
+            .map_or(source.len(), |i| offset + i + 1);
+        if let Some(close_len) = fence_line_len(&source[offset..], "---")
+            .or_else(|| fence_line_len(&source[offset..], "..."))
+            && offset + close_len == line_end
+        {
+            return line_end;
+        }
+        offset = line_end;
+    }
+    0
+}
+
+/// The byte length of `fence` plus its line terminator, if `text` starts
+/// with exactly that line: `fence` followed by `\n`, `\r\n`, or the end
+/// of input.
+fn fence_line_len(text: &str, fence: &str) -> Option<usize> {
+    let rest = text.strip_prefix(fence)?;
+    match rest.as_bytes() {
+        [] => Some(fence.len()),
+        [b'\n', ..] => Some(fence.len() + 1),
+        [b'\r', b'\n', ..] => Some(fence.len() + 2),
+        _ => None,
     }
 }
 
@@ -669,6 +726,64 @@ mod tests {
             "Use a b to mean literal star."
         ));
         assert!(!super::is_backslash_escape_gap(0, 2, "\\\\b"));
+    }
+
+    /// A leading YAML frontmatter block contributes zero prose units —
+    /// without special handling, `pulldown-cmark` would reinterpret its
+    /// closing `---` as a setext-heading underline and hand the metadata
+    /// lines to downstream stages as a genuine sentence.
+    #[test]
+    fn yaml_frontmatter_contributes_no_prose() {
+        let source =
+            "---\nid: composition-vs-inheritance\ntitle: Composition\n---\n\nReal prose.\n";
+        let (blocks, prose) = extract(source);
+        assert_eq!(blocks[0].kind, BlockKind::FrontMatter);
+        assert_eq!(
+            &source[blocks[0].range.clone()],
+            "---\nid: composition-vs-inheritance\ntitle: Composition\n---\n"
+        );
+        let texts: Vec<&str> = prose.iter().map(|u| &source[u.range.clone()]).collect();
+        assert_eq!(texts, vec!["Real prose."]);
+    }
+
+    /// The YAML document-end marker `...` also closes frontmatter.
+    #[test]
+    fn yaml_frontmatter_closed_by_dots() {
+        let source = "---\ntitle: Composition\n...\n\nReal prose.\n";
+        let (blocks, prose) = extract(source);
+        assert_eq!(blocks[0].kind, BlockKind::FrontMatter);
+        let texts: Vec<&str> = prose.iter().map(|u| &source[u.range.clone()]).collect();
+        assert_eq!(texts, vec!["Real prose."]);
+    }
+
+    /// CRLF line endings don't defeat frontmatter detection.
+    #[test]
+    fn yaml_frontmatter_with_crlf() {
+        let source = "---\r\ntitle: Composition\r\n---\r\nReal prose.\r\n";
+        let (blocks, prose) = extract(source);
+        assert_eq!(blocks[0].kind, BlockKind::FrontMatter);
+        let texts: Vec<&str> = prose.iter().map(|u| &source[u.range.clone()]).collect();
+        assert_eq!(texts, vec!["Real prose."]);
+    }
+
+    /// An opening `---` with no closing fence is NOT frontmatter — it
+    /// stays an ordinary thematic break and the rest stays prose.
+    #[test]
+    fn unclosed_leading_dashes_are_not_frontmatter() {
+        let source = "---\n\nJust prose after a rule.\n";
+        let (blocks, prose) = extract(source);
+        assert!(blocks.iter().all(|b| b.kind != BlockKind::FrontMatter));
+        assert!(blocks.iter().any(|b| b.kind == BlockKind::ThematicBreak));
+        let texts: Vec<&str> = prose.iter().map(|u| &source[u.range.clone()]).collect();
+        assert_eq!(texts, vec!["Just prose after a rule."]);
+    }
+
+    /// A `---` pair that doesn't start at byte 0 is not frontmatter.
+    #[test]
+    fn dashes_after_content_are_not_frontmatter() {
+        let source = "Intro.\n\n---\nnot: metadata\n---\n";
+        let (blocks, _) = extract(source);
+        assert!(blocks.iter().all(|b| b.kind != BlockKind::FrontMatter));
     }
 
     /// Emoji, CJK, and combining-mark text is captured verbatim as

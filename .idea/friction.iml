@@ -1,0 +1,33 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<module type="EMPTY_MODULE" version="4">
+  <component name="NewModuleRootManager">
+    <content url="file://$MODULE_DIR$">
+      <sourceFolder url="file://$MODULE_DIR$/crates/corpus-tool/examples" isTestSource="false" />
+      <sourceFolder url="file://$MODULE_DIR$/crates/corpus-tool/src" isTestSource="false" />
+      <sourceFolder url="file://$MODULE_DIR$/crates/corpus-tool/tests" isTestSource="true" />
+      <sourceFolder url="file://$MODULE_DIR$/crates/friction-apply/examples" isTestSource="false" />
+      <sourceFolder url="file://$MODULE_DIR$/crates/friction-apply/src" isTestSource="false" />
+      <sourceFolder url="file://$MODULE_DIR$/crates/friction-apply/tests" isTestSource="true" />
+      <sourceFolder url="file://$MODULE_DIR$/crates/friction-cli/src" isTestSource="false" />
+      <sourceFolder url="file://$MODULE_DIR$/crates/friction-cli/tests" isTestSource="true" />
+      <sourceFolder url="file://$MODULE_DIR$/crates/friction-core/src" isTestSource="false" />
+      <sourceFolder url="file://$MODULE_DIR$/crates/friction-edit/examples" isTestSource="false" />
+      <sourceFolder url="file://$MODULE_DIR$/crates/friction-edit/src" isTestSource="false" />
+      <sourceFolder url="file://$MODULE_DIR$/crates/friction-edit/tests" isTestSource="true" />
+      <sourceFolder url="file://$MODULE_DIR$/crates/friction-harness/src" isTestSource="false" />
+      <sourceFolder url="file://$MODULE_DIR$/crates/friction-harness/tests" isTestSource="true" />
+      <sourceFolder url="file://$MODULE_DIR$/crates/friction-match/src" isTestSource="false" />
+      <sourceFolder url="file://$MODULE_DIR$/crates/friction-match/tests" isTestSource="true" />
+      <sourceFolder url="file://$MODULE_DIR$/crates/friction-metrics/src" isTestSource="false" />
+      <sourceFolder url="file://$MODULE_DIR$/crates/friction-nlp/examples" isTestSource="false" />
+      <sourceFolder url="file://$MODULE_DIR$/crates/friction-nlp/src" isTestSource="false" />
+      <sourceFolder url="file://$MODULE_DIR$/crates/friction-nlp/tests" isTestSource="true" />
+      <sourceFolder url="file://$MODULE_DIR$/crates/friction-packs/src" isTestSource="false" />
+      <sourceFolder url="file://$MODULE_DIR$/crates/friction-parse/src" isTestSource="false" />
+      <sourceFolder url="file://$MODULE_DIR$/crates/friction-parse/tests" isTestSource="true" />
+      <excludeFolder url="file://$MODULE_DIR$/target" />
+    </content>
+    <orderEntry type="inheritedJdk" />
+    <orderEntry type="sourceFolder" forTests="false" />
+  </component>
+</module>

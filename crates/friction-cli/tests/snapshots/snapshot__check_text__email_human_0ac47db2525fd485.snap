@@ -3,32 +3,32 @@ source: crates/friction-cli/tests/snapshot.rs
 expression: stdout
 ---
 METRIC                         VALUE  BAND                STATUS
-sentence_length_mean          7.0128  [3.7147, 8.3678]    in    
-sentence_length_stddev        7.4283  [3.8429, 8.5614]    in    
-sentence_length_cv            1.0592  [0.8694, 1.1405]    in    
+sentence_length_mean          6.9013  [3.7147, 8.3678]    in    
+sentence_length_stddev        7.0270  [3.8429, 8.5614]    in    
+sentence_length_cv            1.0182  [0.8694, 1.1405]    in    
 discourse_marker_density      0.0000  [0.0000, 0.0000]    in    
 triad_rate                    0.0000  [0.0000, 0.0169]    in    
 contraction_ratio             0.1818  [0.0000, 0.5714]    in    
-bullet_parallelism            0.6111  [0.6320, 0.8533]    OUT   
-paragraph_shape_mean          1.1556  [1.0926, 1.2222]    in    
-paragraph_shape_cv            0.4196  [0.2877, 0.4873]    in    
+bullet_parallelism            0.5333  [0.6320, 0.8533]    OUT   
+paragraph_shape_mean          1.1515  [1.0926, 1.2222]    in    
+paragraph_shape_cv            0.4206  [0.2877, 0.4873]    in    
 em_dash_density               0.0000  [0.0000, 1.2285]    in    
-semicolon_density             0.9141  [0.0000, 1.6207]    in    
-participial_closer_rate       0.0064  [0.0000, 0.0064]    in    
+semicolon_density             0.9533  [0.0000, 1.6207]    in    
+participial_closer_rate       0.0066  [0.0000, 0.0064]    OUT   
 not_just_but_rate             0.0000  [0.0000, 0.0000]    in    
 ritual_marker_rate            0.0000  [0.0000, 0.0000]    in    
-llm_favored_phrase_rate      12.9870  [3.5928, 14.8957]   in    
-human_favored_phrase_rate    25.0464  [10.1215, 27.7537]  in    
-heading_density               5.5659  [5.7582, 19.1617]   OUT   
-list_item_density            24.1187  [12.2581, 80.2920]  in    
-bold_span_density             4.6382  [0.0000, 6.4516]    in    
-sentence_opener_repeat_rate   0.0065  [0.0038, 0.0448]    in    
-top_opener_concentration      0.0672  [0.0485, 0.1739]    in    
+llm_favored_phrase_rate      13.5005  [3.5928, 14.8957]   in    
+human_favored_phrase_rate    26.0366  [10.1215, 27.7537]  in    
+heading_density               5.7859  [5.7582, 19.1617]   in    
+list_item_density            24.1080  [12.2581, 80.2920]  in    
+bold_span_density             4.8216  [0.0000, 6.4516]    in    
+sentence_opener_repeat_rate   0.0066  [0.0038, 0.0448]    in    
+top_opener_concentration      0.0692  [0.0485, 0.1739]    in    
 
 dms (target family: qwen):
-  qwen     mean_machine=1.1209  mean_human=12.9916  differential=-11.8707  tokens=1191
-  gemma    mean_machine=1.2746  mean_human=12.9916  differential=-11.7170  tokens=1191
-  llama    mean_machine=1.1772  mean_human=12.9916  differential=-11.8144  tokens=1191
-  granite  mean_machine=1.0756  mean_human=12.9916  differential=-11.9160  tokens=1191
+  qwen     mean_machine=1.1195  mean_human=12.5327  differential=-11.4133  tokens=1130
+  gemma    mean_machine=1.2752  mean_human=12.5327  differential=-11.2575  tokens=1130
+  llama    mean_machine=1.1717  mean_human=12.5327  differential=-11.3611  tokens=1130
+  granite  mean_machine=1.0779  mean_human=12.5327  differential=-11.4549  tokens=1130
 
 tell counts (0 span(s) total):
