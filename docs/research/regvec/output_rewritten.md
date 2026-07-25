@@ -1,0 +1,9 @@
+The ingestion service leverages a distributed cache and reduces lookup latency. This ensures that downstream consumers receive enriched events within the agreed window. The pipeline consumes from Kafka, enriching each record against a reference dataset and writing the result into the analytics store. This allows operators to query recent activity without waiting for the nightly batch.
+
+That the enrichment stage was the bottleneck became clear only after extensive profiling. We instrumented the code path and captured allocation counts and wall-clock timings, and discovered a serialization fallback that consumes the majority of the budget. Optimizing the serializer was therefore prioritized. This delivers a substantial improvement in throughput and stability.
+
+The framework, failing to resolve a schema for one of the nested types, fell back to a reflection-based path. This path is dramatically slower, imposing overhead on every single event and driving the observed regression. An explicit schema for the affected type was registered and eliminated the fallback entirely.
+
+A cluster comprising twelve worker nodes handles the load. Each node runs a service that holds the full reference dataset in memory. This provides fast lookups at the cost of a larger heap. We tuned the eviction policy, reducing pressure on the collector and improving tail latency. Reducing the allocation rate was the most significant outcome. This yields measurable gains in both throughput and predictability.
+
+We deployed the change during a low-traffic window and monitored error rates and consumer lag throughout. The team validated the results the following morning and confirmed that the improvement held under production load. Moving forward, we will add instrumentation, making this class of problem easier to detect and enabling faster diagnosis.
