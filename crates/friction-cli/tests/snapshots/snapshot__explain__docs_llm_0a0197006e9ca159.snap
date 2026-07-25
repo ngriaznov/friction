@@ -10,3 +10,4 @@ pass 1: 2 operation(s) fired
 pass 2: 0 operation(s) fired — converged
   1 held:
     span.delete            3951..4099  KEPT (deletion span.by_following_these_steps_leading held: SkeletonNotAttested)
+pass 3: 0 operation(s) fired — converged

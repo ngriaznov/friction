@@ -15,6 +15,7 @@ friction-parse = { path = "../friction-parse" }
 friction-nlp = { path = "../friction-nlp" }
 friction-match = { path = "../friction-match" }
 friction-packs = { path = "../friction-packs" }
+friction-register = { path = "../friction-register" }
 thiserror = { workspace = true }
 
 [dev-dependencies]

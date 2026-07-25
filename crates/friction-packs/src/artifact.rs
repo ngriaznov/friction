@@ -196,6 +196,24 @@ pub enum PackError {
         /// The offending value.
         value: String,
     },
+
+    /// A register pack's `[features.<name>]` band does not satisfy `low <
+    /// median < high` with every bound finite (see
+    /// [`crate::RegisterPack::parse`]).
+    #[error(
+        "features.{feature}: invalid band [low={low}, median={median}, high={high}] \
+         (must be finite with low < median < high)"
+    )]
+    InvalidRegisterBand {
+        /// The band's feature name.
+        feature: String,
+        /// The offending lower bound.
+        low: f64,
+        /// The offending median.
+        median: f64,
+        /// The offending upper bound.
+        high: f64,
+    },
 }
 
 impl From<toml::de::Error> for PackError {

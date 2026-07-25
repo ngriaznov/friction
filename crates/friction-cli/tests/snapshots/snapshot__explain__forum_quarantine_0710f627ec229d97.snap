@@ -5,3 +5,4 @@ expression: stdout
 pass 1: 0 operation(s) fired — converged
   1 held:
     span.delete            909..963  KEPT (deletion span.simply held: SeamNotAttested)
+pass 2: 0 operation(s) fired — converged

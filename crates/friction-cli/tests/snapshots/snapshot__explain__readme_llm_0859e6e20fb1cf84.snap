@@ -8,3 +8,5 @@ pass 1: 4 operation(s) fired
   span.delete              2943..2950  (deleted)
   ritual.delete            5203..5219  (deleted)
 pass 2: 0 operation(s) fired — converged
+pass 3: 1 operation(s) fired
+  register.passivize       1715..1731  -> "changes are made"

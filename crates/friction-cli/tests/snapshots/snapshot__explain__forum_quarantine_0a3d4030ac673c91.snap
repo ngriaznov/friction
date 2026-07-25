@@ -3,3 +3,5 @@ source: crates/friction-cli/tests/snapshot.rs
 expression: stdout
 ---
 pass 1: 0 operation(s) fired — converged
+pass 2: 1 operation(s) fired
+  register.passivize       2608..2631  -> "the dishwasher was opened"

@@ -623,6 +623,7 @@ dependencies = [
  "friction-nlp",
  "friction-packs",
  "friction-parse",
+ "friction-register",
  "thiserror 2.0.19",
 ]
 

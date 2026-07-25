@@ -19,44 +19,53 @@ pub mod document;
 mod error;
 pub mod gates;
 pub mod nearnoop;
+pub mod register;
 pub mod sentence;
 pub mod splice;
 
 pub use document::{EditReport, PassReport, edit_document};
 pub use error::EditError;
 
-use friction_nlp::{PerceptronTagger, SrxSegmenter};
-use friction_packs::{AttestationPack, InventoryPack};
+use friction_nlp::{PerceptronParser, PerceptronTagger, SrxSegmenter};
+use friction_packs::{AttestationPack, InventoryPack, RegisterPack};
 
-/// The engine: the embedded tagger, segmenter, inventory pack, and
-/// attestation pack, loaded once and reused across every
-/// [`Engine::fix_document`] call.
+/// The engine: the embedded tagger, dependency parser, segmenter,
+/// inventory pack, attestation pack, and register pack, loaded once and
+/// reused across every [`Engine::fix_document`] call.
 pub struct Engine {
     inventory: &'static InventoryPack,
     attestation: &'static AttestationPack,
+    register_pack: &'static RegisterPack,
     tagger: PerceptronTagger,
+    parser: PerceptronParser,
     segmenter: SrxSegmenter,
 }
 
 impl Engine {
-    /// Builds an engine over the embedded, process-lifetime inventory and
-    /// attestation packs.
+    /// Builds an engine over the embedded, process-lifetime inventory,
+    /// attestation, and register packs.
     ///
     /// # Errors
     /// Returns [`EditError::Tagger`] if the embedded tagger weights fail
-    /// to load.
+    /// to load, or [`EditError::Parser`] if the embedded dependency-parser
+    /// weights fail to load.
     pub fn new() -> Result<Self, EditError> {
         let tagger = PerceptronTagger::new()?;
+        let parser = PerceptronParser::new()?;
         Ok(Self {
             inventory: &friction_packs::INVENTORY.pack,
             attestation: &friction_packs::ATTESTATION.pack,
+            register_pack: &friction_packs::REGISTER.pack,
             tagger,
+            parser,
             segmenter: SrxSegmenter::new(),
         })
     }
 
-    /// Runs the bounded two-pass repair pipeline over `source`, returning
-    /// the fixed text and a report of what happened each pass.
+    /// Runs the bounded two-pass repair pipeline over `source`, followed
+    /// by the register pass, returning the fixed text and a report of
+    /// what happened each pass (the register pass is the report's final
+    /// entry — see [`crate::document::edit_document`]'s own docs).
     ///
     /// # Errors
     /// Returns [`EditError`] if `source` fails to parse or segment.
@@ -65,7 +74,9 @@ impl Engine {
             source,
             self.inventory,
             self.attestation,
+            self.register_pack,
             &self.tagger,
+            &self.parser,
             &self.segmenter,
         )
     }

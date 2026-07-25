@@ -5,3 +5,4 @@ expression: stdout
 pass 1: 1 operation(s) fired
   sub.apply                7459..7468  -> "uses"
 pass 2: 0 operation(s) fired — converged
+pass 3: 0 operation(s) fired — converged

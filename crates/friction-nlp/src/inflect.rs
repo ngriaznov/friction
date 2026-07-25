@@ -355,11 +355,62 @@ const IRREGULAR_NOUNS: &[(&str, &str)] = &[
 /// doubling depends on which syllable is stressed — information this
 /// heuristic (deliberately, to stay dependency-free) does not have.
 const NO_DOUBLE_EXCEPTIONS: &[&str] = &[
-    "open", "happen", "offer", "listen", "enter", "visit", "focus", "profit", "target", "market",
-    "differ", "cover", "answer", "gather", "wonder", "matter", "order", "honor", "favor", "labor",
-    "color", "consider", "deliver", "suffer", "benefit", "exhibit", "edit", "credit", "limit",
-    "orbit", "audit", "format", "budget", "signal", "panel", "cancel", "model", "label", "travel",
-    "level", "total", "equal", "fuel",
+    "open",
+    "happen",
+    "offer",
+    "listen",
+    "enter",
+    "visit",
+    "focus",
+    "profit",
+    "target",
+    "market",
+    "differ",
+    "cover",
+    "answer",
+    "gather",
+    "wonder",
+    "matter",
+    "order",
+    "honor",
+    "favor",
+    "labor",
+    "color",
+    "consider",
+    "deliver",
+    "suffer",
+    "benefit",
+    "exhibit",
+    "edit",
+    "credit",
+    "limit",
+    "orbit",
+    "audit",
+    "format",
+    "budget",
+    "signal",
+    "panel",
+    "cancel",
+    "model",
+    "label",
+    "travel",
+    "level",
+    "total",
+    "equal",
+    "fuel",
+    // "enter" compounds share its own unstressed final syllable and the
+    // same false-doubling risk, but weren't listed alongside it. Added
+    // after real prose surfaced "encounter" -> "encounterred", "empower"
+    // -> "empowerred", and "discover" -> "discoverred" (all
+    // `friction-register` T4 rewrites consuming this function's regular
+    // past-tense generator, which had no exception entry for any of
+    // them).
+    "encounter",
+    "counter",
+    "empower",
+    "discover",
+    "recover",
+    "uncover",
 ];
 
 fn classify_surface_form(surface_lower: &str) -> Form {
@@ -645,6 +696,11 @@ mod tests {
         ("running", "occur", Some("occurring")),
         ("stopping", "quit", Some("quitting")),
         ("planned", "equip", Some("equipped")),
+        // --- NO_DOUBLE_EXCEPTIONS: an unstressed final syllable that
+        // looks CVC but must not double ---
+        ("used", "encounter", Some("encountered")),
+        ("used", "empower", Some("empowered")),
+        ("used", "discover", Some("discovered")),
         // --- past "-ed" ---
         ("utilized", "use", Some("used")),
         ("leveraged", "employ", Some("employed")),

@@ -249,6 +249,298 @@ fn t4_be_agrees_with_the_promoted_objects_number_and_tense() {
 }
 
 // -----------------------------------------------------------------
+// 5 (continued). T4 does not fire on a reflexive-pronoun object -- pinned
+// against a real sentence ("I ... tore myself away from ...") where a
+// generic subject and a direct object satisfied every other condition,
+// but "myself" has no independent referent to promote to subject
+// position; "Myself was torn away" is not a licensed rewrite.
+// -----------------------------------------------------------------
+#[test]
+fn t4_does_not_fire_on_a_reflexive_pronoun_object() {
+    let shapes = [
+        tok(Some(2), DepRelation::Nsubj, "I", "PRP", "i"),
+        tok(
+            Some(2),
+            DepRelation::Other,
+            "reluctantly",
+            "RB",
+            "reluctantly",
+        ),
+        tok(None, DepRelation::Root, "tore", "VBD", "tear"),
+        tok(Some(2), DepRelation::Dobj, "myself", "PRP", "myself"),
+        tok(Some(2), DepRelation::Punct, ".", ".", "."),
+    ];
+    let (source, tokens, parse) = build(&shapes);
+
+    let found = t4_activize_to_passive(&source, &tokens, &parse);
+    assert!(
+        found.is_empty(),
+        "a reflexive-pronoun object must never be promoted to subject position, got {found:?}"
+    );
+}
+
+// -----------------------------------------------------------------
+// 5 (continued). T4 does not fire on stative "have" -- pinned against a
+// real sentence ("we had about a day of downtime") where every other
+// condition was satisfied, but "about a day of downtime was had" is not
+// idiomatic English.
+// -----------------------------------------------------------------
+#[test]
+fn t4_does_not_fire_on_stative_have() {
+    let shapes = [
+        tok(Some(1), DepRelation::Nsubj, "We", "PRP", "we"),
+        tok(None, DepRelation::Root, "had", "VBD", "have"),
+        tok(Some(3), DepRelation::Det, "a", "DT", "a"),
+        tok(Some(1), DepRelation::Dobj, "day", "NN", "day"),
+        tok(Some(1), DepRelation::Punct, ".", ".", "."),
+    ];
+    let (source, tokens, parse) = build(&shapes);
+
+    let found = t4_activize_to_passive(&source, &tokens, &parse);
+    assert!(
+        found.is_empty(),
+        "stative \"have\" must never be promoted to a passive, got {found:?}"
+    );
+}
+
+// -----------------------------------------------------------------
+// 5 (continued). T4 does not fire on the copula "become" -- pinned
+// against a real sentence ("before they become problems") where every
+// other condition was satisfied, but "problems are become" is not
+// English.
+// -----------------------------------------------------------------
+#[test]
+fn t4_does_not_fire_on_the_copula_become() {
+    let shapes = [
+        tok(Some(1), DepRelation::Nsubj, "They", "PRP", "they"),
+        tok(None, DepRelation::Root, "become", "VBP", "become"),
+        tok(Some(1), DepRelation::Dobj, "problems", "NNS", "problem"),
+    ];
+    let (source, tokens, parse) = build(&shapes);
+
+    let found = t4_activize_to_passive(&source, &tokens, &parse);
+    assert!(
+        found.is_empty(),
+        "the copula \"become\" must never be promoted to a passive, got {found:?}"
+    );
+}
+
+// -----------------------------------------------------------------
+// 5 (continued). T4 does not fire when an already-inflected verb's own
+// lemma was not reduced to its base form -- pinned against a real
+// sentence ("rewrote the migration script") where the tagger's lemma for
+// "rewrote" stayed "rewrote" instead of reducing to "rewrite", producing
+// "the migration script was rewroted" once regularly suffixed.
+// -----------------------------------------------------------------
+#[test]
+fn t4_does_not_fire_when_the_verbs_lemma_was_not_reduced_from_its_surface() {
+    let shapes = [
+        tok(Some(1), DepRelation::Nsubj, "We", "PRP", "we"),
+        tok(None, DepRelation::Root, "rewrote", "VBD", "rewrote"),
+        tok(Some(3), DepRelation::Det, "the", "DT", "the"),
+        tok(Some(1), DepRelation::Dobj, "script", "NN", "script"),
+    ];
+    let (source, tokens, parse) = build(&shapes);
+
+    let found = t4_activize_to_passive(&source, &tokens, &parse);
+    assert!(
+        found.is_empty(),
+        "an unreduced verb lemma must hold the candidate rather than double-inflect it, got {found:?}"
+    );
+}
+
+// -----------------------------------------------------------------
+// 5 (continued). T4 does not fire when the object is not a plausible
+// nominal -- pinned against a real sentence ("felt most productive")
+// where an adjectival complement was mislabeled `dobj`.
+// -----------------------------------------------------------------
+#[test]
+fn t4_does_not_fire_on_a_non_nominal_object() {
+    let shapes = [
+        tok(Some(1), DepRelation::Nsubj, "They", "PRP", "they"),
+        tok(None, DepRelation::Root, "felt", "VBD", "feel"),
+        tok(Some(1), DepRelation::Dobj, "productive", "JJ", "productive"),
+    ];
+    let (source, tokens, parse) = build(&shapes);
+
+    let found = t4_activize_to_passive(&source, &tokens, &parse);
+    assert!(
+        found.is_empty(),
+        "a non-nominal object must never be promoted, got {found:?}"
+    );
+}
+
+// -----------------------------------------------------------------
+// 5 (continued). T4 does not fire when the object's own subtree contains
+// a finite verb, or is directly followed by one -- pinned against two
+// real sentences where the parser flattened an embedded clause into a
+// `dobj`: "we anticipate this reporting workload will continue to grow"
+// and a `dobj` subtree that itself spanned a full relative-clause chain.
+// -----------------------------------------------------------------
+#[test]
+fn t4_does_not_fire_when_a_finite_verb_directly_follows_the_object() {
+    let shapes = [
+        tok(Some(1), DepRelation::Nsubj, "We", "PRP", "we"),
+        tok(None, DepRelation::Root, "anticipate", "VBP", "anticipate"),
+        tok(Some(3), DepRelation::Det, "this", "DT", "this"),
+        tok(Some(1), DepRelation::Dobj, "workload", "NN", "workload"),
+        tok(Some(1), DepRelation::Other, "will", "MD", "will"),
+    ];
+    let (source, tokens, parse) = build(&shapes);
+
+    let found = t4_activize_to_passive(&source, &tokens, &parse);
+    assert!(
+        found.is_empty(),
+        "a dangling finite verb right after the object must hold the candidate, got {found:?}"
+    );
+}
+
+// -----------------------------------------------------------------
+// 5 (continued). T4 does not fire when the object's own subtree ends on
+// a bare preposition -- pinned against a real sentence ("established a
+// rough budget range of $60,000 - $85,000") where the range's own
+// argument attached elsewhere, stranding "of" as the promoted object's
+// final token and producing "a rough budget range of was established".
+// -----------------------------------------------------------------
+#[test]
+fn t4_does_not_fire_when_the_object_ends_on_a_bare_preposition() {
+    let shapes = [
+        tok(Some(1), DepRelation::Nsubj, "We", "PRP", "we"),
+        tok(None, DepRelation::Root, "established", "VBD", "establish"),
+        tok(Some(4), DepRelation::Det, "a", "DT", "a"),
+        tok(Some(4), DepRelation::Amod, "rough", "JJ", "rough"),
+        tok(Some(1), DepRelation::Dobj, "range", "NN", "range"),
+        // Attached under the object's own subtree (as the mis-parse
+        // does), but with no `pobj` argument of its own here -- its true
+        // argument attached elsewhere in the real sentence.
+        tok(Some(4), DepRelation::Prep, "of", "IN", "of"),
+    ];
+    let (source, tokens, parse) = build(&shapes);
+
+    let found = t4_activize_to_passive(&source, &tokens, &parse);
+    assert!(
+        found.is_empty(),
+        "an object ending on a bare preposition must hold the candidate, got {found:?}"
+    );
+}
+
+#[test]
+fn t4_does_not_fire_when_the_objects_own_subtree_contains_a_finite_verb() {
+    let shapes = [
+        tok(Some(1), DepRelation::Nsubj, "They", "PRP", "they"),
+        tok(None, DepRelation::Root, "found", "VBD", "find"),
+        tok(Some(1), DepRelation::Dobj, "reasons", "NNS", "reason"),
+        // A relative clause wrongly folded into the object's own subtree
+        // instead of attaching above it.
+        tok(Some(2), DepRelation::Acl, "that", "IN", "that"),
+        tok(Some(3), DepRelation::Nsubj, "it", "PRP", "it"),
+        tok(Some(3), DepRelation::Root, "worked", "VBD", "work"),
+    ];
+    let (source, tokens, parse) = build(&shapes);
+
+    let found = t4_activize_to_passive(&source, &tokens, &parse);
+    assert!(
+        found.is_empty(),
+        "an object subtree containing its own finite verb must hold the candidate, got {found:?}"
+    );
+}
+
+// -----------------------------------------------------------------
+// 5 (continued). T4 never promotes a span containing Markdown structural
+// syntax -- pinned against a real sentence where a bridged bold
+// placeholder ("**[Proposed Cutover Date ...]**") reached the parser as
+// literal prose and produced a garbage candidate.
+// -----------------------------------------------------------------
+#[test]
+fn t4_does_not_fire_across_markdown_structural_syntax() {
+    let shapes = [
+        tok(Some(1), DepRelation::Nsubj, "We", "PRP", "we"),
+        tok(None, DepRelation::Root, "scheduled", "VBD", "schedule"),
+        tok(Some(1), DepRelation::Dobj, "date", "NN", "date"),
+        // Attached under the object's own subtree, so it falls inside
+        // the span this transducer would otherwise promote -- mirroring
+        // how a bridged bold placeholder's asterisk lands adjacent to
+        // real prose tokens in the actual parse.
+        tok(Some(2), DepRelation::Other, "*", "SYM", "*"),
+    ];
+    let (source, tokens, parse) = build(&shapes);
+
+    let found = t4_activize_to_passive(&source, &tokens, &parse);
+    assert!(
+        found.is_empty(),
+        "a span containing Markdown structural syntax must never be promoted, got {found:?}"
+    );
+}
+
+// -----------------------------------------------------------------
+// 5 (continued). A personal pronoun is never promoted into subject
+// position, so no candidate is produced at all.
+//
+// This replaces an earlier test that checked such a promotion agreed in
+// number, asserting "You are encouraged" and "Them are plucked". The
+// agreement was right and the construction was still wrong: "Them are
+// plucked" is not a sentence anyone would write, and fixing the verb form
+// only made a bad rewrite grammatical.
+//
+// Two independent reasons to refuse, either sufficient. A ditransitive
+// verb has both a direct and an indirect object and a parser routinely
+// labels the indirect one `dobj`, so promoting it produces a sentence
+// about the wrong participant -- measured on "see how much time and
+// effort they save you", which yielded "...how much time and effort you
+// are saved", promoting the beneficiary and stranding the real object.
+// And a pronoun carries almost no information, so promoting it buys
+// nothing even when it is the right object.
+//
+// Number agreement itself is still covered, on objects that can actually
+// occur, by `t4_be_agrees_with_the_promoted_objects_number_and_tense`.
+// -----------------------------------------------------------------
+#[test]
+fn t4_does_not_promote_a_personal_pronoun_object() {
+    let cases = [
+        ("encourage", "VBP", "you", "PRP"),
+        ("pluck", "VBP", "them", "PRP"),
+        ("notified", "VBD", "her", "PRP"),
+    ];
+
+    for (verb, verb_tag, object, object_tag) in cases {
+        let shapes = [
+            tok(Some(1), DepRelation::Nsubj, "We", "PRP", "we"),
+            tok(None, DepRelation::Root, verb, verb_tag, verb),
+            tok(Some(1), DepRelation::Dobj, object, object_tag, object),
+        ];
+        let (source, tokens, parse) = build(&shapes);
+        let found = t4_activize_to_passive(&source, &tokens, &parse);
+        assert!(
+            found.is_empty(),
+            "a personal-pronoun object must never be promoted, got {found:?} for {source:?}"
+        );
+    }
+}
+
+// -----------------------------------------------------------------
+// 5 (continued). T4 recapitalizes the promoted object only when its own
+// candidate range opens the sentence -- pinned against a real sentence
+// where a subordinate clause's object was wrongly capitalized mid-
+// sentence ("... when I found an exception" must become "... when an
+// exception was found", not "... when An exception was found").
+// -----------------------------------------------------------------
+#[test]
+fn t4_does_not_recapitalize_a_mid_sentence_promoted_object() {
+    let shapes = [
+        tok(Some(2), DepRelation::Other, "when", "IN", "when"),
+        tok(Some(2), DepRelation::Nsubj, "I", "PRP", "i"),
+        tok(None, DepRelation::Root, "found", "VBD", "find"),
+        tok(Some(4), DepRelation::Det, "an", "DT", "a"),
+        tok(Some(2), DepRelation::Dobj, "exception", "NN", "exception"),
+    ];
+    let (source, tokens, parse) = build(&shapes);
+
+    let found = t4_activize_to_passive(&source, &tokens, &parse);
+    assert_eq!(found.len(), 1);
+    assert_eq!(&*found[0].replacement, "an exception was found");
+}
+
+// -----------------------------------------------------------------
 // 6. T5 fires on "the <nominalization> of <arg>".
 // -----------------------------------------------------------------
 #[test]
@@ -329,6 +621,52 @@ fn t5_does_not_fire_when_noun_outside_table() {
     );
 }
 
+// 7 (continued). T5 does not fire when the pobj's own subtree is
+// immediately followed by a bare noun -- the stranded compound-noun-tail
+// guard, pinned against the real shape that exposed it ("the integration
+// of the third-party analytics SDK", where a parser mis-attachment left
+// "SDK" outside the `pobj` subtree entirely).
+// -----------------------------------------------------------------
+#[test]
+fn t5_does_not_fire_when_a_bare_noun_immediately_follows_the_pobj_subtree() {
+    let shapes = [
+        tok(Some(1), DepRelation::Nsubj, "We", "PRP", "we"),
+        tok(None, DepRelation::Root, "finalized", "VBD", "finalize"),
+        tok(Some(3), DepRelation::Det, "the", "DT", "the"),
+        tok(
+            Some(1),
+            DepRelation::Dobj,
+            "integration",
+            "NN",
+            "integration",
+        ),
+        tok(Some(3), DepRelation::Prep, "of", "IN", "of"),
+        tok(Some(8), DepRelation::Det, "the", "DT", "the"),
+        // "third-party" attaches under the pobj's own subtree (as a real
+        // parse would), but "SDK" -- the phrase's true final noun -- is
+        // mis-attached to the root verb instead of anywhere under
+        // "analytics", stranding it just past the subtree this
+        // transducer would otherwise use as its argument.
+        tok(
+            Some(8),
+            DepRelation::Other,
+            "third-party",
+            "NN",
+            "third-party",
+        ),
+        tok(Some(4), DepRelation::Pobj, "analytics", "NNS", "analytics"),
+        tok(Some(1), DepRelation::Other, "SDK", "NNP", "sdk"),
+        tok(Some(1), DepRelation::Punct, ".", ".", "."),
+    ];
+    let (source, tokens, parse) = build(&shapes);
+
+    let found = t5_nominalization(&source, &tokens, &parse);
+    assert!(
+        found.is_empty(),
+        "a stranded compound-noun tail must hold the candidate rather than drop content, got {found:?}"
+    );
+}
+
 // -----------------------------------------------------------------
 // 8. T5 recapitalizes at sentence start.
 // -----------------------------------------------------------------
@@ -362,6 +700,14 @@ fn past_participle_uses_the_irregular_table_verbatim() {
     assert_eq!(past_participle("teach"), "taught");
     assert_eq!(past_participle("buy"), "bought");
     assert_eq!(past_participle("choose"), "chosen");
+
+    // Invariant verbs (base == past == past participle) -- added after a
+    // real corpus document exposed "hit" falling through to the regular
+    // "-ed" suffix rule and producing "hited".
+    assert_eq!(past_participle("hit"), "hit");
+    assert_eq!(past_participle("cost"), "cost");
+    assert_eq!(past_participle("shut"), "shut");
+    assert_eq!(past_participle("spread"), "spread");
 
     // Regular verbs fall back to the suffix rules `past` shares with
     // `past_participle` for anything outside the irregular table.

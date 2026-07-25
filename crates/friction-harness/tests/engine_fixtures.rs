@@ -66,15 +66,33 @@ fn assert_engine_exact(id: &str) {
     );
 }
 
-/// Asserts `id`'s input is byte-identical after running the engine, and
-/// (if the fixture documents any) never equals a documented bad output.
+/// Asserts `id`'s input produces no four-operation edit, and (if the
+/// fixture documents any) never equals a documented bad output.
+///
+/// Checks the four-operation passes' own applied-patch count rather than
+/// whole-document byte identity: `edit_document` always appends one more
+/// pass after those converge (the register pass — see
+/// `friction_edit::document::edit_document`'s own docs), which is a
+/// separate, independently-gated capability these fixtures predate and
+/// were never written against. Two fixtures in this suite
+/// (`pivot_trap_non_light_verb`, `bridge_modal_insertion`) happen to also
+/// contain a register-eligible construction — a nominalization the
+/// pivot/gate logic they actually test correctly leaves alone, and that
+/// register's own T5 correctly unpacks ("the integration of the plugin"
+/// -> "integrating the plugin"), and a clause register's own T4 correctly
+/// passivizes ("you install audio plugins" -> "audio plugins are
+/// installed") — so whole-output identity no longer holds for those two,
+/// even though the four operations these fixtures document still produce
+/// no edit at all, exactly as before.
 fn assert_engine_identity(id: &str) {
     let fixture = reject(id);
     let input = fixture.input.as_deref().expect("fixture has a plain input");
-    let (out, _report) = engine().fix_document(input).unwrap();
+    let (out, report) = engine().fix_document(input).unwrap();
+    let four_op_passes = &report.passes[..report.passes.len().saturating_sub(1)];
+    let four_op_patches: usize = four_op_passes.iter().map(|p| p.patches_applied).sum();
     assert_eq!(
-        out, input,
-        "reject fixture {id} must produce no edit at all"
+        four_op_patches, 0,
+        "reject fixture {id} must produce no four-operation edit at all"
     );
     for bad in fixture.bad_outputs() {
         assert_ne!(

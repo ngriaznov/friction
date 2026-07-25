@@ -14,6 +14,9 @@ pub enum EditError {
     /// The embedded part-of-speech tagger failed to load.
     #[error("failed to load tagger: {0}")]
     Tagger(#[from] friction_nlp::PerceptronTagError),
+    /// The embedded dependency parser failed to load.
+    #[error("failed to load dependency parser: {0}")]
+    Parser(#[from] friction_nlp::PerceptronParseError),
     /// A document byte range failed validation.
     #[error("document span error: {0}")]
     Core(#[from] friction_core::CoreError),

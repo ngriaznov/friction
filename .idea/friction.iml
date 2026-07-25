@@ -25,6 +25,8 @@
       <sourceFolder url="file://$MODULE_DIR$/crates/friction-packs/src" isTestSource="false" />
       <sourceFolder url="file://$MODULE_DIR$/crates/friction-parse/src" isTestSource="false" />
       <sourceFolder url="file://$MODULE_DIR$/crates/friction-parse/tests" isTestSource="true" />
+      <sourceFolder url="file://$MODULE_DIR$/crates/friction-register/src" isTestSource="false" />
+      <sourceFolder url="file://$MODULE_DIR$/crates/friction-register/tests" isTestSource="true" />
       <excludeFolder url="file://$MODULE_DIR$/target" />
     </content>
     <orderEntry type="inheritedJdk" />

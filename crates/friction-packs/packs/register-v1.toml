@@ -1,0 +1,35 @@
+# register-v1 pack: per-1000-prose-word human rate bands for the two
+# register features friction-register's transducers home toward
+# (nominalization, agentless_passive).
+#
+# Measured from class:human, split:train, genre:docs (58 documents, the
+# same train-split docs population envelope-v2 records under
+# `pack.human_docs_per_genre.docs`). Each band is the 10th and 90th
+# percentile of the per-document rate across those 58 documents; `median`
+# is the per-document median, carried for reference only — see
+# `friction-edit`'s register module for why termination targets the band,
+# not the median.
+#
+# `readme` is deliberately excluded from the measurement population: it
+# registered as a genuinely different register from `docs` in the same
+# train-split measurement pass envelope-v2 draws from, and pooling the two
+# would blur both. This mirrors envelope-v2's own per-genre banding, one
+# level narrower (two hand-picked features instead of the full metric
+# vector).
+
+[pack]
+version = "register-v1"
+measured_from = "class:human, split:train, genre:docs"
+sample_doc_count = 58
+excluded_genres = ["readme"]
+band_method = "10th/90th percentile of per-document rate, per 1000 prose words"
+
+[features.nominalization]
+low = 15.4669
+high = 50.5606
+median = 28.2129
+
+[features.agentless_passive]
+low = 5.4253
+high = 21.4870
+median = 11.7342

@@ -3,11 +3,12 @@
 
 use friction_core::{Finding, Patch, find_overlaps};
 use friction_match::token::tokenize_str;
-use friction_nlp::{Segmenter, Tagger, segment_document};
-use friction_packs::{AttestationPack, InventoryPack};
+use friction_nlp::{DepParser, Segmenter, Tagger, segment_document};
+use friction_packs::{AttestationPack, InventoryPack, RegisterPack};
 
 use crate::error::EditError;
 use crate::nearnoop::PivotBudget;
+use crate::register;
 use crate::sentence::{DocumentCasing, EditContext, SentencePosition, edit_sentence};
 
 /// Maximum number of internal engine passes per [`edit_document`] call.
@@ -63,9 +64,18 @@ pub(crate) fn prose_word_count(
     Ok(count)
 }
 
-/// Runs the four-operation pipeline over every prose sentence in `source`,
-/// bounded to [`MAX_PASSES`] internal passes, re-parsing and re-segmenting
-/// between passes.
+/// Runs the four-operation pipeline over every prose sentence in `source`.
+///
+/// Bounded to [`MAX_PASSES`] internal passes, re-parsing and re-segmenting
+/// between passes, then — once those passes converge — runs the register
+/// pass ([`crate::register::run_register`]) once over the converged text.
+///
+/// Register runs after convergence, never interleaved with the four
+/// operations: they are subtractive and change the prose word count,
+/// which changes every per-1000-word rate register measures, so homing a
+/// rate against a denominator the next pass's deletions will still change
+/// would be computing toward a moving target. Running last homes the
+/// vector of the text that actually ships.
 ///
 /// # Errors
 /// Returns [`EditError`] if `source` fails to parse or segment.
@@ -73,7 +83,9 @@ pub fn edit_document(
     source: &str,
     inventory: &InventoryPack,
     attestation: &AttestationPack,
+    register_pack: &RegisterPack,
     tagger: &dyn Tagger,
+    parser: &dyn DepParser,
     segmenter: &dyn Segmenter,
 ) -> Result<(String, EditReport), EditError> {
     let word_count = prose_word_count(source, segmenter)?;
@@ -184,6 +196,11 @@ pub fn edit_document(
         }
     }
 
+    let (registered, register_pass) =
+        register::run_register(&current, register_pack, tagger, parser, segmenter)?;
+    report.passes.push(register_pass);
+    current = registered;
+
     Ok((current, report))
 }
 
@@ -217,7 +234,12 @@ fn in_ordered_list_item(blocks: &[friction_core::Block], block_index: usize) -> 
 /// unit that only looks like one because the segmenter had nothing but
 /// its own, artificially-truncated text to look at (see the
 /// `unit_starts_new_sentence` computation above).
-fn ends_with_sentence_terminal_punctuation(text: &str) -> bool {
+///
+/// `pub(crate)`: `crate::register` reuses this exact check for the same
+/// reason — a sentence range cut short by an excluded construct (inline
+/// code, a link) is a fragment the segmenter had no way to see past, not
+/// a complete clause a dependency parse can be trusted to describe.
+pub(crate) fn ends_with_sentence_terminal_punctuation(text: &str) -> bool {
     text.trim_end()
         .trim_end_matches(['"', '\'', '\u{2019}', '\u{201d}', ')', ']'])
         .ends_with(['.', '!', '?'])
@@ -231,7 +253,11 @@ fn ends_with_sentence_terminal_punctuation(text: &str) -> bool {
 /// deletion's adjacent-separator extension, which reaches only into
 /// already-consumed inter-sentence whitespace) — this is a safety net, not
 /// the primary correctness mechanism.
-fn resolve(source: &str, mut candidates: Vec<Patch>) -> (Vec<Patch>, usize) {
+///
+/// `pub(crate)`: `crate::register` reuses this exact same safety net over
+/// its own already dependency-scope-conflict-resolved patch set, rather
+/// than a second copy of the same leftmost-first tie-break.
+pub(crate) fn resolve(source: &str, mut candidates: Vec<Patch>) -> (Vec<Patch>, usize) {
     let before = candidates.len();
     candidates.retain(|p| p.validate(source).is_ok());
     let mut dropped = before - candidates.len();
@@ -263,7 +289,10 @@ fn resolve(source: &str, mut candidates: Vec<Patch>) -> (Vec<Patch>, usize) {
 
 /// Applies non-overlapping `patches` to `source`, right-to-left so no
 /// earlier patch's range is invalidated by a later one's replacement.
-fn apply(source: &str, patches: &[Patch]) -> String {
+///
+/// `pub(crate)`: see [`resolve`]'s own doc comment for why `crate::register`
+/// shares this rather than reimplementing it.
+pub(crate) fn apply(source: &str, patches: &[Patch]) -> String {
     let mut ordered: Vec<&Patch> = patches.iter().collect();
     ordered.sort_by_key(|p| std::cmp::Reverse(p.range.start));
     let mut result = source.to_string();

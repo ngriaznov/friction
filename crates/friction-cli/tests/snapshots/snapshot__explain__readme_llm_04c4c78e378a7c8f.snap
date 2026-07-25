@@ -6,3 +6,4 @@ pass 1: 2 operation(s) fired
   ritual.delete            2961..3066  (deleted)
   ritual.delete            3170..3203  (deleted)
 pass 2: 0 operation(s) fired — converged
+pass 3: 0 operation(s) fired — converged

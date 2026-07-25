@@ -395,6 +395,31 @@ measurement above.
 """
 
 [[substitution_pairs]]
+id = "sub.we_will_walk_you_through"
+pattern = '(?i)\bwe will walk you through\b'
+replacement = "we cover"
+repair = "substitute"
+source = "seed"
+attested_replacement_tokens = ["we", "cover"]
+notes = """
+Agreement-matched variant of sub.will_walk_you_through, which replaces \
+with the third-person-singular "covers". That form is right after a \
+singular subject ("this guide covers") and wrong after a plural one: \
+applied to "we will walk you through", it produced "we covers". \
+Measured on a real corpus document, not hypothesised. \
+\
+Split rather than made subject-aware because the replacement mechanism \
+substitutes fixed text and cannot inflect to match a captured subject; \
+the same split this pack already uses for sub.leverage_3sg against \
+sub.leverage_base. This entry starts earlier in the sentence than the \
+bare pattern, so leftmost-first resolution picks it and drops the \
+overlapping bare match. \
+\
+"cover" is attested in the human train corpus in exactly this \
+intro-framing slot ("this document will cover general methods").
+"""
+
+[[substitution_pairs]]
 id = "sub.will_walk_you_through"
 pattern = '(?i)\bwill walk you through\b'
 replacement = "covers"
@@ -406,7 +431,11 @@ Seed entry, transcribed verbatim from the prior runtime inventory. \
 Replacement "covers" is attested in the human train corpus as an \
 intro-framing verb (e.g. "this document will cover general methods"), \
 the same slot this pack's own sub.this_guide_will_walk_you_through / \
-sub.delve_into entries also normalize onto.
+sub.delve_into entries also normalize onto. \
+\
+Third-person singular, so it is only correct after a singular subject. \
+Plural subjects are handled by their own agreement-matched entries \
+above; see sub.we_will_walk_you_through.
 """
 
 # --------------------------------------------------------------------

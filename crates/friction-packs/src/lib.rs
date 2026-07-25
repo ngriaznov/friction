@@ -54,6 +54,16 @@
 //! independent tokenizations rather than one shared, positionally-paired
 //! stream.
 //!
+//! # Register pack
+//!
+//! [`RegisterPack`] parses the two-feature human rate-band pack
+//! (`packs/register-v1.toml`, embedded and exposed pre-parsed as
+//! [`REGISTER`]) `friction-edit`'s register module homes toward: a
+//! `[low, high]` band per feature (nominalization, agentless passive),
+//! measured per 1000 prose words from the train-split `docs` genre. See
+//! that module's own doc comment for why membership in the band, not
+//! distance from its `median`, is the termination condition.
+//!
 //! # Determinism
 //!
 //! Every pack parses into sorted or declaration-ordered collections, so
@@ -67,6 +77,7 @@ mod attestation;
 mod dms;
 mod envelope;
 mod inventory;
+mod register;
 mod registry;
 mod validate;
 
@@ -78,7 +89,8 @@ pub use inventory::{
     Anchor, DeletionSpan, FrequencyUnit, GuardTokens, InventoryPack, LvcPair, OutputFrequencyBand,
     PreviewFrame, RepairKind, RitualFrame, SubstitutionPair,
 };
-pub use registry::{ATTESTATION, DMS, INVENTORY, LoadedPack, load_dms_pack};
+pub use register::{RegisterBand, RegisterPack};
+pub use registry::{ATTESTATION, DMS, INVENTORY, LoadedPack, REGISTER, load_dms_pack};
 pub use validate::{
     ClosureViolation, DisjointnessViolation, FrequencyHygieneReason, FrequencyHygieneViolation,
     Violation, check_closure, check_disjointness, check_frequency_hygiene, validate,

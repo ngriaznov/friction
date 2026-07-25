@@ -34,7 +34,7 @@ For local development and testing, Lumen offers an integrated preview server:
 lumen serve
 ```
 
-This command starts a local HTTP server at `http://localhost:8000`, allowing you to view your portfolio in real-time as you make changes. It’s particularly useful for iterating on content layout, image galleries, or theme customization without rebuilding the site each time.
+This command starts a local HTTP server at `http://localhost:8000`, allowing you to view your portfolio in real-time as changes are made. It’s particularly useful for iterating on content layout, image galleries, or theme customization without rebuilding the site each time.
 
 ## Thumbnail Generation
 

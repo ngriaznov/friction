@@ -9,3 +9,4 @@ pass 1: 1 operation(s) fired
 pass 2: 0 operation(s) fired — converged
   1 held:
     span.delete            3946..4100  KEPT (deletion span.simply held: SeamNotAttested)
+pass 3: 0 operation(s) fired — converged
