@@ -9,3 +9,10 @@ Thumbs.db
 
 # IDE
 /.idea/
+
+# One-time offline drafting environment for the dependency gold file
+# (crates/friction-nlp/weights/NOTICE.md) — not a build or runtime
+# dependency, reproducible from a `pip install spacy && python -m spacy
+# download en_core_web_sm` in a fresh venv at that path.
+tools/gold_dep/venv/
+tools/gold_dep/__pycache__/
