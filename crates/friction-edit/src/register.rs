@@ -211,13 +211,18 @@ pub fn run_register(
     let nominalization_band = register_pack.band("nominalization");
     let agentless_band = register_pack.band("agentless_passive");
 
-    let agentless_needs_fix =
-        agentless_band.is_some_and(|band| rate(count_agentless_passive, total_words) < band.low);
-    let nominalization_needs_fix =
-        nominalization_band.is_some_and(|band| rate(count_nominalization, total_words) > band.high);
+    // `Some(band)` *is* "this feature needs work", so the band a later
+    // step needs is carried by the same value that decided it needs one.
+    // Tracking the decision as a separate `bool` alongside the `Option`
+    // would leave two values that must agree, and the only way to read the
+    // band back out would be to assert that they do.
+    let agentless_fix =
+        agentless_band.filter(|band| rate(count_agentless_passive, total_words) < band.low);
+    let nominalization_fix =
+        nominalization_band.filter(|band| rate(count_nominalization, total_words) > band.high);
 
     let mut pool: Vec<PositionedCandidate> = Vec::new();
-    if agentless_needs_fix {
+    if agentless_fix.is_some() {
         collect_candidates(
             &sentences,
             source,
@@ -226,7 +231,7 @@ pub fn run_register(
             &mut held,
         );
     }
-    if nominalization_needs_fix {
+    if nominalization_fix.is_some() {
         collect_candidates(
             &sentences,
             source,
@@ -238,8 +243,7 @@ pub fn run_register(
 
     let mut accepted: Vec<PositionedCandidate> = Vec::new();
 
-    if agentless_needs_fix {
-        let band = agentless_band.expect("agentless_needs_fix implies a band exists");
+    if let Some(band) = agentless_fix {
         let (_, new_words) = select_and_apply(
             &mut pool,
             &sentences,
@@ -253,8 +257,7 @@ pub fn run_register(
         total_words = new_words;
     }
 
-    if nominalization_needs_fix {
-        let band = nominalization_band.expect("nominalization_needs_fix implies a band exists");
+    if let Some(band) = nominalization_fix {
         let _ = select_and_apply(
             &mut pool,
             &sentences,

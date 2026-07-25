@@ -59,30 +59,37 @@ impl RegisterPack {
     /// finite.
     pub fn parse(toml: &str) -> Result<Self, PackError> {
         let raw: RawPack = toml::from_str(toml).map_err(PackError::from)?;
-        let mut features = BTreeMap::new();
-        for (name, band) in raw.features {
-            let well_formed = band.low.is_finite()
-                && band.median.is_finite()
-                && band.high.is_finite()
-                && band.low < band.median
-                && band.median < band.high;
-            if !well_formed {
-                return Err(PackError::InvalidRegisterBand {
-                    feature: name,
-                    low: band.low,
-                    median: band.median,
-                    high: band.high,
-                });
-            }
-            features.insert(
-                name.into_boxed_str(),
-                RegisterBand {
-                    low: band.low,
-                    high: band.high,
-                    median: band.median,
-                },
-            );
-        }
+        // Collecting into `Result<BTreeMap<_, _>, _>` short-circuits on the
+        // first malformed band, so validation and construction stay one
+        // expression instead of a loop that accumulates into a `mut` map and
+        // returns early out of the middle of it.
+        let features = raw
+            .features
+            .into_iter()
+            .map(|(name, band)| {
+                let well_formed = band.low.is_finite()
+                    && band.median.is_finite()
+                    && band.high.is_finite()
+                    && band.low < band.median
+                    && band.median < band.high;
+                if !well_formed {
+                    return Err(PackError::InvalidRegisterBand {
+                        feature: name,
+                        low: band.low,
+                        median: band.median,
+                        high: band.high,
+                    });
+                }
+                Ok((
+                    name.into_boxed_str(),
+                    RegisterBand {
+                        low: band.low,
+                        high: band.high,
+                        median: band.median,
+                    },
+                ))
+            })
+            .collect::<Result<BTreeMap<_, _>, _>>()?;
         Ok(Self { features })
     }
 
