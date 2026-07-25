@@ -57,6 +57,22 @@ checker and is specified with the transducers, not here.
 target estimation; (3) transducers, objective, and selection; (4) idiolect
 targeting. Each gates the next.
 
+**The homing set is three features, not five.**
+`docs/research/regvec/TARGET_ESTIMATION.md` measures the corpus directly:
+`that_subj` has exactly zero variance in three of five genres and is
+degenerate, and `phrasal_coord` shows no human/LLM separation at all here
+(ratio 1.00, d = 0.00) against a published 1.9×. What survives is
+`present_participial`, `nominalization`, and `agentless_passive`, all three
+consistent across all six corpus models.
+
+This does not shrink the parser's label set: the full eighteen-feature vector
+is still computed and reported as diagnostics, so `csubj` and `mark` are still
+read even though `that_subj` no longer homes. (`mark` is load-bearing for a
+different reason — excluding complementizer *that* from the demonstrative
+count is the bug the prototype's delta-validation check caught.) It does
+change which relations matter most, which is reflected in the acceptance
+gates below.
+
 **Naming.** The workspace forbids referring to planning documents from code,
 comments, doc comments, test names, or authored string literals. That ban
 extends to this document's own phase labels: no `P0`…`P6` in Rust source.
@@ -189,10 +205,26 @@ the setup does not support. The gates are therefore:
 
 1. **UAS ≥ 88% and LAS ≥ 85%** on the held-out own-corpus gold test split.
 2. **Per-relation agreement with spaCy ≥ 90%** on the relations the register
-   module actually reads — `acl`, `advcl`, `auxpass`, `conj`, `det`, `dobj`,
-   `nsubj`, `pobj`, `prep`. Aggregate accuracy can hide a relation that is
-   rare in the corpus and load-bearing in a transducer; this gate is
-   per-relation precisely so it cannot.
+   module actually reads. Aggregate accuracy can hide a relation that is rare
+   in the corpus and load-bearing in a transducer; this gate is per-relation
+   precisely so it cannot. In descending order of what a miss costs:
+
+   - `auxpass`, `agent` — the `agentless_passive` feature. Measurement puts
+     this at the *highest* value of the three surviving homing features
+     (under-used by all six corpus models, strongest in `docs` at d = −1.18),
+     and it is the only one rewritten upward. A parser that cannot find
+     passive auxiliaries removes the module's most defensible capability.
+   - `acl`, `advcl` — select between three different participial
+     transducers. Confusing them does not fail safe; it fires the wrong
+     rewrite.
+   - `conj` — not a feature, a *safety* condition. Both the coordinated-
+     participial guard and the coordinated-predicate guard depend on it, and
+     both exist because missing them strands a conjunct. A `conj` miss
+     produces the voice-mismatched coordination visible in
+     `docs/research/regvec/output_rewritten.md`.
+   - `det`, `prep`, `pobj` — jointly license nominalization unpacking.
+   - `nsubj` — supplies the governing subject that agreement inflects from.
+   - `dobj` — required for passivisation.
 3. **Determinism.** 100 documents × 3 runs, byte-identical parses.
 4. **No regression** in the existing workspace gates: `cargo fmt --check`,
    `cargo clippy --workspace --all-targets -- -D warnings`, and
