@@ -8,7 +8,7 @@ use friction_packs::{AttestationPack, InventoryPack};
 
 use crate::error::EditError;
 use crate::nearnoop::PivotBudget;
-use crate::sentence::{EditContext, SentencePosition, edit_sentence};
+use crate::sentence::{DocumentCasing, EditContext, SentencePosition, edit_sentence};
 
 /// Maximum number of internal engine passes per [`edit_document`] call.
 pub const MAX_PASSES: usize = 2;
@@ -85,11 +85,6 @@ pub fn edit_document(
 
     let mut current = source.to_string();
     let mut report = EditReport::default();
-    let ctx = EditContext {
-        inventory,
-        attestation,
-        tagger,
-    };
 
     for _ in 0..MAX_PASSES {
         let document = friction_parse::parse(current.as_str())?;
@@ -98,6 +93,14 @@ pub fn edit_document(
         let mut candidates: Vec<Patch> = Vec::new();
         let mut held: Vec<Finding> = Vec::new();
 
+        // First walk: collect every in-scope sentence's position, and the
+        // document-local casing evidence the recapitalization guard
+        // consults — which must see every sentence's untouched text
+        // before the first one is edited (a later sentence's lowercase
+        // `mimalloc` is what marks an earlier sentence's opener as
+        // deliberate).
+        let mut positions: Vec<SentencePosition> = Vec::new();
+        let mut casing = DocumentCasing::default();
         let prose_units = with_sentences.prose();
         for (unit_index, unit) in prose_units.iter().enumerate() {
             // Prose-blocks-only (gate 7): `friction_parse::parse` extracts
@@ -133,11 +136,22 @@ pub fn edit_document(
                     next_range: sentences.get(i + 1).map(|s| s.range.clone()),
                     is_sentence_start: i > 0 || unit_starts_new_sentence,
                 };
-
-                let outcome = edit_sentence(current.as_str(), &position, &ctx, &mut pivot_budget);
-                candidates.extend(outcome.patches);
-                held.extend(outcome.held);
+                casing
+                    .record_sentence(&current[sentence.range.clone()], position.is_sentence_start);
+                positions.push(position);
             }
+        }
+
+        let ctx = EditContext {
+            inventory,
+            attestation,
+            tagger,
+            casing: &casing,
+        };
+        for position in &positions {
+            let outcome = edit_sentence(current.as_str(), position, &ctx, &mut pivot_budget);
+            candidates.extend(outcome.patches);
+            held.extend(outcome.held);
         }
 
         let (accepted, dropped) = resolve(current.as_str(), candidates);

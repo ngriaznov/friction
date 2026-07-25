@@ -2,25 +2,4 @@
 source: crates/friction-cli/tests/snapshot.rs
 expression: stdout
 ---
-pass 1: 20 operation(s) fired
-  edit.recapitalize        1401..1402  -> "O"
-  edit.recapitalize        2938..2939  -> "R"
-  edit.recapitalize        3557..3558  -> "D"
-  edit.recapitalize        3674..3675  -> "U"
-  edit.recapitalize        3767..3768  -> "A"
-  edit.recapitalize        3920..3921  -> "F"
-  edit.recapitalize        4004..4005  -> "U"
-  edit.recapitalize        4104..4105  -> "A"
-  edit.recapitalize        4222..4223  -> "R"
-  edit.recapitalize        4311..4312  -> "M"
-  edit.recapitalize        4385..4386  -> "S"
-  edit.recapitalize        4469..4470  -> "M"
-  edit.recapitalize        4564..4565  -> "O"
-  edit.recapitalize        4653..4654  -> "I"
-  edit.recapitalize        4751..4752  -> "I"
-  edit.recapitalize        4850..4851  -> "R"
-  edit.recapitalize        4967..4968  -> "S"
-  edit.recapitalize        5056..5057  -> "S"
-  edit.recapitalize        5141..5142  -> "C"
-  edit.recapitalize        5235..5236  -> "C"
-pass 2: 0 operation(s) fired — converged
+pass 1: 0 operation(s) fired — converged

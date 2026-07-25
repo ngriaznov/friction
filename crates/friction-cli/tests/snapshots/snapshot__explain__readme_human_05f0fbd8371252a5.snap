@@ -2,35 +2,8 @@
 source: crates/friction-cli/tests/snapshot.rs
 expression: stdout
 ---
-pass 1: 30 operation(s) fired
-  edit.recapitalize        49..50  -> "N"
-  edit.recapitalize        377..378  -> "H"
-  edit.recapitalize        404..405  -> "H"
-  edit.recapitalize        467..468  -> "H"
-  edit.recapitalize        1028..1029  -> "P"
-  edit.recapitalize        1049..1050  -> "A"
-  edit.recapitalize        1060..1061  -> "A"
-  edit.recapitalize        1071..1072  -> "A"
-  edit.recapitalize        1087..1088  -> "L"
-  edit.recapitalize        1096..1097  -> "L"
-  edit.recapitalize        1150..1151  -> "C"
-  edit.recapitalize        1246..1247  -> "L"
-  edit.recapitalize        1313..1314  -> "N"
-  edit.recapitalize        1653..1654  -> "C"
-  edit.recapitalize        2978..2979  -> "C"
+pass 1: 3 operation(s) fired
   sub.apply                3652..3663  -> "To"
   sub.apply                4719..4730  -> "To"
   sub.apply                4921..4932  -> "To"
-  edit.recapitalize        5220..5221  -> "L"
-  edit.recapitalize        5275..5276  -> "L"
-  edit.recapitalize        5328..5329  -> "L"
-  edit.recapitalize        5701..5702  -> "C"
-  edit.recapitalize        5726..5727  -> "S"
-  edit.recapitalize        5751..5752  -> "G"
-  edit.recapitalize        5779..5780  -> "G"
-  edit.recapitalize        5807..5808  -> "B"
-  edit.recapitalize        5838..5839  -> "B"
-  edit.recapitalize        6429..6430  -> "C"
-  edit.recapitalize        7239..7240  -> "C"
-  edit.recapitalize        7264..7265  -> "U"
 pass 2: 0 operation(s) fired — converged

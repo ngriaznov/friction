@@ -7,7 +7,7 @@ ngtcp2
 
 "Call it TCP/2.  One More Time."
 
-Ngtcp2 project is an effort to implement `RFC9000
+ngtcp2 project is an effort to implement `RFC9000
 <https://datatracker.ietf.org/doc/html/rfc9000>`_ QUIC protocol.
 
 Documentation
@@ -21,9 +21,9 @@ Public test server
 The following endpoints are available to try out ngtcp2
 implementation:
 
-- Https://nghttp2.org:4433
-- Https://nghttp2.org:4434 (requires address validation token)
-- Https://nghttp2.org (powered by `nghttpx
+- https://nghttp2.org:4433
+- https://nghttp2.org:4434 (requires address validation token)
+- https://nghttp2.org (powered by `nghttpx
   <https://nghttp2.org/documentation/nghttpx.1.html>`_)
 
   This endpoints sends Alt-Svc header field to clients if it is
@@ -40,23 +40,23 @@ gcc >= 8.0).
 
 The following packages are required to configure the build system:
 
-- Pkg-config >= 0.20
-- Autoconf
-- Automake
-- Autotools-dev
-- Libtool
+- pkg-config >= 0.20
+- autoconf
+- automake
+- autotools-dev
+- libtool
 
-Libngtcp2 uses cunit for its unit test frame work:
+libngtcp2 uses cunit for its unit test frame work:
 
-- Cunit >= 2.1
+- cunit >= 2.1
 
 To build sources under the examples directory, libev and nghttp3 are
 required:
 
-- Libev
+- libev
 - `nghttp3 <https://github.com/ngtcp2/nghttp3>`_ for HTTP/3
 
-Ngtcp2 crypto helper library, and client and server under examples
+ngtcp2 crypto helper library, and client and server under examples
 directory require at least one of the following TLS backends:
 
 - `OpenSSL with QUIC support
@@ -67,7 +67,7 @@ directory require at least one of the following TLS backends:
 Build from git
 --------------
 
-.. Code-block:: text
+.. code-block:: text
 
    $ git clone --depth 1 -b OpenSSL_1_1_1m+quic https://github.com/quictls/openssl
    $ cd openssl
@@ -115,7 +115,7 @@ The notable options are:
 Server
 ~~~~~~
 
-.. Code-block:: text
+.. code-block:: text
 
    $ examples/server [OPTIONS] <ADDR> <PORT> <PRIVATE_KEY_FILE> <CERTIFICATE_FILE>
 
@@ -173,9 +173,9 @@ The header file exists under crypto/includes/ngtcp2 directory.
 Each library file is built for a particular TLS backend.  The
 available crypto helper libraries are:
 
-- Libngtcp2_crypto_openssl: Use OpenSSL as TLS backend
-- Libngtcp2_crypto_gnutls: Use GnuTLS as TLS backend
-- Libngtcp2_crypto_boringssl: Use BoringSSL as TLS backend
+- libngtcp2_crypto_openssl: Use OpenSSL as TLS backend
+- libngtcp2_crypto_gnutls: Use GnuTLS as TLS backend
+- libngtcp2_crypto_boringssl: Use BoringSSL as TLS backend
 
 Because BoringSSL is an unversioned product, we only tested its
 particular revision.  See Requirements section above.
@@ -184,12 +184,12 @@ The examples directory contains client and server that are linked to
 those crypto helper libraries and TLS backends.  They are only built
 if their corresponding crypto helper library is built:
 
-- Client: OpenSSL client
-- Server: OpenSSL server
-- Gtlsclient: GnuTLS client
-- Gtlsserver: GnuTLS server
-- Bsslclient: BoringSSL client
-- Bsslserver: BoringSSL server
+- client: OpenSSL client
+- server: OpenSSL server
+- gtlsclient: GnuTLS client
+- gtlsserver: GnuTLS server
+- bsslclient: BoringSSL client
+- bsslserver: BoringSSL server
 
 QUIC protocol extensions
 -------------------------
@@ -209,7 +209,7 @@ analyze QUIC traffic using the following steps:
 
 1. Set *SSLKEYLOGFILE* environment variable:
 
-   .. Code-block:: text
+   .. code-block:: text
 
       $ export SSLKEYLOGFILE=quic_keylog_file
 
@@ -235,9 +235,9 @@ analyze QUIC traffic using the following steps:
    Create A filter for the udp.port and set the port to the port the
    application is listening to. For example:
 
-   .. Code-block:: text
+   .. code-block:: text
 
-      Udp.port == 7777
+      udp.port == 7777
 
 License
 -------

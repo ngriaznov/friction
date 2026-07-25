@@ -2,9 +2,4 @@
 source: crates/friction-cli/tests/snapshot.rs
 expression: stdout
 ---
-pass 1: 4 operation(s) fired
-  edit.recapitalize        900..901  -> "I"
-  edit.recapitalize        1324..1325  -> "Z"
-  edit.recapitalize        2751..2752  -> "E"
-  edit.recapitalize        2880..2881  -> "U"
-pass 2: 0 operation(s) fired — converged
+pass 1: 0 operation(s) fired — converged

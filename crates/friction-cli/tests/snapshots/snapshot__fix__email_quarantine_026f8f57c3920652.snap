@@ -25,7 +25,7 @@ If you find any errors in this week's issue, [please submit a PR](https://github
 * [Salsa: Incremental recompilation](http://smallcultfollowing.com/babysteps/blog/2019/01/29/salsa-incremental-recompilation/).
 * [Collection of Rust hacks](https://vorner.github.io/2019/02/03/hacks.html).
 * [Writing Neovim plugins in Rust](https://medium.com/@srishanbhattarai/a-detailed-guide-to-writing-your-first-neovim-plugin-in-rust-a81604c606b1).
-* [Osaka.rs - rust async without the noise](https://aep.github.io/rust-async-without-the-noise/).
+* [osaka.rs - rust async without the noise](https://aep.github.io/rust-async-without-the-noise/).
 * [Rust on iOS (and Android)](https://medium.com/visly/rust-on-ios-39f799b3c1dd).
 * [Rust: regretless concurrency](https://medium.com/@polyglot_factotum/rust-regret-less-concurrency-2238b9e53333).
 * [Learning Rust via Advent of Code](https://www.forrestthewoods.com/blog/learning-rust-via-advent-of-code/).
@@ -49,7 +49,7 @@ Some of these tasks may also have mentors available, visit the task page for mor
 
 * [TiKV: Set compile-time env vars in build script instead of Makefile](https://github.com/tikv/tikv/issues/4051).
 * [TiKV: Build with dylibs instead of statically](https://github.com/tikv/tikv/issues/4151).
-* [Rustc: Implement RFC 2091 re implicit caller information](https://github.com/rust-lang/rust/issues/47809) - make 'unwrap' report a useful line number.
+* [rustc: Implement RFC 2091 re implicit caller information](https://github.com/rust-lang/rust/issues/47809) - make 'unwrap' report a useful line number.
 
 If you are a Rust project owner and are looking for contributors, please submit tasks [here][guidelines].
 
@@ -62,25 +62,25 @@ If you are a Rust project owner and are looking for contributors, please submit 
 [merged]: https://github.com/search?q=is%3Apr+org%3Arust-lang+is%3Amerged+merged%3A2019-01-28..2019-02-04
 
 * [HirIdification: add key HirId methods](https://github.com/rust-lang/rust/pull/58090)
-* [Don't panic when accessing enum variant ctor using `Self` in match](https://github.com/rust-lang/rust/pull/58007)
-* [Use LLVM intrinsics for saturating add/sub](https://github.com/rust-lang/rust/pull/58003)
-* [Add MOVBE x86 CPU feature](https://github.com/rust-lang/rust/pull/57999)
+* [don't panic when accessing enum variant ctor using `Self` in match](https://github.com/rust-lang/rust/pull/58007)
+* [use LLVM intrinsics for saturating add/sub](https://github.com/rust-lang/rust/pull/58003)
+* [add MOVBE x86 CPU feature](https://github.com/rust-lang/rust/pull/57999)
 * [NVPTX target specification](https://github.com/rust-lang/rust/pull/57937)
-* [Fix bug in integer range matching](https://github.com/rust-lang/rust/pull/57978)
-* [Unused variable suggestions apply on all patterns](https://github.com/rust-lang/rust/pull/57899)
-* [Add information to higher-ranked lifetimes conflicts error messages](https://github.com/rust-lang/rust/pull/57901)
-* [Rustc: use multiple threads by default](https://github.com/rust-lang/rust/pull/57948)
-* [Misc performance tweaks](https://github.com/rust-lang/rust/pull/57916)
-* [Simplify `ConstValue::ScalarPair`](https://github.com/rust-lang/rust/pull/57442)
-* [Mark `str::trim*` functions as `#[must_use]`](https://github.com/rust-lang/rust/pull/57106)
-* [Override `VecDeque`'s `Iter::try_fold`](https://github.com/rust-lang/rust/pull/57974)
-* [Introduce `into_raw_non_null` on `Rc` and `Arc`](https://github.com/rust-lang/rust/pull/57934)
-* [Implement `Weak::`{`strong_count`, `weak_count`}](https://github.com/rust-lang/rust/pull/56696)
-* [Rename `iter::unfold` to `iter::from_fn` and remove explicit state](https://github.com/rust-lang/rust/pull/58062)
-* [Stabilize `std::error::Error::type_id`](https://github.com/rust-lang/rust/pull/58048)
-* [Stabilize `split_ascii_whitespace`](https://github.com/rust-lang/rust/pull/58047)
-* [Cargo: fix overlapping progress with stdout](https://github.com/rust-lang/cargo/pull/6618)
-* [Cargo: improve progress bar flickering](https://github.com/rust-lang/cargo/pull/6615)
+* [fix bug in integer range matching](https://github.com/rust-lang/rust/pull/57978)
+* [unused variable suggestions apply on all patterns](https://github.com/rust-lang/rust/pull/57899)
+* [add information to higher-ranked lifetimes conflicts error messages](https://github.com/rust-lang/rust/pull/57901)
+* [rustc: use multiple threads by default](https://github.com/rust-lang/rust/pull/57948)
+* [misc performance tweaks](https://github.com/rust-lang/rust/pull/57916)
+* [simplify `ConstValue::ScalarPair`](https://github.com/rust-lang/rust/pull/57442)
+* [mark `str::trim*` functions as `#[must_use]`](https://github.com/rust-lang/rust/pull/57106)
+* [override `VecDeque`'s `Iter::try_fold`](https://github.com/rust-lang/rust/pull/57974)
+* [introduce `into_raw_non_null` on `Rc` and `Arc`](https://github.com/rust-lang/rust/pull/57934)
+* [implement `Weak::`{`strong_count`, `weak_count`}](https://github.com/rust-lang/rust/pull/56696)
+* [rename `iter::unfold` to `iter::from_fn` and remove explicit state](https://github.com/rust-lang/rust/pull/58062)
+* [stabilize `std::error::Error::type_id`](https://github.com/rust-lang/rust/pull/58048)
+* [stabilize `split_ascii_whitespace`](https://github.com/rust-lang/rust/pull/58047)
+* [cargo: fix overlapping progress with stdout](https://github.com/rust-lang/cargo/pull/6618)
+* [cargo: improve progress bar flickering](https://github.com/rust-lang/cargo/pull/6615)
 
 ## Approved RFCs
 

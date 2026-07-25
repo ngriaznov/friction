@@ -2,6 +2,4 @@
 source: crates/friction-cli/tests/snapshot.rs
 expression: stdout
 ---
-pass 1: 1 operation(s) fired
-  edit.recapitalize        4..5  -> "I"
-pass 2: 0 operation(s) fired — converged
+pass 1: 0 operation(s) fired — converged

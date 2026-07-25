@@ -3,12 +3,12 @@ source: crates/friction-cli/tests/snapshot.rs
 expression: stdout
 ---
 ---
-Author: dholbach
+author: dholbach
 date: 2021-03-01 08:30:00+00:00
 title: March 2021 Update
 description: This month's edition of updates on Flux v2 developments - feature parity, 0.9 release, new Flagger logo, update on GA release, project and website changes, new events and more.
-Resources:
-- Src: "**.{png,jpg}"
+resources:
+- src: "**.{png,jpg}"
   title: "Image #:counter"
 ---
 
@@ -39,7 +39,7 @@ milestone, but what does that mean?
 When we embarked on this journey to rewrite Flux from scratch, we set
 out three big blocks of work:
 
-1. Support for Flux operations in read-only mode
+1. support for Flux operations in read-only mode
 1. Helm v3 support
 1. Image update functionality
 
@@ -78,7 +78,7 @@ Last month saw two big releases of Flux v2.
 
 Hot on its heels 0.9 was released and included these new features:
 
-- Flux is now available for Apple Silicon (CLI)
+- flux is now available for Apple Silicon (CLI)
 - The manifests are embedded in the flux binary allowing air-gapped installations (CLI)
 - Support for recreating Kubernetes objects (e.g. Jobs) when immutable fields are changed in Git (`kustomize-controller`)
 - Fix alert regex filtering (`notification-controller`)

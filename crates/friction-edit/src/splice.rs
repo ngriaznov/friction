@@ -56,6 +56,7 @@ impl Chunk {
 /// far.
 pub struct SentenceSplicer<'src> {
     source: &'src str,
+    opening_start: usize,
     chunks: Vec<Chunk>,
     patches: Vec<Patch>,
 }
@@ -67,6 +68,7 @@ impl<'src> SentenceSplicer<'src> {
     pub fn new(source: &'src str, sentence_range: Range<usize>) -> Self {
         Self {
             source,
+            opening_start: sentence_range.start,
             chunks: vec![Chunk::Original(sentence_range)],
             patches: Vec::new(),
         }
@@ -162,6 +164,12 @@ impl<'src> SentenceSplicer<'src> {
         false
     }
 
+    /// `true` if at least one edit has been applied to this sentence.
+    #[must_use]
+    pub const fn edited(&self) -> bool {
+        !self.patches.is_empty()
+    }
+
     /// `true` if the working text's very first chunk is an untouched
     /// [`Chunk::Original`] slice (as opposed to an earlier edit's
     /// replacement text) — used by the recapitalization step to avoid
@@ -169,6 +177,15 @@ impl<'src> SentenceSplicer<'src> {
     #[must_use]
     pub fn starts_with_original(&self) -> bool {
         matches!(self.chunks.first(), Some(Chunk::Original(_)))
+    }
+
+    /// `true` if the working text still opens with the sentence's own
+    /// original first byte — i.e. no applied edit has deleted or replaced
+    /// the sentence's opening. Distinguishes an opener the author wrote
+    /// at sentence start from one a leading deletion newly exposed.
+    #[must_use]
+    pub fn opening_intact(&self) -> bool {
+        matches!(self.chunks.first(), Some(Chunk::Original(r)) if r.start == self.opening_start)
     }
 
     /// Consumes the splicer, returning every accepted edit as a `Patch`
@@ -278,6 +295,37 @@ mod tests {
         let mut splicer = SentenceSplicer::new(source, 0..source.len());
         assert!(splicer.apply(0..7, "", rule("span.simply"), Tier::Fix));
         assert_eq!(splicer.working_text(), "run it now.");
+    }
+
+    #[test]
+    fn edited_tracks_whether_any_edit_applied() {
+        let source = "It utilizes the tool.";
+        let mut splicer = SentenceSplicer::new(source, 0..source.len());
+        assert!(!splicer.edited());
+        assert!(splicer.apply(3..11, "uses", rule("r1"), Tier::Fix));
+        assert!(splicer.edited());
+    }
+
+    #[test]
+    fn opening_intact_only_until_the_sentence_front_is_edited() {
+        let source = "Simply run it now.";
+        // Untouched: intact.
+        let mut splicer = SentenceSplicer::new(source, 0..source.len());
+        assert!(splicer.opening_intact());
+        // A later-in-sentence edit leaves the opening intact.
+        assert!(splicer.apply(14..17, "immediately", rule("r1"), Tier::Fix));
+        assert!(splicer.opening_intact());
+        // A leading deletion removes the original first byte: no longer
+        // intact, though the working text still starts with original
+        // bytes ("run it ...").
+        assert!(splicer.apply(0..7, "", rule("r2"), Tier::Fix));
+        assert!(!splicer.opening_intact());
+        assert!(splicer.starts_with_original());
+        // A replacement at position 0 is not an intact opening either.
+        let mut replaced = SentenceSplicer::new(source, 0..source.len());
+        assert!(replaced.apply(0..6, "Just", rule("r3"), Tier::Fix));
+        assert!(!replaced.opening_intact());
+        assert!(!replaced.starts_with_original());
     }
 
     #[test]

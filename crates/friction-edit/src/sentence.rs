@@ -4,10 +4,11 @@
 //! paired substitution, derivational pivot (loop, max 2), gated span
 //! deletion — followed by a final recapitalization pass.
 
-use std::collections::BTreeSet;
+use std::collections::{BTreeMap, BTreeSet};
 use std::ops::Range;
 
 use friction_core::{Finding, Patch, RuleId, Tier};
+use friction_match::token::{AnalysisTokenKind, tokenize_str};
 use friction_nlp::Tagger;
 use friction_nlp::lvc::{CandidateOutcome, classify_candidate};
 use friction_packs::{AttestationPack, InventoryPack};
@@ -71,6 +72,74 @@ pub struct EditContext<'a> {
     pub inventory: &'a InventoryPack,
     pub attestation: &'a AttestationPack,
     pub tagger: &'a dyn Tagger,
+    /// Document-local casing evidence for this pass's untouched source
+    /// text — see [`DocumentCasing`].
+    pub casing: &'a DocumentCasing,
+}
+
+/// Document-local evidence that a word's lowercase spelling is the
+/// author's deliberate choice rather than a missing capital.
+///
+/// Collected from every in-scope prose sentence of the current pass's
+/// untouched text, before any sentence is edited.
+///
+/// The recapitalization guard consults it for a sentence whose *own
+/// original* lowercase opener survived that sentence's edits: seeing the
+/// same word lowercase mid-sentence elsewhere, or opening more than one
+/// sentence in lowercase, marks the casing as deliberate (a product name
+/// like `mimalloc`), so the opener is held rather than capitalized. An
+/// opener a leading deletion newly exposed never consults this — every
+/// ordinary word occurs lowercase mid-sentence somewhere, and such an
+/// opener carries no authorial sentence-start casing intent at all.
+#[derive(Debug, Default)]
+pub struct DocumentCasing {
+    /// Words seen with a lowercase first letter anywhere other than at a
+    /// genuine sentence start (including every word of a mid-sentence
+    /// continuation fragment).
+    mid_sentence_lowercase: BTreeSet<Box<str>>,
+    /// How many genuine sentence starts each lowercase-initial word
+    /// opens.
+    sentence_initial_lowercase: BTreeMap<Box<str>, usize>,
+}
+
+impl DocumentCasing {
+    /// Records one sentence's word tokens. `is_sentence_start` is the
+    /// same flag [`SentencePosition`] carries: `false` marks a
+    /// continuation fragment, whose every word — the first included — is
+    /// really mid-sentence text.
+    pub fn record_sentence(&mut self, text: &str, is_sentence_start: bool) {
+        let mut at_sentence_start = is_sentence_start;
+        for token in tokenize_str(text, 0) {
+            if token.kind != AnalysisTokenKind::Word {
+                continue;
+            }
+            if token.text.chars().next().is_some_and(char::is_lowercase) {
+                if at_sentence_start {
+                    *self
+                        .sentence_initial_lowercase
+                        .entry(token.text.clone())
+                        .or_insert(0) += 1;
+                } else {
+                    self.mid_sentence_lowercase.insert(token.text.clone());
+                }
+            }
+            at_sentence_start = false;
+        }
+    }
+
+    /// `true` if the document treats `word`'s lowercase spelling as
+    /// deliberate: it also occurs lowercase mid-sentence, opens at least
+    /// one *other* sentence in lowercase, or is shaped like an identifier
+    /// (contains a digit, `_`, or `-`).
+    fn deliberately_lowercase(&self, word: &str) -> bool {
+        word.chars()
+            .any(|c| c.is_ascii_digit() || c == '_' || c == '-')
+            || self.mid_sentence_lowercase.contains(word)
+            || self
+                .sentence_initial_lowercase
+                .get(word)
+                .is_some_and(|&count| count >= 2)
+    }
 }
 
 /// Per-sentence state computed once from the untouched original text and
@@ -120,7 +189,7 @@ pub fn edit_sentence(
     // rewrite real prose (see `SentencePosition::is_sentence_start`'s own
     // docs).
     if position.is_sentence_start {
-        recapitalize(&mut splicer);
+        recapitalize(&mut splicer, ctx.casing);
     }
 
     SentenceOutcome {
@@ -331,13 +400,44 @@ fn run_deletion(
 
 /// Final step: if a deletion exposed a lowercase-initial opener, splice a
 /// one-char uppercase substitution at that position.
-fn recapitalize(splicer: &mut SentenceSplicer<'_>) {
-    let final_text = splicer.working_text();
-    if let Some(first) = final_text.chars().next()
-        && first.is_lowercase()
-        && splicer.starts_with_original()
-    {
-        let upper = capitalize(&first.to_string());
-        splicer.apply(0..first.len_utf8(), &upper, RULE_RECAPITALIZE, Tier::Fix);
+///
+/// Three guards keep this from rewriting prose the engine has no business
+/// touching:
+/// - a sentence with no accepted edits is left exactly as written — a
+///   recapitalization-only patch would "fix" the author's own casing;
+/// - replacement text at position 0 is never touched (the substitution
+///   stage already capitalizes its own replacements when needed);
+/// - a lowercase opener the author wrote at sentence start (the
+///   sentence's original first word, untouched by this sentence's own
+///   edits) is held when the document's own casing evidence marks it
+///   deliberate — see [`DocumentCasing`]. An opener newly exposed by a
+///   leading deletion carries no such intent and is capitalized
+///   unconditionally.
+fn recapitalize(splicer: &mut SentenceSplicer<'_>, casing: &DocumentCasing) {
+    if !splicer.edited() {
+        return;
     }
+    let final_text = splicer.working_text();
+    let Some(first) = final_text.chars().next() else {
+        return;
+    };
+    if !first.is_lowercase() || !splicer.starts_with_original() {
+        return;
+    }
+    if splicer.opening_intact()
+        && let Some(opener) = first_word(&final_text)
+        && casing.deliberately_lowercase(&opener)
+    {
+        return;
+    }
+    let upper = capitalize(&first.to_string());
+    splicer.apply(0..first.len_utf8(), &upper, RULE_RECAPITALIZE, Tier::Fix);
+}
+
+/// The first word token of `text`, if any.
+fn first_word(text: &str) -> Option<Box<str>> {
+    tokenize_str(text, 0)
+        .into_iter()
+        .find(|t| t.kind == AnalysisTokenKind::Word)
+        .map(|t| t.text)
 }
