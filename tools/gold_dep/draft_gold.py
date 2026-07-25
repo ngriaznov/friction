@@ -13,20 +13,23 @@ Pipeline, in order:
    as a one-time drafting aid. spaCy is MIT-licensed; nothing from its
    model weights or output format is redistributed here beyond the
    relation labels and head indices this script derives from its parse.
-2. Align spaCy's tokenization to friction's own, in both directions:
-   merge spaCy's `X`,`-`,`Y` hyphen splits and `can`,`not` `cannot` split
-   back into a single token when the merge exactly reconstructs one
-   friction token, and project one spaCy token's head/relation onto a
-   run of several friction tokens when friction's own tokenizer is the
-   one that over-split (mixed letter/digit runs, a number fused with
-   trailing punctuation). Sentences whose tokenization still disagrees
-   after both are dropped.
+2. Align spaCy's tokenization to friction's own, in both directions,
+   unconditionally in each: *merging*, whenever a run of consecutive
+   spaCy tokens spans exactly one friction token (spaCy splits what
+   friction keeps as one — hyphen compounds, `cannot`, possessives,
+   contractions, punctuation runs, all of it), and *projecting*,
+   whenever one spaCy token's span covers a run of several friction
+   tokens (friction's own tokenizer is the one that over-split — mixed
+   letter/digit runs, a number fused with trailing punctuation).
+   Sentences whose tokenization still disagrees after both are dropped.
 3. Drop non-projective trees: arc-eager (the transition system this gold
    file trains) can only derive projective ones.
 4. Apply closed-class relation corrections: `det` on determiners, `aux`
    on modals, `mark` on subordinating conjunctions introducing a clause.
    These are facts about the token's own part of speech, not the
-   parser's discretion.
+   parser's discretion — except for the sentence root, which has no head
+   and so cannot bear a head-relative relation at all; the root always
+   keeps relation `root`, correction or not.
 5. Map spaCy's relation labels to friction's target set, collapsing
    everything else to `other`.
 6. Take a fixed stride over the surviving pool (sorted by document id,
@@ -50,12 +53,31 @@ cargo run -p friction-nlp --example dump_sentences -- corpus \
 from __future__ import annotations
 
 import argparse
-import hashlib
-import json
 import sys
 from dataclasses import dataclass, field
+from pathlib import Path
 
 import spacy
+
+# `tools/gold_common` is a sibling directory, not an installed package --
+# add `tools/` (this file's grandparent) to the path once, up front, so the
+# import below resolves the same way whether this script is invoked
+# directly or via `python tools/gold_dep/draft_gold.py`.
+sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
+
+from gold_common.align import (  # noqa: E402
+    AlignGroup,
+    AlignmentFailure,
+    FrictionToken,
+    InputSentence,
+    align_tokens,
+    build_spacy_index_to_friction_index,
+    doc_split,
+    naive_alignment_matches,
+    read_input_sentences,
+    sentence_aligns,
+    spacy_root_count,
+)
 
 # The exact ClearNLP-scheme relation names the register module's
 # transducers and detectors match on (see
@@ -99,25 +121,22 @@ MODAL_TAG = "MD"
 # reason it is documented separately in `weights/NOTICE.md`.
 SUBORDINATOR_POS = "SCONJ"
 
-DEFAULT_TARGET_SENTENCES = 4000
+# No cap by default: use every aligned sentence.
+#
+# An earlier version of this script capped the output near 4,000 sentences,
+# carried over from how the part-of-speech gold set was sized. That cap made
+# sense there and does not make sense here. The POS set was reviewed by hand,
+# so its size was rationed by review capacity — a real, scarce budget. This
+# file is drafted and corrected entirely mechanically; nothing in it is
+# reviewed sentence by sentence, so there is no budget to ration and a stride
+# is pure data loss.
+#
+# It measurably cost accuracy: training on the strided 2,744 sentences instead
+# of the full pool gave a parser several points worse on every relation, and
+# the three rarest relations were the worst hit, since a stride thins exactly
+# the tail that was already thinnest.
+DEFAULT_TARGET_SENTENCES = 0  # 0 means "no cap"
 TRAIN_SPLIT_PERCENT = 80
-
-
-@dataclass
-class FrictionToken:
-    surface: str
-    pos: str
-    start: int
-    end: int
-
-
-@dataclass
-class InputSentence:
-    doc_id: str
-    genre: str
-    sent_index: int
-    text: str
-    tokens: list[FrictionToken]
 
 
 @dataclass
@@ -137,199 +156,17 @@ class GoldSentence:
     tokens: list[GoldToken] = field(default_factory=list)
 
 
-def read_input_sentences(stream) -> list[InputSentence]:
-    """Parses the dumper's newline-delimited JSON stream."""
-    sentences: list[InputSentence] = []
-    for lineno, line in enumerate(stream, start=1):
-        line = line.strip()
-        if not line:
-            continue
-        try:
-            record = json.loads(line)
-        except json.JSONDecodeError as err:
-            raise SystemExit(f"stdin:{lineno}: invalid JSON: {err}") from err
-        tokens = [
-            FrictionToken(t["surface"], t["pos"], t["start"], t["end"])
-            for t in record["tokens"]
-        ]
-        sentences.append(
-            InputSentence(
-                record["doc_id"],
-                record["genre"],
-                record["sent_index"],
-                record["text"],
-                tokens,
-            )
-        )
-    return sentences
-
-
-def naive_alignment_matches(friction_tokens: list[FrictionToken], doc) -> bool:
-    """True if friction's tokens and spaCy's raw tokens already agree
-    span-for-span, with no merge normalization applied — the "before
-    normalization" measurement.
+def sentence_aligns_single_root(friction_tokens: list[FrictionToken], doc, **flags: bool) -> bool:
+    """Like [`sentence_aligns`] from `gold_common.align`, but also requires
+    spaCy to have parsed the text as exactly one sentence (a single root) --
+    the dependency file's own extra precondition, since a multi-root parse
+    means spaCy disagreed with friction about the sentence boundary, which
+    the POS file does not care about but this one does (see
+    `build_gold_sentence` below).
     """
-    if len(friction_tokens) != len(doc):
+    if spacy_root_count(doc) != 1:
         return False
-    return all(
-        ft.start == tok.idx and ft.end == tok.idx + len(tok.text)
-        for ft, tok in zip(friction_tokens, doc)
-    )
-
-
-class AlignmentFailure(Exception):
-    """A sentence's tokenization could not be reconciled with spaCy's,
-    even after merge and split-projection normalization."""
-
-
-@dataclass
-class AlignGroup:
-    """One unit of the alignment between friction's tokens and spaCy's:
-    the friction token index(es) and spaCy token index(es) that jointly
-    cover one contiguous span of sentence text. Exactly one side has more
-    than one index — `kind` says which, `"single"` meaning neither does.
-    """
-
-    friction: list[int]
-    spacy: list[int]
-    kind: str  # "single" | "merge" (spaCy over-split) | "split" (friction over-split)
-
-
-def align_tokens(
-    friction_tokens: list[FrictionToken], doc
-) -> tuple[list[AlignGroup], dict[str, int], dict[str, int]]:
-    """Aligns friction tokens to spaCy tokens in both directions.
-
-    spaCy and friction tokenize differently in two distinct, opposite
-    ways: spaCy sometimes splits what friction keeps as one token
-    (`high-quality`, `cannot`) — handled by merging spaCy tokens back
-    together, restricted to the two normalization patterns this file
-    implements — and friction sometimes splits what spaCy keeps as one
-    token (friction's tokenizer breaks at every letter/digit boundary
-    and folds trailing `.`/`,` into a number, so `S2O` becomes three
-    friction tokens and `2017,` becomes one where spaCy keeps `2017`
-    and `,` separate) — handled by *projecting* one spaCy token's
-    head/relation onto a run of friction tokens, unconditionally
-    (mechanical, not a judgement call: see `process_group` below).
-
-    Returns `(groups, merge_counts, split_counts)`. Raises
-    [`AlignmentFailure`] if any span cannot be reconciled by either
-    direction, or tokens are left over on either side.
-
-    spaCy, unlike friction's own tokenizer (`tokenize()` in
-    `tag_perceptron.rs` never emits a `Whitespace`-kind token), sometimes
-    emits a standalone whitespace token — reliably for a literal embedded
-    newline in a soft-wrapped source paragraph. Such a token carries no
-    friction counterpart to align against and is never any other token's
-    head (verified: no non-space spaCy token in this corpus has a `head`
-    that is itself a space token), so it is filtered out up front rather
-    than walked over — this is restoring an apples-to-apples token list,
-    not a normalization choice.
-    """
-    spacy_indices = [i for i, t in enumerate(doc) if not t.is_space]
-
-    groups: list[AlignGroup] = []
-    merge_counts = {"hyphen": 0, "cannot": 0}
-    split_counts = {"groups": 0, "fragments": 0}
-    fi = 0
-    si = 0
-    n_friction = len(friction_tokens)
-    n_spacy = len(spacy_indices)
-
-    while fi < n_friction and si < n_spacy:
-        ft = friction_tokens[fi]
-        st = doc[spacy_indices[si]]
-        s_start = st.idx
-        s_end = st.idx + len(st.text)
-
-        if ft.start != s_start:
-            raise AlignmentFailure(
-                f"span start mismatch: friction {ft.start} vs spaCy {s_start}"
-            )
-
-        if ft.end == s_end:
-            groups.append(AlignGroup([fi], [spacy_indices[si]], "single"))
-            fi += 1
-            si += 1
-            continue
-
-        if ft.end < s_end:
-            # friction's token is shorter: this one spaCy token covers a
-            # run of several friction tokens — project it.
-            fj = fi
-            end = friction_tokens[fj].end
-            while end < s_end:
-                fj += 1
-                if fj >= n_friction:
-                    raise AlignmentFailure("ran out of friction tokens mid-spaCy-token")
-                end = friction_tokens[fj].end
-            if end != s_end:
-                raise AlignmentFailure(
-                    f"span end mismatch (split): spaCy {s_end} vs accumulated friction {end}"
-                )
-            friction_group = list(range(fi, fj + 1))
-            groups.append(AlignGroup(friction_group, [spacy_indices[si]], "split"))
-            split_counts["groups"] += 1
-            split_counts["fragments"] += len(friction_group) - 1
-            fi = fj + 1
-            si += 1
-            continue
-
-        # ft.end > s_end: friction's token is longer — a run of several
-        # spaCy tokens make up this one friction token. Restricted to the
-        # two normalization patterns this file implements (unlike the
-        # split direction above, which is unconditional).
-        sj = si
-        end = doc[spacy_indices[sj]].idx + len(doc[spacy_indices[sj]].text)
-        while end < ft.end:
-            sj += 1
-            if sj >= n_spacy:
-                raise AlignmentFailure("ran out of spaCy tokens mid-friction-token")
-            end = doc[spacy_indices[sj]].idx + len(doc[spacy_indices[sj]].text)
-        if end != ft.end:
-            raise AlignmentFailure(
-                f"span end mismatch (merge): friction {ft.end} vs accumulated spaCy {end}"
-            )
-
-        spacy_group = [spacy_indices[k] for k in range(si, sj + 1)]
-        if len(spacy_group) == 3 and doc[spacy_group[1]].text == "-":
-            merge_counts["hyphen"] += 1
-        elif (
-            len(spacy_group) == 2
-            and doc[spacy_group[0]].text.lower() == "can"
-            and doc[spacy_group[1]].text.lower() == "not"
-            and ft.surface.lower() == "cannot"
-        ):
-            merge_counts["cannot"] += 1
-        else:
-            texts = [doc[k].text for k in spacy_group]
-            raise AlignmentFailure(
-                f"unsupported {len(spacy_group)}-token merge for friction token "
-                f"{ft.surface!r}: spaCy tokens {texts!r}"
-            )
-
-        groups.append(AlignGroup([fi], spacy_group, "merge"))
-        fi += 1
-        si = sj + 1
-
-    if fi != n_friction or si != n_spacy:
-        raise AlignmentFailure("tokens remain unconsumed on one side after alignment")
-
-    return groups, merge_counts, split_counts
-
-
-def build_spacy_index_to_friction_index(groups: list[AlignGroup]) -> dict[int, int]:
-    """Maps every spaCy token index to the friction token index any
-    *external* arc pointing at it should be redirected to: the merged
-    token for a merge group, and the head fragment (first friction
-    token) for a split group.
-    """
-    mapping: dict[int, int] = {}
-    for group in groups:
-        target = group.friction[0]
-        for spacy_idx in group.spacy:
-            mapping[spacy_idx] = target
-    return mapping
+    return sentence_aligns(friction_tokens, doc, **flags)
 
 
 @dataclass
@@ -337,6 +174,13 @@ class CorrectionCounts:
     det: int = 0
     aux: int = 0
     mark: int = 0
+    # A closed-class correction would have fired on the sentence root,
+    # where it is incoherent (a root has no head, so it cannot bear a
+    # head-relative relation) — see `outgoing_head_and_relation`, which
+    # suppresses the correction and counts it here instead of applying it.
+    suppressed_root_det: int = 0
+    suppressed_root_aux: int = 0
+    suppressed_root_mark: int = 0
 
 
 def relation_for_token(
@@ -404,7 +248,31 @@ def merge_representative(group: AlignGroup, doc) -> int:
     group (leftmost, if more than one does — this happens for `cannot`,
     where both `can` and `not` attach directly to the same external
     verb); if none does, the rightmost token in the group.
+
+    A token that is itself the sentence root (its own head) always wins
+    that choice outright, ahead of ordinary external-head tokens in the
+    same group. Two real cases the generalized merge rule surfaced
+    needed this, not just "root counts as external":
+
+    - A sentence-initial contraction like `Let's` merges `Let`+`'s` into
+      one friction token; `Let` is spaCy's root and `'s` (dep `dobj`,
+      head `Let`) points *within* the group, so with a plain "not in
+      group" check neither token looks external and the rightmost
+      fallback picks `'s`, losing the root (measured: 151 sentences).
+    - A merge group can contain the root *and* a token with a genuine
+      external head to something else nearby (`pre-installed`, where
+      `installed` is the root but `pre` independently points to `are`
+      outside the group) — plain left-to-right tie-breaking among
+      "external-or-root" candidates would then pick `pre`, still losing
+      the root, since it comes first (measured: 7 further sentences).
+
+    Root detection therefore runs first and short-circuits: nothing is
+    more "outside the group" than being the top of the whole tree, so it
+    is never merely one candidate among several.
     """
+    for i in group.spacy:
+        if doc[i].head.i == i:
+            return i
     external = [i for i in group.spacy if doc[i].head.i not in group.spacy]
     return external[0] if external else group.spacy[-1]
 
@@ -417,14 +285,38 @@ def outgoing_head_and_relation(
     corrections: CorrectionCounts,
 ) -> tuple[int, str]:
     """The `(head_1based, relation)` a token derives from standing in for
-    `representative_spacy_idx` in spaCy's own parse: `0`/`"root"` if that
-    spaCy token is the sentence root, its mapped head/relation otherwise.
+    `representative_spacy_idx` in spaCy's own parse: `(0, "root")` if
+    that spaCy token is the sentence root, its mapped head/relation
+    otherwise.
+
+    A root is never eligible for the closed-class corrections
+    `relation_for_token` applies: `det`/`aux`/`mark` are all
+    head-relative facts ("this token is a determiner *of its head*"),
+    and a root has no head. Applying one anyway is exactly the bug this
+    guard exists to prevent — a root token bearing e.g. `aux` produces a
+    gold tree with `head == 0` and `relation != "root"`, which is
+    internally inconsistent and unrecoverable downstream. Whichever
+    correction *would* have applied is still tallied, into
+    `corrections.suppressed_root_*`, so the gap between "what the
+    closed-class rule would say" and "what a root can coherently say" is
+    visible rather than silently absorbed.
     """
     head_tok = doc[representative_spacy_idx]
     is_root = head_tok.head.i == head_tok.i
-    relation = relation_for_token(friction_pos, head_tok.dep_, head_tok.pos_, corrections)
+
     if is_root:
-        return 0, relation
+        scratch = CorrectionCounts()
+        would_be = relation_for_token(friction_pos, head_tok.dep_, head_tok.pos_, scratch)
+        if would_be != "root":
+            if would_be == "det":
+                corrections.suppressed_root_det += 1
+            elif would_be == "aux":
+                corrections.suppressed_root_aux += 1
+            elif would_be == "mark":
+                corrections.suppressed_root_mark += 1
+        return 0, "root"
+
+    relation = relation_for_token(friction_pos, head_tok.dep_, head_tok.pos_, corrections)
     if head_tok.head.i not in spacy_to_friction:
         # Not observed in this corpus (verified: no non-space spaCy token
         # ever has a whitespace token as its head), but if it ever
@@ -488,11 +380,11 @@ def build_gold_sentence(
     also treated as an alignment failure here, since friction already
     segmented this as one.
     """
-    root_count = sum(1 for t in doc if t.head.i == t.i)
+    root_count = spacy_root_count(doc)
     if root_count != 1:
         raise AlignmentFailure(f"spaCy found {root_count} roots, expected exactly 1")
 
-    groups, merge_counts, split_counts = align_tokens(sentence.tokens, doc)
+    groups, merge_shape_counts, split_counts = align_tokens(sentence.tokens, doc)
     spacy_to_friction = build_spacy_index_to_friction_index(groups)
 
     gold_tokens: list[GoldToken] = []
@@ -507,21 +399,22 @@ def build_gold_sentence(
             f"post-alignment tree has {len(root_tokens)} root tokens, expected exactly 1"
         )
 
+    # Regression guard for the root/closed-class-correction bug: a token
+    # has head 0 exactly when its relation is "root", in both directions.
+    # `outgoing_head_and_relation` should make this hold by construction
+    # now — this is a loud, unconditional assertion, not a drop, because
+    # a violation here means that guard itself broke.
+    for tok in gold_tokens:
+        assert (tok.head == 0) == (tok.relation == "root"), (
+            f"root/relation invariant broken for {tok.surface!r}: "
+            f"head={tok.head}, relation={tok.relation!r}"
+        )
+
     return (
         GoldSentence(sentence.doc_id, sentence.genre, sentence.sent_index, sentence.text, gold_tokens),
-        merge_counts,
+        merge_shape_counts,
         split_counts,
     )
-
-
-def doc_split(doc_id: str) -> str:
-    """Deterministic train/test split by document id: a document's own
-    sha256 puts it in test with ~20% probability, train otherwise. Every
-    sentence from the same document always lands in the same split.
-    """
-    digest = hashlib.sha256(doc_id.encode("utf-8")).hexdigest()
-    bucket = int(digest[:8], 16) % 100
-    return "train" if bucket < TRAIN_SPLIT_PERCENT else "test"
 
 
 def write_conllu(sentences: list[GoldSentence], out_path: str) -> None:
@@ -535,7 +428,7 @@ def write_conllu(sentences: list[GoldSentence], out_path: str) -> None:
     # nothing about the gold annotation itself is touched by this.
     with open(out_path, "w", encoding="utf-8", newline="\n") as f:
         for sent in sentences:
-            split = doc_split(sent.doc_id)
+            split = doc_split(sent.doc_id, TRAIN_SPLIT_PERCENT)
             display_text = " ".join(sent.text.split())
             f.write(f"# sent_id = {sent.doc_id}:{sent.sent_index}\n")
             f.write(f"# split = {split}\n")
@@ -556,7 +449,8 @@ def main() -> None:
         "--target-sentences",
         type=int,
         default=DEFAULT_TARGET_SENTENCES,
-        help="approximate sentence count to stride-sample down to",
+        help="approximate sentence count to stride-sample down to; "
+             "0 (the default) means no cap, use every aligned sentence",
     )
     args = parser.parse_args()
 
@@ -566,35 +460,60 @@ def main() -> None:
 
     nlp = spacy.load("en_core_web_sm", exclude=["ner", "lemmatizer"])
 
-    aligned_naive = 0
+    texts = [s.text for s in input_sentences]
+    # Materialized once (not consumed as a one-shot generator) so the
+    # staged alignment-rate measurements below and the real build pass
+    # can each iterate it independently without re-running spaCy.
+    docs = list(nlp.pipe(texts, batch_size=128))
+
+    aligned_naive = sum(
+        1 for s, d in zip(input_sentences, docs) if naive_alignment_matches(s.tokens, d)
+    )
+    aligned_merge_only = sum(
+        1
+        for s, d in zip(input_sentences, docs)
+        if sentence_aligns_single_root(s.tokens, d, allow_merge=True, allow_split=False, skip_whitespace=False)
+    )
+    aligned_merge_projection = sum(
+        1
+        for s, d in zip(input_sentences, docs)
+        if sentence_aligns_single_root(s.tokens, d, allow_merge=True, allow_split=True, skip_whitespace=False)
+    )
+
+    def pct(n: int) -> str:
+        return f"{n}/{total_candidates} ({100 * n / max(total_candidates, 1):.2f}%)"
+
+    print(f"alignment, raw (no normalization): {pct(aligned_naive)}", file=sys.stderr)
+    print(f"alignment, +merge only: {pct(aligned_merge_only)}", file=sys.stderr)
+    print(
+        f"alignment, +merge +projection (whitespace tokens not yet filtered): "
+        f"{pct(aligned_merge_projection)}",
+        file=sys.stderr,
+    )
+
     aligned_normalized = 0
     misaligned = 0
-    hyphen_merges = 0
-    cannot_merges = 0
+    merge_shape_totals: dict[str, int] = {}
     split_groups_total = 0
     split_fragments_total = 0
 
     pool: list[GoldSentence] = []
     corrections = CorrectionCounts()
 
-    texts = [s.text for s in input_sentences]
-    docs = nlp.pipe(texts, batch_size=128)
-
     non_projective_count = 0
 
     for sentence, doc in zip(input_sentences, docs):
-        if naive_alignment_matches(sentence.tokens, doc):
-            aligned_naive += 1
-
         try:
-            gold_sentence, merge_counts, split_counts = build_gold_sentence(sentence, doc, corrections)
+            gold_sentence, merge_shape_counts, split_counts = build_gold_sentence(
+                sentence, doc, corrections
+            )
         except AlignmentFailure:
             misaligned += 1
             continue
 
         aligned_normalized += 1
-        hyphen_merges += merge_counts["hyphen"]
-        cannot_merges += merge_counts["cannot"]
+        for shape, count in merge_shape_counts.items():
+            merge_shape_totals[shape] = merge_shape_totals.get(shape, 0) + count
         split_groups_total += split_counts["groups"]
         split_fragments_total += split_counts["fragments"]
 
@@ -606,19 +525,19 @@ def main() -> None:
         pool.append(gold_sentence)
 
     print(
-        f"alignment before normalization: {aligned_naive}/{total_candidates} "
-        f"({100 * aligned_naive / max(total_candidates, 1):.2f}%)",
+        f"alignment, +merge +projection +whitespace-token fix (final): "
+        f"{pct(aligned_normalized)}; {misaligned} sentences dropped as still misaligned",
         file=sys.stderr,
     )
+    total_merges = sum(merge_shape_totals.values())
+    print(f"merges by shape ({total_merges} total, all accepted unconditionally):", file=sys.stderr)
+    for shape in sorted(merge_shape_totals):
+        print(f"  {shape}: {merge_shape_totals[shape]}", file=sys.stderr)
     print(
-        f"alignment after normalization: {aligned_normalized}/{total_candidates} "
-        f"({100 * aligned_normalized / max(total_candidates, 1):.2f}%); "
-        f"merges: {hyphen_merges} hyphen-run, {cannot_merges} cannot; "
         f"projections (friction over-split, spaCy token kept whole): "
         f"{split_groups_total} spaCy tokens projected onto "
         f"{split_groups_total + split_fragments_total} friction fragments "
-        f"({split_fragments_total} synthetic `other`-relation attachments); "
-        f"{misaligned} sentences dropped as still misaligned",
+        f"({split_fragments_total} synthetic `other`-relation attachments)",
         file=sys.stderr,
     )
 
@@ -642,6 +561,18 @@ def main() -> None:
         f"det={corrections.det}, aux={corrections.aux}, mark={corrections.mark}",
         file=sys.stderr,
     )
+    suppressed_total = (
+        corrections.suppressed_root_det
+        + corrections.suppressed_root_aux
+        + corrections.suppressed_root_mark
+    )
+    print(
+        f"closed-class corrections suppressed at the sentence root (would have "
+        f"produced an incoherent head==0/relation!=root token): "
+        f"det={corrections.suppressed_root_det}, aux={corrections.suppressed_root_aux}, "
+        f"mark={corrections.suppressed_root_mark}, total={suppressed_total}",
+        file=sys.stderr,
+    )
 
     relation_freq_pool: dict[str, int] = {}
     for sent in pool:
@@ -661,7 +592,14 @@ def main() -> None:
     pool.sort(key=lambda s: (s.doc_id, s.sent_index))
     pool_n = len(pool)
     target = args.target_sentences
-    if pool_n <= target:
+    if target <= 0:
+        stride = 1
+        sampled = pool
+        print(
+            f"no sentence cap; using the whole {pool_n}-sentence pool",
+            file=sys.stderr,
+        )
+    elif pool_n <= target:
         stride = 1
         sampled = pool
         print(
@@ -677,8 +615,8 @@ def main() -> None:
             file=sys.stderr,
         )
 
-    train_sentences = [s for s in sampled if doc_split(s.doc_id) == "train"]
-    test_sentences = [s for s in sampled if doc_split(s.doc_id) == "test"]
+    train_sentences = [s for s in sampled if doc_split(s.doc_id, TRAIN_SPLIT_PERCENT) == "train"]
+    test_sentences = [s for s in sampled if doc_split(s.doc_id, TRAIN_SPLIT_PERCENT) == "test"]
     train_docs = {s.doc_id for s in train_sentences}
     test_docs = {s.doc_id for s in test_sentences}
     overlap = train_docs & test_docs

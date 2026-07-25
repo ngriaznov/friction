@@ -7,7 +7,7 @@ sentence_length_mean          8.7619  [5.0796, 11.3699]   in
 sentence_length_stddev        7.6152  [4.8412, 9.5356]    in    
 sentence_length_cv            0.8691  [0.6938, 1.1063]    in    
 discourse_marker_density      0.0000  [0.0000, 3.0769]    in    
-triad_rate                    0.0476  [0.0000, 0.0303]    OUT   
+triad_rate                    0.0952  [0.0000, 0.0303]    OUT   
 contraction_ratio             0.6667  [0.0000, 0.6667]    in    
 bullet_parallelism            0.0000  [0.0000, 1.0000]    in    
 paragraph_shape_mean          1.2000  [1.0970, 1.5094]    in    

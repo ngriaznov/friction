@@ -50,10 +50,10 @@ expression: stdout
     },
     {
       "name": "bullet_parallelism",
-      "value": 0.5333333333333333,
+      "value": 0.74,
       "lo": 0.6319659442724458,
       "hi": 0.8533057851239669,
-      "in_envelope": false
+      "in_envelope": true
     },
     {
       "name": "paragraph_shape_mean",

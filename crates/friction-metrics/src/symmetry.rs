@@ -969,12 +969,17 @@ The team shipped the release, allowing customers to upgrade early.\n\
         //   a same-class (noun) triad.
         // - Sentence 2 ("...release, allowing customers to upgrade early.")
         //   is a present-participle closer.
-        // - The list items tag as one verb-stemmed and one noun-stemmed
-        //   ("Configure" VB, "Restart" NN, per this tagger's actual
-        //   disambiguation on these two words in isolation), so the list's
-        //   own parallelism score is 1 matching item out of 2.
+        // - Both list items are imperative verb phrases, so both stem to
+        //   the same broad class and the list scores fully parallel.
+        //
+        //   This previously expected 0.5, on the grounds that the tagger
+        //   read "Restart" as a noun while reading "Configure" as a verb.
+        //   That expectation encoded a tagging error rather than a property
+        //   of the text: the two items are the same construction, and any
+        //   reader would call them parallel. Retraining the tagger fixed
+        //   the disambiguation and the metric now agrees with the reading.
         assert!((triad_rate(&document, &tagger) - 0.25).abs() < f64::EPSILON);
         assert!((participial_closer_rate(&document, &tagger) - 0.25).abs() < f64::EPSILON);
-        assert!((bullet_parallelism(&document, &tagger) - 0.5).abs() < f64::EPSILON);
+        assert!((bullet_parallelism(&document, &tagger) - 1.0).abs() < f64::EPSILON);
     }
 }

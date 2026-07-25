@@ -36,7 +36,7 @@ expression: stdout
     },
     {
       "name": "triad_rate",
-      "value": 0.0,
+      "value": 0.004081632653061225,
       "lo": 0.0,
       "hi": 0.01694915254237288,
       "in_envelope": true
@@ -50,7 +50,7 @@ expression: stdout
     },
     {
       "name": "bullet_parallelism",
-      "value": 0.9442148760330579,
+      "value": 0.8792011019283748,
       "lo": 0.6319659442724458,
       "hi": 0.8533057851239669,
       "in_envelope": false

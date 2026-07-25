@@ -9,12 +9,12 @@ sentence_length_cv            0.7772  [0.6938, 1.1063]    in
 discourse_marker_density      0.0000  [0.0000, 3.0769]    in    
 triad_rate                    0.0189  [0.0000, 0.0303]    in    
 contraction_ratio             1.0000  [0.0000, 0.6667]    OUT   
-bullet_parallelism            0.6750  [0.0000, 1.0000]    in    
+bullet_parallelism            0.8056  [0.0000, 1.0000]    in    
 paragraph_shape_mean          1.1522  [1.0970, 1.5094]    in    
 paragraph_shape_cv            0.3605  [0.2883, 0.7260]    in    
 em_dash_density               0.0000  [0.0000, 0.0000]    in    
 semicolon_density             0.0000  [0.0000, 3.5336]    in    
-participial_closer_rate       0.0377  [0.0000, 0.0185]    OUT   
+participial_closer_rate       0.0566  [0.0000, 0.0185]    OUT   
 not_just_but_rate             0.0000  [0.0000, 0.0000]    in    
 ritual_marker_rate            0.0000  [0.0000, 0.0000]    in    
 llm_favored_phrase_rate      58.3333  [0.0000, 17.8971]   OUT   

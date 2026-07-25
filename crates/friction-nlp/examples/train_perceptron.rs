@@ -19,18 +19,24 @@ use std::path::PathBuf;
 use friction_core::TokenKind;
 use friction_nlp::classify_token_kind;
 use friction_nlp::train_support::{
-    AveragedPerceptron, features_for, parse_gold_file, save_weight_file, surfaces_of,
+    AveragedPerceptron, features_for, parse_gold_file_split, punctuation_tag_for_diagnostics,
+    save_weight_file, surfaces_of,
 };
+
+/// The split this tool trains on: the gold file's `# split=test` sentences
+/// are held out, never seen by `train_one`, so `examples/eval_perceptron.rs`
+/// can measure genuine generalization against them.
+const TRAIN_SPLIT: &str = "train";
 
 /// The deterministic passthrough tag a non-`Word` gold token must already
 /// carry — computed the same way `PerceptronTagger::tag` assigns it at
 /// inference, so a gold-file curation mistake (a punctuation line tagged
-/// with something other than its own literal text, say) is caught here
+/// with something other than its deterministic tag, say) is caught here
 /// rather than silently training the model on it.
 fn expected_passthrough_tag(word: &str, kind: TokenKind) -> Option<String> {
     match kind {
         TokenKind::Number => Some("CD".to_string()),
-        TokenKind::Punctuation => Some(word.to_string()),
+        TokenKind::Punctuation => Some(punctuation_tag_for_diagnostics(word).to_string()),
         TokenKind::Symbol => Some("SYM".to_string()),
         _ => None,
     }
@@ -147,16 +153,17 @@ fn main() {
 
     let gold_text = std::fs::read_to_string(&gold_path)
         .unwrap_or_else(|err| panic!("failed to read {}: {err}", gold_path.display()));
-    let sentences = parse_gold_file(&gold_text);
+    let sentences = parse_gold_file_split(&gold_text, TRAIN_SPLIT);
     assert!(
         !sentences.is_empty(),
-        "gold file {} produced zero sentences",
+        "gold file {} produced zero {TRAIN_SPLIT}-split sentences",
         gold_path.display()
     );
 
     let token_count: usize = sentences.iter().map(Vec::len).sum();
     eprintln!(
-        "loaded {} sentences, {} tokens from {}",
+        "loaded {} {TRAIN_SPLIT}-split sentences, {} tokens from {} (test-split sentences held \
+         out; see examples/eval_perceptron.rs)",
         sentences.len(),
         token_count,
         gold_path.display()

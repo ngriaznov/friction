@@ -50,7 +50,7 @@ expression: stdout
     },
     {
       "name": "bullet_parallelism",
-      "value": 0.8366666666666667,
+      "value": 0.8400000000000001,
       "lo": 0.5,
       "hi": 0.9138888888888889,
       "in_envelope": true

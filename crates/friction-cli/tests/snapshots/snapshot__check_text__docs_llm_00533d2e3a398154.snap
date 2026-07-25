@@ -14,7 +14,7 @@ paragraph_shape_mean          1.6176  [1.0970, 1.5094]    OUT
 paragraph_shape_cv            0.5613  [0.2883, 0.7260]    in    
 em_dash_density               0.0000  [0.0000, 0.0000]    in    
 semicolon_density             1.2019  [0.0000, 3.5336]    in    
-participial_closer_rate       0.0000  [0.0000, 0.0185]    in    
+participial_closer_rate       0.0364  [0.0000, 0.0185]    OUT   
 not_just_but_rate             0.0000  [0.0000, 0.0000]    in    
 ritual_marker_rate            0.0000  [0.0000, 0.0000]    in    
 llm_favored_phrase_rate      17.8784  [0.0000, 17.8971]   in    

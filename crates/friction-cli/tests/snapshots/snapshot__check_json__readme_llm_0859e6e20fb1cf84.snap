@@ -85,10 +85,10 @@ expression: stdout
     },
     {
       "name": "participial_closer_rate",
-      "value": 0.0,
+      "value": 0.03076923076923077,
       "lo": 0.0,
       "hi": 0.011363636363636364,
-      "in_envelope": true
+      "in_envelope": false
     },
     {
       "name": "not_just_but_rate",

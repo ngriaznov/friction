@@ -21,14 +21,18 @@
 //!
 //! # Non-word tokens: a deterministic passthrough, never the model
 //!
-//! [`TokenKind::Number`] gets `"CD"`; [`TokenKind::Punctuation`] gets its
-//! own literal surface text as its tag (matching genuine Penn-Treebank/
-//! CoNLL-U convention for punctuation); [`TokenKind::Symbol`] gets `"SYM"`.
-//! These categories are effectively fully determined by surface form in
-//! Penn-Treebank-style tagging, so hardcoding them removes risk without
-//! costing accuracy — and using this exact same fixed value for tag-history
-//! context during both training and inference keeps the two consistent.
-//! Only [`TokenKind::Word`] tokens ever run the perceptron.
+//! [`TokenKind::Number`] gets `"CD"`; [`TokenKind::Symbol`] gets `"SYM"`;
+//! [`TokenKind::Punctuation`] gets one of nine closed Penn/spaCy-style
+//! punctuation tags from [`punctuation_tag`] — never its own literal
+//! surface text (see `weights/NOTICE.md`'s tagset decision: a
+//! surface-text tag turned "punctuation" into ~140 near-unique values,
+//! defeating every downstream consumer that treats a tag as a syntactic
+//! class rather than a token fingerprint). These categories are effectively
+//! fully determined by surface form in Penn-Treebank-style tagging, so
+//! hardcoding them removes risk without costing accuracy — and using this
+//! exact same fixed value for tag-history context during both training and
+//! inference keeps the two consistent. Only [`TokenKind::Word`] tokens ever
+//! run the perceptron.
 //!
 //! # Lemma: best-effort, reusing this crate's own inflection tables
 //!
@@ -251,6 +255,64 @@ fn suffix3(word_lower: &str) -> &str {
         .nth(2)
         .map_or(0, |(index, _)| index);
     &word_lower[byte_start..]
+}
+
+/// Classifies a [`TokenKind::Punctuation`] token's surface text into one of
+/// nine closed Penn/spaCy-style punctuation tags — `.` `,` `:` `-LRB-`
+/// `-RRB-` `` ` `` `''` `HYPH` `NFP` — never the surface text itself. See
+/// `weights/NOTICE.md`'s tagset decision for why: a per-surface-string tag
+/// (the previous scheme) emitted ~140 distinct punctuation "tags" across
+/// the corpus, each one carrying no more information than the token's own
+/// text.
+///
+/// `surface` is [`tokenize`]'s own maximal run of [`is_prose_punctuation`]
+/// characters (non-empty for every real `Punctuation`-kind token this
+/// crate produces) and can mix distinct punctuation characters (`"),"`,
+/// `"?!"`), unlike genuine Penn-Treebank/CoNLL-U tokenization, which always
+/// isolates one character per token. Classification is by the character
+/// *set* the whole run is drawn from, checked in this fixed order (a run
+/// satisfying an earlier rule never reaches a later one):
+///
+/// 1. every character is one of `.!?` (including a repeated run like
+///    `"!!!"` or `"..."`) -> `.`, the sentence-final-punctuation bucket
+/// 2. every character is `,` -> `,`
+/// 3. every character is one of `;:` -> `:`
+/// 4. every character is a hyphen/en dash/em dash -> `HYPH`
+/// 5. every character is one of `([{` -> `-LRB-`
+/// 6. every character is one of `)]}` -> `-RRB-`
+/// 7. every character is an opening curly quote (`'` or `"`) -> `` ` ``
+/// 8. every character is a closing curly quote or a straight quote
+///    (`'`, `"`, `'`, or `"`) -> `''`
+/// 9. anything else — a mixed-character run (`").:"`, `"?!"`), a bare `/`,
+///    or a lone horizontal-ellipsis character — -> `NFP`, spaCy's own
+///    bucket for punctuation that fits no cleaner category.
+fn punctuation_tag(surface: &str) -> &'static str {
+    if surface.is_empty() {
+        return "NFP";
+    }
+    let mut chars = surface.chars();
+    if chars.clone().all(|c| matches!(c, '.' | '!' | '?')) {
+        "."
+    } else if chars.clone().all(|c| c == ',') {
+        ","
+    } else if chars.clone().all(|c| matches!(c, ';' | ':')) {
+        ":"
+    } else if chars
+        .clone()
+        .all(|c| matches!(c, '-' | '\u{2013}' | '\u{2014}'))
+    {
+        "HYPH"
+    } else if chars.clone().all(|c| matches!(c, '(' | '[' | '{')) {
+        "-LRB-"
+    } else if chars.clone().all(|c| matches!(c, ')' | ']' | '}')) {
+        "-RRB-"
+    } else if chars.clone().all(|c| matches!(c, '\u{2018}' | '\u{201C}')) {
+        "``"
+    } else if chars.all(|c| matches!(c, '\'' | '"' | '\u{2019}' | '\u{201D}')) {
+        "''"
+    } else {
+        "NFP"
+    }
 }
 
 /// `word_lower`'s first character, as a `&str` (empty for an empty word,
@@ -553,7 +615,7 @@ impl Tagger for PerceptronTagger {
             let surface = &text[scan_token.range.clone()];
             let assigned: Box<str> = match scan_token.kind {
                 TokenKind::Number => Box::from("CD"),
-                TokenKind::Punctuation => Box::from(surface),
+                TokenKind::Punctuation => Box::from(punctuation_tag(surface)),
                 TokenKind::Word => self.tag_word(&surfaces, surface, i, &prev1, &prev2),
                 // `tokenize` never emits `Whitespace`; any other/future
                 // `TokenKind` (this enum is `#[non_exhaustive]`) falls back
@@ -593,7 +655,9 @@ pub mod train_support {
     use std::collections::BTreeMap;
     use std::io::Write as _;
 
-    use super::{PerceptronTagError, WeightFile, extract_features, normalize_word_identity};
+    use super::{
+        PerceptronTagError, WeightFile, extract_features, normalize_word_identity, punctuation_tag,
+    };
 
     /// One gold-tagged sentence: `(lowercased surface, gold tag)` pairs.
     ///
@@ -628,6 +692,71 @@ pub mod train_support {
         if !current.is_empty() {
             sentences.push(current);
         }
+        sentences
+    }
+
+    /// Parses a split-aware gold file.
+    ///
+    /// Like [`parse_gold_file`], but additionally reads a `# split=train` /
+    /// `# split=test` marker line required immediately before every
+    /// sentence's token lines, keeping only the sentences whose marker
+    /// equals `want_split` (`"train"` or `"test"`).
+    ///
+    /// A marker line carries no tab, so [`parse_gold_file`] (and any other
+    /// unmodified reader of the same file) already skips it silently
+    /// without disturbing sentence boundaries — this is what lets the gold
+    /// file carry a split marker while keeping its line format
+    /// byte-for-byte the same otherwise.
+    ///
+    /// # Panics
+    /// If a sentence's marker is missing, or is present but is neither
+    /// `"train"` nor `"test"` — a malformed or hand-edited gold file must
+    /// fail loudly here rather than silently mis-splitting training data
+    /// into (or out of) the held-out set.
+    #[must_use]
+    pub fn parse_gold_file_split(text: &str, want_split: &str) -> Vec<GoldSentence> {
+        assert!(
+            want_split == "train" || want_split == "test",
+            "want_split must be \"train\" or \"test\", got {want_split:?}"
+        );
+        let mut sentences = Vec::new();
+        let mut current: GoldSentence = Vec::new();
+        let mut current_split: Option<String> = None;
+
+        let mut flush = |current: &mut GoldSentence, current_split: &mut Option<String>| {
+            if current.is_empty() {
+                return;
+            }
+            let split = current_split
+                .take()
+                .expect("sentence ending with no preceding `# split=` marker line");
+            assert!(
+                split == "train" || split == "test",
+                "gold-file `# split=` marker must be \"train\" or \"test\", found {split:?}"
+            );
+            if split == want_split {
+                sentences.push(std::mem::take(current));
+            } else {
+                current.clear();
+            }
+        };
+
+        for line in text.lines() {
+            let trimmed = line.trim_end();
+            if trimmed.trim().is_empty() {
+                flush(&mut current, &mut current_split);
+                continue;
+            }
+            if let Some(value) = trimmed.strip_prefix("# split=") {
+                current_split = Some(value.trim().to_string());
+                continue;
+            }
+            let Some((word, tag)) = trimmed.split_once('\t') else {
+                continue;
+            };
+            current.push((word.to_string(), tag.to_string()));
+        }
+        flush(&mut current, &mut current_split);
         sentences
     }
 
@@ -858,6 +987,18 @@ pub mod train_support {
     pub fn normalize_for_diagnostics(word_lower: &str) -> &str {
         normalize_word_identity(word_lower)
     }
+
+    /// Re-exposes [`punctuation_tag`] for training/eval tooling.
+    ///
+    /// Lets a training tool's gold-file consistency check
+    /// (`expected_passthrough_tag` in `examples/train_perceptron.rs`) and a
+    /// gold-drafting tool compute the exact same deterministic punctuation
+    /// tag runtime inference assigns, without duplicating the
+    /// classification rule.
+    #[must_use]
+    pub fn punctuation_tag_for_diagnostics(surface: &str) -> &'static str {
+        punctuation_tag(surface)
+    }
 }
 
 #[cfg(test)]
@@ -901,7 +1042,7 @@ mod tests {
     }
 
     #[test]
-    fn tag_gives_punctuation_its_own_literal_text_as_its_tag() {
+    fn tag_gives_a_comma_the_comma_tag() {
         let tagged = tagger().tag("Wait, really?", 0);
         let comma = tagged
             .iter()
@@ -909,6 +1050,103 @@ mod tests {
             .expect("comma token present");
         assert_eq!(comma.token.kind, TokenKind::Punctuation);
         assert_eq!(comma.pos.as_str(), ",");
+    }
+
+    #[test]
+    fn tag_gives_sentence_final_marks_the_period_tag() {
+        let tagged = tagger().tag("Really?", 0);
+        let mark = tagged
+            .iter()
+            .find(|t| t.token.kind == TokenKind::Punctuation)
+            .expect("a punctuation token is present");
+        assert_eq!(mark.pos.as_str(), ".");
+    }
+
+    #[test]
+    fn tag_gives_brackets_the_lrb_rrb_tags() {
+        let tagged = tagger().tag("(hello) [world]", 0);
+        let text = "(hello) [world]";
+        let opens: Vec<_> = tagged
+            .iter()
+            .filter(|t| matches!(&text[t.token.range.clone()], "(" | "["))
+            .collect();
+        let closes: Vec<_> = tagged
+            .iter()
+            .filter(|t| matches!(&text[t.token.range.clone()], ")" | "]"))
+            .collect();
+        assert!(!opens.is_empty() && !closes.is_empty());
+        for t in opens {
+            assert_eq!(t.pos.as_str(), "-LRB-");
+        }
+        for t in closes {
+            assert_eq!(t.pos.as_str(), "-RRB-");
+        }
+    }
+
+    #[test]
+    fn tag_gives_hyphen_runs_the_hyph_tag() {
+        let text = "okay -- fine";
+        let tagged = tagger().tag(text, 0);
+        let dash = tagged
+            .iter()
+            .find(|t| &text[t.token.range.clone()] == "--")
+            .expect("dash token present");
+        assert_eq!(dash.pos.as_str(), "HYPH");
+    }
+
+    #[test]
+    fn tag_gives_a_mixed_punctuation_run_the_nfp_tag() {
+        let text = "wait...";
+        let tagged = tagger().tag(text, 0);
+        let ellipsis = tagged
+            .iter()
+            .find(|t| &text[t.token.range.clone()] == "...")
+            .expect("ellipsis token present");
+        // A run of three literal periods is entirely drawn from the
+        // sentence-final-mark set, so it is the "." bucket, not "NFP" --
+        // "NFP" is reserved for a run mixing distinct punctuation classes.
+        assert_eq!(ellipsis.pos.as_str(), ".");
+
+        let mixed_text = "wait?!";
+        let mixed_tagged = tagger().tag(mixed_text, 0);
+        let mixed = mixed_tagged
+            .iter()
+            .find(|t| &mixed_text[t.token.range.clone()] == "?!")
+            .expect("mixed run token present");
+        // "?!" is still drawn entirely from the sentence-final-mark set
+        // (`.!?`), so it also lands on "." -- exercise a genuinely mixed
+        // run instead to reach "NFP".
+        assert_eq!(mixed.pos.as_str(), ".");
+
+        let punct_run_text = "words).:more";
+        let punct_run_tagged = tagger().tag(punct_run_text, 0);
+        let punct_run = punct_run_tagged
+            .iter()
+            .find(|t| &punct_run_text[t.token.range.clone()] == ").:")
+            .expect("mixed-class punctuation run token present");
+        assert_eq!(punct_run.pos.as_str(), "NFP");
+    }
+
+    #[test]
+    fn tag_punctuation_tags_are_always_members_of_the_closed_set() {
+        // Regression guard for the tagset decision itself: every
+        // punctuation token's assigned tag is one of the nine closed
+        // strings below, never an arbitrary literal like the old
+        // surface-text-as-tag scheme would have produced for a run like
+        // "):." below.
+        let text = "Section 1.2.3, see (note):";
+        let tagged = tagger().tag(text, 0);
+        for t in tagged
+            .iter()
+            .filter(|t| t.token.kind == TokenKind::Punctuation)
+        {
+            let closed_set = [".", ",", ":", "-LRB-", "-RRB-", "``", "''", "HYPH", "NFP"];
+            assert!(
+                closed_set.contains(&t.pos.as_str()),
+                "punctuation tag {:?} is not a member of the closed set",
+                t.pos.as_str()
+            );
+        }
     }
 
     #[test]

@@ -105,4 +105,4 @@ In case of data loss or corruption, you can restore Corkboard from any available
 - **Backup Retention**: Consider setting up a policy to keep only the most recent backups and delete older ones periodically to save disk space.
 - **Testing**: Periodically test restoring from a backup to confirm its integrity and process speed.
 
-You've set up automatic database backups for Corkboard, ensuring that your notes remain safe against unexpected data loss. Regularly checking your backup logs will help you stay informed about the success of each backup run.
+By following these steps, you've set up automatic database backups for Corkboard, ensuring that your notes remain safe against unexpected data loss. Regularly checking your backup logs will help you stay informed about the success of each backup run.

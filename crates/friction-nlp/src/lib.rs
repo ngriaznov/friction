@@ -44,14 +44,18 @@ pub use tag_perceptron::{PerceptronTagError, PerceptronTagger};
 // --- end tagging block ---
 
 // --- dependency parsing (owned by the dep-parser agent; see src/dep.rs,
-// src/dep_arceager.rs, src/dep_onnx.rs) ---
+// src/dep_arceager.rs, src/dep_onnx.rs, src/dep_perceptron.rs) ---
 mod dep;
 #[cfg(feature = "onnx")]
 mod dep_onnx;
+mod dep_perceptron;
 
 pub use dep::{Confidence, DepEdge, DepParseError, DepParser, DepRelation, SentenceParse};
 #[cfg(feature = "onnx")]
 pub use dep_onnx::{OnnxParser, softmax_top2_margin};
+#[cfg(feature = "train-tooling")]
+pub use dep_perceptron::train_support as dep_train_support;
+pub use dep_perceptron::{PerceptronParseError, PerceptronParser};
 
 /// The arc-eager transition system a trainer drives.
 ///

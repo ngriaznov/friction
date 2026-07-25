@@ -36,10 +36,10 @@ expression: stdout
     },
     {
       "name": "triad_rate",
-      "value": 0.0,
+      "value": 0.05405405405405406,
       "lo": 0.0,
       "hi": 0.01694915254237288,
-      "in_envelope": true
+      "in_envelope": false
     },
     {
       "name": "contraction_ratio",

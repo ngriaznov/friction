@@ -50,6 +50,14 @@ serde_json = { workspace = true }
 name = "train_perceptron"
 required-features = ["train-tooling"]
 
+[[example]]
+name = "eval_perceptron"
+required-features = ["train-tooling"]
+
+[[example]]
+name = "train_parser"
+required-features = ["train-tooling"]
+
 [dev-dependencies]
 friction-parse = { path = "../friction-parse" }
 # Golden sentence-segmentation fixtures (tests/data/segment_golden.toml)

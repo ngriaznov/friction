@@ -36,7 +36,7 @@ expression: stdout
     },
     {
       "name": "triad_rate",
-      "value": 0.03278688524590164,
+      "value": 0.04918032786885246,
       "lo": 0.0,
       "hi": 0.030303030303030304,
       "in_envelope": false

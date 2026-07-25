@@ -2,9 +2,11 @@
 source: crates/friction-cli/tests/snapshot.rs
 expression: stdout
 ---
-pass 1: 4 operation(s) fired
+pass 1: 2 operation(s) fired
   sub.apply                261..271  -> "matters"
   sub.apply                273..305  -> "This guide covers"
-  span.delete              3969..3995  (deleted)
-  edit.recapitalize        3995..3996  -> "Y"
+  1 held:
+    span.delete            3969..4117  KEPT (deletion span.by_following_these_steps_leading held: SkeletonNotAttested)
 pass 2: 0 operation(s) fired — converged
+  1 held:
+    span.delete            3951..4099  KEPT (deletion span.by_following_these_steps_leading held: SkeletonNotAttested)
