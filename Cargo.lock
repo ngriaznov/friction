@@ -582,14 +582,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "friction-apply"
-version = "0.1.0"
-dependencies = [
- "friction-core",
- "proptest",
-]
-
-[[package]]
 name = "friction-cli"
 version = "0.1.0"
 dependencies = [

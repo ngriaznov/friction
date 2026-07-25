@@ -46,15 +46,14 @@
 //!
 //! # Why the release CLI, not a library shortcut
 //!
-//! `friction_apply::FixEngine` would fix a document in-process, faster and
-//! without a subprocess per doc — and does run the exact same
-//! [`friction_apply::fix_document`] the CLI's own `fix` subcommand calls
-//! (see `friction-cli/src/fix.rs`). But this check exists to answer "what
-//! does the *shipped product* actually do to a document", so it shells
-//! out to the real, release-profile `friction` binary rather than the
-//! library call it happens to be a thin wrapper over — the two are
-//! expected to agree, and a shortcut here would quietly stop being true
-//! the moment they didn't.
+//! `friction_edit::Engine::fix_document` would fix a document in-process,
+//! faster and without a subprocess per doc — and it is what the CLI's own
+//! `fix` subcommand ultimately calls (see `friction-cli/src/fix.rs`). But
+//! this check exists to answer "what does the *shipped product* actually
+//! do to a document", so it shells out to the real, release-profile
+//! `friction` binary rather than the library call it happens to be a thin
+//! wrapper over — the two are expected to agree, and a shortcut here would
+//! quietly stop being true the moment they didn't.
 
 use std::collections::BTreeMap;
 use std::fmt::Write as _;

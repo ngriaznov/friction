@@ -11,9 +11,9 @@ use crate::span::{self, Spanned};
 ///
 /// `range` is always a byte range into the source of the round the patch
 /// was produced against; patches are collected per round and applied
-/// atomically before the document is re-parsed by `friction-apply`.
+/// atomically before the document is re-parsed by `friction-edit`.
 /// Conflict *resolution* (leftmost-longest, then rule priority) is
-/// `friction-apply`'s responsibility — this crate only provides overlap
+/// `friction-edit`'s responsibility — this crate only provides overlap
 /// *detection* via [`find_overlaps`].
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Patch {
@@ -99,7 +99,7 @@ pub enum Tier {
 /// same offset.
 ///
 /// This only *detects* conflicts; *resolving* them (leftmost-longest, then
-/// rule priority) is `friction-apply`'s responsibility.
+/// rule priority) is `friction-edit`'s responsibility.
 #[must_use]
 pub fn find_overlaps(patches: &[Patch]) -> Vec<(usize, usize)> {
     let mut overlaps = Vec::new();

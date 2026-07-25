@@ -39,7 +39,7 @@
 //!
 //! [`find_overlaps`] detects overlapping patch ranges within a round.
 //! Resolving conflicts (leftmost-longest, then rule priority) is
-//! `friction-apply`'s job; this crate only detects them.
+//! `friction-edit`'s job; this crate only detects them.
 
 mod block;
 mod document;

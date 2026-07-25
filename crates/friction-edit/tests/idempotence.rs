@@ -65,9 +65,9 @@ fn fixture_inputs() -> Vec<&'static str> {
 /// A fixed, deterministic sample of up to 50 TRAIN-split human+llm corpus
 /// documents' text: manifest records sorted by id, then every Nth taken
 /// so the sample spans the whole split rather than clustering at the
-/// front — the same id-sorted-then-take-every-Nth selection
-/// `friction-apply`'s own idempotence sweep precedent uses, not random
-/// sampling, so this test's own sample is itself deterministic.
+/// front. Deliberately a fixed stride rather than a random sample, so
+/// this test's own sample is itself deterministic and a failure is
+/// reproducible from the corpus alone.
 fn sample_of_train_corpus_docs(limit: usize) -> Vec<String> {
     let root = corpus_root();
     let manifest_path = root.join("manifest.jsonl");
