@@ -30,5 +30,6 @@ dms (target family: qwen):
   gemma    mean_machine=1.0071  mean_human=6.9152  differential=-5.9081  tokens=990
   llama    mean_machine=0.9485  mean_human=6.9152  differential=-5.9667  tokens=990
   granite  mean_machine=0.9182  mean_human=6.9152  differential=-5.9970  tokens=990
+  claude   mean_machine=1.0525  mean_human=6.9152  differential=-5.8626  tokens=990
 
 tell counts (0 span(s) total):

@@ -20,9 +20,9 @@ use serde::Deserialize;
 
 use crate::PackError;
 
-/// The four generator families a train-split `llm` document can belong to.
+/// The five generator families a train-split `llm` document can belong to.
 ///
-/// Per this workspace's model-manifest convention. A fifth family showing
+/// Per this workspace's model-manifest convention. A sixth family showing
 /// up in the corpus manifest is a hard error at index-build time
 /// (`corpus-tool index`'s own `family_of`), not a silent gap here — this
 /// enum is exhaustive by design.
@@ -32,12 +32,19 @@ pub enum ModelFamily {
     Gemma,
     Llama,
     Granite,
+    Claude,
 }
 
 impl ModelFamily {
     /// Every family, in the fixed processing order `corpus-tool index`
     /// uses for deterministic vocabulary assignment.
-    pub const ALL: [Self; 4] = [Self::Qwen, Self::Gemma, Self::Llama, Self::Granite];
+    pub const ALL: [Self; 5] = [
+        Self::Qwen,
+        Self::Gemma,
+        Self::Llama,
+        Self::Granite,
+        Self::Claude,
+    ];
 
     /// The lowercase name used as this family's `[streams.<name>]` TOML
     /// table key.
@@ -48,6 +55,7 @@ impl ModelFamily {
             Self::Gemma => "gemma",
             Self::Llama => "llama",
             Self::Granite => "granite",
+            Self::Claude => "claude",
         }
     }
 }
@@ -283,7 +291,7 @@ struct RawStream {
 }
 
 /// The TOML shape of `[streams]`: the always-present `human` stream plus
-/// the four optional per-family streams.
+/// the five optional per-family streams.
 #[derive(Debug, Deserialize)]
 struct RawStreams {
     human: RawStream,
@@ -295,6 +303,8 @@ struct RawStreams {
     llama: Option<RawStream>,
     #[serde(default)]
     granite: Option<RawStream>,
+    #[serde(default)]
+    claude: Option<RawStream>,
 }
 
 /// The TOML shape of a `dms-index-v1` pack as a whole. The `[pack]`
@@ -308,7 +318,7 @@ struct RawPack {
 }
 
 /// A parsed DMS index pack: the shared vocabulary plus one suffix
-/// automaton per stream (`human`, and whichever of the four
+/// automaton per stream (`human`, and whichever of the five
 /// [`ModelFamily`] streams the pack defines).
 #[derive(Debug, Clone)]
 pub struct DmsIndex {
@@ -319,7 +329,7 @@ pub struct DmsIndex {
 
 impl DmsIndex {
     /// Parses a `dms-index-v1`-shaped pack: a `[vocab]` table plus a
-    /// `[streams.human]` table and any of the four `[streams.<family>]`
+    /// `[streams.human]` table and any of the five `[streams.<family>]`
     /// tables, building a [`Vocab`] and one [`Sam`] per stream present.
     ///
     /// # Errors
@@ -342,6 +352,7 @@ impl DmsIndex {
             (ModelFamily::Gemma, &raw.streams.gemma),
             (ModelFamily::Llama, &raw.streams.llama),
             (ModelFamily::Granite, &raw.streams.granite),
+            (ModelFamily::Claude, &raw.streams.claude),
         ];
         for (family, raw_stream) in raw_family_streams {
             if let Some(stream) = raw_stream {
@@ -426,7 +437,8 @@ mod tests {
         assert_eq!(ModelFamily::Gemma.as_str(), "gemma");
         assert_eq!(ModelFamily::Llama.as_str(), "llama");
         assert_eq!(ModelFamily::Granite.as_str(), "granite");
-        assert_eq!(ModelFamily::ALL.len(), 4);
+        assert_eq!(ModelFamily::Claude.as_str(), "claude");
+        assert_eq!(ModelFamily::ALL.len(), 5);
     }
 
     // --- Vocab ---

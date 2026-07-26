@@ -71,10 +71,11 @@ pub struct Args {
     pub calibrate: bool,
 }
 
-/// Maps a manifest `model.name` (an Ollama tag, e.g. `"gemma2:9b"`) to its
-/// [`ModelFamily`] via a case-insensitive substring match.
+/// Maps a manifest `model.name` (an Ollama tag, e.g. `"gemma2:9b"`, or an
+/// API model id, e.g. `"claude-opus-5"`) to its [`ModelFamily`] via a
+/// case-insensitive substring match.
 ///
-/// `None` for a name matching none of the four known families — `run`
+/// `None` for a name matching none of the five known families — `run`
 /// treats that as a hard error (an unmapped model must force a deliberate
 /// code change here, never a silent under-count).
 #[must_use]
@@ -88,6 +89,8 @@ pub fn family_of(model_name: &str) -> Option<ModelFamily> {
         Some(ModelFamily::Llama)
     } else if lower.contains("granite") {
         Some(ModelFamily::Granite)
+    } else if lower.contains("claude") || lower.contains("opus") || lower.contains("sonnet") {
+        Some(ModelFamily::Claude)
     } else {
         None
     }

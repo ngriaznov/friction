@@ -142,7 +142,7 @@ fn check_json_output_is_byte_identical_across_runs() {
     assert_eq!(value["genre"], "blog");
     assert_eq!(value["family"], "qwen");
     assert!(!value["spans"].as_array().unwrap().is_empty());
-    assert_eq!(value["dms"].as_array().unwrap().len(), 4);
+    assert_eq!(value["dms"].as_array().unwrap().len(), 5);
 }
 
 /// `check --format text` never emits an ANSI escape byte when stdout is

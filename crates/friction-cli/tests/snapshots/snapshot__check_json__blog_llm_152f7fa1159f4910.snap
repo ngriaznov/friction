@@ -468,6 +468,13 @@ expression: stdout
       "mean_human": 1.6283280085197018,
       "differential": -0.30670926517571884,
       "token_count": 939
+    },
+    {
+      "family": "claude",
+      "mean_machine": 1.1512247071352502,
+      "mean_human": 1.6283280085197018,
+      "differential": -0.4771033013844517,
+      "token_count": 939
     }
   ]
 }

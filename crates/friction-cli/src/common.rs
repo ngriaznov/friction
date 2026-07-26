@@ -76,6 +76,7 @@ pub enum Family {
     Gemma,
     Llama,
     Granite,
+    Claude,
 }
 
 impl From<Family> for ModelFamily {
@@ -85,6 +86,7 @@ impl From<Family> for ModelFamily {
             Family::Gemma => Self::Gemma,
             Family::Llama => Self::Llama,
             Family::Granite => Self::Granite,
+            Family::Claude => Self::Claude,
         }
     }
 }
@@ -361,6 +363,7 @@ mod tests {
         assert_eq!(ModelFamily::from(Family::Gemma), ModelFamily::Gemma);
         assert_eq!(ModelFamily::from(Family::Llama), ModelFamily::Llama);
         assert_eq!(ModelFamily::from(Family::Granite), ModelFamily::Granite);
+        assert_eq!(ModelFamily::from(Family::Claude), ModelFamily::Claude);
     }
 
     #[test]
