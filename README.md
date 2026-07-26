@@ -96,7 +96,23 @@ construction that is *missing* has no span to detect.
 ### npm
 
 ```bash
-npm install -g friction-cli     # or: npx friction-cli fix draft.md
+npm install -g friction-cli          # global, on your PATH as `friction`
+npm install --save-dev friction-cli  # project-local, for CI and npm scripts
+npx friction-cli fix draft.md        # no install at all
+```
+
+Project-local is usually what you want for a repo, since it pins the version in
+your lockfile:
+
+```json
+{
+  "scripts": {
+    "lint:docs": "friction fix README.md | cmp -s - README.md"
+  },
+  "devDependencies": {
+    "friction-cli": "0.1.1"
+  }
+}
 ```
 
 The right binary for your platform arrives as an optional dependency — npm picks
