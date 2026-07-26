@@ -1,0 +1,27 @@
+{
+  "name": "friction-cli",
+  "version": "0.1.0",
+  "description": "Deterministic removal of the machine layer from LLM-generated English technical documentation.",
+  "keywords": ["markdown", "lint", "documentation", "llm", "prose", "cli"],
+  "license": "MIT OR Apache-2.0",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/ngriaznov/friction.git"
+  },
+  "homepage": "https://github.com/ngriaznov/friction#readme",
+  "bugs": "https://github.com/ngriaznov/friction/issues",
+  "bin": {
+    "friction": "bin/friction.js"
+  },
+  "files": ["bin/friction.js", "README.md"],
+  "engines": {
+    "node": ">=18"
+  },
+  "optionalDependencies": {
+    "friction-cli-darwin-arm64": "0.1.0",
+    "friction-cli-darwin-x64": "0.1.0",
+    "friction-cli-linux-x64": "0.1.0",
+    "friction-cli-linux-arm64": "0.1.0",
+    "friction-cli-win32-x64": "0.1.0"
+  }
+}

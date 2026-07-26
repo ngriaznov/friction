@@ -177,3 +177,67 @@ jobs:
             **Which Linux build:** `musl` is statically linked and does not care
             about the host's glibc — prefer it for containers and CI images.
             `gnu` is the ordinary dynamically linked build.
+
+  npm:
+    name: publish friction-cli to npm
+    needs: [version, build, release]
+    if: needs.version.outputs.should_release == 'true'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      # Lets `npm publish --provenance` attest that these tarballs were built
+      # by this workflow from this commit.
+      id-token: write
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          registry-url: https://registry.npmjs.org
+
+      # Publishing is opt-in: without the secret the job reports green and does
+      # nothing, so the binary release above is never held hostage to npm
+      # credentials that may not be configured yet.
+      - id: gate
+        env:
+          NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
+        run: |
+          if [ -z "$NPM_TOKEN" ]; then
+            echo "publish=false" >> "$GITHUB_OUTPUT"
+            echo "NPM_TOKEN is not set; skipping npm publish"
+          else
+            echo "publish=true" >> "$GITHUB_OUTPUT"
+          fi
+
+      - if: steps.gate.outputs.publish == 'true'
+        uses: actions/download-artifact@v4
+        with:
+          path: archives
+          merge-multiple: true
+
+      - name: extract archives and build packages
+        if: steps.gate.outputs.publish == 'true'
+        run: |
+          mkdir -p dist npm-dist
+          cd archives
+          for f in *.tar.gz; do tar xzf "$f" -C ../dist; done
+          for f in *.zip; do unzip -qo "$f" -d ../dist; done
+          cd ..
+          node npm/build.mjs "${{ needs.version.outputs.version }}" dist npm-dist
+
+      # Platform packages first. The wrapper declares exact-version optional
+      # dependencies on them, so publishing it first would leave a window where
+      # `npm install friction-cli` resolves a wrapper whose binaries do not yet
+      # exist on the registry.
+      - name: publish
+        if: steps.gate.outputs.publish == 'true'
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+        run: |
+          for pkg in npm-dist/friction-cli-*; do
+            echo "publishing $(basename "$pkg")"
+            (cd "$pkg" && npm publish --provenance --access public)
+          done
+          echo "publishing friction-cli"
+          (cd npm-dist/friction-cli && npm publish --provenance --access public)

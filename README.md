@@ -93,6 +93,34 @@ construction that is *missing* has no span to detect.
 
 ## Install
 
+### npm
+
+```bash
+npm install -g friction-cli     # or: npx friction-cli fix draft.md
+```
+
+The right binary for your platform arrives as an optional dependency — npm picks
+it from each package's `os`/`cpu` fields and skips the rest. There is **no
+postinstall script and nothing is downloaded at install time**, so lockfiles pin
+it, npm verifies its integrity, and `--ignore-scripts`, offline and air-gapped
+installs all work. Linux x64 gets the statically linked build, so Alpine and
+Debian are the same package.
+
+**It does not update itself, by design.** A tool your package manager installed
+should be updated by that package manager — a self-updating binary would fight
+npm over a file npm owns, break integrity checks, and fail outright on a
+read-only install. Pick whichever of these you want:
+
+| you want | do this |
+|---|---|
+| always the latest, no install | `npx friction-cli@latest fix draft.md` |
+| update on demand | `npm update -g friction-cli` |
+| automatic PRs on new versions | Dependabot or Renovate against your `package.json` |
+| pinned, reproducible | commit the lockfile; nothing moves until you bump |
+
+For CI, pin it. A linter that silently changes version changes your build's
+output, and you want that to be a commit.
+
 ### Prebuilt binary
 
 Download for your platform from [Releases](../../releases), extract, and put
@@ -538,7 +566,15 @@ measured, including what the corpus turned out not to support, see
 
 The version in `crates/friction-cli/Cargo.toml` is the single source of truth.
 To cut a release: **bump it and push to `main`.** CI derives the tag, builds all
-six targets, and publishes the release with checksums.
+six targets, publishes the GitHub release with checksums, then generates and
+publishes the npm packages at the same version.
+
+npm publishing needs an `NPM_TOKEN` repository secret. Without it that job
+reports green and does nothing, so the binary release is never held up by
+credentials that are not configured. The platform packages publish before the
+wrapper, since the wrapper pins them by exact version and the reverse order
+would leave a window where `npm install friction-cli` resolves a wrapper whose
+binaries are not on the registry yet.
 
 A push whose version is already tagged is a no-op that still reports green, so
 ordinary commits neither fail the workflow nor publish duplicates. Nothing is
