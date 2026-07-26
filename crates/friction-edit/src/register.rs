@@ -1,8 +1,10 @@
 //! The register pass.
 //!
-//! After the four-operation passes converge, home two Biber register features — nominalization,
-//! agentless passive — toward their human rate band by selecting and applying
-//! [`friction_register::transduce`] candidates.
+//! After the four-operation passes converge, home three register features — nominalization,
+//! agentless passive, em dash — toward their human rate band by selecting and applying
+//! [`friction_register::transduce`] candidates. The first two are Biber constructions; the third
+//! isn't Biber's, but the same band-and-transducer machinery applies to it unchanged (see
+//! `register-v1.toml`'s `[features.em_dash]`).
 //!
 //! # Termination is the band, not the median
 //!
@@ -56,11 +58,13 @@ use crate::gates::in_quoted_span;
 
 const RULE_PASSIVIZE: RuleId = RuleId::new("register.passivize");
 const RULE_UNPACK: RuleId = RuleId::new("register.unpack");
+const RULE_EM_DASH: RuleId = RuleId::new("register.em_dash");
 
 const fn rule_for(kind: CandidateKind) -> RuleId {
     match kind {
         CandidateKind::ActivizeToPassive => RULE_PASSIVIZE,
         CandidateKind::NominalizationUnpack => RULE_UNPACK,
+        CandidateKind::EmDash => RULE_EM_DASH,
     }
 }
 
@@ -103,8 +107,9 @@ enum Direction {
     /// Below `low`: only [`CandidateKind::ActivizeToPassive`] moves
     /// this way (agentless passive).
     Increase,
-    /// Above `high`: only [`CandidateKind::NominalizationUnpack`] moves
-    /// this way (nominalization).
+    /// Above `high`: [`CandidateKind::NominalizationUnpack`]
+    /// (nominalization) and [`CandidateKind::EmDash`] (em dash) both
+    /// move this way.
     Decrease,
 }
 
@@ -147,19 +152,45 @@ fn build_sentence_contexts(
 }
 
 /// The document-wide `(total_words, nominalization_count,
-/// agentless_passive_count)` totals over `sentences`.
-fn count_features(sentences: &[SentenceCtx], source: &str) -> (i64, i64, i64) {
+/// agentless_passive_count, em_dash_count)` totals over `sentences`.
+fn count_features(sentences: &[SentenceCtx], source: &str) -> (i64, i64, i64, i64) {
     let mut total_words: i64 = 0;
     let mut count_nominalization: i64 = 0;
     let mut count_agentless_passive: i64 = 0;
+    let mut count_em_dash: i64 = 0;
     for ctx in sentences {
         let text = &source[ctx.range.clone()];
         let counts = RegisterCounts::count(text, &ctx.tokens, &ctx.parse);
         count_nominalization += i64::try_from(counts.nominalization).unwrap_or(i64::MAX);
         count_agentless_passive += i64::try_from(counts.agentless_passive).unwrap_or(i64::MAX);
+        count_em_dash += i64::try_from(counts.em_dashes).unwrap_or(i64::MAX);
         total_words += word_count(text);
     }
-    (total_words, count_nominalization, count_agentless_passive)
+    (total_words, count_nominalization, count_agentless_passive, count_em_dash)
+}
+
+/// The document-wide em-dash rate (per 1000 prose words), computed
+/// through the exact sentence-context/counting path [`run_register`]
+/// itself uses.
+///
+/// Exposed for band-measurement tooling (`corpus-tool register-bands`):
+/// remeasuring the corpus this way, rather than through a separate
+/// counting path, is the contract that keeps a remeasured band honest
+/// about what the runtime pass actually counts.
+///
+/// # Errors
+/// Returns [`EditError`] if `source` fails to parse or segment.
+pub fn measure_em_dash_rate(
+    source: &str,
+    tagger: &dyn Tagger,
+    parser: &dyn DepParser,
+    segmenter: &dyn Segmenter,
+) -> Result<f64, EditError> {
+    let document = friction_parse::parse(source)?;
+    let units = prose_scope(&document, segmenter);
+    let sentences = build_sentence_contexts(source, &units, tagger, parser);
+    let (total_words, _, _, count_em_dash) = count_features(&sentences, source);
+    Ok(rate(count_em_dash, total_words))
 }
 
 /// Runs the register pass once over `source`.
@@ -179,7 +210,7 @@ pub fn run_register(
     let document = friction_parse::parse(source)?;
     let units = prose_scope(&document, segmenter);
     let sentences = build_sentence_contexts(source, &units, tagger, parser);
-    let (mut total_words, count_nominalization, count_agentless_passive) =
+    let (mut total_words, count_nominalization, count_agentless_passive, count_em_dash) =
         count_features(&sentences, source);
 
     let mut held: Vec<Finding> = Vec::new();
@@ -189,6 +220,7 @@ pub fn run_register(
 
     let nominalization_band = register_pack.band("nominalization");
     let agentless_band = register_pack.band("agentless_passive");
+    let em_dash_band = register_pack.band("em_dash");
 
     // `Some(band)` *is* "this feature needs work", so the value that
     // decided that also carries the band a later step needs. A separate
@@ -199,26 +231,18 @@ pub fn run_register(
         agentless_band.filter(|band| rate(count_agentless_passive, total_words) < band.low);
     let nominalization_fix =
         nominalization_band.filter(|band| rate(count_nominalization, total_words) > band.high);
+    let em_dash_fix = em_dash_band.filter(|band| rate(count_em_dash, total_words) > band.high);
 
     let mut pool: Vec<PositionedCandidate> = Vec::new();
-    if agentless_fix.is_some() {
-        collect_candidates(
-            &sentences,
-            source,
-            CandidateKind::ActivizeToPassive,
-            &mut pool,
-            &mut held,
-        );
-    }
-    if nominalization_fix.is_some() {
-        collect_candidates(
-            &sentences,
-            source,
-            CandidateKind::NominalizationUnpack,
-            &mut pool,
-            &mut held,
-        );
-    }
+    collect_needed_candidates(
+        &sentences,
+        source,
+        agentless_fix.is_some(),
+        nominalization_fix.is_some(),
+        em_dash_fix.is_some(),
+        &mut pool,
+        &mut held,
+    );
 
     let mut accepted: Vec<PositionedCandidate> = Vec::new();
 
@@ -237,13 +261,27 @@ pub fn run_register(
     }
 
     if let Some(band) = nominalization_fix {
-        let _ = select_and_apply(
+        let (_, new_words) = select_and_apply(
             &mut pool,
             &sentences,
             "nominalization",
             band,
             Direction::Decrease,
             count_nominalization,
+            total_words,
+            &mut accepted,
+        );
+        total_words = new_words;
+    }
+
+    if let Some(band) = em_dash_fix {
+        let _ = select_and_apply(
+            &mut pool,
+            &sentences,
+            "em_dash",
+            band,
+            Direction::Decrease,
+            count_em_dash,
             total_words,
             &mut accepted,
         );
@@ -277,6 +315,32 @@ pub fn run_register(
 
 fn empty_pass() -> crate::document::PassReport {
     crate::document::PassReport::default()
+}
+
+/// Runs [`collect_candidates`] for exactly the features that need fixing
+/// -- split out of [`run_register`] itself only to keep that function's
+/// own line count down; the three `bool`s are each `<feature>_fix.is_some()`
+/// from the caller, kept as plain booleans here since this helper never
+/// needs the band itself, only whether one exists.
+#[allow(clippy::fn_params_excessive_bools)]
+fn collect_needed_candidates(
+    sentences: &[SentenceCtx],
+    source: &str,
+    agentless_fix: bool,
+    nominalization_fix: bool,
+    em_dash_fix: bool,
+    pool: &mut Vec<PositionedCandidate>,
+    held: &mut Vec<Finding>,
+) {
+    if agentless_fix {
+        collect_candidates(sentences, source, CandidateKind::ActivizeToPassive, pool, held);
+    }
+    if nominalization_fix {
+        collect_candidates(sentences, source, CandidateKind::NominalizationUnpack, pool, held);
+    }
+    if em_dash_fix {
+        collect_candidates(sentences, source, CandidateKind::EmDash, pool, held);
+    }
 }
 
 /// Word-token count of `text` (same convention as
@@ -332,6 +396,7 @@ fn collect_candidates(
             CandidateKind::NominalizationUnpack => {
                 transduce::t5_nominalization(text, &ctx.tokens, &ctx.parse)
             }
+            CandidateKind::EmDash => transduce::t6_em_dash(text, &ctx.tokens, &ctx.parse),
         };
 
         for candidate in candidates {
@@ -436,6 +501,14 @@ fn closure_violation(
                     derived.insert(verb.to_lowercase().into_boxed_str());
                 }
             }
+        }
+        CandidateKind::EmDash => {
+            // No derived words: every T6 replacement is punctuation
+            // (",", ". ", "; ") plus, at most, a word already present
+            // in `original_span_text` (case (a)'s interpolated middle,
+            // case (c)'s recapitalized or unchanged following word) --
+            // there is no inflection table to consult, unlike the other
+            // two kinds.
         }
     }
 

@@ -55,8 +55,15 @@ impl RegisterPack {
     /// # Errors
     /// Returns [`PackError::Toml`] if `toml` is not valid TOML in the
     /// expected shape, or [`PackError::InvalidRegisterBand`] if a parsed
-    /// band does not satisfy `low < median < high` with every bound
+    /// band does not satisfy `low <= median <= high` with every bound
     /// finite.
+    ///
+    /// Non-strict on purpose: `[features.em_dash]`'s measured population
+    /// has a zero 10th percentile, zero median, *and* zero 90th
+    /// percentile (56 of 58 sampled documents contain no em dash at
+    /// all), a degenerate `low == median == high == 0.0` band that a
+    /// strict `<` would reject outright despite being the correct
+    /// reading of the data.
     pub fn parse(toml: &str) -> Result<Self, PackError> {
         let raw: RawPack = toml::from_str(toml).map_err(PackError::from)?;
         // Collecting into `Result<BTreeMap<_, _>, _>` short-circuits on the
@@ -70,8 +77,8 @@ impl RegisterPack {
                 let well_formed = band.low.is_finite()
                     && band.median.is_finite()
                     && band.high.is_finite()
-                    && band.low < band.median
-                    && band.median < band.high;
+                    && band.low <= band.median
+                    && band.median <= band.high;
                 if !well_formed {
                     return Err(PackError::InvalidRegisterBand {
                         feature: name,
@@ -171,7 +178,7 @@ mod tests {
     }
 
     #[test]
-    fn parse_rejects_band_where_median_is_not_strictly_between_low_and_high() {
+    fn parse_rejects_band_where_median_is_outside_low_and_high() {
         let bad = r"
             [features.nominalization]
             low = 15.0
@@ -194,6 +201,24 @@ mod tests {
         assert!(matches!(err, PackError::InvalidRegisterBand { .. }));
     }
 
+    /// A degenerate `low == median == high` band -- exactly
+    /// `[features.em_dash]`'s measured shape -- parses and is accepted,
+    /// even though it would fail a strict `low < median < high` check.
+    /// See [`RegisterPack::parse`]'s own docs for why.
+    #[test]
+    fn parse_accepts_a_degenerate_zero_width_band() {
+        let toml = r"
+            [features.em_dash]
+            low = 0.0
+            high = 0.0
+            median = 0.0
+        ";
+        let pack = RegisterPack::parse(toml).expect("zero-width band must parse");
+        let band = pack.band("em_dash").expect("em_dash band");
+        assert!(band.contains(0.0));
+        assert!(!band.contains(0.0001));
+    }
+
     #[test]
     fn contains_is_inclusive_on_both_ends() {
         let band = RegisterBand {
@@ -209,9 +234,9 @@ mod tests {
     }
 
     #[test]
-    fn embedded_register_v1_parses_and_covers_both_features() {
+    fn embedded_register_v1_parses_and_covers_all_three_features() {
         let pack = &crate::registry::REGISTER.pack;
-        for feature in ["nominalization", "agentless_passive"] {
+        for feature in ["nominalization", "agentless_passive", "em_dash"] {
             assert!(
                 pack.band(feature).is_some(),
                 "expected a band for feature {feature:?}"

@@ -82,6 +82,11 @@ enum Command {
     /// On the train split, builds the seam-bigram membership table and
     /// POS-skeleton n-gram sets for the attestation pack.
     Attest(commands::attest::Args),
+    /// On the train split's docs genre, measures each document's
+    /// per-1000-prose-word em-dash rate and reports the population's
+    /// 10th/50th/90th percentile, for `register-v1.toml`'s
+    /// `[features.em_dash]`.
+    RegisterBands(commands::register_bands::Args),
 }
 
 /// Parses process arguments and runs the selected subcommand.
@@ -134,5 +139,6 @@ pub fn run() -> anyhow::Result<()> {
         Command::PackCheck(args) => commands::pack_check::run(&args),
         Command::OutputBands(args) => commands::output_bands::run(&args),
         Command::Attest(args) => commands::attest::run(&args),
+        Command::RegisterBands(args) => commands::register_bands::run(&args),
     }
 }

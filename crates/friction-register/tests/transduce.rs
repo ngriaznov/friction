@@ -1,5 +1,5 @@
-//! Real cases for the two ported rewrite transducers, each with an
-//! asserted output string — not smoke tests.
+//! Real cases for the three rewrite transducers, each with an asserted
+//! output string — not smoke tests.
 //!
 //! Every parse is built by hand, not run through the shipped tagger/parser,
 //! so a failure can only mean the transducer is wrong, never that the
@@ -11,7 +11,7 @@ use friction_core::{Token, TokenKind};
 use friction_nlp::{Confidence, DepEdge, DepRelation, PosTag, SentenceParse, TaggedToken};
 use friction_register::transduce::{
     Candidate, CandidateKind, candidates, past, past_participle, t4_activize_to_passive,
-    t5_nominalization, third_sg,
+    t5_nominalization, t6_em_dash, third_sg,
 };
 
 /// One token's dependency-tree shape and tags, spelled out by hand.
@@ -713,4 +713,433 @@ fn every_candidate_range_slices_the_original_source_exactly() {
             );
         }
     }
+}
+
+// ---------------------------------------------------------------------
+// T6: em-dash reduction.
+// ---------------------------------------------------------------------
+
+/// [`TokenShape`] plus whether this token glues to the previous one with
+/// no space at all -- `build`'s spacing rule (a space before every token
+/// except a fixed sentence-final-punctuation set) can't spell an
+/// unspaced em dash ("word—word"), which T6's cases (b)/(c) must also
+/// cover.
+struct GluedTokenShape {
+    head: Option<usize>,
+    relation: DepRelation,
+    surface: &'static str,
+    tag: &'static str,
+    lemma: &'static str,
+    glued: bool,
+}
+
+const fn g(
+    head: Option<usize>,
+    relation: DepRelation,
+    surface: &'static str,
+    tag: &'static str,
+    lemma: &'static str,
+) -> GluedTokenShape {
+    GluedTokenShape {
+        head,
+        relation,
+        surface,
+        tag,
+        lemma,
+        glued: false,
+    }
+}
+
+const fn glued(
+    head: Option<usize>,
+    relation: DepRelation,
+    surface: &'static str,
+    tag: &'static str,
+    lemma: &'static str,
+) -> GluedTokenShape {
+    GluedTokenShape {
+        head,
+        relation,
+        surface,
+        tag,
+        lemma,
+        glued: true,
+    }
+}
+
+fn build_glued(shapes: &[GluedTokenShape]) -> (String, Vec<TaggedToken>, SentenceParse) {
+    let mut source = String::new();
+    let mut tokens = Vec::with_capacity(shapes.len());
+    for (index, item) in shapes.iter().enumerate() {
+        let attaches_directly =
+            item.glued || matches!(item.surface, "." | "," | "!" | "?" | ";" | ":");
+        if index > 0 && !attaches_directly {
+            source.push(' ');
+        }
+        let start = source.len();
+        source.push_str(item.surface);
+        let end = source.len();
+        tokens.push(TaggedToken {
+            token: Token::new(start..end, TokenKind::Word),
+            pos: PosTag::new(item.tag),
+            lemma: Box::from(item.lemma),
+        });
+    }
+    let edges = shapes
+        .iter()
+        .enumerate()
+        .map(|(index, item)| DepEdge {
+            token: index,
+            head: item.head,
+            relation: item.relation,
+            confidence: Confidence::CERTAIN,
+        })
+        .collect();
+    let parse = SentenceParse::new(edges).expect("hand-built parse must be well-formed");
+    (source, tokens, parse)
+}
+
+// 11. Case (a): a paired " — X — " interpolation with no finite verb in
+// X collapses to ", X, ".
+#[test]
+fn t6_fires_on_a_paired_parenthetical_with_no_finite_verb_inside() {
+    let shapes = [
+        g(Some(1), DepRelation::Det, "The", "DT", "the"),
+        g(Some(2), DepRelation::Nsubj, "service", "NN", "service"),
+        g(None, DepRelation::Root, "reads", "VBZ", "read"),
+        g(Some(2), DepRelation::Dobj, "config", "NN", "config"),
+        g(Some(2), DepRelation::Punct, "\u{2014}", "HYPH", "\u{2014}"),
+        g(Some(2), DepRelation::Other, "not", "RB", "not"),
+        g(Some(2), DepRelation::Other, "secrets", "NNS", "secret"),
+        g(Some(2), DepRelation::Punct, "\u{2014}", "HYPH", "\u{2014}"),
+        g(Some(2), DepRelation::Prep, "from", "IN", "from"),
+        g(Some(8), DepRelation::Pobj, "disk", "NN", "disk"),
+        g(Some(2), DepRelation::Punct, ".", ".", "."),
+    ];
+    let (source, tokens, parse) = build_glued(&shapes);
+
+    let found = t6_em_dash(&source, &tokens, &parse);
+    assert_eq!(found.len(), 1);
+    assert_eq!(found[0].kind, CandidateKind::EmDash);
+    assert_eq!(&*found[0].replacement, ", not secrets, ");
+    assert!(!found[0].replacement.contains('\u{2014}'));
+
+    let mut expected_delta = BTreeMap::new();
+    expected_delta.insert("em_dash", -2);
+    assert_eq!(found[0].delta, expected_delta);
+
+    let mut fixed = source;
+    fixed.replace_range(found[0].range.clone(), &found[0].replacement);
+    assert_eq!(fixed, "The service reads config, not secrets, from disk.");
+}
+
+// 12. Case (b): a single em dash with no finite verb after it (a
+// fragment/elaboration) collapses to ", ".
+#[test]
+fn t6_fires_on_a_fragment_with_no_finite_verb_after_the_dash() {
+    let shapes = [
+        g(Some(1), DepRelation::Nsubj, "It", "PRP", "it"),
+        g(None, DepRelation::Root, "is", "VBZ", "be"),
+        g(Some(4), DepRelation::Det, "a", "DT", "a"),
+        g(Some(4), DepRelation::Other, "registry", "NN", "registry"),
+        g(Some(1), DepRelation::Other, "entry", "NN", "entry"),
+        g(Some(1), DepRelation::Punct, "\u{2014}", "HYPH", "\u{2014}"),
+        g(Some(8), DepRelation::Det, "no", "DT", "no"),
+        g(Some(8), DepRelation::Other, "lockstep", "NN", "lockstep"),
+        g(Some(1), DepRelation::Other, "deploy", "NN", "deploy"),
+        g(Some(1), DepRelation::Punct, ".", ".", "."),
+    ];
+    let (source, tokens, parse) = build_glued(&shapes);
+
+    let found = t6_em_dash(&source, &tokens, &parse);
+    assert_eq!(found.len(), 1);
+    assert_eq!(found[0].kind, CandidateKind::EmDash);
+    assert_eq!(&*found[0].replacement, ", ");
+
+    let mut expected_delta = BTreeMap::new();
+    expected_delta.insert("em_dash", -1);
+    assert_eq!(found[0].delta, expected_delta);
+
+    let mut fixed = source;
+    fixed.replace_range(found[0].range.clone(), &found[0].replacement);
+    assert_eq!(fixed, "It is a registry entry, no lockstep deploy.");
+}
+
+// 13. Case (b), unspaced form: "word—word" with no surrounding spaces is
+// handled the same as the spaced form.
+#[test]
+fn t6_fires_on_an_unspaced_fragment_dash() {
+    let shapes = [
+        g(Some(1), DepRelation::Nsubj, "Config", "NN", "config"),
+        g(None, DepRelation::Root, "comes", "VBZ", "come"),
+        g(Some(1), DepRelation::Prep, "from", "IN", "from"),
+        g(Some(2), DepRelation::Pobj, "env", "NN", "env"),
+        glued(Some(1), DepRelation::Punct, "\u{2014}", "HYPH", "\u{2014}"),
+        glued(Some(6), DepRelation::Det, "no", "DT", "no"),
+        g(Some(1), DepRelation::Other, "flags", "NNS", "flag"),
+        g(Some(6), DepRelation::Other, "required", "VBN", "require"),
+        g(Some(1), DepRelation::Punct, ".", ".", "."),
+    ];
+    let (source, tokens, parse) = build_glued(&shapes);
+    assert_eq!(source, "Config comes from env\u{2014}no flags required.");
+
+    let found = t6_em_dash(&source, &tokens, &parse);
+    assert_eq!(found.len(), 1);
+    assert_eq!(&source[found[0].range.clone()], "\u{2014}");
+    assert_eq!(&*found[0].replacement, ", ");
+
+    let mut fixed = source;
+    fixed.replace_range(found[0].range.clone(), &found[0].replacement);
+    assert_eq!(fixed, "Config comes from env, no flags required.");
+}
+
+// 14. Case (c): a single em dash followed by an independent clause (its
+// own finite verb and subject) splits into two sentences, recapitalizing
+// the new sentence's first word.
+#[test]
+fn t6_fires_on_an_independent_clause_and_recapitalizes() {
+    let shapes = [
+        g(Some(1), DepRelation::Nsubj, "It", "PRP", "it"),
+        g(None, DepRelation::Root, "runs", "VBZ", "run"),
+        g(Some(1), DepRelation::Prep, "on", "IN", "on"),
+        g(Some(5), DepRelation::Det, "the", "DT", "the"),
+        g(Some(5), DepRelation::Amod, "internal", "JJ", "internal"),
+        g(Some(2), DepRelation::Pobj, "network", "NN", "network"),
+        g(Some(1), DepRelation::Punct, "\u{2014}", "HYPH", "\u{2014}"),
+        g(Some(8), DepRelation::Nsubj, "it", "PRP", "it"),
+        g(Some(1), DepRelation::Other, "is", "VBZ", "be"),
+        g(Some(8), DepRelation::Other, "never", "RB", "never"),
+        g(Some(8), DepRelation::Other, "reached", "VBN", "reach"),
+        g(Some(10), DepRelation::Prep, "by", "IN", "by"),
+        g(Some(13), DepRelation::Other, "end", "NN", "end"),
+        g(Some(11), DepRelation::Pobj, "users", "NNS", "user"),
+        g(Some(1), DepRelation::Punct, ".", ".", "."),
+    ];
+    let (source, tokens, parse) = build_glued(&shapes);
+
+    let found = t6_em_dash(&source, &tokens, &parse);
+    assert_eq!(found.len(), 1);
+    assert_eq!(&*found[0].replacement, ". It");
+    assert!(!found[0].replacement.contains('\u{2014}'));
+
+    let mut expected_delta = BTreeMap::new();
+    expected_delta.insert("em_dash", -1);
+    assert_eq!(found[0].delta, expected_delta);
+
+    let mut fixed = source;
+    fixed.replace_range(found[0].range.clone(), &found[0].replacement);
+    assert_eq!(
+        fixed,
+        "It runs on the internal network. It is never reached by end users."
+    );
+}
+
+// 15. Case (c), trivial: the word right after the dash is already
+// capitalized (a proper noun), so recapitalizing is a no-op.
+#[test]
+fn t6_case_c_is_trivial_when_the_following_word_is_already_capitalized() {
+    let shapes = [
+        g(Some(1), DepRelation::Nsubj, "It", "PRP", "it"),
+        g(None, DepRelation::Root, "talks", "VBZ", "talk"),
+        g(Some(1), DepRelation::Prep, "to", "IN", "to"),
+        g(Some(4), DepRelation::Det, "the", "DT", "the"),
+        g(Some(2), DepRelation::Pobj, "cache", "NN", "cache"),
+        g(Some(1), DepRelation::Punct, "\u{2014}", "HYPH", "\u{2014}"),
+        g(Some(7), DepRelation::Nsubj, "Redis", "NNP", "redis"),
+        g(Some(1), DepRelation::Other, "handles", "VBZ", "handle"),
+        g(Some(7), DepRelation::Other, "eviction", "NN", "eviction"),
+        g(Some(1), DepRelation::Punct, ".", ".", "."),
+    ];
+    let (source, tokens, parse) = build_glued(&shapes);
+
+    let found = t6_em_dash(&source, &tokens, &parse);
+    assert_eq!(found.len(), 1);
+    assert_eq!(&*found[0].replacement, ". Redis");
+
+    let mut fixed = source;
+    fixed.replace_range(found[0].range.clone(), &found[0].replacement);
+    assert_eq!(fixed, "It talks to the cache. Redis handles eviction.");
+}
+
+// 16. Case (c), semicolon fallback: the word right after the dash starts
+// with a digit, which can't be recapitalized, so the replacement is a
+// semicolon instead of a period.
+#[test]
+fn t6_case_c_falls_back_to_a_semicolon_when_the_following_word_cannot_be_capitalized() {
+    let shapes = [
+        g(Some(1), DepRelation::Det, "The", "DT", "the"),
+        g(Some(2), DepRelation::Nsubj, "queue", "NN", "queue"),
+        g(None, DepRelation::Root, "holds", "VBZ", "hold"),
+        g(Some(2), DepRelation::Dobj, "items", "NNS", "item"),
+        g(Some(2), DepRelation::Punct, "\u{2014}", "HYPH", "\u{2014}"),
+        g(Some(6), DepRelation::Other, "3", "CD", "3"),
+        g(Some(7), DepRelation::Nsubj, "workers", "NNS", "worker"),
+        g(Some(2), DepRelation::Other, "drain", "VBP", "drain"),
+        g(Some(7), DepRelation::Dobj, "it", "PRP", "it"),
+        g(Some(7), DepRelation::Other, "fast", "RB", "fast"),
+        g(Some(2), DepRelation::Punct, ".", ".", "."),
+    ];
+    let (source, tokens, parse) = build_glued(&shapes);
+
+    let found = t6_em_dash(&source, &tokens, &parse);
+    assert_eq!(found.len(), 1);
+    assert_eq!(&*found[0].replacement, "; 3");
+    assert!(!found[0].replacement.contains('\u{2014}'));
+
+    let mut fixed = source;
+    fixed.replace_range(found[0].range.clone(), &found[0].replacement);
+    assert_eq!(fixed, "The queue holds items; 3 workers drain it fast.");
+}
+
+// 17. An en dash (U+2013) -- as in a numeric range -- never produces a
+// candidate, spaced or not.
+#[test]
+fn t6_never_fires_on_an_en_dash() {
+    let shapes = [
+        g(None, DepRelation::Root, "Supported", "VBN", "support"),
+        g(Some(0), DepRelation::Other, "on", "IN", "on"),
+        g(Some(0), DepRelation::Other, "pages", "NNS", "page"),
+        g(Some(0), DepRelation::Other, "1", "CD", "1"),
+        glued(Some(0), DepRelation::Other, "\u{2013}", "HYPH", "\u{2013}"),
+        glued(Some(0), DepRelation::Other, "64", "CD", "64"),
+        g(Some(0), DepRelation::Punct, ".", ".", "."),
+    ];
+    let (source, tokens, parse) = build_glued(&shapes);
+    assert_eq!(source, "Supported on pages 1\u{2013}64.");
+    assert!(t6_em_dash(&source, &tokens, &parse).is_empty());
+}
+
+// 18. A sentence with three em dashes is too ambiguous to decompose into
+// a single ordered pair of edits, so it produces no candidate at all.
+#[test]
+fn t6_declines_a_sentence_with_three_em_dashes() {
+    let shapes = [
+        g(Some(1), DepRelation::Nsubj, "It", "PRP", "it"),
+        g(None, DepRelation::Root, "works", "VBZ", "work"),
+        g(Some(1), DepRelation::Punct, "\u{2014}", "HYPH", "\u{2014}"),
+        g(Some(1), DepRelation::Other, "sometimes", "RB", "sometimes"),
+        g(Some(1), DepRelation::Punct, "\u{2014}", "HYPH", "\u{2014}"),
+        g(Some(1), DepRelation::Cc, "but", "CC", "but"),
+        g(Some(1), DepRelation::Conj, "fails", "VBZ", "fail"),
+        g(Some(6), DepRelation::Punct, "\u{2014}", "HYPH", "\u{2014}"),
+        g(Some(6), DepRelation::Other, "often", "RB", "often"),
+        g(Some(1), DepRelation::Punct, ".", ".", "."),
+    ];
+    let (source, tokens, parse) = build_glued(&shapes);
+    assert!(t6_em_dash(&source, &tokens, &parse).is_empty());
+}
+
+// 19. A dash immediately followed by a backtick-flanked span never
+// produces a candidate, even when every other case-(c) condition holds --
+// the inline-code guard takes priority over the independent-clause
+// rewrite.
+#[test]
+fn t6_declines_when_the_span_would_cross_an_inline_code_boundary() {
+    let shapes = [
+        g(Some(1), DepRelation::Nsubj, "It", "PRP", "it"),
+        g(None, DepRelation::Root, "reads", "VBZ", "read"),
+        g(Some(3), DepRelation::Det, "the", "DT", "the"),
+        g(Some(1), DepRelation::Dobj, "flag", "NN", "flag"),
+        g(Some(1), DepRelation::Punct, "\u{2014}", "HYPH", "\u{2014}"),
+        g(Some(6), DepRelation::Nsubj, "`debug`", "NN", "debug"),
+        g(Some(1), DepRelation::Other, "enables", "VBZ", "enable"),
+        g(Some(6), DepRelation::Amod, "verbose", "JJ", "verbose"),
+        g(Some(6), DepRelation::Dobj, "output", "NN", "output"),
+        g(Some(1), DepRelation::Punct, ".", ".", "."),
+    ];
+    let (source, tokens, parse) = build_glued(&shapes);
+    assert!(source.contains('`'));
+    assert!(t6_em_dash(&source, &tokens, &parse).is_empty());
+}
+
+// 20. `t6_em_dash` is folded into `candidates()` alongside T4/T5.
+#[test]
+fn candidates_includes_t6_em_dash_output() {
+    let shapes = [
+        g(Some(1), DepRelation::Nsubj, "It", "PRP", "it"),
+        g(None, DepRelation::Root, "is", "VBZ", "be"),
+        g(Some(4), DepRelation::Det, "a", "DT", "a"),
+        g(Some(4), DepRelation::Other, "registry", "NN", "registry"),
+        g(Some(1), DepRelation::Other, "entry", "NN", "entry"),
+        g(Some(1), DepRelation::Punct, "\u{2014}", "HYPH", "\u{2014}"),
+        g(Some(8), DepRelation::Det, "no", "DT", "no"),
+        g(Some(8), DepRelation::Other, "lockstep", "NN", "lockstep"),
+        g(Some(1), DepRelation::Other, "deploy", "NN", "deploy"),
+        g(Some(1), DepRelation::Punct, ".", ".", "."),
+    ];
+    let (source, tokens, parse) = build_glued(&shapes);
+    let found = candidates(&source, &tokens, &parse);
+    assert!(found.iter().any(|c| c.kind == CandidateKind::EmDash));
+}
+
+// 21. A verbless left side is a definition lead-in: the dash becomes a
+// colon, regardless of what the right side parses as — even a full
+// independent clause, which after a comma would be a splice.
+#[test]
+fn t6_uses_a_colon_after_a_verbless_lead_in() {
+    let shapes = [
+        g(Some(1), DepRelation::Other, "Rate", "NN", "rate"),
+        g(Some(5), DepRelation::Nsubj, "limiting", "NN", "limiting"),
+        g(Some(5), DepRelation::Punct, "\u{2014}", "HYPH", "\u{2014}"),
+        g(Some(4), DepRelation::Det, "the", "DT", "the"),
+        g(Some(5), DepRelation::Nsubj, "design", "NN", "design"),
+        g(None, DepRelation::Root, "calls", "VBZ", "call"),
+        g(Some(5), DepRelation::Prep, "for", "IN", "for"),
+        g(Some(6), DepRelation::Pobj, "limits", "NNS", "limit"),
+        g(Some(5), DepRelation::Punct, ".", ".", "."),
+    ];
+    let (source, tokens, parse) = build_glued(&shapes);
+
+    let found = t6_em_dash(&source, &tokens, &parse);
+    assert_eq!(found.len(), 1);
+    assert_eq!(found[0].kind, CandidateKind::EmDash);
+    assert_eq!(&*found[0].replacement, ": ");
+
+    let mut expected_delta = BTreeMap::new();
+    expected_delta.insert("em_dash", -1);
+    assert_eq!(found[0].delta, expected_delta);
+}
+
+// 22. A paired interpolation that carries its own commas is set off with
+// parentheses, not a comma pair — comma delimiters around a comma-bearing
+// list would flatten the aside into one long list.
+#[test]
+fn t6_paired_parenthetical_with_internal_commas_uses_parentheses() {
+    let shapes = [
+        g(Some(1), DepRelation::Nsubj, "It", "PRP", "it"),
+        g(None, DepRelation::Root, "returns", "VBZ", "return"),
+        g(Some(1), DepRelation::Dobj, "everything", "NN", "everything"),
+        g(Some(1), DepRelation::Punct, "\u{2014}", "HYPH", "\u{2014}"),
+        g(Some(1), DepRelation::Other, "metrics", "NNS", "metric"),
+        g(Some(4), DepRelation::Punct, ",", ",", ","),
+        g(
+            Some(4),
+            DepRelation::Other,
+            "dimensions",
+            "NNS",
+            "dimension",
+        ),
+        g(Some(4), DepRelation::Punct, ",", ",", ","),
+        g(Some(4), DepRelation::Other, "and", "CC", "and"),
+        g(Some(4), DepRelation::Other, "buckets", "NNS", "bucket"),
+        g(Some(1), DepRelation::Punct, "\u{2014}", "HYPH", "\u{2014}"),
+        g(Some(1), DepRelation::Prep, "in", "IN", "in"),
+        g(Some(11), DepRelation::Pobj, "one", "CD", "one"),
+        g(Some(11), DepRelation::Other, "call", "NN", "call"),
+        g(Some(1), DepRelation::Punct, ".", ".", "."),
+    ];
+    let (source, tokens, parse) = build_glued(&shapes);
+
+    let found = t6_em_dash(&source, &tokens, &parse);
+    assert_eq!(found.len(), 1);
+    assert_eq!(found[0].kind, CandidateKind::EmDash);
+    assert_eq!(
+        &*found[0].replacement,
+        " (metrics, dimensions, and buckets) "
+    );
+    assert!(!found[0].replacement.contains('\u{2014}'));
+
+    let mut expected_delta = BTreeMap::new();
+    expected_delta.insert("em_dash", -2);
+    assert_eq!(found[0].delta, expected_delta);
 }

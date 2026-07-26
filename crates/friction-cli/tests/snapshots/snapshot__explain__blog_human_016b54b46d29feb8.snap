@@ -6,3 +6,5 @@ pass 1: 1 operation(s) fired
   sub.apply                7459..7468  -> "uses"
 pass 2: 0 operation(s) fired — converged
 pass 3: 0 operation(s) fired — converged
+  1 held:
+    register.em_dash       2733..2743  KEPT (register held: matched inside quotation)

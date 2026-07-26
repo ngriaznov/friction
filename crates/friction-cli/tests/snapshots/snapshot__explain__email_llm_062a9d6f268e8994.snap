@@ -3,4 +3,5 @@ source: crates/friction-cli/tests/snapshot.rs
 expression: stdout
 ---
 pass 1: 0 operation(s) fired — converged
-pass 2: 0 operation(s) fired — converged
+pass 2: 1 operation(s) fired
+  register.em_dash         2197..2200  -> ", "

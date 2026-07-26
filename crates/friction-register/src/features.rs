@@ -29,10 +29,11 @@ use friction_nlp::{DepEdge, DepRelation, SentenceParse, TaggedToken};
 /// detects in one sentence.
 ///
 /// A struct with one field per feature, not a `HashMap<&str, usize>`:
-/// these seventeen features are `biber.py`'s per-sentence dict minus
-/// the two rate-based outputs (a caller's business), and a typo in a
-/// map key would fail to compile instead of silently reading a missing
-/// feature.
+/// seventeen of these eighteen fields are `biber.py`'s per-sentence dict
+/// minus the two rate-based outputs (a caller's business), and a typo in
+/// a map key would fail to compile instead of silently reading a missing
+/// feature. [`Self::em_dashes`] is the exception -- not a Biber category
+/// at all, added later for its own band (see [`em_dashes`]'s own docs).
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
 pub struct RegisterCounts {
     /// A non-finite `VBG` clause, not a progressive. See [`present_participials`].
@@ -69,6 +70,8 @@ pub struct RegisterCounts {
     pub first_person: usize,
     /// A sentence-initial demonstrative. See [`sentence_initial_demonstratives`].
     pub demon_sent_initial: usize,
+    /// An em dash (U+2014). See [`em_dashes`].
+    pub em_dashes: usize,
 }
 
 impl RegisterCounts {
@@ -99,6 +102,7 @@ impl RegisterCounts {
             hedges: hedges(text, tokens).len(),
             first_person: first_person_pronouns(text, tokens).len(),
             demon_sent_initial: sentence_initial_demonstratives(text, tokens).len(),
+            em_dashes: em_dashes(text).len(),
         }
     }
 }
@@ -626,5 +630,60 @@ pub fn sentence_initial_demonstratives(text: &str, tokens: &[TaggedToken]) -> Ve
         Vec::new()
     } else {
         vec![0]
+    }
+}
+
+/// An em dash (U+2014).
+///
+/// Strictly that character, never an en dash (U+2013, which numeric
+/// ranges like "1-64" use and this feature must stay invisible to) and
+/// never a hyphen-minus surrogate ("--").
+/// `friction-metrics::rhythm::em_dash_density` treats those as
+/// equivalent for its own purpose (a coarse rhythm signal); this feature
+/// exists specifically because human technical writing almost never uses
+/// the real character at all (see `register-v1.toml`'s
+/// `[features.em_dash]`), a distinction a broader detector would blur.
+///
+/// Returns byte offsets, not token indices, unlike every other detector
+/// in this module: the tokenizer merges a dash directly adjacent to
+/// another punctuation mark (a quote, a comma) into one multi-character
+/// token, so counting by character avoids ever under-counting an
+/// occurrence that's present in the text but not its own token.
+#[must_use]
+pub fn em_dashes(text: &str) -> Vec<usize> {
+    text.char_indices()
+        .filter_map(|(index, c)| (c == '\u{2014}').then_some(index))
+        .collect()
+}
+
+#[cfg(test)]
+mod em_dash_tests {
+    use super::em_dashes;
+
+    /// Counts every real em dash, spaced or not, including a doubled run.
+    #[test]
+    fn em_dashes_counts_every_occurrence() {
+        let text = "A value\u{2014}B, and C \u{2014} D\u{2014}\u{2014}E.";
+        assert_eq!(em_dashes(text).len(), 4);
+    }
+
+    /// An en dash (U+2013), as in a numeric range, never counts.
+    #[test]
+    fn em_dashes_ignores_en_dash() {
+        assert_eq!(em_dashes("Supported on pages 1\u{2013}64.").len(), 0);
+    }
+
+    /// A hyphen-minus surrogate ("--"), which
+    /// `friction-metrics::rhythm::count_em_dashes` treats as an em dash
+    /// for its own purpose, never counts here.
+    #[test]
+    fn em_dashes_ignores_hyphen_minus_surrogate() {
+        assert_eq!(em_dashes("It works fine--somehow; trust me.").len(), 0);
+    }
+
+    /// No occurrence at all is the common case in human technical prose.
+    #[test]
+    fn em_dashes_is_zero_for_ordinary_text() {
+        assert_eq!(em_dashes("The build finished without incident.").len(), 0);
     }
 }

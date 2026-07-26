@@ -35,14 +35,23 @@ const MESSY_BLOG: &str = "This guide will walk you through configuring the backu
 const CLEAN: &str = "Run the scanner from the project root. Results stream in as they are \
                       found, and nothing is deleted without confirmation.";
 
-/// Two paragraphs, copied verbatim from `corpus/llm/docs/57397cc503b594ba.md`,
-/// that the `claude` DMS stream reliably flags one span in each of (verified
+/// Two paragraphs, copied from `corpus/llm/docs/57397cc503b594ba.md`, that
+/// the `claude` DMS stream reliably flags one span in each of (verified
 /// with `friction check --family claude --genre docs`): confirms `fix`'s
 /// paraphrase report actually fires on real corpus text, not only on
 /// synthetic unit-test spans. Zero-patch fixture on purpose (`fix` applies
 /// no repair-engine edit to either paragraph) so the fixed output is
 /// byte-identical to the input — isolating the paraphrase report from the
 /// repair engine's own output.
+///
+/// One byte differs from the corpus source: the original's em dash before
+/// "including" is a plain comma here. Register's em-dash operation
+/// (`register.em_dash`) now licenses a rewrite there — a real fix, not a
+/// bug, but one this fixture must not exercise, since it exists to isolate
+/// the paraphrase *report* from the repair engine's own edits, not to
+/// re-litigate whether that edit is correct (`friction-register`'s own
+/// tests cover that). The DMS channel scores token n-grams, not
+/// punctuation, so this substitution changes neither flagged span.
 const DMS_CLAUDE_FLAGGED_DOC: &str = "Ledgerline includes a built-in caching layer designed to \
     reduce redundant database round-trips without requiring you to manage a separate cache \
     server for common cases. This page explains the model behind it: how query results get \
@@ -51,7 +60,7 @@ const DMS_CLAUDE_FLAGGED_DOC: &str = "Ledgerline includes a built-in caching lay
     **Process-level scope** keeps the cache alive for the lifetime of the worker process, \
     shared across every request that process handles. This catches far more redundant queries, \
     since popular lookups get reused across users and requests, but it requires the \
-    invalidation logic described above to actually be correct for your access patterns — \
+    invalidation logic described above to actually be correct for your access patterns, \
     including writes made by *other* processes, which process-level caching does not see \
     unless you also configure a shared invalidation channel (Ledgerline supports Redis pub/sub \
     for this; see the Distributed Cache Invalidation reference page).";

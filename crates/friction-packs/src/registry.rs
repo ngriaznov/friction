@@ -227,6 +227,7 @@ mod tests {
         assert_eq!(&*REGISTER.version, "register-v1");
         assert!(REGISTER.pack.band("nominalization").is_some());
         assert!(REGISTER.pack.band("agentless_passive").is_some());
+        assert!(REGISTER.pack.band("em_dash").is_some());
     }
 
     #[test]

@@ -1,15 +1,21 @@
 //! Rewrite transducers ported from a Python register-rewriting
-//! prototype.
+//! prototype, plus one native addition.
 //!
 //! Each proposes a candidate edit predicting an exact per-feature count
 //! delta, with a confidence and the byte range it would replace. Five
-//! transducers existed; only two are ported.
+//! Python-prototype transducers existed; only two are ported.
 //!
 //! [`t4_activize_to_passive`]/[`t5_nominalization`] depend on
 //! `nsubj`/`dobj`/`det`/`prep`/`pobj`, resolved at 82-96% accuracy. The
 //! other three depend on `acl`/`advcl`, resolved at only 52-58% —
 //! firing wrongly half the time is worse than not firing, so they stay
 //! unported.
+//!
+//! [`t6_em_dash`] has no prototype predecessor: em dashes never came up
+//! in the research phase's Biber-feature work, only later as the
+//! strongest single-character tell separating Claude-family output from
+//! human technical prose (see `register-v1.toml`'s `[features.em_dash]`
+//! and `docs/research/FRONTIER_MODELS.md`).
 //!
 //! Functions here only propose candidates; none mutate `source`, choose
 //! between overlaps, or apply anything — a caller's decision.
@@ -20,7 +26,7 @@ use std::ops::Range;
 use friction_core::CoreError;
 use friction_core::span::{Spanned, validate_range};
 use friction_nlp::{
-    DepEdge, DepRelation, FINITE_VERB_TAGS, SentenceParse, TaggedToken, coarse_tag,
+    DepEdge, DepRelation, FINITE_VERB_TAGS, SentenceParse, TaggedToken, coarse_tag, has_finite_verb,
 };
 
 /// A proposed rewrite: replace `range` with `replacement`, moving the
@@ -74,6 +80,8 @@ pub enum CandidateKind {
     ActivizeToPassive,
     /// Produced by [`t5_nominalization`].
     NominalizationUnpack,
+    /// Produced by [`t6_em_dash`].
+    EmDash,
 }
 
 // ---------------------------------------------------------------------
@@ -768,8 +776,295 @@ pub fn t5_nominalization(
 pub fn candidates(source: &str, tokens: &[TaggedToken], parse: &SentenceParse) -> Vec<Candidate> {
     let mut out = t4_activize_to_passive(source, tokens, parse);
     out.extend(t5_nominalization(source, tokens, parse));
+    out.extend(t6_em_dash(source, tokens, parse));
     out.sort_by_key(|candidate| (candidate.range.start, candidate.range.end));
     out
+}
+
+// ---------------------------------------------------------------------
+// T6: em-dash reduction.
+// ---------------------------------------------------------------------
+
+/// `true` if `text` contains a literal backtick.
+///
+/// [`friction_parse::extract`] excludes a genuine inline-code span from
+/// prose entirely (`Event::Code` is a leaf-excluded event, never text),
+/// so an em dash inside real inline code never reaches this module's
+/// input in the first place. This guard exists anyway, for the case the
+/// exclusion doesn't cover -- prose bridged across an inline emphasis or
+/// bracketed placeholder can still carry a literal backtick byte if one
+/// was escaped in the source -- and it is cheap enough to apply
+/// unconditionally rather than prove unreachable.
+fn spans_inline_code(text: &str) -> bool {
+    text.contains('`')
+}
+
+/// Every em-dash token index in `tokens`, in source order: a token whose
+/// surface is exactly one U+2014 character.
+///
+/// A dash merged into a punctuation run with a directly adjacent mark
+/// (`"word—,"` tokenizes as one multi-character token — see
+/// `friction_nlp::tag_perceptron`'s tokenizer) is deliberately excluded:
+/// rare in prose, and there is no safe way to isolate just the dash's own
+/// byte out of a token whose surface is no longer only that character.
+fn em_dash_tokens(source: &str, tokens: &[TaggedToken]) -> Vec<usize> {
+    (0..tokens.len())
+        .filter(|&index| token_text(source, tokens, index) == "\u{2014}")
+        .collect()
+}
+
+/// `true` if the word right after the dash (`next`) opens the subject
+/// phrase of a genuine independent clause -- not merely whether a finite
+/// verb with a subject exists *somewhere* later in the sentence, which
+/// would also match a subject buried inside a relative or subordinate
+/// clause several levels down (measured on real prose: "... — including
+/// writes made by other processes, which process-level caching **does**
+/// not see unless you also configure ..." has a finite verb with its own
+/// subject, "caching does", but "including" itself is a participle
+/// opening a fragment, not an independent clause).
+///
+/// Scans for a token bearing `nsubj`/`nsubjPass` whose own subtree (see
+/// [`subtree_span`]) *starts* exactly at `next` -- covering a modified
+/// subject ("3 **workers** drain it" -- the subtree of "workers" starts
+/// at "3") without also matching a subject deep inside an unrelated
+/// embedded clause, whose subtree could never start there.
+///
+/// Two head shapes count, matching how this workspace's own parser
+/// attaches a passive clause (see `RegisterCounts::agentless_passives`'s
+/// own docs for the same attachment read): an active clause, where the
+/// finite verb itself carries the subject child; and a passive clause,
+/// where the *participle* is the head (carrying the subject) and the
+/// finite auxiliary ("is"/"was") attaches to it as an `auxpass` child
+/// instead of the other way around.
+fn independent_clause_follows(tokens: &[TaggedToken], parse: &SentenceParse, next: usize) -> bool {
+    (next..tokens.len()).any(|index| {
+        let subject_head = parse.edge(index).and_then(|edge| {
+            matches!(edge.relation, DepRelation::Nsubj | DepRelation::NsubjPass)
+                .then_some(edge.head)
+                .flatten()
+        });
+        let Some(head) = subject_head else {
+            return false;
+        };
+        let heads_a_clause = FINITE_VERB_TAGS.contains(&tokens[head].pos.as_str())
+            || children_with_relation(parse, head, DepRelation::AuxPass)
+                .next()
+                .is_some();
+        heads_a_clause && subtree_span(parse, index).0 == next
+    })
+}
+
+/// Case (a): a paired `" — X — "` interpolation where `X` (the tokens
+/// strictly between the two dashes) carries no finite verb of its own —
+/// a true parenthetical aside, not a second clause. Replaces the whole
+/// span, dashes and their flanking spaces included, with `", X, "`.
+///
+/// Declines if either dash opens/closes the sentence (nothing to anchor
+/// the surrounding comma to — the "empty side" the module docs warn
+/// about), if `X` is empty, or if `X` has its own finite verb.
+fn paired_parenthetical_candidate(
+    source: &str,
+    tokens: &[TaggedToken],
+    first: usize,
+    second: usize,
+) -> Option<Candidate> {
+    if first == 0 || second + 1 >= tokens.len() || second <= first + 1 {
+        return None;
+    }
+    let middle = &tokens[first + 1..second];
+    if has_finite_verb(middle) {
+        return None; // X carries its own clause; this isn't a parenthetical.
+    }
+
+    let range = tokens[first - 1].token.range.end..tokens[second + 1].token.range.start;
+    if spans_inline_code(&source[range.clone()]) {
+        return None;
+    }
+
+    let x_start = tokens[first + 1].token.range.start;
+    let x_end = tokens[second - 1].token.range.end;
+    let x_text = source[x_start..x_end].trim();
+    if x_text.is_empty() {
+        return None;
+    }
+
+    let mut delta = BTreeMap::new();
+    delta.insert("em_dash", -2);
+    // An interpolation that carries its own commas can't be set off by a
+    // comma pair — its internal commas and the delimiting ones become
+    // indistinguishable, flattening the aside into a run-on list.
+    // Parentheses keep the boundary readable and are equally
+    // punctuation-only.
+    let replacement = if x_text.contains(',') {
+        format!(" ({x_text}) ")
+    } else {
+        format!(", {x_text}, ")
+    };
+    Some(Candidate {
+        kind: CandidateKind::EmDash,
+        range,
+        replacement: replacement.into_boxed_str(),
+        delta,
+        confidence: 0.9,
+    })
+}
+
+/// The definition-lead-in case: a single em dash whose LEFT side carries
+/// no finite verb — a bare term or noun-phrase lead ("**Rate limiting**
+/// — the design calls for …"). Replaces the dash and its flanking spaces
+/// with `": "`, the punctuation this pattern actually means.
+fn lead_in_candidate(source: &str, tokens: &[TaggedToken], dash: usize) -> Option<Candidate> {
+    let range = tokens[dash - 1].token.range.end..tokens[dash + 1].token.range.start;
+    if spans_inline_code(&source[range.clone()]) {
+        return None;
+    }
+    let mut delta = BTreeMap::new();
+    delta.insert("em_dash", -1);
+    Some(Candidate {
+        kind: CandidateKind::EmDash,
+        range,
+        replacement: Box::from(": "),
+        delta,
+        confidence: 0.85,
+    })
+}
+
+/// Case (b): a single em dash with no finite verb between it and the
+/// sentence's end — an appositive/elaboration fragment, not a second
+/// clause. Replaces the dash and its flanking spaces with `", "`.
+fn fragment_candidate(source: &str, tokens: &[TaggedToken], dash: usize) -> Option<Candidate> {
+    let range = tokens[dash - 1].token.range.end..tokens[dash + 1].token.range.start;
+    if spans_inline_code(&source[range.clone()]) {
+        return None;
+    }
+    let mut delta = BTreeMap::new();
+    delta.insert("em_dash", -1);
+    Some(Candidate {
+        kind: CandidateKind::EmDash,
+        range,
+        replacement: Box::from(", "),
+        delta,
+        confidence: 0.85,
+    })
+}
+
+/// Case (c): a single em dash followed by an independent clause (its own
+/// finite verb and subject). Replaces the dash plus the word right after
+/// it with `". "` plus that word recapitalized -- or, if the following
+/// word can't be sensibly recapitalized, a fallback that needs no case
+/// change at all.
+///
+/// # Closure gate interaction
+///
+/// `friction-edit::register::closure_violation` compares words by
+/// running both the replacement and the original span through
+/// `friction_match::token::tokenize_str`, which lowercases every word
+/// token before comparing (`fold_token_text`). Recapitalizing "it" to
+/// "It" is therefore invisible to that gate -- both fold back to "it" --
+/// so this function needs no special-case registration for the
+/// recapitalized form; the ordinary "already in the matched span" rule
+/// covers it.
+fn independent_clause_candidate(
+    source: &str,
+    tokens: &[TaggedToken],
+    dash: usize,
+) -> Option<Candidate> {
+    let next = dash + 1;
+    let range = tokens[dash - 1].token.range.end..tokens[next].token.range.end;
+    if spans_inline_code(&source[range.clone()]) {
+        return None;
+    }
+
+    let next_word = token_text(source, tokens, next);
+    let first_char = next_word.chars().next()?;
+    let replacement = if !first_char.is_alphabetic() {
+        // A digit, backtick, or bracket can't be recapitalized, and a
+        // semicolon needs no recapitalization at all -- the safe
+        // fallback, rather than ever leaving a sentence starting with a
+        // lowercase letter (or a bare symbol) after a period.
+        format!("; {next_word}")
+    } else if first_char.is_uppercase() {
+        // Already capitalized (a proper noun): recapitalizing is a
+        // no-op, so the trivial case just needs the period.
+        format!(". {next_word}")
+    } else {
+        format!(". {}", recapitalize(next_word))
+    };
+
+    let mut delta = BTreeMap::new();
+    delta.insert("em_dash", -1);
+    Some(Candidate {
+        kind: CandidateKind::EmDash,
+        range,
+        replacement: replacement.into_boxed_str(),
+        delta,
+        confidence: 0.8,
+    })
+}
+
+/// Em-dash reduction (T6): homes the `em_dash` feature toward its
+/// human band (measured at effectively zero -- see `register-v1.toml`)
+/// by removing em dashes one sentence-level construction at a time.
+///
+/// Handles exactly two shapes, chosen by how many em-dash tokens (see
+/// [`em_dash_tokens`]) the sentence has:
+/// - two: [`paired_parenthetical_candidate`] (case a);
+/// - one: [`fragment_candidate`] (case b) if no finite verb follows,
+///   otherwise [`independent_clause_candidate`] (case c) if an
+///   independent clause follows, otherwise no candidate (a finite verb
+///   present but not heading its own subject is still governed by the
+///   clause before the dash -- ambiguous which side it belongs to, so
+///   this module declines rather than guess).
+///
+/// Zero em-dash tokens, or three or more, produce no candidate at all:
+/// zero has nothing to rewrite, and three-plus is a shape (multiple
+/// parentheticals, or a parenthetical plus a fragment) this module has
+/// no principled way to decompose into an ordered pair of edits without
+/// risking a wrong pairing across an unrelated third dash.
+///
+/// `parse` is required, mirroring [`t4_activize_to_passive`]/
+/// [`t5_nominalization`]: a sentence whose parse failed never reaches any
+/// transducer at all (`friction-edit::register::build_sentence_contexts`
+/// drops it upstream), so there is no "unparsed sentence" case for this
+/// function itself to handle.
+#[must_use]
+pub fn t6_em_dash(source: &str, tokens: &[TaggedToken], parse: &SentenceParse) -> Vec<Candidate> {
+    match em_dash_tokens(source, tokens).as_slice() {
+        [first, second] => paired_parenthetical_candidate(source, tokens, *first, *second)
+            .into_iter()
+            .collect(),
+        [dash] => {
+            let dash = *dash;
+            if dash == 0 || dash + 1 >= tokens.len() {
+                return Vec::new(); // nothing on one side to anchor the rewrite.
+            }
+            let after = &tokens[dash + 1..];
+            if !has_finite_verb(&tokens[..dash]) {
+                // A verbless left side is a definition lead-in ("**Rate
+                // limiting** — the design calls for ..."), where the dash
+                // separates a term from its explanation. A comma there is
+                // wrong whatever follows: it either splices a clause onto
+                // a bare noun phrase or misreads the lead as apposition.
+                // The colon is the rewrite for this pattern, and it needs
+                // no read on the right side at all — which also shields
+                // this case from tagger noise on the right side's verb.
+                lead_in_candidate(source, tokens, dash)
+                    .into_iter()
+                    .collect()
+            } else if !has_finite_verb(after) {
+                fragment_candidate(source, tokens, dash)
+                    .into_iter()
+                    .collect()
+            } else if independent_clause_follows(tokens, parse, dash + 1) {
+                independent_clause_candidate(source, tokens, dash)
+                    .into_iter()
+                    .collect()
+            } else {
+                Vec::new() // finite verb present but no subject of its own; ambiguous, decline.
+            }
+        }
+        _ => Vec::new(),
+    }
 }
 
 // ---------------------------------------------------------------------

@@ -1,6 +1,6 @@
-# register-v1 pack: per-1000-prose-word human rate bands for the two
+# register-v1 pack: per-1000-prose-word human rate bands for the three
 # register features friction-register's transducers home toward
-# (nominalization, agentless_passive).
+# (nominalization, agentless_passive, em_dash).
 #
 # Measured from class:human, split:train, genre:docs (58 documents, the
 # same train-split docs population envelope-v2 records under
@@ -14,8 +14,22 @@
 # registered as a genuinely different register from `docs` in the same
 # train-split measurement pass envelope-v2 draws from, and pooling the two
 # would blur both. This mirrors envelope-v2's own per-genre banding, one
-# level narrower (two hand-picked features instead of the full metric
+# level narrower (three hand-picked features instead of the full metric
 # vector).
+#
+# `em_dash` was measured with `corpus-tool register-bands`, through the
+# real `friction-edit::register::measure_em_dash_rate` runtime path (the
+# other two features predate that tool and were transcribed from the
+# research-phase Python port instead — see `docs/research/regvec/`). 56 of
+# the 58 documents contain zero em dashes (U+2014) at all; the two that
+# don't measure 1.1031 and 1.5385 per 1000 prose words. The 10th
+# percentile, median, *and* 90th percentile all land on a zero-rate
+# document, so every bound below is exactly 0.0 -- not rounded, not a
+# floor substituted for a genuine zero. That is the correct reading of the
+# population, not a measurement failure: em dashes are effectively absent
+# from human docs-genre technical writing, so this band drives the
+# register pass to remove every em dash it can license a rewrite for,
+# rather than merely reduce their rate toward some nonzero target.
 
 [pack]
 version = "register-v1"
@@ -33,3 +47,8 @@ median = 28.2129
 low = 5.4253
 high = 21.4870
 median = 11.7342
+
+[features.em_dash]
+low = 0.0
+high = 0.0
+median = 0.0

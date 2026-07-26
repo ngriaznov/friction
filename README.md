@@ -54,7 +54,13 @@ Five operations edit text. Nothing else does.
    recoverable agent may be demoted: *"as you make changes"* → *"as changes are
    made"*, *"how we handle code reviews"* → *"how code reviews are handled"*. A
    nominalization may also be unpacked: *"the integration of SQS"* →
-   *"integrating SQS"*.
+   *"integrating SQS"*. A third feature only ever removes: the em dash, which
+   Claude-family output uses heavily and human technical documentation almost
+   never does, is rewritten toward the punctuation the surrounding clauses
+   already license — *"the queue holds items — 3 workers drain it"* → *"the
+   queue holds items; 3 workers drain it"*, *"reached over the network — it is
+   never called directly"* → *"reached over the network. It is never called
+   directly"*.
 
    It fires only while the document sits outside a band measured from human
    documents, and stops at the band's edge rather than its centre — every
