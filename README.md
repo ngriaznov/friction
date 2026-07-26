@@ -110,17 +110,20 @@ your lockfile:
     "lint:docs": "friction fix README.md | cmp -s - README.md"
   },
   "devDependencies": {
-    "friction-cli": "0.1.1"
+    "friction-cli": "0.1.2"
   }
 }
 ```
 
-The right binary for your platform arrives as an optional dependency — npm picks
-it from each package's `os`/`cpu` fields and skips the rest. There is **no
-postinstall script and nothing is downloaded at install time**, so lockfiles pin
-it, npm verifies its integrity, and `--ignore-scripts`, offline and air-gapped
-installs all work. Linux x64 gets the statically linked build, so Alpine and
-Debian are the same package.
+`friction-cli` is the only package you name. The binary for your platform
+arrives as an optional dependency — one of `@mhriaznov/friction-darwin-arm64`,
+`-darwin-x64`, `-linux-x64`, `-linux-arm64`, `-win32-x64` — and npm picks it from
+each one's `os`/`cpu` fields, skipping the rest.
+
+There is **no postinstall script and nothing is downloaded at install time**, so
+lockfiles pin it, npm verifies its integrity, and `--ignore-scripts`, offline and
+air-gapped installs all work. Linux x64 gets the statically linked build, so
+Alpine and Debian are the same package.
 
 **It does not update itself, by design.** A tool your package manager installed
 should be updated by that package manager — a self-updating binary would fight

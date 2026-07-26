@@ -21,11 +21,11 @@ const { spawnSync } = require("node:child_process");
 // musl hosts alike, so one package covers Alpine and Debian without npm needing
 // to distinguish them (the `libc` manifest field is too new to rely on).
 const PLATFORMS = {
-  "darwin arm64": ["friction-cli-darwin-arm64", "friction"],
-  "darwin x64": ["friction-cli-darwin-x64", "friction"],
-  "linux x64": ["friction-cli-linux-x64", "friction"],
-  "linux arm64": ["friction-cli-linux-arm64", "friction"],
-  "win32 x64": ["friction-cli-win32-x64", "friction.exe"],
+  "darwin arm64": ["@mhriaznov/friction-darwin-arm64", "friction"],
+  "darwin x64": ["@mhriaznov/friction-darwin-x64", "friction"],
+  "linux x64": ["@mhriaznov/friction-linux-x64", "friction"],
+  "linux arm64": ["@mhriaznov/friction-linux-arm64", "friction"],
+  "win32 x64": ["@mhriaznov/friction-win32-x64", "friction.exe"],
 };
 
 function resolveBinary() {

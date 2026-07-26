@@ -235,8 +235,13 @@ jobs:
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
         run: |
-          for pkg in npm-dist/friction-cli-*; do
-            echo "publishing $(basename "$pkg")"
+          # Platform packages are scoped, so they live one level deeper
+          # than the wrapper: npm-dist/@scope/name. Unscoped sibling names
+          # (friction-cli-darwin-arm64 and friends) tripped npm's spam
+          # heuristic, which is what a run of near-identical unscoped names
+          # looks like to it.
+          for pkg in npm-dist/@*/*; do
+            echo "publishing $(node -p "require('./$pkg/package.json').name")"
             (cd "$pkg" && npm publish --provenance --access public)
           done
           echo "publishing friction-cli"
