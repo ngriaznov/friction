@@ -187,9 +187,9 @@ expression: stdout
     },
     {
       "family": "claude",
-      "mean_machine": 1.448377581120944,
+      "mean_machine": 1.5427728613569323,
       "mean_human": 22.532448377581122,
-      "differential": -21.08407079646018,
+      "differential": -20.98967551622419,
       "token_count": 678
     }
   ]
