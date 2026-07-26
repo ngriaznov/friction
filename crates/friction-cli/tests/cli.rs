@@ -35,6 +35,27 @@ const MESSY_BLOG: &str = "This guide will walk you through configuring the backu
 const CLEAN: &str = "Run the scanner from the project root. Results stream in as they are \
                       found, and nothing is deleted without confirmation.";
 
+/// Two paragraphs, copied verbatim from `corpus/llm/docs/57397cc503b594ba.md`,
+/// that the `claude` DMS stream reliably flags one span in each of (verified
+/// with `friction check --family claude --genre docs`): confirms `fix`'s
+/// paraphrase report actually fires on real corpus text, not only on
+/// synthetic unit-test spans. Zero-patch fixture on purpose (`fix` applies
+/// no repair-engine edit to either paragraph) so the fixed output is
+/// byte-identical to the input — isolating the paraphrase report from the
+/// repair engine's own output.
+const DMS_CLAUDE_FLAGGED_DOC: &str = "Ledgerline includes a built-in caching layer designed to \
+    reduce redundant database round-trips without requiring you to manage a separate cache \
+    server for common cases. This page explains the model behind it: how query results get \
+    cached, how the cache learns about writes, and the difference between the two cache scopes \
+    Ledgerline supports.\n\n\
+    **Process-level scope** keeps the cache alive for the lifetime of the worker process, \
+    shared across every request that process handles. This catches far more redundant queries, \
+    since popular lookups get reused across users and requests, but it requires the \
+    invalidation logic described above to actually be correct for your access patterns — \
+    including writes made by *other* processes, which process-level caching does not see \
+    unless you also configure a shared invalidation channel (Ledgerline supports Redis pub/sub \
+    for this; see the Distributed Cache Invalidation reference page).";
+
 fn friction() -> Command {
     Command::cargo_bin("friction").expect("the friction binary builds")
 }
@@ -269,6 +290,78 @@ fn fix_suggest_lists_remaining_suggestions_on_stderr() {
         stderr.contains("pivot.lvc") || stderr.contains("span.delete"),
         "a held candidate must be listed, got: {stderr}"
     );
+}
+
+/// `fix` reports DMS paraphrase spans on stderr without touching stdout:
+/// the fixed text is unchanged (this fixture's own repair-engine patch
+/// count is zero) and the paraphrase count line is present alongside the
+/// pass summary.
+#[test]
+fn fix_reports_paraphrase_count_without_changing_stdout() {
+    let dir = tempfile::tempdir().expect("tempdir");
+    let path = write_fixture(dir.path(), "flagged.md", DMS_CLAUDE_FLAGGED_DOC);
+
+    let output = friction()
+        .arg("fix")
+        .arg(&path)
+        .arg("--suggest")
+        .output()
+        .expect("friction runs");
+    assert!(output.status.success());
+
+    let stdout = String::from_utf8(output.stdout).expect("valid UTF-8");
+    assert_eq!(
+        stdout, DMS_CLAUDE_FLAGGED_DOC,
+        "stdout must stay exactly the fixed text, unperturbed by the paraphrase report"
+    );
+
+    let stderr = String::from_utf8(output.stderr).expect("valid UTF-8");
+    assert!(
+        stderr.contains("paraphrase: 2 span(s) flagged for manual rewrite"),
+        "the paraphrase count line must be present, got: {stderr}"
+    );
+    assert!(
+        stderr.contains("dms.claude"),
+        "--suggest must list the flagged spans' frame id, got: {stderr}"
+    );
+}
+
+/// `fix --format json --suggest`'s paraphrase array parses as JSON and is
+/// byte-identical across two runs over the same input.
+#[test]
+fn fix_json_paraphrase_array_is_byte_identical_across_runs() {
+    let dir = tempfile::tempdir().expect("tempdir");
+    let path = write_fixture(dir.path(), "flagged.md", DMS_CLAUDE_FLAGGED_DOC);
+
+    let run = || {
+        friction()
+            .arg("fix")
+            .arg(&path)
+            .args(["--format", "json", "--suggest"])
+            .output()
+            .expect("friction runs")
+    };
+    let first = run();
+    let second = run();
+    assert_eq!(first.stdout, second.stdout);
+    assert_eq!(first.stderr, second.stderr);
+
+    // stderr in `--format json` mode is ONE JSON document — the summary
+    // with the `suggestions` and `paraphrase` arrays embedded — so an
+    // agent consumes the whole stream with a single parse.
+    let stderr = String::from_utf8(first.stderr).expect("valid UTF-8");
+    let value: serde_json::Value = serde_json::from_str(&stderr)
+        .expect("fix --format json stderr parses as one JSON document");
+    assert_eq!(value["paraphrase_count"], 2);
+    let rows = value["paraphrase"]
+        .as_array()
+        .expect("paraphrase array is embedded in the summary document");
+    assert_eq!(rows.len(), 2);
+    for row in rows {
+        assert_eq!(row["frame_id"], "dms.claude");
+        assert!(row["score"].as_i64().unwrap() > 0);
+        assert!(!row["snippet"].as_str().unwrap().is_empty());
+    }
 }
 
 /// `fix -` reads from stdin and writes the fixed text to stdout.

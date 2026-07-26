@@ -278,6 +278,7 @@ friction fix: 3 pass(es), 8 patch(es) applied
   span.delete: 3
   sub.apply: 1
   suggest: 0 finding(s) remain
+  paraphrase: 0 span(s) flagged for manual rewrite
 ```
 
 That is the engine's real output, line breaks included: friction edits bytes
@@ -291,12 +292,21 @@ named — by `friction explain`, which lists every hold with the gate that
 declined it. The `suggest:` line above counts a different thing: findings the
 detector surfaced that no operation claimed at all.
 
+The `paraphrase:` line counts a third, unrelated thing: after fixing, `fix`
+also scans its own output with the DMS statistical channel against every
+generator family the embedded index covers, and reports how many spans it
+flagged. It never touches them — there is no licensed rewrite for a DMS tell,
+only a fixed set of literal edits, so a flagged span is left exactly as
+written for a human to paraphrase. `--suggest` lists each one on stderr:
+location, generator family, score, and the flagged snippet.
+
 Clean text passes through byte-identical:
 
 ```
 $ friction fix clean.md
 friction fix: 2 pass(es), 0 patch(es) applied
   suggest: 0 finding(s) remain
+  paraphrase: 0 span(s) flagged for manual rewrite
 ```
 
 ### `friction check` — detect and measure, change nothing

@@ -7,23 +7,45 @@
 //! chunker only, never by a metric or genre envelope.
 //!
 //! A summary (passes run, patches applied per operation, how many
-//! `Suggest`-tier candidates remain held) is always printed to stderr, so
-//! stdout stays exactly the fixed document — safe to pipe or redirect.
-//! `--suggest` additionally lists every remaining held candidate (rule,
-//! span, reason) on stderr.
+//! `Suggest`-tier candidates remain held, how many DMS paraphrase spans
+//! were flagged) is always printed to stderr, so stdout stays exactly the
+//! fixed document — safe to pipe or redirect. `--suggest` additionally
+//! lists every remaining held candidate (rule, span, reason) and every
+//! flagged paraphrase span (family, score, snippet) on stderr.
+//!
+//! No `--family` either: the paraphrase report (below) scans every
+//! generator family the embedded DMS pack defines, since fix runs without
+//! a declared target family and reporting only one would be an arbitrary
+//! choice.
+//!
+//! # DMS surfaces paraphrase candidates, never edits
+//!
+//! After fixing, the FIXED output is scanned with the DMS channel
+//! (`friction_match::dms_spans_for_family`) against every family
+//! [`friction_packs::ModelFamily::ALL`] defines, and the per-family spans
+//! are unioned into one report (see [`union_paraphrase_spans`]). These are
+//! detection-only: the closed-operation engine above has no licensed
+//! rewrite for a DMS tell (no fixed substitution string, no attested
+//! derivation), so a flagged span is left for a human to paraphrase. DMS
+//! stays banned as an edit judge — `friction-edit`'s own crate docs say
+//! every gate is the curated inventory pack and the corpus-attested seam-
+//! bigram/skeleton tables, never a metric or genre envelope, and this
+//! module does not change that: `friction_edit::Engine` is never given the
+//! DMS pack, only `friction_match` is, purely for reporting.
 
 use std::collections::BTreeMap;
+use std::ops::Range;
 use std::path::Path;
 use std::process::ExitCode;
 
 use clap::Args;
 use friction_core::{Finding, RuleId};
 use friction_edit::EditReport;
+use friction_match::{MatchScore, MatchSpan};
+use friction_packs::ModelFamily;
 use serde::Serialize;
 
-use crate::common::{
-    CliError, Format, display_path, offset_to_line_col, read_input, write_in_place,
-};
+use crate::common::{CliError, Format, LineIndex, display_path, read_input, write_in_place};
 
 /// Arguments for `friction fix`.
 #[derive(Debug, Args)]
@@ -48,13 +70,22 @@ pub struct FixArgs {
     suggest: bool,
 }
 
-/// `--format json`'s shape for the pass summary.
+/// `--format json`'s shape for the pass summary — always a single JSON
+/// document on stderr, so a consumer can parse the whole stream with one
+/// `serde_json::from_str` call. Without `--suggest` the two detail arrays
+/// are omitted entirely (not `null`), keeping the plain summary shape;
+/// with it, they carry the same rows the text format lists line by line.
 #[derive(Debug, Serialize)]
 struct FixSummary {
     passes: usize,
     patches_applied: usize,
     patches_by_rule: BTreeMap<String, usize>,
     suggest_count: usize,
+    paraphrase_count: usize,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    suggestions: Option<Vec<SuggestionRow>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    paraphrase: Option<Vec<ParaphraseRow>>,
 }
 
 /// `--format json`'s shape for one `--suggest`-listed held candidate.
@@ -66,6 +97,31 @@ struct SuggestionRow {
     line: usize,
     column: usize,
     message: String,
+}
+
+/// `--format json`'s shape for one `--suggest`-listed paraphrase span (see
+/// [`union_paraphrase_spans`]).
+#[derive(Debug, Serialize)]
+struct ParaphraseRow {
+    frame_id: String,
+    start: usize,
+    end: usize,
+    line: usize,
+    column: usize,
+    score: i64,
+    snippet: String,
+}
+
+/// One DMS paraphrase candidate after unioning per-family spans down to
+/// one entry per flagged byte region (see [`union_paraphrase_spans`]).
+#[derive(Debug, Clone, PartialEq, Eq)]
+struct ParaphraseSpan {
+    /// The winning family's frame id, e.g. `"dms.claude"`.
+    frame_id: Box<str>,
+    /// Byte range into the FIXED output.
+    range: Range<usize>,
+    /// The winning family's differential score.
+    score: i64,
 }
 
 /// Runs `friction fix`.
@@ -95,15 +151,19 @@ fn run_inner(args: &FixArgs) -> Result<ExitCode, CliError> {
     }
 
     let remaining_held = final_pass_held(&report);
-    print_summary(args.format, &report, remaining_held.len());
+    let paraphrase_spans = scan_paraphrase_spans(&output)?;
+    print_summary(
+        args.format,
+        &report,
+        &output,
+        &remaining_held,
+        &paraphrase_spans,
+        args.suggest,
+    );
 
-    if args.suggest {
-        print_suggestions(
-            args.format,
-            &output,
-            display_path(&args.input),
-            &remaining_held,
-        );
+    if args.suggest && args.format != Format::Json {
+        print_suggestions(&output, display_path(&args.input), &remaining_held);
+        print_paraphrase_spans(&output, &paraphrase_spans);
     }
 
     Ok(ExitCode::SUCCESS)
@@ -123,7 +183,14 @@ fn final_pass_held(report: &EditReport) -> Vec<Finding> {
         .unwrap_or_default()
 }
 
-fn print_summary(format: Format, report: &EditReport, suggest_count: usize) {
+fn print_summary(
+    format: Format,
+    report: &EditReport,
+    output: &str,
+    suggestions: &[Finding],
+    paraphrase_spans: &[ParaphraseSpan],
+    suggest: bool,
+) {
     let mut patches_by_rule: BTreeMap<RuleId, usize> = BTreeMap::new();
     for pass in &report.passes {
         for patch in &pass.applied_patches {
@@ -141,7 +208,10 @@ fn print_summary(format: Format, report: &EditReport, suggest_count: usize) {
                     .into_iter()
                     .map(|(id, n)| (id.as_str().to_string(), n))
                     .collect(),
-                suggest_count,
+                suggest_count: suggestions.len(),
+                paraphrase_count: paraphrase_spans.len(),
+                suggestions: suggest.then(|| suggestion_rows(output, suggestions)),
+                paraphrase: suggest.then(|| paraphrase_rows(output, paraphrase_spans)),
             };
             let json = serde_json::to_string_pretty(&summary)
                 .expect("FixSummary serializes: every field is plain data");
@@ -156,42 +226,164 @@ fn print_summary(format: Format, report: &EditReport, suggest_count: usize) {
             for (id, n) in &patches_by_rule {
                 eprintln!("  {id}: {n}");
             }
-            eprintln!("  suggest: {suggest_count} finding(s) remain");
+            eprintln!("  suggest: {} finding(s) remain", suggestions.len());
+            eprintln!(
+                "  paraphrase: {} span(s) flagged for manual rewrite",
+                paraphrase_spans.len()
+            );
         }
     }
 }
 
-fn print_suggestions(format: Format, output: &str, path_label: &str, suggestions: &[Finding]) {
-    match format {
-        Format::Json => {
-            let rows: Vec<SuggestionRow> = suggestions
-                .iter()
-                .map(|f| {
-                    let (line, column) = offset_to_line_col(output, f.range.start);
-                    SuggestionRow {
-                        rule: f.rule.as_str().to_string(),
-                        start: f.range.start,
-                        end: f.range.end,
-                        line,
-                        column,
-                        message: f.message.clone(),
-                    }
-                })
-                .collect();
-            let json = serde_json::to_string_pretty(&rows)
-                .expect("suggestions serialize: every field is plain data");
-            eprintln!("{json}");
-        }
-        Format::Text | Format::Sarif => {
-            for f in suggestions {
-                let (line, column) = offset_to_line_col(output, f.range.start);
-                eprintln!(
-                    "{path_label}:{line}:{column}: {} [{}]",
-                    f.message,
-                    f.rule.as_str()
-                );
+/// The `--suggest` held-candidate rows, positioned against the fixed
+/// output's line/column grid.
+fn suggestion_rows(output: &str, suggestions: &[Finding]) -> Vec<SuggestionRow> {
+    let lines = LineIndex::new(output);
+    suggestions
+        .iter()
+        .map(|f| {
+            let (line, column) = lines.line_col(output, f.range.start);
+            SuggestionRow {
+                rule: f.rule.as_str().to_string(),
+                start: f.range.start,
+                end: f.range.end,
+                line,
+                column,
+                message: f.message.clone(),
             }
+        })
+        .collect()
+}
+
+/// The `--suggest` paraphrase rows, positioned against the fixed output's
+/// line/column grid.
+fn paraphrase_rows(output: &str, spans: &[ParaphraseSpan]) -> Vec<ParaphraseRow> {
+    let lines = LineIndex::new(output);
+    spans
+        .iter()
+        .map(|s| {
+            let (line, column) = lines.line_col(output, s.range.start);
+            ParaphraseRow {
+                frame_id: s.frame_id.to_string(),
+                start: s.range.start,
+                end: s.range.end,
+                line,
+                column,
+                score: s.score,
+                snippet: output[s.range.clone()].to_string(),
+            }
+        })
+        .collect()
+}
+
+/// Text-format `--suggest` held-candidates list; `--format json` instead
+/// embeds the same rows in [`FixSummary`]'s single document.
+fn print_suggestions(output: &str, path_label: &str, suggestions: &[Finding]) {
+    let lines = LineIndex::new(output);
+    for f in suggestions {
+        let (line, column) = lines.line_col(output, f.range.start);
+        eprintln!(
+            "{path_label}:{line}:{column}: {} [{}]",
+            f.message,
+            f.rule.as_str()
+        );
+    }
+}
+
+/// Scans `output` — the FIXED text `fix` is about to print — for DMS
+/// paraphrase candidates against every family the embedded DMS pack
+/// defines, unioning the per-family spans into one report (see
+/// [`union_paraphrase_spans`]). Only prose blocks are scanned, the same
+/// scoping every detection channel already uses
+/// (`friction_match::token::prose_scope`).
+///
+/// # Errors
+/// Returns [`CliError::Parse`] if `output` fails to parse as markdown —
+/// not expected, since `output` is text `fix_document` has already parsed
+/// successfully once.
+fn scan_paraphrase_spans(output: &str) -> Result<Vec<ParaphraseSpan>, CliError> {
+    let document = friction_parse::parse(output)?;
+    let segmenter = friction_nlp::SrxSegmenter::new();
+    let units = friction_match::token::prose_scope(&document, &segmenter);
+
+    let mut spans = Vec::new();
+    for family in ModelFamily::ALL {
+        if let Some(family_spans) =
+            friction_match::dms_spans_for_family(&units, &friction_packs::DMS.pack, family)
+        {
+            spans.extend(family_spans);
         }
+    }
+
+    Ok(union_paraphrase_spans(spans))
+}
+
+/// A [`MatchSpan`]'s DMS differential score. Always
+/// [`MatchScore::Differential`] for the [`Channel::Dms`](friction_match::Channel::Dms)
+/// spans [`scan_paraphrase_spans`] collects; `0` for the `Present` variant
+/// is a defensive fallback that never fires in practice.
+const fn dms_score(span: &MatchSpan) -> i64 {
+    match span.score {
+        MatchScore::Differential(d) => d,
+        MatchScore::Present => 0,
+    }
+}
+
+/// Unions DMS spans flagged across every generator family down to one
+/// entry per flagged byte region: fix's paraphrase report is per region,
+/// not per family, so two families flagging overlapping words report
+/// once. Sorts by `(start, end, frame_id)` first — mirroring
+/// `friction_match::span::merge_spans`'s own tie-break discipline — then
+/// folds each span into the running region whenever its start falls at or
+/// before that region's end (overlapping or exactly adjacent), keeping
+/// whichever family scored higher. An exact tie keeps the
+/// alphabetically-earliest `frame_id` (the one already carried by the
+/// running region, since ties are resolved by not overwriting), so the
+/// result never depends on scan order. Because starts only grow across
+/// the sorted input, the merged spans come out already sorted the same
+/// way — no second sort is needed.
+fn union_paraphrase_spans(mut spans: Vec<MatchSpan>) -> Vec<ParaphraseSpan> {
+    spans.sort_by(|a, b| {
+        a.range
+            .start
+            .cmp(&b.range.start)
+            .then(a.range.end.cmp(&b.range.end))
+            .then(a.frame_id.cmp(&b.frame_id))
+    });
+
+    let mut merged: Vec<ParaphraseSpan> = Vec::new();
+    for span in spans {
+        let score = dms_score(&span);
+        if let Some(last) = merged.last_mut()
+            && span.range.start <= last.range.end
+        {
+            last.range.end = last.range.end.max(span.range.end);
+            if score > last.score {
+                last.score = score;
+                last.frame_id = span.frame_id;
+            }
+            continue;
+        }
+        merged.push(ParaphraseSpan {
+            frame_id: span.frame_id,
+            range: span.range,
+            score,
+        });
+    }
+    merged
+}
+
+/// Text-format `--suggest` paraphrase list; `--format json` instead
+/// embeds the same rows in [`FixSummary`]'s single document.
+fn print_paraphrase_spans(output: &str, spans: &[ParaphraseSpan]) {
+    let lines = LineIndex::new(output);
+    for s in spans {
+        let (line, column) = lines.line_col(output, s.range.start);
+        let snippet = &output[s.range.clone()];
+        eprintln!(
+            "{line}:{column}: paraphrase candidate (score {}): {snippet:?} [{}]",
+            s.score, s.frame_id
+        );
     }
 }
 
@@ -199,8 +391,74 @@ fn print_suggestions(format: Format, output: &str, path_label: &str, suggestions
 mod tests {
     use friction_core::{Patch, Tier};
     use friction_edit::PassReport;
+    use friction_match::Channel;
 
     use super::*;
+
+    fn dms_span(range: Range<usize>, frame_id: &str, score: i64) -> MatchSpan {
+        MatchSpan {
+            range,
+            channel: Channel::Dms,
+            frame_id: frame_id.into(),
+            score: MatchScore::Differential(score),
+        }
+    }
+
+    /// Overlapping spans from different families merge into one region,
+    /// keeping the higher-scored family's label.
+    #[test]
+    fn union_paraphrase_spans_merges_overlapping_spans_keeping_the_higher_score() {
+        let a = dms_span(0..10, "dms.qwen", 5);
+        let b = dms_span(5..15, "dms.claude", 9);
+        let merged = union_paraphrase_spans(vec![a, b]);
+        assert_eq!(merged.len(), 1);
+        assert_eq!(merged[0].range, 0..15);
+        assert_eq!(&*merged[0].frame_id, "dms.claude");
+        assert_eq!(merged[0].score, 9);
+    }
+
+    /// Exactly-adjacent spans (one's end equals the other's start) merge
+    /// too, per this module's documented "overlapping or adjacent" policy.
+    #[test]
+    fn union_paraphrase_spans_merges_adjacent_spans() {
+        let a = dms_span(0..5, "dms.qwen", 4);
+        let b = dms_span(5..10, "dms.claude", 4);
+        let merged = union_paraphrase_spans(vec![a, b]);
+        assert_eq!(merged.len(), 1);
+        assert_eq!(merged[0].range, 0..10);
+    }
+
+    /// Non-overlapping, non-adjacent spans stay separate entries.
+    #[test]
+    fn union_paraphrase_spans_keeps_disjoint_spans_separate() {
+        let a = dms_span(0..5, "dms.qwen", 4);
+        let b = dms_span(10..15, "dms.claude", 4);
+        let merged = union_paraphrase_spans(vec![a, b]);
+        assert_eq!(merged.len(), 2);
+    }
+
+    /// An exact score tie keeps the alphabetically-earliest family,
+    /// regardless of the input `Vec`'s order — the initial
+    /// `(start, end, frame_id)` sort makes the outcome order-independent.
+    #[test]
+    fn union_paraphrase_spans_breaks_score_ties_by_frame_id_order() {
+        let a = dms_span(0..10, "dms.claude", 5);
+        let b = dms_span(0..10, "dms.qwen", 5);
+        let merged = union_paraphrase_spans(vec![b, a]);
+        assert_eq!(merged.len(), 1);
+        assert_eq!(&*merged[0].frame_id, "dms.claude");
+    }
+
+    /// The result is sorted by `(start, end, frame_id)`, independent of
+    /// input order.
+    #[test]
+    fn union_paraphrase_spans_sorts_the_result() {
+        let a = dms_span(20..25, "dms.qwen", 4);
+        let b = dms_span(0..5, "dms.claude", 4);
+        let merged = union_paraphrase_spans(vec![a, b]);
+        assert_eq!(merged[0].range, 0..5);
+        assert_eq!(merged[1].range, 20..25);
+    }
 
     fn pass(held: Vec<Finding>) -> PassReport {
         PassReport {

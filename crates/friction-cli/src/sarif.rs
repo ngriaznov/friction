@@ -5,7 +5,7 @@
 //! spans (with a plain-language description derived from the channel that
 //! produced it — see [`channel_description`]), and one `results[]` entry
 //! per span, with a `physicalLocation.region` derived from the span's
-//! byte range via [`crate::common::offset_to_line_col`].
+//! byte range via [`crate::common::LineIndex`].
 //!
 //! `tests/sarif_schema.rs` validates this module's output against the
 //! vendored SARIF 2.1.0 JSON schema (`tests/data/sarif-schema-2.1.0.json`)
@@ -16,7 +16,7 @@ use std::collections::BTreeMap;
 use friction_match::{Channel, MatchSpan};
 use serde::Serialize;
 
-use crate::common::offset_to_line_col;
+use crate::common::LineIndex;
 
 /// The SARIF schema URI this log declares conformance to.
 const SCHEMA_URI: &str = "https://raw.githubusercontent.com/oasis-tcs/sarif-spec/master/Schemata/sarif-schema-2.1.0.json";
@@ -163,11 +163,12 @@ pub fn render(spans: &[MatchSpan], source: &str, artifact_uri: &str) -> String {
         })
         .collect();
 
+    let lines = LineIndex::new(source);
     let results = spans
         .iter()
         .map(|span| {
-            let (start_line, start_column) = offset_to_line_col(source, span.range.start);
-            let (end_line, end_column) = offset_to_line_col(source, span.range.end);
+            let (start_line, start_column) = lines.line_col(source, span.range.start);
+            let (end_line, end_column) = lines.line_col(source, span.range.end);
             SarifResult {
                 rule_id: span.frame_id.to_string(),
                 level: LEVEL,

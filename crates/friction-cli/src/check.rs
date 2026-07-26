@@ -23,7 +23,7 @@ use friction_packs::ModelFamily;
 use serde::Serialize;
 
 use crate::common::{
-    CliError, Engine, Family, Format, Genre, Pack, display_path, offset_to_line_col, read_input,
+    CliError, Engine, Family, Format, Genre, LineIndex, Pack, display_path, read_input,
     resolve_genre,
 };
 use crate::diagnostics::{color_enabled, render_spans};
@@ -227,10 +227,11 @@ const fn span_score(span: &MatchSpan) -> Option<i64> {
 }
 
 fn span_rows(source: &str, spans: &[MatchSpan]) -> Vec<SpanRow> {
+    let lines = LineIndex::new(source);
     spans
         .iter()
         .map(|span| {
-            let (line, column) = offset_to_line_col(source, span.range.start);
+            let (line, column) = lines.line_col(source, span.range.start);
             SpanRow {
                 channel: channel_str(span.channel),
                 frame_id: span.frame_id.to_string(),

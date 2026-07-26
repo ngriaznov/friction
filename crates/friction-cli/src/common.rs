@@ -315,38 +315,65 @@ impl Engine {
     }
 }
 
-/// Converts a 0-based byte offset into `source` to a 1-based `(line,
-/// column)` pair, both counted in Unicode scalar values (`char`s), not
-/// bytes — the unit SARIF's `region.startColumn`/`endColumn` and most
-/// editors use.
+/// Line-start offsets for one document, so that resolving many offsets
+/// costs one scan of the source rather than one per offset.
 ///
-/// `offset` past `source.len()` clamps to the position one past the last
-/// character, rather than panicking. An in-bounds `offset` that lands
-/// mid-character (splitting a multi-byte UTF-8 sequence) is likewise
-/// walked back to the nearest preceding character boundary rather than
-/// panicking on the slice below.
-#[must_use]
-pub fn offset_to_line_col(source: &str, offset: usize) -> (usize, usize) {
-    let mut offset = offset.min(source.len());
-    while !source.is_char_boundary(offset) {
-        offset -= 1;
+/// [`offset_to_line_col`] walks from byte 0 every time it is called. That
+/// is fine for a single offset and quadratic for a report: a document
+/// with `s` spans over `n` bytes costs `O(s * n)`, which on a large,
+/// tell-dense input is most of `check`'s run time. Building this once and
+/// querying it brings that to `O(n + s * line_len)`.
+pub struct LineIndex {
+    /// Byte offset of each line's first character. Always begins with 0,
+    /// so it is never empty and a lookup always finds a line.
+    starts: Vec<usize>,
+}
+
+impl LineIndex {
+    /// Scans `source` once.
+    #[must_use]
+    pub fn new(source: &str) -> Self {
+        let mut starts = vec![0];
+        starts.extend(source.match_indices('\n').map(|(index, _)| index + 1));
+        Self { starts }
     }
-    let mut line = 1usize;
-    let mut col = 1usize;
-    for ch in source[..offset].chars() {
-        if ch == '\n' {
-            line += 1;
-            col = 1;
-        } else {
-            col += 1;
+
+    /// Converts a 0-based byte offset into a 1-based `(line, column)`
+    /// pair, both counted in Unicode scalar values (`char`s), not bytes
+    /// — the unit SARIF's `region.startColumn`/`endColumn` and most
+    /// editors use.
+    ///
+    /// `offset` past the end clamps to the position one past the last
+    /// character, rather than panicking. An in-bounds `offset` that lands
+    /// mid-character (splitting a multi-byte UTF-8 sequence) is likewise
+    /// walked back to the nearest preceding character boundary.
+    ///
+    /// `source` must be the string this index was built from; passing a
+    /// different one yields positions for neither.
+    #[must_use]
+    pub fn line_col(&self, source: &str, offset: usize) -> (usize, usize) {
+        let mut offset = offset.min(source.len());
+        while !source.is_char_boundary(offset) {
+            offset -= 1;
         }
+        // `starts[0]` is 0, so at least one entry is <= offset and the
+        // count is a valid 1-based line number.
+        let line = self.starts.partition_point(|&start| start <= offset);
+        let line_start = self.starts[line - 1];
+        let column = 1 + source[line_start..offset].chars().count();
+        (line, column)
     }
-    (line, col)
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    /// One-shot form of [`LineIndex::line_col`], for the tests below that
+    /// check a single offset at a time.
+    fn offset_to_line_col(source: &str, offset: usize) -> (usize, usize) {
+        LineIndex::new(source).line_col(source, offset)
+    }
 
     #[test]
     fn genre_as_str_matches_pack_keys() {
@@ -455,6 +482,47 @@ mod tests {
         // landing mid-character.
         let source = "^^\u{58b}^?\u{58b}~/\u{58b}";
         assert_eq!(offset_to_line_col(source, 7), (1, 6));
+    }
+
+    /// The index and a naive walk must agree at every byte offset,
+    /// including offsets inside multi-byte characters, on the newline
+    /// itself, and one past the end.
+    #[test]
+    fn line_index_agrees_with_a_naive_walk_at_every_offset() {
+        fn naive(source: &str, offset: usize) -> (usize, usize) {
+            let mut offset = offset.min(source.len());
+            while !source.is_char_boundary(offset) {
+                offset -= 1;
+            }
+            let (mut line, mut col) = (1usize, 1usize);
+            for ch in source[..offset].chars() {
+                if ch == '\n' {
+                    line += 1;
+                    col = 1;
+                } else {
+                    col += 1;
+                }
+            }
+            (line, col)
+        }
+
+        let source = "a\nbé\u{58b}c\n\nx\r\ny\n";
+        let index = LineIndex::new(source);
+        for offset in 0..=source.len() + 2 {
+            assert_eq!(
+                index.line_col(source, offset),
+                naive(source, offset),
+                "offset {offset}"
+            );
+        }
+    }
+
+    /// A source with no trailing newline still resolves its last offset,
+    /// and an empty one is a single line.
+    #[test]
+    fn line_index_handles_the_degenerate_sources() {
+        assert_eq!(LineIndex::new("").line_col("", 0), (1, 1));
+        assert_eq!(LineIndex::new("abc").line_col("abc", 3), (1, 4));
     }
 
     #[test]

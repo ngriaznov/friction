@@ -40,6 +40,19 @@
 //! See [`dms`]'s own module docs for why the automaton walk resets at
 //! every in-scope prose unit rather than streaming the whole document as
 //! one contiguous token stream.
+//!
+//! # DMS without the other two channels
+//!
+//! [`dms_spans_for_family`] is a standalone DMS-only entry point: given
+//! prose units already scoped by [`token::prose_scope`], it returns one
+//! family's spans without building a [`MatchEngine`] (which also compiles
+//! the literal automaton and requires a tagger/segmenter for the LVC
+//! channel). `friction fix` uses it to scan its own fixed output against
+//! every pack family for paraphrase suggestions it detects but never
+//! auto-edits — DMS stays banned as an edit judge (`friction-edit`'s own
+//! crate docs: every gate is the curated inventory pack and the corpus-
+//! attested seam-bigram/skeleton tables, never a metric or genre
+//! envelope); this crate still only detects and reports, never rewrites.
 
 mod dms;
 mod error;
@@ -54,6 +67,8 @@ pub use span::{Channel, DmsFamilyReport, DmsReport, DocumentReport, MatchScore, 
 use friction_core::Document;
 use friction_nlp::{Segmenter, Tagger};
 use friction_packs::{DmsIndex, InventoryPack, ModelFamily};
+
+use crate::token::ScopedUnit;
 
 /// Built once (compiles the literal automaton once) and reused across
 /// every document scanned against the same pack/family/tagger/segmenter.
@@ -141,4 +156,29 @@ impl<'a> MatchEngine<'a> {
             dms: dms_report,
         })
     }
+}
+
+/// Returns [`Channel::Dms`] spans for exactly `family` over `units`
+/// (already scoped by [`token::prose_scope`]), scanning `dms`'s stream for
+/// `family` against the same pack's human baseline stream.
+///
+/// `None` if `dms` has no stream for `family` — a caller-supplied override
+/// pack may define fewer than [`ModelFamily::ALL`], and a caller checking
+/// every family already expects to skip the ones a given pack lacks rather
+/// than treat that as an error.
+///
+/// A standalone entry point for callers that need only the DMS channel
+/// over every pack family (e.g. `friction fix`'s paraphrase-suggestion
+/// report) without paying for [`MatchEngine`]'s literal-automaton
+/// compilation or running the literal/LVC channels they don't need.
+#[must_use]
+pub fn dms_spans_for_family(
+    units: &[ScopedUnit<'_>],
+    dms: &DmsIndex,
+    family: ModelFamily,
+) -> Option<Vec<MatchSpan>> {
+    let target_sam = dms.family_sam(family)?;
+    let human_sam = dms.human_sam();
+    let vocab = dms.vocab();
+    Some(dms::scan_units(units, target_sam, family, human_sam, vocab))
 }

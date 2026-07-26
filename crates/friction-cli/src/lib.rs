@@ -27,12 +27,16 @@ mod common;
 /// Converts a 0-based byte offset into `source` to a 1-based `(line,
 /// column)` pair, both counted in `char`s, not bytes.
 ///
-/// A thin, public re-export of `common::offset_to_line_col` — the
-/// function `friction-cli`'s SARIF renderer
-/// (`src/sarif.rs::render`) uses to turn a [`friction_core::Finding`]'s
-/// byte range into a SARIF `region`. See that private function's own
-/// doc comment for the exact clamping/counting contract.
+/// A thin, public one-shot form of `common::LineIndex` — the conversion
+/// `friction-cli`'s SARIF renderer (`src/sarif.rs::render`) uses to turn a
+/// [`friction_core::Finding`]'s byte range into a SARIF `region`. See
+/// `LineIndex::line_col`'s own doc comment for the exact clamping and
+/// counting contract.
+///
+/// This scans `source` on every call. The renderer itself builds one
+/// index and queries it per span; this exists for callers resolving a
+/// single offset.
 #[must_use]
 pub fn offset_to_line_col(source: &str, offset: usize) -> (usize, usize) {
-    common::offset_to_line_col(source, offset)
+    common::LineIndex::new(source).line_col(source, offset)
 }

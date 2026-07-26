@@ -18,6 +18,7 @@
 
 use std::fmt;
 use std::io::IsTerminal as _;
+use std::sync::Arc;
 
 use friction_core::Tier;
 use friction_match::MatchSpan;
@@ -49,7 +50,13 @@ struct FindingDiagnostic {
     tier: Tier,
     start: usize,
     len: usize,
-    src: NamedSource<String>,
+    /// Shared, not owned: `render_spans` builds one of these for the
+    /// whole document and hands every diagnostic a clone of it, rather
+    /// than copying the source per span. Measured on a 1.8 MB, 3000-span
+    /// document this is not faster — `miette`'s own per-diagnostic scan
+    /// dominates by a wide margin — it just stops the renderer allocating
+    /// and dropping a full copy of the document on every iteration.
+    src: NamedSource<Arc<str>>,
 }
 
 impl fmt::Debug for FindingDiagnostic {
@@ -129,6 +136,7 @@ pub fn render_spans(source: &str, path_label: &str, spans: &[MatchSpan], color: 
         GraphicalTheme::unicode_nocolor()
     };
     let handler = GraphicalReportHandler::new_themed(theme).with_width(200);
+    let named = NamedSource::new(path_label, Arc::<str>::from(source));
     let mut out = String::new();
     for span in spans {
         let message = format!("{:?} tell: {}", span.channel, span.frame_id);
@@ -138,7 +146,7 @@ pub fn render_spans(source: &str, path_label: &str, spans: &[MatchSpan], color: 
             tier: Tier::Fix,
             start: span.range.start,
             len: span.range.len(),
-            src: NamedSource::new(path_label, source.to_string()),
+            src: named.clone(),
         };
         handler
             .render_report(&mut out, &diagnostic)
