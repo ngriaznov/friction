@@ -92,12 +92,74 @@ deterministic — there is no inference engine here, only lookups.
 
 ### `friction fix` — repair a document
 
+Fixed text goes to **stdout**, the summary to **stderr**. They are separate
+streams, so no flag is needed to keep them apart — redirect stderr and you have
+clean text.
+
+```bash
+friction fix draft.md                  # fixed text to stdout, summary to stderr
+friction fix draft.md 2>/dev/null      # fixed text only
+friction fix draft.md > fixed.md       # original untouched
+friction fix draft.md --in-place       # rewrite the file atomically
+friction fix draft.md --suggest        # also list what was detected but held
+friction fix draft.md --format json    # summary as JSON instead of a table
 ```
-friction fix README.md            # fixed text to stdout, summary to stderr
-friction fix README.md --in-place # rewrite the file atomically
-cat draft.md | friction fix -     # stdin
-friction fix draft.md --suggest   # also list what was detected but held
+
+#### Reading from stdin
+
+Pass `-` as the path:
+
+```bash
+echo "$text" | friction fix -
+cat draft.md  | friction fix - 2>/dev/null > fixed.md
+OUT=$(printf '%s' "$text" | friction fix - 2>/dev/null)
+
+friction fix - 2>/dev/null <<'EOF'
+This guide will walk you through deploying the collector.
+EOF
 ```
+
+`--in-place` is rejected with `-`: there is no file to write back to.
+
+#### Four one-liners, verbatim
+
+```bash
+$ echo 'We will walk you through it. It is crucial that you utilize the debug flag.' \
+    | friction fix - 2>/dev/null
+We cover it. It matters that the debug flag is used.
+```
+
+Three substitutions and a passivization in one sentence pair.
+
+```bash
+$ echo 'The style guide bans "will walk you through" outright. This guide will walk you through the rest.' \
+    | friction fix - 2>/dev/null
+The style guide bans "will walk you through" outright. This guide covers the rest.
+```
+
+The quoted phrase is a *mention* — someone's example, not the author's register —
+so it survives while the same words unquoted get fixed.
+
+```bash
+$ echo 'Set `leverage` in the config. We leverage the cache heavily.' \
+    | friction fix - 2>/dev/null
+Set `leverage` in the config. We use the cache heavily.
+```
+
+Input is parsed as Markdown, so the code span is out of scope and the prose is not.
+
+```bash
+$ friction fix - 2>/dev/null <<'EOF'
+This guide will walk you through deploying the collector.
+
+If you have any questions or require further assistance, please reach out to our support team.
+EOF
+This guide covers deploying the collector.
+```
+
+The ritual closer is removed whole.
+
+#### A longer document
 
 Input:
 
@@ -160,14 +222,24 @@ friction check draft.md --family gemma --format sarif > report.sarif
 
 Reports detected spans with byte-exact locations, tell counts per family,
 distribution metrics against the genre envelope, and the document-level
-matching-statistics differential. Exit code `1` when findings exist, `0` when
-clean, `2` on errors — CI-friendly, and the SARIF output validates against the
-SARIF 2.1.0 schema.
+matching-statistics differential. The SARIF output validates against the SARIF
+2.1.0 schema.
 
 `--family` is required and matters: detection indexes are specific to the
 generator family they were mined from (`qwen`, `gemma`, `llama`, `granite`).
 Text from a model family you have no index for will mostly evade the
 statistical channel — see limits below.
+
+**`check` is a report, not a gate.** Its exit code is `0` only when *every*
+metric sits inside its envelope and no span was detected, and the envelope is
+two-sided — a document is flagged for falling outside it in either direction,
+including for being more human-favoured than the human band's upper bound.
+Measured over 25 human documentation files from the corpus, **24 exit non-zero**.
+That is the metric layer working as designed (it describes a distribution, it
+does not classify a document), but it means `check` will fail almost any real
+document and should not be wired to a build.
+
+Gate on `fix` instead — see below.
 
 ### `friction explain` — why did (or didn't) it edit?
 
@@ -197,6 +269,100 @@ gate that declined. Deleting a span can leave a lowercase word opening a
 sentence, which is why `edit.recapitalize` follows each one. The same two holds
 reappear in pass 2 at shifted offsets: the earlier deletions moved the bytes,
 and the gates decline again on the same grounds.
+
+## Scripting it — pipelines, CI, agents
+
+Everything needed is already there: stdin in, stdout out, structured output on
+demand, meaningful exit codes, no interactive prompts, no state, no network. The
+packs and models are compiled into the binary, so per-invocation cost is model
+load rather than I/O.
+
+### Exit codes
+
+| command | `0` | `1` | `2` |
+|---|---|---|---|
+| `fix` | always, when it ran | — | error (unreadable input, bad UTF-8) |
+| `explain` | always, when it ran | — | error |
+| `check` | every metric in envelope **and** no spans | otherwise | error |
+
+`fix` does not signal "I changed something" through its exit code. To detect
+that, compare bytes or read the JSON summary:
+
+```bash
+# did anything change?
+friction fix draft.md 2>/dev/null | cmp -s - draft.md || echo "friction would edit this"
+
+# how much, structured
+friction fix draft.md --format json 2>&1 >/dev/null
+# {"passes":3,"patches_applied":4,"patches_by_rule":{"register.passivize":1,"sub.apply":3},"suggest_count":0}
+```
+
+Note the redirect order: the summary is on **stderr**, so `2>&1 >/dev/null`
+sends the summary to stdout and discards the fixed text. Reversing them gives
+you the opposite.
+
+### A CI gate that works
+
+Fail the build when friction would still change a committed document — i.e.
+treat "already clean" as the invariant:
+
+```bash
+#!/bin/sh
+# fails if any tracked Markdown file is not already friction-clean
+rc=0
+for f in $(git ls-files '*.md'); do
+  if ! friction fix "$f" 2>/dev/null | cmp -s - "$f"; then
+    echo "not friction-clean: $f"
+    rc=1
+  fi
+done
+exit $rc
+```
+
+Two practical notes. Use `rc`, not `status`: the latter is a read-only special
+variable in zsh and the loop aborts on assignment. And scope the glob to
+documents you actually author — pointing it at every tracked `*.md` will also
+catch generated reports and vendored third-party text, which are not yours to
+rewrite and will fail the gate legitimately.
+
+This repository's own README satisfies that check, which is why the examples
+above can quote machine-register phrases without the tool rewriting its own
+exhibits.
+
+### Every edit, machine-readably
+
+`explain --format json` gives each edit's rule, byte range, and replacement —
+enough to build a diff, apply a subset, or show a human what would change
+before changing it:
+
+```bash
+$ friction explain draft.md --format json
+{
+  "passes": [
+    {
+      "pass": 1,
+      "fired": [
+        { "rule": "sub.apply", "start": 0,  "end": 24, "replacement": "We cover" },
+        { "rule": "sub.apply", "start": 32, "end": 42, "replacement": "matters" },
+        { "rule": "sub.apply", "start": 52, "end": 59, "replacement": "use" }
+      ],
+      "held": []
+    }
+  ]
+}
+```
+
+Ranges index the **original** bytes, so `text[start..end]` is exactly what the
+replacement replaces. Held candidates appear alongside with the gate that
+declined them, which is the part worth surfacing to a reviewer: it says what
+friction noticed and chose not to touch.
+
+### Filtering to the operations you trust
+
+There is no flag to disable an individual operation. If you only want the four
+closed operations and not register rephrasing, read the edits from `explain
+--format json`, drop the `register.*` rules, and apply the rest yourself —
+the ranges are byte-exact against your input, so that is a mechanical splice.
 
 ## Guarantees
 
