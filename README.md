@@ -93,15 +93,39 @@ construction that is *missing* has no span to detect.
 
 ## Install
 
-```
+### Prebuilt binary
+
+Download for your platform from [Releases](../../releases), extract, and put
+`friction` on your `PATH`. No toolchain needed.
+
+| platform | archive |
+|---|---|
+| macOS, Apple silicon | `aarch64-apple-darwin` |
+| macOS, Intel | `x86_64-apple-darwin` |
+| Linux x86-64 | `x86_64-unknown-linux-gnu` |
+| Linux x86-64, static | `x86_64-unknown-linux-musl` |
+| Linux arm64 | `aarch64-unknown-linux-gnu` |
+| Windows x86-64 | `x86_64-pc-windows-msvc` |
+
+Prefer the **musl** build for containers and CI images: it is statically linked
+and does not care about the host's glibc. Each archive ships a `.sha256`.
+
+The macOS binaries are **unsigned**, so Gatekeeper refuses the first run. Either
+`xattr -cr ./friction` or right-click → Open once.
+
+### From source
+
+```bash
 cargo build --release -p friction-cli
 ```
 
-The binary lands at `target/release/friction`. The build is fully
-self-contained: the part-of-speech tagger (1.4 MB) and dependency parser
-(6.5 MB) are vendored weight artifacts compiled into the binary, and nothing is
-downloaded at build or run time. Both are fixed tables, so the runtime stays
-deterministic — there is no inference engine here, only lookups.
+The binary lands at `target/release/friction`; MSRV is 1.96.
+
+Either way the result is self-contained: the part-of-speech tagger (1.4 MB) and
+dependency parser (6.5 MB) are vendored weight artifacts compiled into the
+binary, and nothing is downloaded at build or run time. Both are fixed tables,
+so the runtime stays deterministic — there is no inference engine here, only
+lookups. That accounts for the binary being around 16 MB.
 
 ## Usage
 
@@ -509,6 +533,17 @@ thresholds, gate definitions, and the validated reference prototypes — see
 [docs/research/ref/](docs/research/ref/). For how the register targets were
 measured, including what the corpus turned out not to support, see
 [docs/research/regvec/TARGET_ESTIMATION.md](docs/research/regvec/TARGET_ESTIMATION.md).
+
+## Releasing
+
+The version in `crates/friction-cli/Cargo.toml` is the single source of truth.
+To cut a release: **bump it and push to `main`.** CI derives the tag, builds all
+six targets, and publishes the release with checksums.
+
+A push whose version is already tagged is a no-op that still reports green, so
+ordinary commits neither fail the workflow nor publish duplicates. Nothing is
+tagged by hand — tagging is the pipeline's job, because a step a human has to
+remember is a step that gets forgotten.
 
 ## Development
 

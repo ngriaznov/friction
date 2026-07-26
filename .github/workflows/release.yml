@@ -1,0 +1,179 @@
+name: Release
+
+# Triggered by a push to main, not by a tag: the version in
+# crates/friction-cli/Cargo.toml is the single source of truth, and this
+# workflow derives and creates the tag from it. Tagging by hand would mean
+# every release needs someone to remember to do it, and to get it right.
+#
+# A push whose version already has a tag is a no-op that still reports
+# green, so an ordinary commit does not fail the workflow or publish a
+# duplicate release. To cut a release: bump the version, push.
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+env:
+  CARGO_TERM_COLOR: always
+
+permissions:
+  contents: write
+
+jobs:
+  version:
+    name: resolve version
+    runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.read.outputs.version }}
+      should_release: ${{ steps.tag.outputs.should_release }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - id: read
+        run: |
+          version=$(grep -m1 '^version' crates/friction-cli/Cargo.toml | cut -d '"' -f2)
+          if [ -z "$version" ]; then
+            echo "could not read a version from crates/friction-cli/Cargo.toml" >&2
+            exit 1
+          fi
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+          echo "resolved version $version"
+
+      - id: tag
+        run: |
+          if git ls-remote --exit-code --tags origin "refs/tags/v${{ steps.read.outputs.version }}" >/dev/null 2>&1; then
+            echo "should_release=false" >> "$GITHUB_OUTPUT"
+            echo "v${{ steps.read.outputs.version }} is already tagged; nothing to release"
+          else
+            echo "should_release=true" >> "$GITHUB_OUTPUT"
+            echo "v${{ steps.read.outputs.version }} is new; will build and release"
+          fi
+
+  build:
+    name: ${{ matrix.target }}
+    needs: version
+    if: needs.version.outputs.should_release == 'true'
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          # macOS runners are arm64, so the x86_64 build is a cross-compile.
+          # Both work without extra tooling: the crate tree is pure Rust
+          # (flate2 on miniz_oxide, no cc/bindgen), so there is no C
+          # toolchain to arrange per target.
+          - target: aarch64-apple-darwin
+            os: macos-latest
+          - target: x86_64-apple-darwin
+            os: macos-latest
+          - target: x86_64-unknown-linux-gnu
+            os: ubuntu-latest
+          # A statically linked Linux binary, for CI images and containers
+          # that should not care about the host's glibc.
+          - target: x86_64-unknown-linux-musl
+            os: ubuntu-latest
+            packages: musl-tools
+          - target: aarch64-unknown-linux-gnu
+            os: ubuntu-latest
+            packages: gcc-aarch64-linux-gnu
+            linker: aarch64-linux-gnu-gcc
+          - target: x86_64-pc-windows-msvc
+            os: windows-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: ${{ matrix.target }}
+
+      - uses: Swatinem/rust-cache@v2
+        with:
+          key: ${{ matrix.target }}
+
+      - name: install cross-compilation packages
+        if: matrix.packages != ''
+        run: sudo apt-get update && sudo apt-get install -y ${{ matrix.packages }}
+
+      - name: build
+        shell: bash
+        run: |
+          if [ -n "${{ matrix.linker }}" ]; then
+            target_upper=$(echo "${{ matrix.target }}" | tr 'a-z-' 'A-Z_')
+            export "CARGO_TARGET_${target_upper}_LINKER=${{ matrix.linker }}"
+          fi
+          cargo build --release --locked -p friction-cli --target ${{ matrix.target }}
+
+      - name: package
+        shell: bash
+        run: |
+          version="${{ needs.version.outputs.version }}"
+          name="friction-$version-${{ matrix.target }}"
+          mkdir -p "dist/$name"
+
+          if [ "${{ runner.os }}" = "Windows" ]; then
+            cp "target/${{ matrix.target }}/release/friction.exe" "dist/$name/"
+          else
+            cp "target/${{ matrix.target }}/release/friction" "dist/$name/"
+            # Strip on native builds only: the host `strip` does not
+            # understand a foreign object file, and a failed strip should
+            # not fail a release.
+            strip "dist/$name/friction" 2>/dev/null || true
+          fi
+          cp README.md LICENSE-MIT LICENSE-APACHE "dist/$name/"
+
+          cd dist
+          if [ "${{ runner.os }}" = "Windows" ]; then
+            7z a "$name.zip" "$name" >/dev/null
+            certutil -hashfile "$name.zip" SHA256 | sed -n 2p > "$name.zip.sha256"
+          else
+            tar czf "$name.tar.gz" "$name"
+            shasum -a 256 "$name.tar.gz" | cut -d' ' -f1 > "$name.tar.gz.sha256"
+          fi
+          ls -l
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: ${{ matrix.target }}
+          path: |
+            dist/*.tar.gz
+            dist/*.zip
+            dist/*.sha256
+          if-no-files-found: error
+
+  release:
+    name: publish v${{ needs.version.outputs.version }}
+    needs: [version, build]
+    if: needs.version.outputs.should_release == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/download-artifact@v4
+        with:
+          path: dist
+          merge-multiple: true
+
+      - run: ls -l dist
+
+      # Creates the tag as well as the release, which is why nothing tags
+      # by hand.
+      - uses: softprops/action-gh-release@v2
+        with:
+          tag_name: v${{ needs.version.outputs.version }}
+          name: v${{ needs.version.outputs.version }}
+          generate_release_notes: true
+          files: dist/*
+          body: |
+            Prebuilt `friction` binaries. Download the archive for your platform,
+            extract, and put `friction` on your `PATH`.
+
+            Each archive carries a `.sha256` alongside it.
+
+            **macOS:** these binaries are unsigned, so Gatekeeper will refuse the
+            first run. Either `xattr -cr ./friction` or right-click → Open once.
+
+            **Which Linux build:** `musl` is statically linked and does not care
+            about the host's glibc — prefer it for containers and CI images.
+            `gnu` is the ordinary dynamically linked build.
