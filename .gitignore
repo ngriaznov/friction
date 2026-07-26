@@ -28,3 +28,7 @@ tools/gold_dep/__pycache__/
 # the binary.
 crates/friction-nlp/weights/gold_pos_en.tsv
 crates/friction-nlp/weights/gold_dep_en.conllu
+
+# Python bytecode caches
+__pycache__/
+*.pyc

@@ -433,6 +433,27 @@ so mining isolates pure style; the human side of every pair comes exclusively
 from license-vetted, pre-2022 human documents. All tuning uses the train split;
 a sealed holdout is guarded by CI and never touched.
 
+### Evaluation
+
+Measurements live next to the data they describe, and each was produced by a
+command recorded in the file itself:
+
+- [`corpus/HOLDOUT_REPORT.md`](corpus/HOLDOUT_REPORT.md) — the sealed-holdout
+  evaluation. Read once, report-only: no threshold, envelope, or rule was
+  changed in response to anything on that page.
+- [`corpus/SEPARATION.md`](corpus/SEPARATION.md) — per-metric human-vs-machine
+  AUC on the dev split, with the combined score's own AUC.
+- [`corpus/NEARNOOP.md`](corpus/NEARNOOP.md) — what fraction of human corpus
+  sentences receive any edit, per genre.
+- [`corpus/MEANING_AUDIT.md`](corpus/MEANING_AUDIT.md) — a deterministic
+  50-document sample checked for meaning preservation.
+- [`corpus/MINE_INVENTORY.md`](corpus/MINE_INVENTORY.md),
+  [`corpus/MINE_PAIRED.md`](corpus/MINE_PAIRED.md) and
+  [`corpus/OUTPUT_BANDS.md`](corpus/OUTPUT_BANDS.md) — the mining provenance the
+  inventory pack's own entries cite for their corpus counts.
+- [`corpus/STATS.md`](corpus/STATS.md) — corpus composition by class, genre and
+  split.
+
 The tagger and parser are trained from the same corpus, by a pipeline that
 drafts annotations with an offline tool and corrects them mechanically. That
 gold data is **not** committed: it is derived, no build reads it, and every

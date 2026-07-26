@@ -6,6 +6,13 @@ measured. Everything below is report-only — no code, threshold, envelope
 pack, or rule was changed in response to any number on this page, and none
 will be after it either.
 
+> **Note, added later.** The commands cited below run against `friction-apply`,
+> a crate since retired; its patch-resolution and near-no-op machinery now
+> lives in `friction-edit` and `corpus-tool attest --calibrate-near-noop`. The
+> commands are left as they were run. Rewriting them to today's spelling would
+> misrepresent what was actually executed to produce these figures, and the
+> figures are the point of the page.
+
 ## Methodology
 
 One run, no tuning. In order:

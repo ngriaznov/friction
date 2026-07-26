@@ -29,7 +29,7 @@
 /// unwinds all the way up to `libfuzzer-sys`'s own outer `catch_unwind`
 /// (in its `test_input_wrap`), which aborts on `Err` regardless of which
 /// hook is installed — so a genuine, unmitigated panic (anywhere else in
-/// `friction-parse`, `friction-apply`, or any rule family) is still
+/// `friction-parse`, `friction-edit`, or any operation) is still
 /// reported as a crash exactly as before. Only a panic `parse` itself
 /// already catches stops unwinding early and never reaches that outer
 /// boundary.

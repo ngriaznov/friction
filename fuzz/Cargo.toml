@@ -21,7 +21,8 @@ libfuzzer-sys = "0.4"
 arbitrary = { version = "1", features = ["derive"] }
 
 friction-parse = { path = "../crates/friction-parse" }
-friction-apply = { path = "../crates/friction-apply" }
+friction-edit = { path = "../crates/friction-edit" }
+friction-core = { path = "../crates/friction-core" }
 friction-cli = { path = "../crates/friction-cli" }
 
 [[bin]]
