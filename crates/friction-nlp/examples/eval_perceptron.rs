@@ -3,19 +3,17 @@
 //! `# split=test` sentences — the ones `examples/train_perceptron.rs` never
 //! trains on (see `friction_nlp::train_support::parse_gold_file_split`).
 //!
-//! Deliberately does not re-tokenize each test sentence's *original* text:
-//! the gold file stores only `(word, tag)` pairs, not byte spans, so this
+//! The gold file stores only `(word, tag)` pairs, not byte spans, so this
 //! tool reconstructs a single-space-joined pseudo-text from the gold words
-//! and re-tags *that* with the real, public [`PerceptronTagger::tag`] API.
-//! This is exact, not approximate: `tokenize()` (see `src/tag_perceptron.rs`)
-//! splits purely on character class and never merges tokens across
-//! whitespace, so inserting exactly one space between two gold words that
-//! were adjacent (or already separated) in the source sentence can never
-//! change how many tokens result or where they split — the reconstructed
-//! text retokenizes to the exact same token sequence, in the same order,
-//! every time. A per-sentence length/order mismatch would therefore mean a
-//! real bug, not an expected edge case, so this tool asserts against it
-//! rather than silently dropping the sentence.
+//! and re-tags *that* with the real, public [`PerceptronTagger::tag`] API
+//! rather than the original text. This is exact, not approximate:
+//! `tokenize()` (see `src/tag_perceptron.rs`) splits purely on character
+//! class and never merges tokens across whitespace, so inserting one
+//! space between two gold words can never change how many tokens result
+//! or where they split — the reconstructed text retokenizes to the exact
+//! same token sequence every time. A per-sentence length/order mismatch
+//! therefore means a real bug, so this tool asserts against it rather
+//! than silently dropping the sentence.
 //!
 //! ```text
 //! cargo run -p friction-nlp --example eval_perceptron --features train-tooling -- \

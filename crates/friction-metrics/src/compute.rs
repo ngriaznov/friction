@@ -1,17 +1,12 @@
 //! The document → [`MetricVector`] compute boundary: wires the rhythm,
-//! lexical, symmetry, and signals metric families together into one
-//! fully-populated vector, both for a whole document and for each of its
-//! paragraphs individually.
+//! lexical, symmetry, and signals metric families into one vector, for a
+//! whole document or per paragraph.
 //!
-//! [`compute`] and [`compute_by_paragraph`] are the only two entry points
-//! other crates need: each takes a [`Document`] as produced by
-//! `friction-parse::parse` — block/prose structure extracted, but not yet
-//! sentence-segmented — plus the two `friction-nlp` components every
-//! metric family here needs (a [`Segmenter`] to fill in sentence
-//! boundaries, a [`Tagger`] for the symmetry family's part-of-speech
-//! lookups), and returns a complete vector. Callers never need to remember
-//! to segment a document themselves before computing its metrics, or to
-//! know which of the twenty-one fields comes from which family.
+//! [`compute`] and [`compute_by_paragraph`] take a [`Document`] from
+//! `friction-parse::parse` (structure extracted, not yet sentence-
+//! segmented) plus a [`Segmenter`] and a [`Tagger`], and return a complete
+//! vector — callers never segment manually or track which field belongs to
+//! which family.
 
 use friction_core::{Block, Document, MetricVector, ProseUnit};
 use friction_nlp::{Segmenter, Tagger, segment_document};
@@ -31,21 +26,14 @@ use crate::symmetry::{bullet_parallelism, participial_closer_rate, triad_rate};
 /// Computes the full 21-field [`MetricVector`] for `document`, document-wide.
 ///
 /// Segments `document` with `segmenter` first (`document` itself is left
-/// untouched — this operates on the segmented copy), then computes every
-/// metric family's document-level function over the result: the three
-/// [`sentence_length_by_document`] fields, [`paragraph_shape`]'s mean/cv,
-/// the two punctuation densities, and [`crate::rhythm`]'s own contribution
-/// from the rhythm family; the four lexical-marker rates/ratios/densities
-/// from [`crate::lexical`]; the three tagger-dependent structural rates
-/// from [`crate::symmetry`]; and the seven structural/mined-phrase/opener
-/// signals from [`crate::signals`]. Every one of [`MetricVector`]'s
-/// twenty-one fields is written by exactly one of those calls.
+/// untouched), then runs every metric family's document-level function over
+/// the result — see [`compute_segmented`] for which field comes from which
+/// family.
 ///
 /// # Panics
 /// Panics if `segmenter` produces a sentence range that escapes its prose
 /// unit or the document's bounds — a bug in the `Segmenter` implementation
-/// itself (every implementation `friction-nlp` ships is well-behaved and
-/// cannot trigger this; see [`friction_nlp::segment_document`]'s own docs).
+/// itself; every implementation `friction-nlp` ships is well-behaved.
 #[must_use]
 pub fn compute(
     document: &Document,
@@ -63,22 +51,17 @@ pub fn compute(
 /// order.
 ///
 /// A paragraph is a [`friction_core::ProseUnit`] that segments to at least
-/// one sentence; a paragraph with none (e.g. a heading that segmented to
-/// zero complete sentences) contributes no entry — the same convention
-/// [`crate::rhythm::sentence_length_by_paragraph`] and
-/// [`crate::rhythm::paragraph_shape`] already use.
+/// one sentence; one with none (e.g. a heading) contributes no entry — same
+/// convention as [`crate::rhythm::sentence_length_by_paragraph`] and
+/// [`crate::rhythm::paragraph_shape`].
 ///
-/// Each paragraph's vector is [`compute_segmented`] run on a
-/// single-paragraph sub-document built from that paragraph's own block and
-/// (already-segmented) prose unit, so every metric family's document-wide
-/// definition also serves, unmodified, as its paragraph-scoped definition —
-/// there is no separate per-paragraph implementation of any of the
-/// fourteen metrics to keep in sync with the document-wide one.
-/// `paragraph_shape_mean`/`paragraph_shape_cv` degenerate accordingly: a
-/// one-paragraph sub-document has exactly one paragraph-shape observation,
-/// so `paragraph_shape_mean` is that paragraph's own sentence count and
-/// `paragraph_shape_cv` is `0.0` (the single-observation convention, not a
-/// special case — see [`crate::rhythm::RhythmStats`]).
+/// Each vector is [`compute_segmented`] run on a single-paragraph
+/// sub-document, so every family's document-wide definition also serves,
+/// unmodified, as its paragraph-scoped one — no separate per-paragraph
+/// implementation to keep in sync. `paragraph_shape_mean`/`_cv` degenerate
+/// accordingly: one paragraph-shape observation, so mean is that
+/// paragraph's sentence count and cv is `0.0` (the single-observation
+/// convention — see [`crate::rhythm::RhythmStats`]).
 ///
 /// # Panics
 /// Panics under the same well-behaved-`Segmenter` condition as [`compute`].
@@ -100,10 +83,10 @@ pub fn compute_by_paragraph(
         .collect()
 }
 
-/// The shared core of [`compute`] and [`compute_by_paragraph`]: computes
-/// every metric family's document-level function over an already-segmented
-/// `document`, and assembles the result into one [`MetricVector`]. See
-/// [`compute`] for which field comes from which family.
+/// The shared core of [`compute`] and [`compute_by_paragraph`]: runs every
+/// metric family's document-level function over an already-segmented
+/// `document` and assembles the result into one [`MetricVector`]. Each
+/// field below is written by exactly one family's call.
 fn compute_segmented(document: &Document, tagger: &dyn Tagger) -> MetricVector {
     let sentence_stats = sentence_length_by_document(document);
     let shape_stats = paragraph_shape(document);
@@ -133,17 +116,14 @@ fn compute_segmented(document: &Document, tagger: &dyn Tagger) -> MetricVector {
 }
 
 /// Builds a single-paragraph sub-document from `unit`, one of `document`'s
-/// own prose units: the same source text (an `Arc<str>` clone via
-/// [`Document::source_arc`], so this is cheap), one block (`unit`'s own
-/// owning block, re-indexed to `0`), and one prose unit (`unit` itself,
-/// re-parented to that block, sentences and all).
+/// own prose units: shared source text ([`Document::source_arc`] clone, so
+/// cheap), one block (`unit`'s owning block, re-indexed to `0`), and one
+/// prose unit (`unit` re-parented to that block).
 ///
 /// # Panics
-/// Never, for a `unit` that actually came from `document.prose()`: its
-/// block index and range were already validated against `document` when
-/// `document` itself was constructed, and copying that same block/range
-/// pair unchanged into a fresh single-block document cannot fail that same
-/// validation.
+/// Never, for a `unit` from `document.prose()`: its block index and range
+/// were already validated against `document`, and copying that same pair
+/// unchanged into a fresh single-block document can't fail the same check.
 fn single_paragraph_document(document: &Document, unit: &ProseUnit) -> Document {
     let block: Block = document.blocks()[unit.block].clone();
     let sub_unit = ProseUnit::new(0, unit.range.clone(), unit.sentences.clone());
@@ -158,15 +138,13 @@ mod tests {
 
     use super::*;
 
-    /// A stub [`Segmenter`] that always segments an entire prose unit's
-    /// text into one sentence spanning it in full — enough structure for
-    /// `compute` to walk without depending on the real SRX ruleset.
+    /// Stub [`Segmenter`]: one sentence spanning the whole text — enough
+    /// structure for `compute` to walk without the real SRX ruleset.
     struct WholeUnitSegmenter;
 
     impl Segmenter for WholeUnitSegmenter {
-        // A one-sentence-per-unit stub deliberately returns a one-element
-        // `Vec<Range<usize>>`, not a `Vec` clippy could mistake for meaning
-        // "the whole range as a sequence of indices".
+        // Deliberately a one-element `Vec<Range<usize>>`, not a range
+        // clippy could mistake for "whole range as index sequence".
         #[allow(clippy::single_range_in_vec_init)]
         fn segment(&self, text: &str, base_offset: usize) -> Vec<std::ops::Range<usize>> {
             if text.trim().is_empty() {
@@ -177,10 +155,9 @@ mod tests {
         }
     }
 
-    /// A stub [`Tagger`] that tags every non-empty token span as a plain
-    /// noun (`"NN"`), the least eventful tag for the symmetry family's
-    /// purposes here — these fixtures only check that `compute` reaches
-    /// every field, not any tagger-quality-dependent symmetry value.
+    /// Stub [`Tagger`]: tags every token `"NN"`, the least eventful tag —
+    /// these fixtures check that `compute` reaches every field, not any
+    /// tagger-quality-dependent symmetry value.
     struct FlatNounTagger;
 
     impl Tagger for FlatNounTagger {
@@ -214,43 +191,37 @@ mod tests {
         }
     }
 
-    /// `compute` reaches every one of the twenty-one fields, wired to the
-    /// right family: hand-computed against one single-sentence, single-
-    /// paragraph document under the stub segmenter/tagger above.
+    /// `compute` reaches all twenty-one fields, wired to the right family —
+    /// hand-computed against one single-sentence, single-paragraph document
+    /// under the stub segmenter/tagger above.
     ///
     /// Source: `"However, it can't stop — it just keeps going; still
-    /// going."`, one paragraph, segmented (by [`WholeUnitSegmenter`]) to
-    /// exactly one sentence spanning the whole paragraph.
+    /// going."`, segmented (by [`WholeUnitSegmenter`]) to one sentence
+    /// spanning the whole paragraph.
     ///
-    /// - `sentence_length_mean/stddev/cv`: whitespace-token count of the
-    ///   one sentence is 11 (`However,`, `it`, `can't`, `stop`, `—`, `it`,
-    ///   `just`, `keeps`, `going;`, `still`, `going.`); a single
+    /// - `sentence_length_mean/stddev/cv`: 11 whitespace tokens; single
     ///   observation, so `stddev = cv = 0.0`.
-    /// - `discourse_marker_density`: the sentence starts with `"However"`
-    ///   (1 marked sentence); [`crate::lexical`]'s own word-token count
-    ///   (alphabetic runs, dropping punctuation and the em dash) is 10
-    ///   (`however, it, can't, stop, it, just, keeps, going, still,
-    ///   going`) — density `= 1 * 1000 / 10 = 100.0`.
-    /// - `contraction_ratio`: `"can't"` is the only contracted or
-    ///   contractible form present (`1 / (1 + 0) = 1.0`).
-    /// - `em_dash_density`/`semicolon_density`: one literal em dash and one
-    ///   semicolon, over the same 11 whitespace tokens: `1000 / 11` each.
-    /// - `paragraph_shape_mean/cv`: one paragraph with one sentence: mean
-    ///   `1.0`, `cv = 0.0` (single-observation convention).
+    /// - `discourse_marker_density`: opens with `"However"` (1 marked
+    ///   sentence) over 10 word tokens — `1 * 1000 / 10 = 100.0`.
+    /// - `contraction_ratio`: `"can't"` is the only contracted/contractible
+    ///   form — `1 / (1 + 0) = 1.0`.
+    /// - `em_dash_density`/`semicolon_density`: one dash, one semicolon,
+    ///   over 11 tokens — `1000 / 11` each.
+    /// - `paragraph_shape_mean/cv`: one paragraph, one sentence — mean
+    ///   `1.0`, `cv = 0.0`.
     /// - `triad_rate`/`participial_closer_rate`/`bullet_parallelism`: no
-    ///   coordinator, no trailing-comma-`VBG`, no list at all — all `0.0`
-    ///   regardless of the stub tagger's uniform `"NN"` tagging.
-    /// - `not_just_but_rate`/`ritual_marker_rate`: no matching pattern,
-    ///   no ritual open/close phrase — both `0.0`.
-    /// - `llm_favored_phrase_rate`/`human_favored_phrase_rate`: none of
-    ///   this sentence's word tokens or adjacent-token bigrams match any
-    ///   curated mined-pack entry — both `0.0`.
+    ///   coordinator, trailing-comma-`VBG`, or list — all `0.0` regardless
+    ///   of the stub tagger's uniform `"NN"` tag.
+    /// - `not_just_but_rate`/`ritual_marker_rate`: no matching pattern —
+    ///   both `0.0`.
+    /// - `llm_favored_phrase_rate`/`human_favored_phrase_rate`: no word or
+    ///   bigram matches a curated mined-pack entry — both `0.0`.
     /// - `heading_density`/`list_item_density`/`bold_span_density`: no
-    ///   heading, list, or bold markup at all — all `0.0`.
-    /// - `sentence_opener_repeat_rate`: only one sentence, so no
-    ///   consecutive pair exists — `0.0`.
-    /// - `top_opener_concentration`: the one sentence's leading unigram
-    ///   ("however") is the only opener observed — `1 / 1 = 1.0`.
+    ///   markup — all `0.0`.
+    /// - `sentence_opener_repeat_rate`: one sentence, no consecutive pair —
+    ///   `0.0`.
+    /// - `top_opener_concentration`: one opener observed ("however") —
+    ///   `1 / 1 = 1.0`.
     #[test]
     fn compute_reaches_every_metric_family() {
         const EPSILON: f64 = 1e-9;
@@ -292,9 +263,8 @@ mod tests {
         }
     }
 
-    /// `compute_by_paragraph` returns one vector per non-empty paragraph,
-    /// in source order, skipping a heading-only prose unit that segments
-    /// to zero sentences under a segmenter that refuses blank text.
+    /// One vector per non-empty paragraph, in source order — skips a
+    /// heading-only unit that segments to zero sentences.
     #[test]
     fn compute_by_paragraph_returns_one_vector_per_sentence_bearing_paragraph() {
         let source = "First paragraph here.\n\nSecond paragraph, quite different.\n";
@@ -303,9 +273,8 @@ mod tests {
         assert_eq!(vectors.len(), 2);
     }
 
-    /// An empty document yields an empty per-paragraph vector list, and a
-    /// document-level vector that is all-zero (the degenerate-input
-    /// convention every metric family already documents on its own).
+    /// Empty document: empty per-paragraph list, all-zero document vector
+    /// (the degenerate-input convention every family documents itself).
     #[test]
     fn compute_handles_empty_document() {
         let document = friction_parse::parse("").expect("empty source parses");
@@ -314,10 +283,8 @@ mod tests {
         assert!(compute_by_paragraph(&document, &WholeUnitSegmenter, &FlatNounTagger).is_empty());
     }
 
-    /// Every metric a single-sentence document produces document-wide is
-    /// reproduced exactly by `compute_by_paragraph` for that document's
-    /// one paragraph — a single-paragraph document has no cross-paragraph
-    /// signal to lose, so the two must agree field-for-field.
+    /// A single-paragraph document has no cross-paragraph signal to lose,
+    /// so `compute_by_paragraph` must agree field-for-field with `compute`.
     #[test]
     fn compute_by_paragraph_matches_compute_for_a_single_paragraph_document() {
         let source = "The kit includes screws, bolts, and washers.";
@@ -327,9 +294,8 @@ mod tests {
         assert_eq!(by_paragraph, vec![whole]);
     }
 
-    /// A dummy sentence/token pair used only to exercise
-    /// `single_paragraph_document`'s block re-indexing directly, bypassing
-    /// segmentation entirely.
+    /// Exercises `single_paragraph_document`'s block re-indexing directly,
+    /// bypassing segmentation.
     #[test]
     fn single_paragraph_document_reindexes_block_to_zero() {
         let source = "Paragraph one.\n\nParagraph two.\n";

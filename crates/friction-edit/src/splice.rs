@@ -1,20 +1,17 @@
 //! [`SentenceSplicer`]: the byte-honest working-text primitive.
 //!
-//! It lets the per-sentence pipeline (see `crate::sentence`) match and
-//! gate against a progressively-mutated working string — the same way
-//! the reference engine's `fix_sentence` sequentially rewrites its own
-//! `s` variable — while still emitting `Patch`es against the *original*
-//! document bytes.
+//! Lets the per-sentence pipeline match and gate against a
+//! progressively-mutated working string — the same way the reference
+//! engine's `fix_sentence` rewrites its own `s` variable — while still
+//! emitting `Patch`es against the *original* document bytes.
 //!
-//! A sentence's working text is modeled as an ordered chain of chunks:
-//! either an untouched slice of the original source (still
-//! byte-addressable back into the document) or a fixed replacement string
-//! from an already-applied earlier-stage edit (no original-byte
-//! correspondence). [`SentenceSplicer::apply`] always resolves a
-//! working-text range against this chain, so a later stage can keep
-//! matching against `working_text()` (the current mutated string) while
-//! every accepted edit still lands as one honest `Patch` against the
-//! document's own bytes.
+//! A sentence's working text is an ordered chain of chunks: an untouched
+//! slice of the original source (byte-addressable back into the
+//! document), or a fixed replacement string from an earlier edit (no
+//! original-byte correspondence). [`SentenceSplicer::apply`] resolves a
+//! working-text range against this chain, so a later stage keeps
+//! matching against `working_text()` while every accepted edit still
+//! lands as one honest `Patch` against the document's own bytes.
 
 use std::ops::Range;
 
@@ -48,12 +45,10 @@ impl Chunk {
 
 /// The byte-honest working-text splicer for one sentence.
 ///
-/// `new` seeds the chunk chain with a single [`Chunk::Original`] spanning
-/// the whole sentence; each accepted [`Self::apply`] call splits the chunk
-/// containing `working_range` into up to three pieces (before / the new
-/// replacement / after), recording one [`Patch`] against the document's
-/// original bytes. `working_text()` always reflects every accepted edit so
-/// far.
+/// `new` seeds the chain with a single [`Chunk::Original`] spanning the
+/// whole sentence; each accepted [`Self::apply`] splits the chunk
+/// containing `working_range` into up to three pieces (before / new
+/// replacement / after), recording one [`Patch`] against the original bytes.
 pub struct SentenceSplicer<'src> {
     source: &'src str,
     opening_start: usize,
@@ -90,11 +85,10 @@ impl<'src> SentenceSplicer<'src> {
     /// original bytes and reshaping the chunk chain.
     ///
     /// `working_range` must fall entirely within a single
-    /// [`Chunk::Original`] piece — guaranteed in practice by pack
-    /// disjointness (an operation never matches text an earlier operation
-    /// just introduced). Returns `false` without mutating anything if this
-    /// invariant is violated (an engine bug); debug builds additionally
-    /// assert.
+    /// [`Chunk::Original`] piece — guaranteed by pack disjointness (an
+    /// operation never matches text an earlier operation just introduced).
+    /// Returns `false` without mutating anything if violated; debug
+    /// builds additionally assert.
     pub fn apply(
         &mut self,
         working_range: Range<usize>,

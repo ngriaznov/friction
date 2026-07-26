@@ -141,7 +141,7 @@ fn reject_fixture_pivot_trap_passive() {
 /// textually valid. The only thing wrong with it is that it is a heading,
 /// not prose (gate 7), and nothing in this crate is block-type-aware.
 /// Rather than force a false "rejected" claim, this test demonstrates the
-/// trap's actual mechanism instead of asserting a rejection this milestone
+/// trap's actual mechanism instead of asserting a rejection the engine
 /// cannot produce: a real rejection needs a block-tree-aware engine, out
 /// of scope here.
 #[test]

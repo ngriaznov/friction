@@ -16,14 +16,14 @@ use crate::segment::Segmenter;
 const RULESET_XML: &str = include_str!("../data/friction-en.srx");
 
 /// Parses [`RULESET_XML`] and extracts its English rules, once, caching
-/// the result for the lifetime of the process.
+/// the result for the process lifetime.
 ///
 /// # Panics
 /// Panics if [`RULESET_XML`] fails to parse as valid SRX or contains a
 /// rule whose regex fails to compile. Both are invariants of the vendored
-/// file this crate ships and controls; `segment_srx::tests::ruleset_parses`
-/// below exercises exactly this parse so a broken ruleset fails CI rather
-/// than surfacing here at first use.
+/// file this crate ships; `segment_srx::tests::ruleset_parses` below
+/// exercises exactly this parse so a broken ruleset fails CI rather than
+/// surfacing here at first use.
 fn english_rules() -> &'static srx::Rules {
     static RULES: OnceLock<srx::Rules> = OnceLock::new();
     RULES.get_or_init(|| {
@@ -43,9 +43,8 @@ fn english_rules() -> &'static srx::Rules {
 /// initials and letter-abbreviated acronyms ("J. R. R. Tolkien", "U.S."),
 /// decimals ("3.14", never followed by whitespace so never a candidate
 /// split point), and ellipses continuing into a lowercase word. See
-/// `data/friction-en.srx`'s header comment for the full rule cascade and
-/// its rationale, and `tests/segment_golden.rs` for the golden sentence
-/// set it is verified against.
+/// `data/friction-en.srx`'s header comment for the full rule cascade, and
+/// `tests/segment_golden.rs` for the golden set it's verified against.
 ///
 /// Stateless and `Copy`; construct with [`SrxSegmenter::new`] or
 /// [`SrxSegmenter::default`].
@@ -55,10 +54,9 @@ pub struct SrxSegmenter;
 impl SrxSegmenter {
     /// Creates a new SRX-backed segmenter.
     ///
-    /// The ruleset itself is embedded in the binary; parsing it and
-    /// compiling its rules' regexes happens lazily, once, on first use of
-    /// any `SrxSegmenter` instance (see [`english_rules`]), not on every
-    /// construction.
+    /// The ruleset is embedded in the binary; parsing it and compiling its
+    /// regexes happens lazily, once, on first use of any `SrxSegmenter`
+    /// instance (see [`english_rules`]), not on every construction.
     #[must_use]
     pub const fn new() -> Self {
         Self
@@ -80,11 +78,10 @@ impl Segmenter for SrxSegmenter {
 /// returning `None` if nothing but whitespace remains (the gap between
 /// two paragraphs, or trailing whitespace after the last sentence).
 ///
-/// The SRX split algorithm returns segments that include a sentence's
-/// leading whitespace (the gap since the previous sentence, since the
-/// break index sits at the *start* of that whitespace run); trimming
-/// gives each sentence range the tight span a consumer expects, with no
-/// leading or trailing space.
+/// The SRX split algorithm returns segments including a sentence's
+/// leading whitespace (the break index sits at the *start* of that
+/// whitespace run); trimming gives each sentence the tight span a
+/// consumer expects.
 fn trim_whitespace(text: &str, range: Range<usize>) -> Option<Range<usize>> {
     let slice = text.get(range.clone())?;
     let leading = slice.len() - slice.trim_start().len();

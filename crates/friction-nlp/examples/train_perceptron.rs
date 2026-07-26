@@ -31,8 +31,8 @@ const TRAIN_SPLIT: &str = "train";
 /// The deterministic passthrough tag a non-`Word` gold token must already
 /// carry — computed the same way `PerceptronTagger::tag` assigns it at
 /// inference, so a gold-file curation mistake (a punctuation line tagged
-/// with something other than its deterministic tag, say) is caught here
-/// rather than silently training the model on it.
+/// with something other than its deterministic tag) is caught here rather
+/// than silently trained on.
 fn expected_passthrough_tag(word: &str, kind: TokenKind) -> Option<String> {
     match kind {
         TokenKind::Number => Some("CD".to_string()),
@@ -53,9 +53,9 @@ const TAGDICT_MIN_PURITY: f64 = 0.97;
 type GoldSentences = Vec<friction_nlp::train_support::GoldSentence>;
 
 /// Only `Word`-token gold tags become model classes: the perceptron is
-/// never asked to score a non-word token (see [`expected_passthrough_tag`]
-/// above), so its class set should not carry punctuation/number/symbol
-/// passthrough values either.
+/// never asked to score a non-word token (see [`expected_passthrough_tag`]),
+/// so its class set shouldn't carry punctuation/number/symbol passthrough
+/// values either.
 fn observed_word_classes(sentences: &GoldSentences) -> Vec<Box<str>> {
     let mut set: std::collections::BTreeSet<Box<str>> = std::collections::BTreeSet::new();
     for sentence in sentences {
@@ -89,8 +89,8 @@ fn word_tag_counts(sentences: &GoldSentences) -> BTreeMap<String, BTreeMap<Strin
 
 /// Every non-word gold entry must already carry the exact deterministic
 /// passthrough tag inference will assign it — verified once, up front, so
-/// a curation mistake fails loudly instead of quietly training the model
-/// on a token it will never actually be asked to score.
+/// a curation mistake fails loudly instead of quietly training on a token
+/// it will never actually be asked to score.
 fn assert_passthrough_tags_are_consistent(sentences: &GoldSentences) {
     for sentence in sentences {
         for (word, tag) in sentence {
@@ -107,9 +107,9 @@ fn assert_passthrough_tags_are_consistent(sentences: &GoldSentences) {
 }
 
 /// Runs [`EPOCHS`] fixed, unshuffled passes over `sentences`, training
-/// `model` on every `Word` token and threading its own live prediction (not
-/// the gold tag) into tag-history context for every token — matching
-/// `PerceptronTagger::tag`'s own inference-time convention exactly.
+/// `model` on every `Word` token and threading its own live prediction
+/// (not the gold tag) into tag-history context — matching
+/// `PerceptronTagger::tag`'s inference-time convention exactly.
 fn train_epochs(model: &mut AveragedPerceptron, sentences: &GoldSentences) {
     for epoch in 0..EPOCHS {
         let mut correct = 0usize;
@@ -199,12 +199,11 @@ fn main() {
 
 fn sha256_hex(bytes: &[u8]) -> String {
     use std::fmt::Write as _;
-    // A tiny, dependency-free sha256 would be a lot of code for a one-off
-    // reporting line; this tool already runs offline and by hand, so
-    // shelling out to the system `shasum`/`sha256sum` (present on every
-    // platform this workspace targets) is a pragmatic substitute for
-    // pulling in a hashing crate here. Falls back to a placeholder rather
-    // than panicking if neither is on PATH.
+    // A dependency-free sha256 would be a lot of code for a one-off
+    // reporting line; shelling out to `shasum`/`sha256sum` (present on
+    // every platform this workspace targets) is a pragmatic substitute.
+    // Falls back to a placeholder rather than panicking if neither is on
+    // PATH.
     for (cmd, args) in [("shasum", &["-a", "256"][..]), ("sha256sum", &[])] {
         if let Ok(mut child) = std::process::Command::new(cmd)
             .args(args)

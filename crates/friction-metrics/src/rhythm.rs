@@ -3,74 +3,56 @@
 //!
 //! # Token definition
 //!
-//! Every function in this module that counts tokens — sentence length in
-//! tokens, and the "per 1000 tokens" densities — uses the same definition:
-//! a token is a maximal run of non-whitespace characters, exactly what
-//! [`str::split_whitespace`] yields. This is deliberately independent of
-//! any tagger or dependency parser: it is a pure function of a sentence's
-//! own source text, so these metrics never depend on whether tokenization
-//! or POS tagging has been run over the document.
+//! Every token count here uses the same definition — a maximal run of
+//! non-whitespace characters, what [`str::split_whitespace`] yields —
+//! independent of any tagger or parser (a pure function of source text).
 //!
 //! # Determinism
 //!
-//! Every function here is a pure function of its [`Document`] argument.
-//! Observations (sentence lengths, sentence-per-paragraph counts, dash/
-//! semicolon occurrences) are always gathered by walking `document.prose()`
-//! and each unit's `sentences` in order — never through a `HashMap` or any
-//! other unordered collection — and floating-point sums fold left to
-//! right over that same order, so identical input always produces
-//! bit-identical output on any platform.
+//! Every function is a pure function of its [`Document`] argument:
+//! observations are walked from `document.prose()`/`sentences` in order,
+//! never via a `HashMap` or other unordered collection, and
+//! floating-point sums fold left to right, so identical input always
+//! produces bit-identical output.
 //!
 //! # Degenerate cases
 //!
-//! No function in this module ever returns `NaN` or `inf`. See
-//! [`RhythmStats`]'s docs for the mean/stddev/CV conventions on empty and
-//! single-observation inputs, and [`em_dash_density`]/[`semicolon_density`]
-//! for the empty-document (zero-token) convention.
+//! No function here returns `NaN` or `inf`. See [`RhythmStats`] for
+//! empty/single-observation conventions, and
+//! [`em_dash_density`]/[`semicolon_density`] for the empty-document
+//! convention.
 
 use friction_core::{Document, Sentence};
 
 /// Mean, population standard deviation, and coefficient of variation
-/// (`stddev / mean`) over a list of numeric observations, plus the
-/// observation count they were computed from.
+/// (`stddev / mean`) over a list of observations, plus the count they
+/// were computed from.
 ///
 /// # Degenerate cases
 ///
-/// - **Zero observations** (`n == 0`, e.g. a document with no sentences):
-///   `mean`, `stddev`, and `cv` are all `0.0`. There is no shape to report
-///   for an empty input, and `0.0` keeps every value a plain, usable
-///   number instead of a `NaN` that would poison anything computed from it
-///   downstream (a [`friction_core::MetricVector`] field, an envelope
-///   comparison, ...).
-/// - **A single observation** (`n == 1`): `stddev` is exactly `0.0` (one
-///   point has no spread to measure), so `cv` is `0.0` too — this falls
-///   out of the same formula used for `n > 1`, it is not a special case.
-/// - **`mean` is exactly `0.0`** (every observation is `0.0`): `cv` is
-///   defined as `0.0` rather than `stddev / 0.0`, which would otherwise be
-///   `NaN` (when `stddev` is also `0.0`) or `inf`.
+/// - **`n == 0`**: `mean`/`stddev`/`cv` are `0.0` — avoids `NaN`
+///   poisoning downstream computations.
+/// - **`n == 1`**: `stddev` is `0.0` (no spread), so `cv` is too — same
+///   formula as `n > 1`, not a special case.
+/// - **`mean == 0.0`**: `cv` is `0.0`, not `stddev / 0.0` (`NaN`/`inf`).
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub struct RhythmStats {
     /// Arithmetic mean of the observations.
     pub mean: f64,
-    /// Population standard deviation: divides the sum of squared
-    /// deviations by `n`, not `n - 1`. These metrics describe the shape of
-    /// the document or paragraph actually observed, not an estimate of
-    /// some larger population it was sampled from, so the population
-    /// (not sample) formula is the correct one.
+    /// Population standard deviation: divides by `n`, not `n - 1` — this
+    /// is the document/paragraph actually observed, not a sample.
     pub stddev: f64,
     /// Coefficient of variation, `stddev / mean`. See "Degenerate cases"
     /// on this type for when `mean` is `0.0`.
     pub cv: f64,
-    /// Number of observations `mean`, `stddev`, and `cv` were computed
-    /// from.
+    /// Observation count `mean`, `stddev`, and `cv` were computed from.
     pub n: usize,
 }
 
 impl RhythmStats {
     /// Computes mean, population standard deviation, and coefficient of
-    /// variation over `values`, summing left to right in the order given
-    /// (index `0` first) so the result is bit-for-bit reproducible
-    /// regardless of platform or thread count.
+    /// variation over `values`, summing left to right (index `0` first)
+    /// for bit-for-bit reproducibility.
     fn from_observations(values: &[f64]) -> Self {
         let n = values.len();
         if n == 0 {
@@ -96,9 +78,8 @@ impl RhythmStats {
     }
 }
 
-/// Counts the tokens in `text`: maximal runs of non-whitespace characters
-/// (see the module docs for why this definition, rather than a tagger's,
-/// is used here).
+/// Counts tokens in `text`: maximal runs of non-whitespace characters (see
+/// module docs for why, not a tagger's definition).
 fn token_count(text: &str) -> usize {
     text.split_whitespace().count()
 }
@@ -106,19 +87,17 @@ fn token_count(text: &str) -> usize {
 /// The source text of `sentence`, sliced from `document`.
 ///
 /// # Panics
-/// Never, for any `sentence` that actually belongs to `document`: every
-/// sentence range reachable from `document.prose()` was already validated
-/// (in-bounds, on a UTF-8 boundary, contained in its parent) by
-/// [`Document::new`] at construction time, so [`Document::text`] cannot
-/// fail for it.
+/// Never, for any `sentence` belonging to `document`: [`Document::new`]
+/// validates every sentence range (in-bounds, UTF-8 boundary, contained
+/// in its parent) at construction, so [`Document::text`] cannot fail.
 fn sentence_text<'doc>(document: &'doc Document, sentence: &Sentence) -> &'doc str {
     document
         .text(&sentence.range)
         .expect("sentence ranges are validated by Document::new at construction")
 }
 
-/// Every sentence length in `document`, in tokens, in source order
-/// (walking each prose unit, then each of its sentences, in order).
+/// Every sentence length in `document`, in tokens, source order (each
+/// prose unit, then its sentences).
 fn document_sentence_lengths(document: &Document) -> Vec<f64> {
     document
         .prose()
@@ -133,16 +112,13 @@ fn document_sentence_lengths(document: &Document) -> Vec<f64> {
 }
 
 /// Sentence length (in tokens) [`RhythmStats`] over every sentence in
-/// `document`, document-wide.
+/// `document`.
 ///
 /// # Example (hand-computed)
 ///
-/// Three sentences with lengths 3, 10, and 3 tokens:
-/// `mean = 16/3 ≈ 5.333333`; squared deviations `(3 − 16/3)² = 49/9`,
-/// `(10 − 16/3)² = 196/9`, `(3 − 16/3)² = 49/9`, summing to `294/9`;
-/// `variance = (294/9) / 3 = 294/27 ≈ 10.888889`; `stddev = √variance ≈
-/// 3.299832`; `cv = stddev / mean ≈ 0.618718`. See the unit test of the
-/// same name for the executable version of this derivation.
+/// Lengths 3, 10, 3: `mean = 16/3 ≈ 5.333333`, `variance = 294/27 ≈
+/// 10.888889`, `stddev ≈ 3.299832`, `cv ≈ 0.618718`. Unit test of the
+/// same name: executable version.
 #[must_use]
 pub fn sentence_length_by_document(document: &Document) -> RhythmStats {
     RhythmStats::from_observations(&document_sentence_lengths(document))
@@ -151,13 +127,10 @@ pub fn sentence_length_by_document(document: &Document) -> RhythmStats {
 /// Sentence length (in tokens) [`RhythmStats`] computed separately for
 /// each paragraph in `document`, in source order.
 ///
-/// A paragraph is one [`friction_core::ProseUnit`] — a maximal contiguous
-/// run of prose text, as produced by `friction-parse`. Paragraphs with no
-/// sentences (e.g. a heading whose text segmented to zero complete
-/// sentences) contribute no entry to the returned `Vec`: there is no
-/// sentence-length shape to report for them, and inventing an all-zero
-/// entry would misrepresent an actual zero-sentence paragraph as if it
-/// were a paragraph with one zero-token sentence.
+/// A paragraph is one [`friction_core::ProseUnit`]. Paragraphs with no
+/// sentences (e.g. a heading) get no entry: an all-zero entry would
+/// misrepresent a zero-sentence paragraph as one with a single
+/// zero-token sentence.
 #[must_use]
 pub fn sentence_length_by_paragraph(document: &Document) -> Vec<RhythmStats> {
     document
@@ -179,16 +152,12 @@ pub fn sentence_length_by_paragraph(document: &Document) -> Vec<RhythmStats> {
         .collect()
 }
 
-/// Paragraph-shape [`RhythmStats`]: mean and coefficient of variation of
-/// sentences-per-paragraph.
+/// Paragraph-shape [`RhythmStats`] (mean/cv of sentences-per-paragraph)
+/// over paragraphs in `document` with at least one sentence (see
+/// [`sentence_length_by_paragraph`] for why), in source order.
 ///
-/// Computed over every paragraph in `document` that has at least one
-/// sentence (see [`sentence_length_by_paragraph`] for why zero-sentence
-/// paragraphs are excluded), in source order.
-///
-/// `stddev` is reported alongside `mean`/`cv` like every [`RhythmStats`],
-/// but the metric vector only surfaces `mean` and `cv` for paragraph
-/// shape.
+/// `stddev` is reported like any [`RhythmStats`], but the metric vector
+/// only surfaces `mean` and `cv` here.
 #[must_use]
 pub fn paragraph_shape(document: &Document) -> RhythmStats {
     let counts: Vec<f64> = document
@@ -208,49 +177,40 @@ pub fn paragraph_shape(document: &Document) -> RhythmStats {
 }
 
 /// Em-dash density: occurrences per 1000 tokens, over every sentence in
-/// `document`, document-wide.
+/// `document`.
 ///
-/// Two surface forms each count as one em-dash occurrence:
-/// - the literal em dash character (`—`, U+2014);
-/// - a double-hyphen surrogate (`--`, exactly two ASCII hyphen-minus
-///   characters — a run of one or of three-or-more does not count) that
-///   sits between two words: the nearest non-space character on each side
-///   (looking one character past a single flanking space, if there is
-///   one) must be alphanumeric. This covers both the spaced
-///   (`"word -- word"`) and unspaced (`"word--word"`) typewriter
-///   conventions for an em dash, while excluding a `--` at the very start
-///   or end of a sentence (no word on that side) and a `---` thematic-
-///   break-style run.
+/// Counts as one occurrence: the literal em dash (`—`, U+2014), or a
+/// double-hyphen surrogate (`--`, exactly two ASCII hyphens, no more or
+/// fewer) between two words — the nearest non-space character on each
+/// side (skipping at most one flanking space) must be alphanumeric.
+/// Covers `"word -- word"` / `"word--word"`, excludes a leading/trailing
+/// `--` and a `---` run.
 ///
-/// `tokens` is the same whitespace-token count [`sentence_length_by_document`]
-/// uses. An empty document (zero tokens) has density `0.0`, not `NaN`.
+/// `tokens` is the same count [`sentence_length_by_document`] uses; an
+/// empty document has density `0.0`, not `NaN`.
 ///
 /// # Example (hand-computed)
 ///
-/// `"Speed matters — quality matters too."` (6 tokens, one literal em
-/// dash) followed by `"It works fine--somehow; trust me."` (5 tokens, one
-/// double-hyphen surrogate between "fine" and "somehow", one semicolon):
-/// 11 tokens total, 2 em-dash occurrences, density `= 2 × 1000 / 11 ≈
-/// 181.818182`. See the unit test of the same name for the executable
-/// version, including [`semicolon_density`]'s `1 × 1000 / 11 ≈ 90.909091`
-/// on the same fixture.
+/// `"Speed matters — quality matters too."` + `"It works fine--somehow;
+/// trust me."`: 11 tokens, 2 em-dash occurrences, density `= 2 × 1000/11
+/// ≈ 181.818182`. Unit test of the same name also covers
+/// [`semicolon_density`]'s `1 × 1000/11 ≈ 90.909091` on this fixture.
 #[must_use]
 pub fn em_dash_density(document: &Document) -> f64 {
     density_per_1000_tokens(document, count_em_dashes)
 }
 
-/// Semicolon density: `;` occurrences per 1000 tokens, over every sentence
-/// in `document`, document-wide. See [`em_dash_density`] for the token
-/// definition and the empty-document (zero-token) convention.
+/// Semicolon density: `;` occurrences per 1000 tokens, over every
+/// sentence in `document`. See [`em_dash_density`] for the token
+/// definition and empty-document convention.
 #[must_use]
 pub fn semicolon_density(document: &Document) -> f64 {
     density_per_1000_tokens(document, count_semicolons)
 }
 
-/// Shared walk for the two "occurrences per 1000 tokens" densities:
-/// accumulates both `count_in`'s occurrence count and the token count over
-/// every sentence in `document`, in source order, then divides once at the
-/// end.
+/// Shared walk for the two "per 1000 tokens" densities: accumulates
+/// `count_in`'s occurrence count and the token count over every sentence,
+/// then divides once at the end.
 fn density_per_1000_tokens(document: &Document, count_in: impl Fn(&str) -> usize) -> f64 {
     let mut occurrences: usize = 0;
     let mut tokens: usize = 0;
@@ -303,17 +263,16 @@ fn count_em_dashes(text: &str) -> usize {
     count
 }
 
-/// Whether the hyphen run `chars[start..end]` has an alphanumeric
-/// character immediately outside it on both sides (skipping at most one
-/// flanking space per side).
+/// Whether `chars[start..end]` (the hyphen run) has an alphanumeric
+/// character just outside it on both sides (skipping at most one
+/// flanking space).
 fn is_word_flanked(chars: &[char], start: usize, end: usize) -> bool {
     flank_before(chars, start).is_some_and(char::is_alphanumeric)
         && flank_after(chars, end).is_some_and(char::is_alphanumeric)
 }
 
-/// The character just before `chars[start]`, skipping one space if that is
-/// what immediately precedes it. `None` if `start` is the beginning of
-/// `chars`, or a skipped space is itself the beginning.
+/// Character just before `chars[start]` (skips one space). `None` at the
+/// start of `chars`, or if the skipped space is itself the start.
 fn flank_before(chars: &[char], start: usize) -> Option<char> {
     if start == 0 {
         return None;
@@ -326,9 +285,8 @@ fn flank_before(chars: &[char], start: usize) -> Option<char> {
     }
 }
 
-/// The character just after `chars[end - 1]`, skipping one space if that
-/// is what immediately follows it. `None` if `end` is the end of `chars`,
-/// or a skipped space is itself the end.
+/// Character just after `chars[end - 1]` (skips one space). `None` at the
+/// end of `chars`, or if the skipped space is itself the end.
 fn flank_after(chars: &[char], end: usize) -> Option<char> {
     let c = *chars.get(end)?;
     if c == ' ' {
@@ -347,12 +305,9 @@ mod tests {
         sentence_length_by_document, sentence_length_by_paragraph,
     };
 
-    /// Builds a one-block, one-paragraph document out of `sentences`
-    /// (already-joined source text) and the byte range of each sentence
-    /// within it, entirely through `friction-core`'s own constructors —
-    /// independent of `friction-parse`/`friction-nlp`, so these fixtures
-    /// exercise only this module's arithmetic, not any other agent's
-    /// still-moving segmentation behavior.
+    /// Builds a one-block, one-paragraph document from `sentences` (joined
+    /// text) and each sentence's byte range, via `friction-core`'s own
+    /// constructors — independent of `friction-parse`/`friction-nlp`.
     fn doc_single_paragraph(source: &str, sentence_ranges: &[std::ops::Range<usize>]) -> Document {
         let block = Block::new(BlockKind::Paragraph, 0..source.len());
         let sentences = sentence_ranges
@@ -365,8 +320,7 @@ mod tests {
     }
 
     /// A document with `paragraphs`, each a `(text, sentence_ranges)` pair
-    /// already positioned at its own byte offset within `source`; one
-    /// `Block`/`ProseUnit` per paragraph.
+    /// positioned in `source`; one `Block`/`ProseUnit` per paragraph.
     fn doc_multi_paragraph(
         source: &str,
         paragraphs: &[(std::ops::Range<usize>, &[std::ops::Range<usize>])],
@@ -392,12 +346,8 @@ mod tests {
 
     const EPSILON: f64 = 1e-6;
 
-    /// Hand-computed: three sentences of length 3, 10, and 3 tokens.
-    ///
-    /// `mean = 16/3`; squared deviations `49/9, 196/9, 49/9` sum to
-    /// `294/9`; `variance = (294/9) / 3 = 294/27`; `stddev = sqrt(294/27)`;
-    /// `cv = stddev / mean`. Worked out on paper in the module docs of
-    /// [`sentence_length_by_document`].
+    /// Same 3/10/3-token fixture as the hand-computed derivation in
+    /// [`sentence_length_by_document`]'s doc comment.
     #[test]
     fn sentence_length_by_document_matches_hand_computation() {
         let s1 = "The cat sat.";
@@ -424,14 +374,10 @@ mod tests {
         assert!((stats.cv - expected_cv).abs() < EPSILON);
     }
 
-    /// Hand-computed: two paragraphs. The first has sentences of length 3
-    /// and 10 tokens (`mean = 6.5`, deviations `±3.5`, `variance =
-    /// (12.25 + 12.25) / 2 = 12.25`, `stddev = 3.5` exactly, `cv =
-    /// 3.5 / 6.5 = 7/13`); the second has a single sentence of length 3
-    /// (`stddev = 0`, `cv = 0`, the single-observation convention).
-    // The single-observation convention is an exact-zero guarantee (see
-    // `RhythmStats`' docs), not an approximation, so exact equality is the
-    // right assertion here.
+    /// Two paragraphs: first has sentences 3, 10 (`mean = 6.5`, `stddev =
+    /// 3.5` exactly, `cv = 7/13`); second has one sentence of length 3
+    /// (`stddev = 0`, `cv = 0`, single-observation convention).
+    // Exact-zero guarantee, not an approximation.
     #[allow(clippy::float_cmp)]
     #[test]
     fn sentence_length_by_paragraph_matches_hand_computation() {
@@ -473,18 +419,13 @@ mod tests {
         assert_eq!(stats[1].cv, 0.0);
     }
 
-    /// Hand-computed: three paragraphs with 2, 4, and 3 sentences.
-    /// `mean = 9/3 = 3`; deviations `-1, 1, 0`; squared `1, 1, 0` sum to
-    /// `2`; `variance = 2/3`; `stddev = sqrt(2/3)`; `cv = stddev / 3`.
+    /// Three paragraphs with 2, 4, and 3 sentences: `mean = 3`;
+    /// `variance = 2/3`; `stddev = sqrt(2/3)`; `cv = stddev / 3`.
     #[test]
     fn paragraph_shape_matches_hand_computation() {
-        // Sentence text content doesn't matter for this metric; only the
-        // per-paragraph sentence *count* does. Each sentence is the
-        // trivial one-token text "a." at its own two-byte slot, so
-        // sentence `i` sits at byte range `3*i .. 3*i + 2` (a space
-        // separates consecutive slots): paragraph 1 gets sentences 0-1 (2
-        // sentences), paragraph 2 gets sentences 2-5 (4 sentences),
-        // paragraph 3 gets sentences 6-8 (3 sentences).
+        // Sentence text doesn't matter, only per-paragraph sentence
+        // *count*. Each sentence is one-token "a." at byte range
+        // `3*i .. 3*i + 2`. Paragraphs: sentences 0-1, 2-5, 6-8.
         let source = "a. a. a. a. a. a. a. a. a.";
         let sentence = |i: usize| (3 * i)..(3 * i + 2);
         let sentences: Vec<std::ops::Range<usize>> = (0..9).map(sentence).collect();
@@ -516,11 +457,8 @@ mod tests {
         assert!((stats.cv - expected_cv).abs() < EPSILON);
     }
 
-    /// Hand-computed: `"Speed matters — quality matters too."` (6 tokens,
-    /// one literal em dash) plus `"It works fine--somehow; trust me."` (5
-    /// tokens, one double-hyphen surrogate between "fine" and "somehow",
-    /// one semicolon). 11 tokens total: em-dash density `= 2*1000/11`,
-    /// semicolon density `= 1*1000/11`.
+    /// Same fixture as the hand-computed example in [`em_dash_density`]'s
+    /// doc comment.
     #[test]
     fn dash_and_semicolon_density_match_hand_computation() {
         let s1 = "Speed matters — quality matters too.";
@@ -556,8 +494,7 @@ mod tests {
 
         let doc = doc_single_paragraph(&source, &[s1_range, s2_range, s3_range]);
 
-        // Exactly one surrogate occurrence ("word--word"), across however
-        // many tokens the three sentences contain; check the numerator
+        // One surrogate occurrence ("word--word"); check the numerator
         // directly by reconstructing density's own token divisor.
         let expected_tokens: usize = [s1, s2, s3]
             .iter()
@@ -568,10 +505,9 @@ mod tests {
         assert!((em_dash_density(&doc) - expected).abs() < EPSILON);
     }
 
-    /// An empty document (no prose at all) yields the all-zero degenerate
-    /// `RhythmStats` and zero densities, never `NaN`.
-    // The empty-input convention is an exact-zero guarantee, not an
-    // approximation.
+    /// An empty document yields the all-zero degenerate `RhythmStats` and
+    /// zero densities, never `NaN`.
+    // Exact-zero guarantee, not an approximation.
     #[allow(clippy::float_cmp)]
     #[test]
     fn empty_document_is_degenerate_not_nan() {
@@ -600,8 +536,7 @@ mod tests {
 
     /// A document with exactly one sentence has `stddev == 0.0` and
     /// `cv == 0.0` by the general formula, not a special case.
-    // The single-observation convention is an exact-zero guarantee, not an
-    // approximation.
+    // Exact-zero guarantee, not an approximation.
     #[allow(clippy::float_cmp)]
     #[test]
     fn single_sentence_document_has_zero_stddev_and_cv() {

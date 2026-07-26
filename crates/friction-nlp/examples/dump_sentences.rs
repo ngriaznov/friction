@@ -2,16 +2,15 @@
 //! every `class: human`, `split: train` document in `corpus/manifest.jsonl`,
 //! across all five genres, run through the real `friction-parse` prose
 //! extraction and [`SrxSegmenter`] segmentation — the same pipeline
-//! `examples/train_perceptron.rs`'s own gold file and
+//! `examples/train_perceptron.rs`'s gold file and
 //! `friction_harness::fragment` both use — then tagged with
 //! [`PerceptronTagger`] and filtered to the tagger's own gold-sentence
 //! shape (4-40 whitespace-separated words, pure ASCII, no `UNKNOWN`
 //! sentinel).
 //!
 //! Output is newline-delimited JSON on stdout, one object per surviving
-//! sentence, with byte offsets relative to that sentence's own text (not
-//! the document). This is a read-only extraction step: it never writes
-//! under `corpus/`.
+//! sentence, with byte offsets relative to that sentence's own text, not
+//! the document. Read-only: never writes under `corpus/`.
 //!
 //! ```text
 //! cargo run -p friction-nlp --example dump_sentences -- [corpus_dir]

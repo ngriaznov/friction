@@ -11,11 +11,6 @@ repository.workspace = true
 workspace = true
 
 [features]
-## Enables `OnnxParser`, an `ort`-backed `DepParser` implementation. Off by
-## default: the heuristic parser needs no model and no C/ONNX toolchain, and
-## as of this writing no pinned dependency-parser model is registered in
-## `friction-packs` for this feature to load (see `dep_onnx`'s module docs).
-onnx = ["dep:ort"]
 ## Exposes the training-support helpers `examples/train_perceptron.rs`
 ## needs (feature extraction + weight-table save, tab-separated gold-file
 ## parsing). Off by default so normal builds don't carry training code as
@@ -32,9 +27,6 @@ thiserror = { workspace = true }
 # rather than at the workspace root to avoid a concurrent root-file edit.
 # Default features (`std`, `api-17`, `download-binaries`) are kept: the last
 # fetches a sha256-verified ONNX Runtime build into OUT_DIR at build time,
-# matching this workspace's offline-at-lint-time / downloads-only-at-build-
-# time discipline rather than downloading anything at `check`/`fix` time.
-ort = { version = "2.0.0-rc.12", optional = true }
 # `from_xml` pulls in serde + serde-xml-rs to parse the vendored SRX
 # ruleset at process start; the ruleset itself is embedded via
 # `include_str!` (see src/segment_srx.rs), so no file or network I/O

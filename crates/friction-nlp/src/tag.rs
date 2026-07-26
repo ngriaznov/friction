@@ -2,28 +2,26 @@
 //! [`friction_core::Token`]s.
 //!
 //! [`Tagger`] is the boundary between this crate and its
-//! implementation(s) — currently a single one, [`crate::PerceptronTagger`],
-//! in `tag_perceptron` — so other crates only ever need to depend on the
-//! trait. Unlike [`crate::Segmenter`], a `Tagger` produces the token spans
-//! themselves (not just enriches pre-existing ones): tokenization and POS
+//! implementation(s) — currently just [`crate::PerceptronTagger`], in
+//! `tag_perceptron` — so other crates only need to depend on the trait.
+//! Unlike [`crate::Segmenter`], a `Tagger` produces the token spans
+//! themselves, not just enriches pre-existing ones: tokenization and POS
 //! tagging are the same pass in every backend worth having, so splitting
 //! them into two trait methods would only force implementations to agree
-//! on a token boundary contract neither of them needs independently.
+//! on a token boundary contract neither needs independently.
 
 use friction_core::{Token, TokenKind};
 
 /// Splits sentence text into tokens and tags each one with a
 /// part-of-speech and a lemma.
 ///
-/// Implementations receive the text to tag together with `base_offset`,
-/// the byte position at which `text` begins in some larger source; every
-/// token's range in the returned [`Vec`] is already shifted by
-/// `base_offset`, so callers slice the *original* source with it directly
-/// rather than `text`. Tokens are returned in source order.
+/// Implementations receive `base_offset`, the byte position at which
+/// `text` begins in some larger source; every returned token's range is
+/// already shifted by `base_offset`, so callers slice the *original*
+/// source with it, not `text`. Tokens are returned in source order.
 ///
 /// Implementations must be deterministic: identical `text` and
-/// `base_offset` always produce identical output, on any machine, on any
-/// run.
+/// `base_offset` always produce identical output, on any machine or run.
 pub trait Tagger {
     /// Tags every token found in `text`, each offset by `base_offset`.
     fn tag(&self, text: &str, base_offset: usize) -> Vec<TaggedToken>;
@@ -32,11 +30,10 @@ pub trait Tagger {
 /// A part-of-speech tag.
 ///
 /// A thin newtype over the tagger's own tag string (for
-/// [`crate::PerceptronTagger`], Penn-Treebank-style tags,
-/// e.g. `"NN"`, `"VBZ"`, `"JJ"`) rather than a closed enum:
-/// different taggers use different tagsets, and callers that only care
-/// about a handful of coarse categories can match on
-/// [`PosTag::as_str`] themselves.
+/// [`crate::PerceptronTagger`], Penn-Treebank-style, e.g. `"NN"`, `"VBZ"`,
+/// `"JJ"`) rather than a closed enum: different taggers use different
+/// tagsets, and callers that only care about coarse categories can match
+/// on [`PosTag::as_str`] themselves.
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct PosTag(Box<str>);
 
@@ -83,10 +80,9 @@ pub struct TaggedToken {
 /// The coarse part-of-speech tag for `pos`.
 ///
 /// Its full tag truncated to the first two characters (`"VBZ"` -> `"VB"`,
-/// `"NNS"` -> `"NN"`), except a tag whose first character is not
-/// alphabetic — a punctuation tag, kept verbatim (a single truncated
-/// character would lose information a punctuation mark's tag never had to
-/// begin with).
+/// `"NNS"` -> `"NN"`), except a tag whose first character isn't
+/// alphabetic — a punctuation tag, kept verbatim (truncating to one
+/// character would lose information it never had to begin with).
 #[must_use]
 pub fn coarse_tag(pos: &PosTag) -> Box<str> {
     let full = pos.as_str();
@@ -107,13 +103,13 @@ pub fn coarse_tag(pos: &PosTag) -> Box<str> {
 /// [`TokenKind`].
 ///
 /// The same classification every [`Tagger`] implementation in this crate
-/// should use so `TokenKind` means the same thing regardless of which one
-/// produced it.
+/// should use, so `TokenKind` means the same thing regardless of which
+/// one produced it.
 ///
-/// This is a pure function of `text`'s characters (`char::is_alphabetic`,
-/// `char::is_numeric`; no locale, no ambient state), so it is deterministic
-/// by construction. An empty `text` classifies as [`TokenKind::Symbol`],
-/// the least specific catch-all; well-behaved tokenizers never emit empty
+/// A pure function of `text`'s characters (`char::is_alphabetic`,
+/// `char::is_numeric`; no locale, no ambient state), so deterministic by
+/// construction. An empty `text` classifies as [`TokenKind::Symbol`], the
+/// least specific catch-all; well-behaved tokenizers never emit empty
 /// token text.
 #[must_use]
 pub fn classify_token_kind(text: &str) -> TokenKind {
@@ -140,11 +136,11 @@ pub fn classify_token_kind(text: &str) -> TokenKind {
 }
 
 /// A character used as ordinary prose punctuation — the narrower set
-/// [`friction_core::TokenKind::Punctuation`]'s doc comment describes
-/// (`.`, `,`, `!`, quotes, brackets, dashes...) as opposed to
-/// [`friction_core::TokenKind::Symbol`]'s examples (`&`, `%`, an emoji):
-/// those are common in prose but are not "a punctuation mark" in the
-/// sense the surrounding sentence-structure rules care about.
+/// [`friction_core::TokenKind::Punctuation`] describes (`.`, `,`, `!`,
+/// quotes, brackets, dashes...) as opposed to
+/// [`friction_core::TokenKind::Symbol`]'s examples (`&`, `%`, an emoji),
+/// which are common in prose but aren't "a punctuation mark" in the sense
+/// sentence-structure rules care about.
 pub const fn is_prose_punctuation(c: char) -> bool {
     matches!(
         c,

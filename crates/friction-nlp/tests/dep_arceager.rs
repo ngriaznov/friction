@@ -1,13 +1,13 @@
 //! Oracle correctness for the arc-eager transition system.
 //!
 //! The trainer this system feeds is only as correct as the oracle: every
-//! gold tree it is ever handed gets turned into transitions by
-//! [`derive`], and if that mapping is wrong the trainer learns the wrong
-//! lesson from every single sentence, silently. These tests hand-build
-//! small, concrete gold trees (not fixtures loaded from a corpus — this
-//! module never reads one), derive their transition sequence, replay it
-//! from scratch, and check the exact resulting arcs against the exact
-//! expected transition sequence: real values, not just "it didn't panic".
+//! gold tree it's handed gets turned into transitions by [`derive`], and
+//! if that mapping is wrong the trainer learns the wrong lesson from
+//! every sentence, silently. These tests hand-build small, concrete gold
+//! trees (not fixtures loaded from a corpus), derive their transition
+//! sequence, replay it from scratch, and check the exact resulting arcs
+//! against the exact expected sequence: real values, not just "it didn't
+//! panic".
 
 use friction_nlp::dep_arceager::{Configuration, DeriveError, Transition, derive, oracle};
 use friction_nlp::{Confidence, DepEdge, DepRelation, SentenceParse};

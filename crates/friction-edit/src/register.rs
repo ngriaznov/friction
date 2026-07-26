@@ -1,59 +1,41 @@
 //! The register pass.
 //!
-//! After the four-operation passes converge, home two Biber register
-//! features — nominalization, agentless passive — toward their human
-//! rate band by selecting and applying [`friction_register::transduce`]
-//! candidates.
+//! After the four-operation passes converge, home two Biber register features — nominalization,
+//! agentless passive — toward their human rate band by selecting and applying
+//! [`friction_register::transduce`] candidates.
 //!
 //! # Termination is the band, not the median
 //!
-//! A feature is *done* when the document's rate sits inside its pack
-//! band's `[low, high]`, full stop — never when it reaches the band's own
-//! `median`. Human writing is a distribution, not a point: a document
-//! that lands exactly on the centroid is itself a tell (every document
-//! this pass touched landing on the same coordinates would be a stronger
-//! signal than the spread it started with), so [`run_register`] stops the
-//! instant a feature's rate enters its band and never tries to walk it
-//! any further.
+//! A feature is done once its rate sits inside `[low, high]`, never at the band's `median`.
+//! Human writing is a distribution, not a point: converging every document onto one centroid
+//! would be a stronger tell than the spread it started with, so [`run_register`] stops there
+//! and never walks further.
 //!
 //! # Selection: greedy and re-evaluated
 //!
-//! Candidates for an out-of-band feature are scored by how much their
-//! predicted delta would move that feature's *rate* — count over the
-//! current prose word total, not the raw count — toward the band, the
-//! best is applied, the running count and word total are updated from
-//! that one candidate's own exact effect, and the pool is re-scored
-//! before the next pick. Re-scoring matters because both halves of the
-//! rate move as edits land: a transducer's own `delta` map gives the
-//! feature-count change directly, but the word-count change a
-//! replacement makes is only known by actually measuring it, and it
-//! shifts the *denominator* every subsequent candidate's projected rate
-//! is computed against.
+//! Candidates are scored by how far their delta moves the feature's *rate* — count over prose
+//! word total, not raw count. The best is applied, both totals updated from that pick's
+//! measured effect, and the pool re-scored: a transducer's `delta` gives the count change
+//! directly, but the word-count change is only known by measuring it, shifting the denominator
+//! every later candidate is scored against.
 //!
 //! # Conflict is dependency-scope, not just span
 //!
-//! Two candidates may never both apply when their byte ranges overlap —
-//! but also when one's matched span contains the syntactic governor of a
-//! token the other's span depends on, or when both ultimately trace up to
-//! the same governing finite verb. Span disjointness alone is not enough:
-//! two edits on non-overlapping spans of a single coordinated clause can
-//! still leave the sentence with mismatched voice across the coordination
-//! (one conjunct passivized, the other not, both still sharing a subject
-//! that no longer exists on one side). [`conflicts`] is the general,
-//! transducer-agnostic guard against that failure mode; it does not rely
-//! on any single transducer's own narrower licensing conditions to rule
-//! it out.
+//! Two candidates conflict when their ranges overlap, when one's span contains the governor of
+//! a token the other depends on, or when both trace to the same governing finite verb. Span
+//! disjointness alone isn't enough: two edits on non-overlapping spans of a coordinated clause
+//! can still mismatch voice across it, one conjunct passivized and the other not, sharing a
+//! subject that no longer exists on one side. [`conflicts`] is the general, transducer-agnostic
+//! guard against that; it doesn't rely on any single transducer's own narrower licensing to
+//! rule it out.
 //!
 //! # Closure is structural
 //!
-//! Every candidate is run through [`closure_violation`] before it is even
-//! added to the selection pool — there is no path from candidate to patch
-//! that skips this call. A content word must already appear in the
-//! matched span or be reachable through the very inflection table the
-//! transducer that proposed it used to build the replacement; a function
-//! word must be one of the four the two transducers are permitted to
-//! introduce (see [`friction_register::transduce::PERMITTED_FUNCTION_WORDS`]).
-//! A candidate that fails is dropped and reported as held, never applied.
+//! Every candidate passes [`closure_violation`] before entering the pool — no path from
+//! candidate to patch skips it. A content word must already appear in the matched span or be
+//! reachable through the transducer's own inflection table; a function word must be one of the
+//! four permitted (see [`friction_register::transduce::PERMITTED_FUNCTION_WORDS`]). A candidate
+//! that fails is dropped and held, never applied.
 
 use std::collections::{BTreeMap, BTreeSet};
 use std::ops::Range;
@@ -82,29 +64,29 @@ const fn rule_for(kind: CandidateKind) -> RuleId {
     }
 }
 
-/// One in-scope prose sentence's own text range, tags, and dependency
-/// parse — computed once up front and reused by every stage below
-/// (counting, candidate generation, closure checking, conflict checking)
-/// so none of them re-tag or re-parse.
+/// One in-scope sentence's text range, tags, and dependency parse —
+/// computed once and reused by every stage below (counting, candidate
+/// generation, closure checking, conflict checking) so none re-tag or
+/// re-parse.
 struct SentenceCtx {
     /// This sentence's byte range in the document's original source.
     range: Range<usize>,
     /// Tagged tokens, offset 0 (local to this sentence's own text).
     tokens: Vec<TaggedToken>,
-    /// This sentence's dependency parse, indexed the same way as `tokens`.
+    /// This sentence's dependency parse, indexed the same way as
+    /// `tokens`.
     parse: SentenceParse,
 }
 
-/// A transducer candidate translated into document-absolute coordinates
-/// and carrying the extra bookkeeping the selection loop needs: which
-/// sentence it came from (for conflict checking against another
-/// candidate from the same sentence) and how many prose words its own
-/// application would add or remove (for re-scoring the rate after each
-/// pick).
+/// A transducer candidate in document-absolute coordinates, carrying
+/// the extra bookkeeping the selection loop needs: which sentence it
+/// came from (for conflict checking against another candidate from the
+/// same sentence) and how many prose words applying it would add or
+/// remove (for re-scoring the rate after each pick).
 struct PositionedCandidate {
     sentence_index: usize,
     /// Byte range in that sentence's own local text (matches
-    /// `SentenceCtx::tokens`' coordinate space).
+    /// `SentenceCtx::tokens`' space).
     local_range: Range<usize>,
     /// The same range, shifted into the document's original source.
     doc_range: Range<usize>,
@@ -118,18 +100,17 @@ struct PositionedCandidate {
 /// Which way a feature's rate needs to move to enter its band.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 enum Direction {
-    /// Below `low`: only [`CandidateKind::ActivizeToPassive`] moves this
-    /// direction (agentless passive).
+    /// Below `low`: only [`CandidateKind::ActivizeToPassive`] moves
+    /// this way (agentless passive).
     Increase,
     /// Above `high`: only [`CandidateKind::NominalizationUnpack`] moves
-    /// this direction (nominalization).
+    /// this way (nominalization).
     Decrease,
 }
 
-/// Tags and parses every non-empty sentence in `units`, dropping (with no
-/// error) any sentence a per-sentence parse failure or an empty trimmed
-/// text excludes — see the loop body's own comment for why a parse
-/// failure here doesn't fail the whole document.
+/// Tags and parses every non-empty sentence in `units`, silently
+/// dropping any sentence a per-sentence parse failure or empty trimmed
+/// text excludes.
 fn build_sentence_contexts(
     source: &str,
     units: &[friction_match::token::ScopedUnit<'_>],
@@ -148,12 +129,11 @@ fn build_sentence_contexts(
             let tokens = tagger.tag(text, 0);
             let Ok(parse) = parser.parse(text, &tokens) else {
                 // A per-sentence parse failure (never expected from the
-                // shipped perceptron parser, but `DepParser::parse`'s own
-                // contract allows it) drops that one sentence from
-                // register's own counting and candidate generation rather
-                // than failing the whole document — the four operations
-                // already ran and are not rolled back for a register-only
-                // problem.
+                // shipped perceptron parser, but allowed by
+                // `DepParser::parse`'s contract) drops that sentence
+                // rather than failing the whole document — the four
+                // operations already ran and aren't rolled back for a
+                // register-only problem.
                 continue;
             };
             sentences.push(SentenceCtx {
@@ -167,7 +147,7 @@ fn build_sentence_contexts(
 }
 
 /// The document-wide `(total_words, nominalization_count,
-/// agentless_passive_count)` totals over every sentence in `sentences`.
+/// agentless_passive_count)` totals over `sentences`.
 fn count_features(sentences: &[SentenceCtx], source: &str) -> (i64, i64, i64) {
     let mut total_words: i64 = 0;
     let mut count_nominalization: i64 = 0;
@@ -184,9 +164,8 @@ fn count_features(sentences: &[SentenceCtx], source: &str) -> (i64, i64, i64) {
 
 /// Runs the register pass once over `source`.
 ///
-/// `source` is expected to already be the four-operation pipeline's
-/// converged output — see this module's parent doc comment on why
-/// register never interleaves with those passes.
+/// `source` is expected to already be the four-operation pipeline's converged output; register
+/// never interleaves with those passes.
 ///
 /// # Errors
 /// Returns [`EditError`] if `source` fails to parse or segment.
@@ -211,11 +190,11 @@ pub fn run_register(
     let nominalization_band = register_pack.band("nominalization");
     let agentless_band = register_pack.band("agentless_passive");
 
-    // `Some(band)` *is* "this feature needs work", so the band a later
-    // step needs is carried by the same value that decided it needs one.
-    // Tracking the decision as a separate `bool` alongside the `Option`
-    // would leave two values that must agree, and the only way to read the
-    // band back out would be to assert that they do.
+    // `Some(band)` *is* "this feature needs work", so the value that
+    // decided that also carries the band a later step needs. A separate
+    // `bool` alongside the `Option` would leave two values that must
+    // agree, and reading the band back out would mean asserting they
+    // do.
     let agentless_fix =
         agentless_band.filter(|band| rate(count_agentless_passive, total_words) < band.low);
     let nominalization_fix =
@@ -300,8 +279,8 @@ fn empty_pass() -> crate::document::PassReport {
     crate::document::PassReport::default()
 }
 
-/// Word-token count of `text` (the same convention
-/// [`crate::document::prose_word_count`] uses).
+/// Word-token count of `text` (same convention as
+/// [`crate::document::prose_word_count`]).
 fn word_count(text: &str) -> i64 {
     let count = tokenize_str(text, 0)
         .iter()
@@ -310,9 +289,8 @@ fn word_count(text: &str) -> i64 {
     i64::try_from(count).unwrap_or(i64::MAX)
 }
 
-/// `count` per 1000 `words`, or `0.0` for a zero word total (never called
-/// with one in practice — [`run_register`] returns early when
-/// `total_words == 0`).
+/// `count` per 1000 `words`; `0.0` for a zero total (never hit in
+/// practice — [`run_register`] returns early when `total_words == 0`).
 fn rate(count: i64, words: i64) -> f64 {
     if words <= 0 {
         return 0.0;
@@ -334,17 +312,16 @@ fn collect_candidates(
     for (sentence_index, ctx) in sentences.iter().enumerate() {
         let text = &source[ctx.range.clone()];
         // A range the segmenter cut short at an excluded construct
-        // (inline code, a link) rather than genuine sentence-terminal
-        // punctuation is a fragment, not a complete clause — measured
-        // directly against a real corpus document where a Sphinx-style
-        // `:meth:`code`` cross-reference split a sentence just before
-        // its own inline code span, leaving a dangling `"...of :meth:"`
-        // fragment whose parser-assigned `pobj` was the reference-role
-        // name itself. Firing a clause-level rewrite against that parse
-        // produced grammatically broken output; the four operations
-        // tolerate this same fragment shape for smaller, non-clausal
-        // edits, but register's rewrites are large enough that only a
-        // genuinely complete sentence is safe input.
+        // (inline code, a link) rather than real sentence-terminal
+        // punctuation is a fragment, not a clause — seen in a corpus
+        // doc where a Sphinx `:meth:`code`` cross-reference split a
+        // sentence right before its own inline-code span, leaving a
+        // dangling `"...of :meth:"` fragment whose parser-assigned
+        // `pobj` was the reference-role name itself, producing
+        // grammatically broken output when rewritten. The four
+        // operations tolerate this fragment shape for smaller edits;
+        // register's rewrites are clause-sized, so only a complete
+        // sentence is safe input.
         if !ends_with_sentence_terminal_punctuation(text) {
             continue;
         }
@@ -417,15 +394,10 @@ fn collect_candidates(
 }
 
 /// The closure gate: every content word in `replacement` must already
-/// appear in `original_span_text`, be reachable via `kind`'s own
-/// inflection table from a lemma/surface already in the matched span, or
-/// be one of [`PERMITTED_FUNCTION_WORDS`]. Returns the offending tokens
-/// (sorted, deduplicated), empty if none.
-///
-/// This is a hard gate with no path around it: [`collect_candidates`]
-/// calls it for every candidate before that candidate ever reaches the
-/// selection pool, so a violating candidate is dropped before selection
-/// can see it, not filtered out afterward as an afterthought.
+/// appear in `original_span_text`, be reachable via `kind`'s inflection
+/// table from a lemma/surface in the matched span, or be one of
+/// [`PERMITTED_FUNCTION_WORDS`]. Returns the offending tokens (sorted,
+/// deduplicated), empty if none.
 fn closure_violation(
     kind: CandidateKind,
     replacement: &str,
@@ -457,10 +429,9 @@ fn closure_violation(
                 if let Some(verb) = transduce::nominal_verb_for(&surface_lower) {
                     derived.insert(verb.to_lowercase().into_boxed_str());
                 }
-                // The lemma is licensed too: for a bare singular noun the
-                // tagger's lemma is already the lowercase surface, but
-                // checking both costs nothing and covers a tagger lemma
-                // that normalizes differently than a plain lowercase.
+                // Lemma licensed too: for a bare singular noun it's
+                // already the lowercase surface, but checking both is
+                // free and covers a lemma that normalizes differently.
                 if let Some(verb) = transduce::nominal_verb_for(token.lemma.as_ref()) {
                     derived.insert(verb.to_lowercase().into_boxed_str());
                 }
@@ -483,11 +454,10 @@ fn closure_violation(
     offending
 }
 
-/// `token`'s own byte range, shifted so it slices `original_span_text`
-/// (which starts at the matched span's own start, not the sentence's) —
-/// `span_tokens` is only consulted to state the invariant this relies on:
-/// every token in it has a range inside the matched span this text came
-/// from, by [`collect_candidates`]'s own filter.
+/// `token`'s byte range, shifted to slice `original_span_text` (which
+/// starts at the matched span, not the sentence). `span_tokens` is
+/// consulted only for its min start; by [`collect_candidates`]'s
+/// filter, every token in it is already inside the span.
 fn shift(
     token: &TaggedToken,
     original_span_text: &str,
@@ -503,10 +473,10 @@ fn shift(
     start.min(original_span_text.len())..end.min(original_span_text.len())
 }
 
-/// Walks up `start`'s dependency-head chain until it reaches a token
-/// tagged as a finite verb, returning that token's index — or `None` if
-/// the chain reaches the sentence's root without ever passing through
-/// one (a non-finite fragment, or `start` already at the root).
+/// Walks up `start`'s dependency-head chain to the nearest finite-verb
+/// token, returning its index — `None` if the chain reaches root
+/// without passing through one (a non-finite fragment, or `start`
+/// already at root).
 fn governing_finite_verb(
     parse: &SentenceParse,
     tokens: &[TaggedToken],
@@ -539,11 +509,11 @@ fn tokens_in(tokens: &[TaggedToken], range: &Range<usize>) -> Vec<usize> {
         .collect()
 }
 
-/// `true` if `a` and `b` may not both be applied — see this module's own
-/// doc comment for the three conditions, only the last two of which need
-/// same-sentence token/parse data (two different sentences' candidates
-/// can never share governance, and their ranges can never overlap since
-/// sentence ranges are disjoint by construction).
+/// `true` if `a` and `b` may not both apply (the three conditions from
+/// this module's "Conflict" section). Only the last two need
+/// same-sentence data: different sentences never share governance, and
+/// their ranges can't overlap since sentence ranges are disjoint by
+/// construction.
 fn conflicts(a: &PositionedCandidate, b: &PositionedCandidate, sentences: &[SentenceCtx]) -> bool {
     if ranges_overlap(&a.doc_range, &b.doc_range) {
         return true;
@@ -580,13 +550,12 @@ fn conflicts(a: &PositionedCandidate, b: &PositionedCandidate, sentences: &[Sent
     a_verbs.intersection(&b_verbs).next().is_some()
 }
 
-/// Greedily selects candidates for `feature` out of `pool` until its rate
-/// enters `band` or no remaining, non-conflicting candidate improves it,
-/// applying each pick's exact effect (its `delta` entry for `feature`,
-/// and its measured `word_delta`) to the running `(count, words)` before
-/// re-scoring. Winning candidates move from `pool` into `accepted`
-/// (`pool` keeps every candidate the other feature's own phase might
-/// still need).
+/// Greedily selects candidates for `feature` from `pool` until its rate
+/// enters `band` or no remaining non-conflicting candidate improves it,
+/// applying each pick's exact effect (`delta[feature]`, measured
+/// `word_delta`) to the running `(count, words)` before re-scoring.
+/// Winners move from `pool` into `accepted`; `pool` keeps whatever the
+/// other feature's phase might still need.
 #[allow(clippy::too_many_arguments)]
 fn select_and_apply(
     pool: &mut Vec<PositionedCandidate>,
@@ -647,16 +616,16 @@ mod tests {
 
     use super::*;
 
-    /// A hand-constructed candidate that introduces a word outside the
-    /// input, the inflection tables, and the permitted function-word set
-    /// must be rejected by the closure gate.
+    /// A candidate introducing a word outside the input, the inflection
+    /// tables, and the permitted function-word set must be rejected by
+    /// the closure gate.
     #[test]
     fn closure_violation_rejects_a_candidate_introducing_an_unlicensed_word() {
-        // "We deployed the change." -- a genuine T4 firing would produce
-        // "The change was deployed", every word traceable to the matched
-        // span or the four-word set. Splicing in "surely" (present in
-        // neither the span, the irregular/regular inflection tables for
-        // any lemma in the span, nor the permitted set) must be flagged.
+        // "We deployed the change." -- a genuine T4 firing produces
+        // "The change was deployed", every word traceable to the span
+        // or the four-word set. Splicing in "surely" (in neither the
+        // span, the inflection tables, nor the permitted set) must be
+        // flagged.
         let source = "We deployed the change.";
         let tokens = [
             tagged(source, "We", "PRP", "we"),
@@ -677,8 +646,8 @@ mod tests {
     }
 
     /// A genuine T4 replacement -- every content word traced to the
-    /// matched span, the sole function word ("was") in the permitted
-    /// set -- passes closure cleanly.
+    /// matched span, the sole function word ("was") permitted -- passes
+    /// closure cleanly.
     #[test]
     fn closure_violation_accepts_a_genuine_t4_replacement() {
         let tokens = [
@@ -700,8 +669,8 @@ mod tests {
         );
     }
 
-    /// A genuine T5 replacement's derived verb ("optimizing", not present
-    /// verbatim in "the optimization of the query") is licensed via
+    /// A genuine T5 replacement's derived verb ("optimizing", absent
+    /// from "the optimization of the query") is licensed via
     /// `nominal_verb_for`, the exact table that produced it.
     #[test]
     fn closure_violation_accepts_a_genuine_t5_replacement() {
@@ -726,10 +695,8 @@ mod tests {
         );
     }
 
-    /// Builds one `TaggedToken` for the next occurrence of `surface` in
-    /// `full_text` after any tokens already built for it -- a small test
-    /// helper, not production code, so a fixed linear scan per call is
-    /// fine.
+    /// Builds one `TaggedToken` for `surface` in `full_text` -- a test
+    /// helper, so a fixed linear scan per call is fine.
     fn tagged(full_text: &str, surface: &str, pos: &str, lemma: &str) -> TaggedToken {
         let start = full_text
             .find(surface)
@@ -741,14 +708,14 @@ mod tests {
         }
     }
 
-    /// `governing_finite_verb` finds the nearest finite-verb ancestor for
-    /// a subject/object token, and returns `None` for a fragment with no
+    /// `governing_finite_verb` finds the nearest finite-verb ancestor
+    /// for a subject/object token, and `None` for a fragment with no
     /// finite verb at all.
     #[test]
     fn governing_finite_verb_walks_up_to_the_nearest_finite_verb() {
-        // "We deployed the change." -- deployed(1) is root/finite; We(0)
-        // is nsubj of 1; the(2) is det of change(3); change(3) is dobj of
-        // 1.
+        // "We deployed the change." -- deployed(1) is root/finite;
+        // We(0) is nsubj of 1; the(2) is det of change(3); change(3) is
+        // dobj of 1.
         let edges = vec![
             DepEdge {
                 token: 0,
@@ -787,8 +754,8 @@ mod tests {
         assert_eq!(governing_finite_verb(&parse, &tokens, 1), Some(1));
     }
 
-    /// Two candidates whose byte ranges overlap conflict outright, with
-    /// no need to consult the parse at all.
+    /// Two candidates whose byte ranges overlap conflict outright, no
+    /// parse needed.
     #[test]
     fn conflicts_detects_overlapping_ranges() {
         let ctx = SentenceCtx {

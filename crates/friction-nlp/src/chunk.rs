@@ -5,25 +5,22 @@
 //!
 //! - Clause completeness: [`has_finite_verb`] / [`is_imperative_initial`]
 //!   answer the whole-sentence question directly; [`chunk_clauses`] /
-//!   [`is_complete_after_deletion`] answer the same question cheaply for a
-//!   *hypothetical* deletion, without re-running the tagger on spliced
-//!   text — each [`Clause`] records its own finite-verb token indices so a
-//!   caller can subtract an index range instead.
+//!   [`is_complete_after_deletion`] answer it cheaply for a *hypothetical*
+//!   deletion, without re-running the tagger on spliced text — each
+//!   [`Clause`] records its own finite-verb indices so a caller can
+//!   subtract an index range instead.
 //! - Coordination: [`coordination_groups`] detects flat `X, Y, and Z`
-//!   lists directly over part-of-speech categories (see
-//!   [`CoordCategory`]), the same pattern this crate's retired heuristic
-//!   dependency parser used to detect [`crate::dep::DepRelation::Conj`]
-//!   edges — kept here now that coordination chunking has no
-//!   [`crate::dep::DepParser`] to route through: the arc-eager transition
-//!   system that replaced the heuristic parser is a training-time oracle
-//!   over already-known trees, not an inference-time parser this crate
-//!   could call on arbitrary text.
+//!   lists over part-of-speech categories (see [`CoordCategory`]), the
+//!   pattern this crate's retired heuristic dependency parser used for
+//!   [`crate::dep::DepRelation::Conj`] edges — kept now that coordination
+//!   chunking has no [`crate::dep::DepParser`] to route through: the
+//!   arc-eager system that replaced it is a training-time oracle over
+//!   known trees, not an inference-time parser for arbitrary text.
 //!
-//! [`opens_with_binding_cue`] answers a third, related question (does this
-//! sentence open with something a neighboring sentence's deletion could
-//! leave dangling) but deliberately takes its "connective" word list as a
-//! parameter — this crate sits below the pack layer and must not curate
-//! that closed class itself.
+//! [`opens_with_binding_cue`] answers a third question (does this
+//! sentence open with something a neighboring deletion could leave
+//! dangling) but takes its "connective" word list as a parameter — this
+//! crate sits below the pack layer and must not curate that closed class.
 
 use std::collections::{BTreeMap, BTreeSet};
 use std::ops::Range;
@@ -51,10 +48,10 @@ pub fn is_imperative_initial(tokens: &[TaggedToken]) -> bool {
     tokens.first().is_some_and(|t| t.pos.as_str() == "VB")
 }
 
-/// A closed list of subordinating conjunctions that open a subordinate
-/// clause — a language fact (the same status as [`crate::lvc::LIGHT_VERBS`]
-/// / [`crate::lvc::BE_FORMS`]), not pack curation, so it is hardcoded here
-/// rather than threaded in by a caller.
+/// Subordinating conjunctions that open a subordinate clause — a
+/// language fact (same status as [`crate::lvc::LIGHT_VERBS`] /
+/// [`crate::lvc::BE_FORMS`]), hardcoded rather than threaded in by a
+/// caller.
 const SUBORDINATORS: &[&str] = &[
     "because", "although", "though", "while", "since", "unless", "until", "before", "after", "if",
     "when", "whereas", "as",
@@ -77,13 +74,12 @@ fn is_coordinator(token: &TaggedToken) -> bool {
     token.pos.as_str() == "CC"
 }
 
-/// `true` if a [`SUBORDINATORS`] match at token index `i` actually opens a
-/// subordinate *clause* rather than a prepositional phrase — several
-/// entries in that list (`while`, `before`, `after`, `since`, `as`, ...) are
-/// also ordinary prepositions ("waited for **a while**", "here **since
-/// Monday**"), and only a finite verb between the match and the next strong
-/// boundary (or the stream's own end) distinguishes the two, the same gate
-/// [`coordinator_splits`] already applies to its own coordinator match.
+/// `true` if a [`SUBORDINATORS`] match at `i` opens a subordinate
+/// *clause*, not a prepositional phrase — several entries (`while`,
+/// `before`, `after`, `since`, `as`, ...) are also prepositions ("waited
+/// for **a while**"), and only a finite verb before the next strong
+/// boundary distinguishes the two — the same gate [`coordinator_splits`]
+/// applies to its own match.
 fn subordinator_opens_a_clause(tokens: &[TaggedToken], i: usize) -> bool {
     let right_end = ((i + 1)..tokens.len())
         .find(|&j| is_strong_boundary(&tokens[j]))
@@ -94,11 +90,10 @@ fn subordinator_opens_a_clause(tokens: &[TaggedToken], i: usize) -> bool {
 }
 
 /// Split points contributed by a comma-plus-coordinator that joins two
-/// independent clauses (`"X did A, and X did B"`) as opposed to a
+/// independent clauses (`"X did A, and X did B"`) rather than a
 /// phrase-internal list (`"screws, bolts, and washers"`): the coordinator
-/// must be preceded by a comma, and a finite verb must appear on both
-/// sides of it before the next strong boundary (or the token stream's own
-/// edge).
+/// must be preceded by a comma, with a finite verb on both sides of it
+/// before the next strong boundary.
 fn coordinator_splits(tokens: &[TaggedToken]) -> Vec<usize> {
     let mut splits = Vec::new();
     for c in 0..tokens.len() {
@@ -148,16 +143,15 @@ pub struct ClauseChunks {
 
 /// Segments `tokens` into clauses.
 ///
-/// Splits the stream at: a subordinator from the closed [`SUBORDINATORS`]
-/// list that is gated by a finite verb on its right (see
-/// [`subordinator_opens_a_clause`] — several subordinators are also
-/// ordinary prepositions, and an ungated match would carve a verbless
-/// prepositional phrase like "for a while" or "since Monday" off as its own
-/// bogus clause); a comma-plus-coordinator that joins two independent
-/// clauses (see [`coordinator_splits`]); and semicolons or sentence-strong
-/// punctuation. Each resulting [`Clause`] records its own finite-verb token
-/// indices, so [`is_complete_after_deletion`] can answer by index-set
-/// subtraction instead of re-tagging spliced text.
+/// Splits the stream at: a subordinator from [`SUBORDINATORS`] gated by a
+/// finite verb on its right (see [`subordinator_opens_a_clause`] — several
+/// are also ordinary prepositions, and an ungated match would carve off a
+/// bogus verbless clause like "for a while"); a comma-plus-coordinator
+/// joining two independent clauses (see [`coordinator_splits`]); and
+/// semicolons or sentence-strong punctuation. Each resulting [`Clause`]
+/// records its own finite-verb token indices, so
+/// [`is_complete_after_deletion`] can answer by index-set subtraction
+/// instead of re-tagging spliced text.
 #[must_use]
 pub fn chunk_clauses(tokens: &[TaggedToken]) -> ClauseChunks {
     if tokens.is_empty() {
@@ -208,11 +202,10 @@ pub fn chunk_clauses(tokens: &[TaggedToken]) -> ClauseChunks {
 /// Would deleting token-index range `deleted` still leave the sentence
 /// with a finite verb, or imperative-initial, without re-tagging?
 ///
-/// Answers the same clause-completeness question [`has_finite_verb`] /
-/// [`is_imperative_initial`] answer for a whole, already-tagged sentence,
-/// but for a hypothetical edit: subtracts `deleted` from `chunks`'
-/// precomputed finite-verb index sets, and checks whether the first
-/// surviving token (by index, not re-tagged) is `VB`.
+/// Answers the same question [`has_finite_verb`] / [`is_imperative_initial`]
+/// answer for a whole sentence, but for a hypothetical edit: subtracts
+/// `deleted` from `chunks`' precomputed finite-verb index sets, and
+/// checks whether the first surviving token is `VB`.
 #[must_use]
 pub fn is_complete_after_deletion(
     tokens: &[TaggedToken],
@@ -247,10 +240,10 @@ pub struct CoordinationGroup {
 }
 
 /// A coarse category [`find_coordination`] scans over, folded from a
-/// token's tagger-assigned part-of-speech tag plus (for punctuation, where
-/// the tag alone is ambiguous) its own [`TokenKind`]/lemma — the same
-/// signals [`is_comma`]/[`is_strong_boundary`]/[`is_coordinator`] above
-/// already key off, rather than slicing surface text a second time.
+/// token's POS tag plus (for punctuation, where the tag alone is
+/// ambiguous) its own [`TokenKind`]/lemma — the same signals
+/// [`is_comma`]/[`is_strong_boundary`]/[`is_coordinator`] key off, rather
+/// than slicing surface text a second time.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 enum CoordCategory {
     /// A noun or pronoun: a candidate conjunct head.
@@ -407,10 +400,9 @@ pub fn coordination_groups(tokens: &[TaggedToken]) -> Vec<CoordinationGroup> {
 /// `true` if `range` partially overlaps any group in `groups`.
 ///
 /// A partial overlap touches part of a coordinated list without covering
-/// the whole thing, which would break a counted enumeration (`"three
-/// things: X, Y, and Z"` with only `Y` deleted). A range that does not
-/// intersect a group at all, or that fully contains it (deleting the
-/// entire list), is not a partial overlap and does not count.
+/// it whole, which would break a counted enumeration (`"three things: X,
+/// Y, and Z"` with only `Y` deleted). A range that doesn't intersect a
+/// group, or fully contains it (deleting the entire list), doesn't count.
 #[must_use]
 pub fn overlaps_counted_enumeration(range: &Range<usize>, groups: &[CoordinationGroup]) -> bool {
     groups.iter().any(|g| {
@@ -425,14 +417,13 @@ pub fn overlaps_counted_enumeration(range: &Range<usize>, groups: &[Coordination
 }
 
 /// `true` if `tokens`' first token is a pronoun/demonstrative (`PRP`,
-/// `PRP$`, `WP`, or `DT` immediately spelling `this`/`that`/`these`/
-/// `those`), or its lowercased surface is a member of `connectives`.
+/// `PRP$`, `WP`, or `DT` spelling `this`/`that`/`these`/`those`), or its
+/// lowercased surface is a member of `connectives`.
 ///
 /// `connectives` is supplied by the caller (a pack's own closed
-/// connective list) rather than owned here — this crate sits below
-/// `friction-packs` in the dependency graph and must not curate that class
-/// itself; the pronoun/demonstrative check, by contrast, is pure grammar
-/// and stays hardcoded.
+/// connective list) — this crate sits below `friction-packs` and must not
+/// curate that class itself; the pronoun/demonstrative check, by
+/// contrast, is pure grammar and stays hardcoded.
 #[must_use]
 pub fn opens_with_binding_cue(
     source: &str,
@@ -465,11 +456,10 @@ mod tests {
     use crate::tag::PosTag;
 
     /// Builds a sentence's tagged tokens from `(surface, pos, lemma)`
-    /// triples, laying out contiguous byte spans (one space between
-    /// tokens) so the returned source and tokens agree — hand-built
-    /// fixtures rather than a live-tagged sentence, so this module's tests
-    /// exercise the clause/coordination *logic* directly rather than
-    /// depending on a tagger's accuracy on arbitrary sentences.
+    /// triples, laying out contiguous byte spans so source and tokens
+    /// agree — hand-built fixtures so these tests exercise the
+    /// clause/coordination *logic* directly, not a tagger's accuracy on
+    /// arbitrary sentences.
     fn sentence(words: &[(&str, &str, &str)]) -> (String, Vec<TaggedToken>) {
         let mut source = String::new();
         let mut tokens = Vec::with_capacity(words.len());
@@ -771,10 +761,8 @@ mod tests {
 
     #[test]
     fn coordination_groups_negative_case_phrase_internal_and_still_reported_as_flat_list() {
-        // Not a "no coordination at all" case (a determiner-adjective-noun
-        // phrase has no comma/coordinator shape to even attempt) -- the
-        // negative case that matters here is that a plain modifier-noun
-        // phrase with no list at all produces no coordination group.
+        // A plain modifier-noun phrase with no comma/coordinator shape to
+        // even attempt produces no coordination group.
         let (_, tokens) = sentence(&[
             ("The", "DT", "the"),
             ("quick", "JJ", "quick"),

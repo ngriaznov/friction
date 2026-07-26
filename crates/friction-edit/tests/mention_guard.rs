@@ -1,13 +1,11 @@
 //! Mention-vs-use guards: text inside double quotation marks is someone's
-//! example or citation, not the author's own register, and the entire
-//! prose content of a numbered list item is load-bearing structure — the
-//! engine must hold (report) rather than edit in both cases.
+//! example or citation, and a numbered list item's prose is load-bearing
+//! structure — the engine must hold (report) rather than edit either.
 //!
 //! Motivating failure: running the engine over documentation *about*
-//! machine-register phrases rewrote the quoted phrases themselves
-//! ("performs validation of" -> "validates" inside a quoted example) and
-//! deleted a quoted ritual-closer example, leaving a bare `1.` list
-//! marker.
+//! machine-register phrases rewrote quoted phrases themselves
+//! ("performs validation of" -> "validates" inside a quote) and deleted
+//! a quoted ritual-closer example, leaving a bare `1.` list marker.
 
 use friction_edit::Engine;
 

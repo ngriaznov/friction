@@ -1,10 +1,9 @@
 //! Real cases for the two ported rewrite transducers, each with an
 //! asserted output string — not smoke tests.
 //!
-//! Every parse here is built by hand rather than run through the shipped
-//! tagger/parser, so a test failure can only ever mean the transducer
-//! itself is wrong, never that the parser mis-tagged or mis-parsed a
-//! fixture out from under it.
+//! Every parse is built by hand, not run through the shipped tagger/parser,
+//! so a failure can only mean the transducer is wrong, never that the
+//! parser mis-tagged or mis-parsed a fixture underneath it.
 
 use std::collections::BTreeMap;
 
@@ -18,12 +17,10 @@ use friction_register::transduce::{
 /// One token's dependency-tree shape and tags, spelled out by hand.
 ///
 /// `head` is `None` for the sentence's own root. `lemma` is given
-/// explicitly rather than derived from `surface` + `tag`: exactly one
-/// transducer under test ([`t4_activize_to_passive`]) reads a token's
-/// lemma, and deriving it here would route these fixtures through a
-/// third module's own (unrelated) lemmatization accuracy — the same
-/// reason the parse itself is hand-built instead of run through the real
-/// parser.
+/// explicitly rather than derived from `surface` + `tag`: only
+/// [`t4_activize_to_passive`] reads it, and deriving it here would route
+/// fixtures through a third module's own lemmatization accuracy — the
+/// same reason the parse is hand-built, not run through the real parser.
 struct TokenShape {
     head: Option<usize>,
     relation: DepRelation,
@@ -48,9 +45,9 @@ const fn tok(
     }
 }
 
-/// Builds source text plus tagged tokens plus a validated [`SentenceParse`]
-/// from a list of hand-authored [`TokenShape`]s, joining surfaces with a
-/// single space except before sentence-final punctuation.
+/// Builds source text, tagged tokens, and a validated [`SentenceParse`]
+/// from hand-authored [`TokenShape`]s, joining surfaces with a single
+/// space except before sentence-final punctuation.
 fn build(shapes: &[TokenShape]) -> (String, Vec<TaggedToken>, SentenceParse) {
     let mut source = String::new();
     let mut tokens = Vec::with_capacity(shapes.len());
@@ -82,8 +79,7 @@ fn build(shapes: &[TokenShape]) -> (String, Vec<TaggedToken>, SentenceParse) {
     (source, tokens, parse)
 }
 
-/// Asserts every candidate's range slices `source` to exactly `expected`
-/// — the byte-honesty check every candidate in this workspace must pass.
+/// Asserts every candidate's range slices `source` to exactly `expected` — the byte-honesty check every candidate here must pass.
 fn assert_ranges_match(source: &str, found: &[Candidate], expected: &[&str]) {
     assert_eq!(found.len(), expected.len(), "candidate count mismatch");
     for (candidate, &want) in found.iter().zip(expected) {
@@ -94,9 +90,7 @@ fn assert_ranges_match(source: &str, found: &[Candidate], expected: &[&str]) {
     }
 }
 
-// -----------------------------------------------------------------
 // 1. T4 fires: generic subject + direct object -> passive.
-// -----------------------------------------------------------------
 #[test]
 fn t4_fires_on_generic_subject_with_direct_object() {
     let shapes = [
@@ -121,16 +115,13 @@ fn t4_fires_on_generic_subject_with_direct_object() {
     assert_ranges_match(&source, &found, &["We deployed the change"]);
 }
 
-// -----------------------------------------------------------------
 // 2. T4 does NOT fire on a coordinated predicate -- the stranding guard.
 //
 // "We instrumented X, and discovered Y": passivising just the first
-// conjunct would leave "and discovered Y" with no subject at all. Both
-// verbs here are guarded from two different directions -- the first
-// because it has a VERB child attached by `conj`, the second because its
-// own edge relation *is* `conj` -- so this pins both halves of that one
-// guard at once.
-// -----------------------------------------------------------------
+// conjunct would leave "and discovered Y" with no subject. Both verbs
+// are guarded from two directions -- one has a VERB child attached by
+// `conj`, the other's own edge relation *is* `conj` -- pinning both
+// halves of that one guard at once.
 #[test]
 fn t4_does_not_fire_on_a_coordinated_predicate() {
     let shapes = [
@@ -151,9 +142,7 @@ fn t4_does_not_fire_on_a_coordinated_predicate() {
     );
 }
 
-// -----------------------------------------------------------------
 // 3. T4 does not fire on a particular (non-generic) subject.
-// -----------------------------------------------------------------
 #[test]
 fn t4_does_not_fire_on_a_named_subject() {
     let shapes = [
@@ -172,16 +161,13 @@ fn t4_does_not_fire_on_a_named_subject() {
     );
 }
 
-// -----------------------------------------------------------------
 // 4. T4 does not fire on an already-passive clause.
 //
-// This tree is deliberately ungrammatical ("We was deployed the change"):
-// a genuine passive clause's subject bears `nsubjpass`, not `nsubj`, so
-// it would already be excluded by the subject lookup alone, never
-// reaching the `auxpass` guard at all. Giving the generic subject an
-// `nsubj` edge here isolates that guard on its own -- with it removed,
-// this synthetic tree would otherwise satisfy every other T4 condition.
-// -----------------------------------------------------------------
+// Deliberately ungrammatical ("We was deployed the change"): a genuine
+// passive subject bears `nsubjpass`, not `nsubj`, so it would already be
+// excluded before reaching the `auxpass` guard. Giving the subject
+// `nsubj` here isolates that guard alone -- remove it and this synthetic
+// tree satisfies every other T4 condition.
 #[test]
 fn t4_does_not_fire_on_an_already_passive_clause() {
     let shapes = [
@@ -201,9 +187,7 @@ fn t4_does_not_fire_on_an_already_passive_clause() {
     );
 }
 
-// -----------------------------------------------------------------
 // 5. T4 number agreement: singular object -> was/is, plural -> were/are.
-// -----------------------------------------------------------------
 #[test]
 fn t4_be_agrees_with_the_promoted_objects_number_and_tense() {
     let singular_past = [
@@ -248,13 +232,10 @@ fn t4_be_agrees_with_the_promoted_objects_number_and_tense() {
     }
 }
 
-// -----------------------------------------------------------------
-// 5 (continued). T4 does not fire on a reflexive-pronoun object -- pinned
-// against a real sentence ("I ... tore myself away from ...") where a
-// generic subject and a direct object satisfied every other condition,
-// but "myself" has no independent referent to promote to subject
-// position; "Myself was torn away" is not a licensed rewrite.
-// -----------------------------------------------------------------
+// 5 (continued). T4 does not fire on a reflexive-pronoun object --
+// pinned against a real sentence ("I ... tore myself away from ..."):
+// "myself" has no independent referent to promote, so "Myself was torn
+// away" is not a licensed rewrite.
 #[test]
 fn t4_does_not_fire_on_a_reflexive_pronoun_object() {
     let shapes = [
@@ -279,12 +260,9 @@ fn t4_does_not_fire_on_a_reflexive_pronoun_object() {
     );
 }
 
-// -----------------------------------------------------------------
-// 5 (continued). T4 does not fire on stative "have" -- pinned against a
-// real sentence ("we had about a day of downtime") where every other
-// condition was satisfied, but "about a day of downtime was had" is not
-// idiomatic English.
-// -----------------------------------------------------------------
+// 5 (continued). T4 does not fire on stative "have" -- pinned against
+// "we had about a day of downtime": "about a day of downtime was had" is
+// not idiomatic English.
 #[test]
 fn t4_does_not_fire_on_stative_have() {
     let shapes = [
@@ -303,12 +281,9 @@ fn t4_does_not_fire_on_stative_have() {
     );
 }
 
-// -----------------------------------------------------------------
 // 5 (continued). T4 does not fire on the copula "become" -- pinned
-// against a real sentence ("before they become problems") where every
-// other condition was satisfied, but "problems are become" is not
+// against "before they become problems": "problems are become" is not
 // English.
-// -----------------------------------------------------------------
 #[test]
 fn t4_does_not_fire_on_the_copula_become() {
     let shapes = [
@@ -325,13 +300,10 @@ fn t4_does_not_fire_on_the_copula_become() {
     );
 }
 
-// -----------------------------------------------------------------
-// 5 (continued). T4 does not fire when an already-inflected verb's own
-// lemma was not reduced to its base form -- pinned against a real
-// sentence ("rewrote the migration script") where the tagger's lemma for
-// "rewrote" stayed "rewrote" instead of reducing to "rewrite", producing
-// "the migration script was rewroted" once regularly suffixed.
-// -----------------------------------------------------------------
+// 5 (continued). T4 does not fire when the verb's lemma wasn't reduced
+// to its base form -- pinned against "rewrote the migration script",
+// where an unreduced lemma "rewrote" would produce "the migration script
+// was rewroted" once regularly suffixed.
 #[test]
 fn t4_does_not_fire_when_the_verbs_lemma_was_not_reduced_from_its_surface() {
     let shapes = [
@@ -349,11 +321,9 @@ fn t4_does_not_fire_when_the_verbs_lemma_was_not_reduced_from_its_surface() {
     );
 }
 
-// -----------------------------------------------------------------
-// 5 (continued). T4 does not fire when the object is not a plausible
-// nominal -- pinned against a real sentence ("felt most productive")
-// where an adjectival complement was mislabeled `dobj`.
-// -----------------------------------------------------------------
+// 5 (continued). T4 does not fire when the object isn't a plausible
+// nominal -- pinned against "felt most productive", where an adjectival
+// complement was mislabeled `dobj`.
 #[test]
 fn t4_does_not_fire_on_a_non_nominal_object() {
     let shapes = [
@@ -370,13 +340,10 @@ fn t4_does_not_fire_on_a_non_nominal_object() {
     );
 }
 
-// -----------------------------------------------------------------
-// 5 (continued). T4 does not fire when the object's own subtree contains
-// a finite verb, or is directly followed by one -- pinned against two
-// real sentences where the parser flattened an embedded clause into a
-// `dobj`: "we anticipate this reporting workload will continue to grow"
-// and a `dobj` subtree that itself spanned a full relative-clause chain.
-// -----------------------------------------------------------------
+// 5 (continued). T4 does not fire when the object's subtree contains a
+// finite verb, or is directly followed by one -- pinned against "we
+// anticipate this reporting workload will continue to grow", where the
+// parser flattened an embedded clause into a `dobj`.
 #[test]
 fn t4_does_not_fire_when_a_finite_verb_directly_follows_the_object() {
     let shapes = [
@@ -395,13 +362,11 @@ fn t4_does_not_fire_when_a_finite_verb_directly_follows_the_object() {
     );
 }
 
-// -----------------------------------------------------------------
-// 5 (continued). T4 does not fire when the object's own subtree ends on
-// a bare preposition -- pinned against a real sentence ("established a
-// rough budget range of $60,000 - $85,000") where the range's own
-// argument attached elsewhere, stranding "of" as the promoted object's
-// final token and producing "a rough budget range of was established".
-// -----------------------------------------------------------------
+// 5 (continued). T4 does not fire when the object's subtree ends on a
+// bare preposition -- pinned against "established a rough budget range
+// of $60,000 - $85,000", where the range's argument attached elsewhere,
+// stranding "of" and producing "a rough budget range of was
+// established".
 #[test]
 fn t4_does_not_fire_when_the_object_ends_on_a_bare_preposition() {
     let shapes = [
@@ -410,9 +375,9 @@ fn t4_does_not_fire_when_the_object_ends_on_a_bare_preposition() {
         tok(Some(4), DepRelation::Det, "a", "DT", "a"),
         tok(Some(4), DepRelation::Amod, "rough", "JJ", "rough"),
         tok(Some(1), DepRelation::Dobj, "range", "NN", "range"),
-        // Attached under the object's own subtree (as the mis-parse
-        // does), but with no `pobj` argument of its own here -- its true
-        // argument attached elsewhere in the real sentence.
+        // Attached under the object's subtree (as the mis-parse does),
+        // but with no `pobj` argument -- its true argument attached
+        // elsewhere in the real sentence.
         tok(Some(4), DepRelation::Prep, "of", "IN", "of"),
     ];
     let (source, tokens, parse) = build(&shapes);
@@ -445,22 +410,19 @@ fn t4_does_not_fire_when_the_objects_own_subtree_contains_a_finite_verb() {
     );
 }
 
-// -----------------------------------------------------------------
 // 5 (continued). T4 never promotes a span containing Markdown structural
-// syntax -- pinned against a real sentence where a bridged bold
-// placeholder ("**[Proposed Cutover Date ...]**") reached the parser as
-// literal prose and produced a garbage candidate.
-// -----------------------------------------------------------------
+// syntax -- pinned against a bridged bold placeholder
+// ("**[Proposed Cutover Date ...]**") that reached the parser as literal
+// prose and produced a garbage candidate.
 #[test]
 fn t4_does_not_fire_across_markdown_structural_syntax() {
     let shapes = [
         tok(Some(1), DepRelation::Nsubj, "We", "PRP", "we"),
         tok(None, DepRelation::Root, "scheduled", "VBD", "schedule"),
         tok(Some(1), DepRelation::Dobj, "date", "NN", "date"),
-        // Attached under the object's own subtree, so it falls inside
-        // the span this transducer would otherwise promote -- mirroring
-        // how a bridged bold placeholder's asterisk lands adjacent to
-        // real prose tokens in the actual parse.
+        // Falls inside the span this transducer would otherwise promote
+        // -- mirroring how a bridged bold placeholder's asterisk lands
+        // adjacent to real prose tokens in the actual parse.
         tok(Some(2), DepRelation::Other, "*", "SYM", "*"),
     ];
     let (source, tokens, parse) = build(&shapes);
@@ -472,28 +434,22 @@ fn t4_does_not_fire_across_markdown_structural_syntax() {
     );
 }
 
-// -----------------------------------------------------------------
 // 5 (continued). A personal pronoun is never promoted into subject
-// position, so no candidate is produced at all.
+// position; no candidate is produced.
 //
-// This replaces an earlier test that checked such a promotion agreed in
-// number, asserting "You are encouraged" and "Them are plucked". The
-// agreement was right and the construction was still wrong: "Them are
-// plucked" is not a sentence anyone would write, and fixing the verb form
-// only made a bad rewrite grammatical.
+// Replaces an earlier test asserting "You are encouraged" and "Them are
+// plucked" -- grammatically right but "Them are plucked" is not a
+// sentence anyone would write.
 //
-// Two independent reasons to refuse, either sufficient. A ditransitive
-// verb has both a direct and an indirect object and a parser routinely
-// labels the indirect one `dobj`, so promoting it produces a sentence
-// about the wrong participant -- measured on "see how much time and
-// effort they save you", which yielded "...how much time and effort you
-// are saved", promoting the beneficiary and stranding the real object.
-// And a pronoun carries almost no information, so promoting it buys
-// nothing even when it is the right object.
+// Two independent reasons, either sufficient. A ditransitive verb's
+// indirect object is often mislabeled `dobj`, so promoting it names the
+// wrong participant -- measured on "see how much time and effort they
+// save you", which yielded "...you are saved", stranding the real
+// object. And a pronoun carries almost no information, so promoting it
+// buys nothing even when it's the right object.
 //
-// Number agreement itself is still covered, on objects that can actually
-// occur, by `t4_be_agrees_with_the_promoted_objects_number_and_tense`.
-// -----------------------------------------------------------------
+// Number agreement is covered separately, on real objects, by
+// `t4_be_agrees_with_the_promoted_objects_number_and_tense`.
 #[test]
 fn t4_does_not_promote_a_personal_pronoun_object() {
     let cases = [
@@ -517,13 +473,10 @@ fn t4_does_not_promote_a_personal_pronoun_object() {
     }
 }
 
-// -----------------------------------------------------------------
-// 5 (continued). T4 recapitalizes the promoted object only when its own
-// candidate range opens the sentence -- pinned against a real sentence
-// where a subordinate clause's object was wrongly capitalized mid-
-// sentence ("... when I found an exception" must become "... when an
-// exception was found", not "... when An exception was found").
-// -----------------------------------------------------------------
+// 5 (continued). T4 recapitalizes the promoted object only when its
+// candidate range opens the sentence -- pinned against "... when I found
+// an exception", which must become "... when an exception was found",
+// not "... when An exception was found".
 #[test]
 fn t4_does_not_recapitalize_a_mid_sentence_promoted_object() {
     let shapes = [
@@ -540,9 +493,7 @@ fn t4_does_not_recapitalize_a_mid_sentence_promoted_object() {
     assert_eq!(&*found[0].replacement, "an exception was found");
 }
 
-// -----------------------------------------------------------------
 // 6. T5 fires on "the <nominalization> of <arg>".
-// -----------------------------------------------------------------
 #[test]
 fn t5_fires_on_nominalization_with_of_complement() {
     let shapes = [
@@ -576,9 +527,7 @@ fn t5_fires_on_nominalization_with_of_complement() {
     assert_ranges_match(&source, &found, &["the optimization of the query"]);
 }
 
-// -----------------------------------------------------------------
 // 7. T5 does not fire without the "of" complement.
-// -----------------------------------------------------------------
 #[test]
 fn t5_does_not_fire_without_of_complement() {
     let shapes = [
@@ -621,12 +570,10 @@ fn t5_does_not_fire_when_noun_outside_table() {
     );
 }
 
-// 7 (continued). T5 does not fire when the pobj's own subtree is
-// immediately followed by a bare noun -- the stranded compound-noun-tail
-// guard, pinned against the real shape that exposed it ("the integration
-// of the third-party analytics SDK", where a parser mis-attachment left
-// "SDK" outside the `pobj` subtree entirely).
-// -----------------------------------------------------------------
+// 7 (continued). T5 does not fire when the pobj's subtree is immediately
+// followed by a bare noun -- the stranded compound-noun-tail guard,
+// pinned against "the integration of the third-party analytics SDK",
+// where a parser mis-attachment left "SDK" outside the `pobj` subtree.
 #[test]
 fn t5_does_not_fire_when_a_bare_noun_immediately_follows_the_pobj_subtree() {
     let shapes = [
@@ -642,11 +589,10 @@ fn t5_does_not_fire_when_a_bare_noun_immediately_follows_the_pobj_subtree() {
         ),
         tok(Some(3), DepRelation::Prep, "of", "IN", "of"),
         tok(Some(8), DepRelation::Det, "the", "DT", "the"),
-        // "third-party" attaches under the pobj's own subtree (as a real
+        // "third-party" attaches under the pobj's subtree (as a real
         // parse would), but "SDK" -- the phrase's true final noun -- is
-        // mis-attached to the root verb instead of anywhere under
-        // "analytics", stranding it just past the subtree this
-        // transducer would otherwise use as its argument.
+        // mis-attached to the root verb, stranding it just past the
+        // subtree this transducer would otherwise use as its argument.
         tok(
             Some(8),
             DepRelation::Other,
@@ -667,9 +613,7 @@ fn t5_does_not_fire_when_a_bare_noun_immediately_follows_the_pobj_subtree() {
     );
 }
 
-// -----------------------------------------------------------------
 // 8. T5 recapitalizes at sentence start.
-// -----------------------------------------------------------------
 #[test]
 fn t5_recapitalizes_when_determiner_is_sentence_initial() {
     let shapes = [
@@ -688,11 +632,8 @@ fn t5_recapitalizes_when_determiner_is_sentence_initial() {
     assert_ranges_match(&source, &found, &["The reduction of costs"]);
 }
 
-// -----------------------------------------------------------------
-// 9. Irregular inflection: at least three verbs from the irregular
-// tables produce the correct past participle, alongside regular verbs
-// for contrast.
-// -----------------------------------------------------------------
+// 9. Irregular inflection: verbs from the irregular tables produce the
+// correct past participle, alongside regular verbs for contrast.
 #[test]
 fn past_participle_uses_the_irregular_table_verbatim() {
     assert_eq!(past_participle("write"), "written");
@@ -726,10 +667,8 @@ fn past_and_third_sg_are_ported_alongside_past_participle() {
     assert_eq!(third_sg("carry"), "carries");
 }
 
-// -----------------------------------------------------------------
-// 10. Byte ranges: every candidate's range slices the original source to
-// exactly the text it claims to replace, across every fixture above.
-// -----------------------------------------------------------------
+// 10. Byte ranges: every candidate's range slices the source to exactly
+// the text it claims to replace, across every fixture above.
 #[test]
 fn every_candidate_range_slices_the_original_source_exactly() {
     let fixtures: &[&[TokenShape]] = &[

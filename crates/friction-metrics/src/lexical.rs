@@ -2,62 +2,43 @@
 //! ratio, ritual open/close phrases, and the `"not just/only X but (also)
 //! Y"` construction.
 //!
-//! Every function in this module is a pure function of a
-//! [`friction_core::Document`]: given the same document it returns the
-//! same numbers, on any machine, on any run. Each walks the document's
-//! paragraphs ([`Document::prose`]) and their sentences in a single
-//! left-to-right pass, in source order — no `HashMap`/`HashSet`, no
-//! parallel reduction, and float accumulation (the density and rate
-//! metrics) always sums small integer counters first and divides once at
-//! the end, so accumulation order never affects the result.
+//! Every function here is a pure function of a [`friction_core::Document`]:
+//! same input, same output, on any machine or run — one left-to-right,
+//! source-order pass over paragraphs and sentences, no `HashMap`, no
+//! parallel reduction, and integer counters summed before dividing once,
+//! so order never affects the result.
 //!
 //! # Matching rules
 //!
-//! - **Case**: every phrase list below is plain ASCII, and matching folds
-//!   case with ASCII case-folding (`char::eq_ignore_ascii_case`,
-//!   `str::to_ascii_lowercase`) rather than a locale-aware transform —
-//!   there is no ambient locale to make that non-deterministic.
-//! - **Apostrophes**: a `'` in a marker or contraction table also matches
-//!   the Unicode right single quotation mark `’` (`U+2019`), since
-//!   markdown sources and LLM output commonly use "smart" quotes for
-//!   contractions and possessives.
-//! - **Word boundaries**: a sentence-initial marker match additionally
-//!   requires that the character right after the marker (if any) is not
-//!   alphanumeric, so `"However"` matches `"However, it..."` but not
-//!   `"Howeverish results..."`.
-//! - **Leading markdown emphasis**: before a sentence-initial marker match
-//!   is attempted, leading whitespace and leading `*`/`_` characters
-//!   (markdown emphasis/strong delimiters) are stripped, repeating both
-//!   strips until neither removes anything further. `friction-parse`
-//!   deliberately *bridges* emphasis/strong delimiters into a sentence's
-//!   source text rather than stripping them (see `friction-parse`'s
-//!   `extract` module docs), so a bold- or italic-wrapped marker like
-//!   `"**Overall:** it works."` or `"__However__, it works."` keeps its
-//!   literal `**`/`__` prefix in the sentence text; without this stripping
-//!   step the marker match would silently fail on every such sentence.
-//! - **Tokenization** (for the contraction ratio and the per-1000-token
-//!   discourse-marker density): [`word_tokens`] splits text into maximal
-//!   runs of alphabetic characters, treating an interior apostrophe
-//!   (ASCII or the Unicode right single quotation mark, surrounded by
-//!   alphabetic characters on both sides) as part of the word — so
-//!   `"don't"` and `"it's"` are single tokens — while hyphens and
-//!   leading/trailing quotation marks are word separators, so
-//!   `"well-known"` tokenizes as two words. This is intentionally simpler
-//!   than `friction-nlp`'s tokenizer: these metrics only need a word
-//!   count and word-boundary phrase matching, not POS-taggable token
-//!   spans.
+//! - **Case**: phrase lists are ASCII; case-folds ASCII-only, not
+//!   locale-aware, since there's no ambient locale to vary by.
+//! - **Apostrophes**: a `'` also matches `’` (`U+2019`) — markdown and
+//!   LLM output commonly use "smart" quotes.
+//! - **Word boundaries**: a marker must be followed by a non-alphanumeric
+//!   character or nothing: `"However"` matches `"However, it..."`, not
+//!   `"Howeverish..."`.
+//! - **Leading markdown emphasis**: `friction-parse` bridges emphasis
+//!   delimiters into sentence text instead of stripping them, so
+//!   `"**Overall:** it works."` keeps its `**` prefix; leading whitespace
+//!   and `*`/`_` are stripped to a fixed point before matching, or the
+//!   match silently fails.
+//! - **Tokenization** (contraction ratio, discourse-marker density):
+//!   [`word_tokens`] splits text into maximal alphabetic runs; an
+//!   interior apostrophe (ASCII or `’`, flanked by letters) is part of
+//!   the word, so `"don't"`/`"it's"` are single tokens, `"well-known"` is
+//!   two. Simpler than `friction-nlp`'s tokenizer: only word count and
+//!   phrase matching are needed, not POS-taggable spans.
 
 use std::sync::LazyLock;
 
 use friction_core::Document;
 use regex::Regex;
 
-/// Sentence-initial discourse markers: transition/hedge phrases that, when
-/// they open a sentence, are disproportionately common in LLM output
-/// relative to human writing (`"Moreover, ..."`, `"It's worth noting that
-/// ..."`). Sorted alphabetically (ASCII byte order); matched
-/// case-insensitively only at the very start of a sentence, not mid-
-/// sentence.
+/// Sentence-initial discourse markers: transition/hedge phrases
+/// disproportionately common in LLM output vs. human writing
+/// (`"Moreover, ..."`, `"It's worth noting that ..."`). Sorted
+/// alphabetically (ASCII byte order); matched case-insensitively,
+/// sentence-initial only.
 const DISCOURSE_MARKERS: [&str; 32] = [
     "Additionally",
     "Consequently",
@@ -93,16 +74,15 @@ const DISCOURSE_MARKERS: [&str; 32] = [
     "Ultimately",
 ];
 
-/// Ritual open/close phrases: stock transition phrases that LLM prose
-/// disproportionately uses to open or close a document or paragraph
+/// Ritual open/close phrases: stock transitions LLM prose
+/// disproportionately uses to open/close a document or paragraph
 /// (`"In today's fast-paced world, ..."`, `"...To summarize, ..."`).
-/// Sorted alphabetically (ASCII byte order); matched case-insensitively
-/// against the start of a paragraph's first or last sentence.
+/// Sorted alphabetically; matched case-insensitively against a
+/// paragraph's first or last sentence.
 ///
-/// This list overlaps `DISCOURSE_MARKERS` in a few entries (`"Overall"`,
-/// `"To summarize"`) by design: those phrases are both general-purpose
-/// sentence-initial hedges *and* characteristic paragraph/document
-/// bookends, so both metrics track them independently.
+/// Overlaps `DISCOURSE_MARKERS` on a few entries (`"Overall"`, `"To
+/// summarize"`) by design — both hedges and bookends, tracked
+/// independently.
 const RITUAL_MARKERS: [&str; 15] = [
     "As we can see",
     "At the end of the day",
@@ -122,19 +102,17 @@ const RITUAL_MARKERS: [&str; 15] = [
 ];
 
 /// A contractible pair: `expanded` (one or more whitespace-separated
-/// words, e.g. `"do not"` or the already-single-word `"cannot"`) and its
-/// `contracted` single-token form (e.g. `"don't"`, `"can't"`).
+/// words, e.g. `"do not"` or `"cannot"`) and its `contracted` single-token
+/// form (e.g. `"don't"`, `"can't"`).
 struct ContractionPair {
     expanded: &'static str,
     contracted: &'static str,
 }
 
-/// Contractible pairs: standard English contractions and their expanded
-/// forms. Sorted alphabetically by `expanded` (ASCII byte order). A few
-/// contracted forms are genuinely ambiguous in isolation (`"it's"` can
-/// expand to either `"it is"` or `"it has"`); this table picks the
-/// overwhelmingly more common expansion for each and does not attempt
-/// disambiguation from context.
+/// Standard English contractions and their expanded forms. Sorted
+/// alphabetically by `expanded`. Some contracted forms are ambiguous
+/// (`"it's"` -> `"it is"` or `"it has"`); this table picks the more
+/// common expansion, no context disambiguation.
 const CONTRACTION_PAIRS: [ContractionPair; 28] = [
     ContractionPair {
         expanded: "cannot",
@@ -250,13 +228,10 @@ const CONTRACTION_PAIRS: [ContractionPair; 28] = [
     },
 ];
 
-/// Matches a `"not just/only X but (also) Y"` coordination, case- and
-/// newline-insensitively (`(?i)` folds case, `(?s)` lets `.` cross the
-/// soft line breaks that can appear inside a single markdown-source
-/// sentence): `"not"`, then `"just"` or `"only"`, then eventually `"but"`,
-/// optionally followed by `"also"`. Built once, lazily, since compiling a
-/// regex is not free and every one of these functions is called
-/// repeatedly.
+/// Matches `"not just/only X but (also) Y"`, case- and
+/// newline-insensitive (`(?i)` folds case, `(?s)` lets `.` cross soft
+/// line breaks in a markdown-source sentence). Built once, lazily —
+/// compiling a regex isn't free and this runs repeatedly.
 static NOT_JUST_BUT_RE: LazyLock<Regex> = LazyLock::new(|| {
     Regex::new(r"(?is)\bnot\s+(?:just|only)\b.*?\bbut\b(?:\s+also\b)?")
         .expect("not-just-but pattern is a fixed, valid regex")
@@ -265,17 +240,12 @@ static NOT_JUST_BUT_RE: LazyLock<Regex> = LazyLock::new(|| {
 /// The canonical `(expanded, contracted)` pairs this workspace treats as
 /// standard English contractions.
 ///
-/// The same data [`contraction_ratio`] counts over, just handed back as
-/// plain string pairs instead of the private [`ContractionPair`] shape it
-/// is stored in internally. Exposed so other crates that need this *exact*
-/// table — most notably
-/// `friction-rules`' contraction-insertion rule, which turns one of these
-/// `expanded` phrases back into its `contracted` form when a document
-/// reads more formally than its genre's own writers typically do — read
-/// the same data this metric does, rather than maintaining an independent
-/// copy that could quietly drift out of sync with it. Returned in the
-/// same order as the table's own declaration (sorted by `expanded`, ASCII
-/// byte order; see [`CONTRACTION_PAIRS`]'s own doc comment).
+/// Same data [`contraction_ratio`] counts over, as plain string pairs
+/// instead of the private [`ContractionPair`] shape. Exposed for crates
+/// needing this *exact* table — notably `friction-rules`'
+/// contraction-insertion rule (turns `expanded` into `contracted` when a
+/// document reads too formally for its genre) — so it reads the same
+/// data instead of risking drift. Same order as [`CONTRACTION_PAIRS`].
 #[must_use]
 pub fn contraction_pairs() -> Vec<(&'static str, &'static str)> {
     CONTRACTION_PAIRS
@@ -286,12 +256,9 @@ pub fn contraction_pairs() -> Vec<(&'static str, &'static str)> {
 
 /// Sentence-initial discourse-marker density, per 1000 word tokens.
 ///
-/// Counts sentences whose text (after stripping leading whitespace and
-/// markdown emphasis delimiters, see [`strip_leading_markup`]) starts with
-/// one of [`DISCOURSE_MARKERS`], divides by the document's total word
-/// token count (see the module docs for the tokenization rule), and scales
-/// to a per-1000-token rate. Returns `0.0` for a document with no word
-/// tokens.
+/// Counts sentences starting with a [`DISCOURSE_MARKERS`] entry (after
+/// [`strip_leading_markup`]), divides by total word tokens, scales to
+/// per-1000. Returns `0.0` for a document with no word tokens.
 #[must_use]
 pub fn discourse_marker_density(document: &Document) -> f64 {
     let mut marker_sentences = 0u64;
@@ -316,25 +283,18 @@ pub fn discourse_marker_density(document: &Document) -> f64 {
 }
 
 /// The raw `(contracted, contractible)` occurrence counts
-/// [`contraction_ratio`] divides to produce its ratio, counted over every
-/// [`CONTRACTION_PAIRS`] entry across the whole document.
+/// [`contraction_ratio`] divides, over every [`CONTRACTION_PAIRS`] entry.
 ///
-/// For each sentence (not the whole paragraph — an `expanded` phrase must
-/// not be allowed to match across a sentence boundary, e.g. the "is" that
-/// ends one sentence and the "not" that opens the next must never count
-/// as the `"is not"` -> `"isn't"` pair), [`word_tokens`] the sentence's
-/// text once, then for every pair counts exact single-token matches of
-/// `contracted` and exact consecutive-token matches of `expanded`'s words
-/// (so a one-word expanded form like `"cannot"` and a multi-word one like
-/// `"do not"` are counted the same way).
+/// Tokenizes per sentence, not per paragraph — an `expanded` phrase must
+/// never match across a sentence boundary, e.g. "is" ending one sentence
+/// and "not" opening the next isn't `"is not"` -> `"isn't"`. Counts exact
+/// single-token matches of `contracted` and consecutive-token matches of
+/// `expanded`, one-word and multi-word forms alike.
 ///
-/// Exposed as its own function (rather than folded straight into
-/// [`contraction_ratio`]) because the raw counts, not just their ratio,
-/// are what a caller needs to work out the metric's *exact* per-occurrence
-/// effect (`1 / (contracted + contractible)`) for a specific document —
-/// most notably `friction-rules`' contraction-insertion rule, which reads
-/// its own real document this same way rather than guessing that effect
-/// from a fixed assumed document size (see that rule's module docs).
+/// Exposed separately from [`contraction_ratio`] because callers need raw
+/// counts for the *exact* per-occurrence effect (`1 / (contracted +
+/// contractible)`) — notably `friction-rules`' contraction-insertion
+/// rule, which reads its own document rather than assuming a size.
 #[must_use]
 pub fn contraction_counts(document: &Document) -> (u64, u64) {
     let mut contracted = 0u64;
@@ -361,8 +321,7 @@ pub fn contraction_counts(document: &Document) -> (u64, u64) {
 /// Ratio of contracted to contractible forms: `contracted / (contracted +
 /// contractible)`, from [`contraction_counts`].
 ///
-/// Returns `0.0` when neither a contracted nor a contractible form appears
-/// anywhere in the document, rather than `NaN`.
+/// Returns `0.0`, not `NaN`, when neither form appears in the document.
 #[must_use]
 pub fn contraction_ratio(document: &Document) -> f64 {
     let (contracted, contractible) = contraction_counts(document);
@@ -375,17 +334,14 @@ pub fn contraction_ratio(document: &Document) -> f64 {
     ratio
 }
 
-/// Rate of paragraphs that open or close with a ritual transition phrase,
-/// per paragraph.
+/// Rate of paragraphs that open or close with a ritual transition
+/// phrase.
 ///
-/// A paragraph is a [`friction_core::ProseUnit`] with at least one
-/// sentence; it counts as "flagged" if its first sentence or its last
-/// sentence (which may be the same sentence, for a one-sentence
-/// paragraph) starts with one of [`RITUAL_MARKERS`] (after stripping
-/// leading whitespace and markdown emphasis delimiters, see
-/// [`strip_leading_markup`] — this is what lets a bold-wrapped marker like
-/// `"**Overall:** ..."` match). Returns `0.0` for a document with no
-/// paragraphs that have any sentences.
+/// A paragraph is a [`friction_core::ProseUnit`] with a sentence;
+/// "flagged" means its first or last sentence (same one, for
+/// one-sentence paragraphs) starts with a [`RITUAL_MARKERS`] entry after
+/// [`strip_leading_markup`] (lets `"**Overall:** ..."` match). Returns
+/// `0.0` for a document with no paragraphs that have sentences.
 #[must_use]
 pub fn ritual_marker_rate(document: &Document) -> f64 {
     let mut paragraphs = 0u64;
@@ -417,9 +373,8 @@ pub fn ritual_marker_rate(document: &Document) -> f64 {
 
 /// Rate of `"not just/only X but (also) Y"` constructions, per sentence.
 ///
-/// Counts sentences whose text matches [`NOT_JUST_BUT_RE`] and divides by
-/// the document's total sentence count. Returns `0.0` for a document with
-/// no sentences.
+/// Counts sentences matching [`NOT_JUST_BUT_RE`], divides by total
+/// sentence count. Returns `0.0` for a document with no sentences.
 #[must_use]
 pub fn not_just_but_rate(document: &Document) -> f64 {
     let mut sentences = 0u64;
@@ -443,10 +398,9 @@ pub fn not_just_but_rate(document: &Document) -> f64 {
     rate
 }
 
-/// Returns `true` if `text`, after stripping leading whitespace and
-/// leading markdown emphasis delimiters (see [`strip_leading_markup`]),
-/// starts with any phrase in `markers` (see the module docs for the exact
-/// case/apostrophe/word-boundary rules).
+/// Returns `true` if `text`, after [`strip_leading_markup`], starts with
+/// any phrase in `markers` (case/apostrophe/word-boundary rules: module
+/// docs).
 fn starts_with_any(text: &str, markers: &[&str]) -> bool {
     let stripped = strip_leading_markup(text);
     markers
@@ -454,18 +408,13 @@ fn starts_with_any(text: &str, markers: &[&str]) -> bool {
         .any(|marker| starts_with_marker(stripped, marker))
 }
 
-/// Strips leading whitespace and leading markdown emphasis/strong
-/// delimiters (`*`/`_`) from `text`, repeating both strips in sequence
-/// until a pass removes nothing further.
+/// Strips leading whitespace and markdown emphasis/strong delimiters
+/// (`*`/`_`) from `text`, repeating until a pass removes nothing further.
 ///
-/// A sentence's source-sliced text keeps a bold- or italic-wrapped
-/// marker's literal delimiter prefix — `friction-parse`'s prose
-/// extraction bridges emphasis/strong runs into the surrounding sentence
-/// rather than stripping them — so `"**Overall:**"` and `"__However__,"`
-/// both need their `**`/`__` skipped before [`starts_with_marker`] can see
-/// the word underneath. Repeating the whitespace-then-delimiter strip
-/// (rather than doing each once) handles a delimiter run followed by more
-/// whitespace, e.g. `"** Overall"` (a space inside the emphasis markers).
+/// `friction-parse` bridges emphasis into sentence text rather than
+/// stripping it, so `"**Overall:**"` keeps its prefix; repeating (not
+/// once) handles a delimiter run followed by more whitespace, e.g. `"**
+/// Overall"`.
 fn strip_leading_markup(text: &str) -> &str {
     let mut current = text;
     loop {
@@ -478,10 +427,9 @@ fn strip_leading_markup(text: &str) -> &str {
 }
 
 /// Returns `true` if `text` begins with `marker`, case-insensitively
-/// (ASCII case-folding; every marker table in this module is plain
-/// ASCII), immediately followed by a non-alphanumeric character or the
-/// end of `text`. A `'` in `marker` also matches the Unicode right single
-/// quotation mark `’` in `text`.
+/// (ASCII case-folding — every marker table here is ASCII), followed by
+/// a non-alphanumeric character or end of `text`. A `'` in `marker` also
+/// matches `’`.
 fn starts_with_marker(text: &str, marker: &str) -> bool {
     let mut text_chars = text.chars();
     for expected in marker.chars() {
@@ -524,9 +472,8 @@ fn word_tokens(text: &str) -> Vec<String> {
     tokens
 }
 
-/// Counts how many times the consecutive-token sequence `phrase` occurs in
-/// `tokens` (every `tokens` window of `phrase.len()` that matches
-/// `phrase`, element-wise, exactly — both sides are already lowercase).
+/// Counts how many `tokens` windows of `phrase.len()` match `phrase`
+/// element-wise (both sides already lowercase).
 fn count_phrase_occurrences(tokens: &[String], phrase: &[&str]) -> usize {
     if phrase.is_empty() || tokens.len() < phrase.len() {
         return 0;
@@ -538,12 +485,11 @@ fn count_phrase_occurrences(tokens: &[String], phrase: &[&str]) -> usize {
 }
 
 #[cfg(test)]
-// Every fixture below is a hand-computed exact value (see each test's doc
-// comment for the arithmetic), so comparing with `==` rather than an
-// epsilon is intentional, not a float-precision bug. And several
-// fixtures deliberately use a one-sentence paragraph (`&[a..b]`), which
-// clippy's heuristic misreads as `Range` literal syntax rather than a
-// one-element array of ranges.
+// Every fixture is a hand-computed exact value (see each test's doc
+// comment), so `==` instead of an epsilon is intentional, not a
+// float-precision bug. Several also use a one-sentence paragraph
+// (`&[a..b]`), which clippy misreads as a `Range` literal rather than a
+// one-element array.
 #[allow(clippy::float_cmp, clippy::single_range_in_vec_init)]
 mod tests {
     use std::ops::Range;
@@ -552,9 +498,9 @@ mod tests {
 
     use super::*;
 
-    /// `DISCOURSE_MARKERS` is sorted (ASCII byte order) with no
-    /// duplicates, so the list documents its own invariant instead of
-    /// relying on the author having gotten it right by eye.
+    /// `DISCOURSE_MARKERS` is sorted (ASCII byte order), no duplicates —
+    /// documents its own invariant rather than relying on the author's
+    /// eye.
     #[test]
     fn discourse_markers_sorted_and_unique() {
         assert!(DISCOURSE_MARKERS.windows(2).all(|w| w[0] < w[1]));
@@ -582,10 +528,9 @@ mod tests {
         }
     }
 
-    /// `contraction_pairs` hands back exactly [`CONTRACTION_PAIRS`], in
-    /// the same order, just unwrapped from the private [`ContractionPair`]
-    /// struct into plain tuples — the public accessor other crates (e.g.
-    /// `friction-rules`) reuse instead of maintaining their own copy.
+    /// `contraction_pairs` hands back [`CONTRACTION_PAIRS`], same order,
+    /// unwrapped into plain tuples — the accessor other crates (e.g.
+    /// `friction-rules`) reuse instead of keeping their own copy.
     #[test]
     fn contraction_pairs_matches_internal_table() {
         let pairs = contraction_pairs();
@@ -595,11 +540,10 @@ mod tests {
         }
     }
 
-    /// Builds a single-block, single-paragraph document out of pre-cut
-    /// sentence ranges, without going through `friction-parse` or
-    /// `friction-nlp` — these fixtures are hand-computed byte offsets, so
-    /// bypassing real segmentation keeps the expected values exact and
-    /// independent of any other crate's behavior.
+    /// Builds a single-block, single-paragraph document from pre-cut
+    /// sentence ranges, bypassing `friction-parse`/`friction-nlp` —
+    /// hand-computed offsets keep expected values exact and independent
+    /// of other crates.
     fn doc_from_sentences(source: &'static str, sentence_ranges: &[Range<usize>]) -> Document {
         let sentences = sentence_ranges
             .iter()
@@ -633,8 +577,8 @@ mod tests {
 
     // --- strip_leading_markup ------------------------------------------
 
-    /// Plain text with only leading whitespace is trimmed the same as
-    /// `str::trim_start` would, with no markup to strip.
+    /// Plain text with only leading whitespace trims like
+    /// `str::trim_start`, with no markup to strip.
     #[test]
     fn strip_leading_markup_trims_whitespace_only() {
         assert_eq!(
@@ -643,8 +587,7 @@ mod tests {
         );
     }
 
-    /// A single run of leading `**` (bold) is stripped down to the word
-    /// underneath.
+    /// A leading `**` run (bold) is stripped down to the word underneath.
     #[test]
     fn strip_leading_markup_strips_bold_delimiters() {
         assert_eq!(
@@ -653,8 +596,8 @@ mod tests {
         );
     }
 
-    /// A single run of leading `__` (the underscore strong-emphasis
-    /// delimiter) is stripped the same way `**` is.
+    /// A leading `__` run (underscore strong emphasis) is stripped the
+    /// same way `**` is.
     #[test]
     fn strip_leading_markup_strips_underscore_delimiters() {
         assert_eq!(
@@ -663,11 +606,10 @@ mod tests {
         );
     }
 
-    /// Whitespace and delimiter stripping repeat until neither removes
-    /// anything further: `"** Overall"` has a space *inside* the leading
-    /// `**`, so a single whitespace-then-delimiter pass would stop after
-    /// stripping `**` and land on `" Overall"` — this checks the second
-    /// pass strips that remaining leading space too.
+    /// Stripping repeats until neither removes anything further: `"**
+    /// Overall"` has a space *inside* the leading `**`, so a single pass
+    /// would stop at `" Overall"` — this checks the second pass strips
+    /// that remaining space.
     #[test]
     fn strip_leading_markup_repeats_until_fixed_point() {
         assert_eq!(
@@ -687,9 +629,9 @@ mod tests {
 
     // --- discourse_marker_density -----------------------------------
 
-    /// "However, it works." (3 tokens, sentence-initial "However") and
-    /// "Fine." (1 token, no marker): 1 marked sentence over 4 total
-    /// tokens, scaled to per-1000 = `1 * 1000 / 4 = 250.0` exactly.
+    /// "However, it works." (3 tokens) and "Fine." (1 token, no marker):
+    /// 1 marked sentence over 4 tokens, scaled to per-1000 = `1 * 1000 /
+    /// 4 = 250.0` exactly.
     #[test]
     fn discourse_marker_density_hand_computed() {
         let source = "However, it works. Fine.";
@@ -697,17 +639,10 @@ mod tests {
         assert_eq!(discourse_marker_density(&doc), 250.0);
     }
 
-    /// Regression test for the bold-wrapped-marker detector bug: a
-    /// sentence whose source text is `"**However**, it works."` (the
-    /// literal form a markdown-source ritual/discourse marker takes once
-    /// `friction-parse` bridges the emphasis delimiters into the sentence,
-    /// see the module docs) must still be recognized as opening with
-    /// "However" — 3 tokens ("However", "it", "works"; the bold markers
-    /// are not `str::split_whitespace` tokens on their own, they cling to
-    /// "However" and "works" respectively... actually the source is
-    /// `"**However**, it works."`, whose whitespace-split tokens are
-    /// `["**However**,", "it", "works."]`, i.e. 3 tokens), 1 marked
-    /// sentence over 3 tokens = `1 * 1000 / 3`.
+    /// Regression test for the bold-wrapped-marker detector bug: source
+    /// text `"**However**, it works."` must still be recognized as
+    /// opening with "However" — `word_tokens` gives 3 tokens, so 1 marked
+    /// sentence over 3 = `1 * 1000 / 3`.
     #[test]
     fn discourse_marker_density_matches_bold_wrapped_marker() {
         let source = "**However**, it works.";
@@ -715,8 +650,8 @@ mod tests {
         assert!((discourse_marker_density(&doc) - 1000.0 / 3.0).abs() < 1e-9);
     }
 
-    /// The same bold-wrapped-marker recognition applies to the underscore
-    /// strong-emphasis delimiter, not just `**`.
+    /// Same recognition applies to the underscore delimiter, not just
+    /// `**`.
     #[test]
     fn discourse_marker_density_matches_underscore_wrapped_marker() {
         let source = "__However__, it works.";
@@ -724,10 +659,9 @@ mod tests {
         assert!((discourse_marker_density(&doc) - 1000.0 / 3.0).abs() < 1e-9);
     }
 
-    /// A bold-wrapped word that is *not* one of `DISCOURSE_MARKERS` must
-    /// not spuriously match just because its emphasis delimiters got
-    /// stripped — stripping markup does not loosen the marker-phrase
-    /// comparison itself.
+    /// A bold-wrapped word that isn't in `DISCOURSE_MARKERS` must not
+    /// spuriously match just because its emphasis delimiters got
+    /// stripped.
     #[test]
     fn discourse_marker_density_bold_non_marker_does_not_match() {
         let source = "**Something** happened.";
@@ -735,9 +669,9 @@ mod tests {
         assert_eq!(discourse_marker_density(&doc), 0.0);
     }
 
-    /// A marker word must be followed by a non-alphanumeric character to
-    /// count: "Howeverish" is not "However" plus a word boundary, so this
-    /// sentence contributes 0 marked sentences (density `0.0`), not 1.
+    /// A marker word must be followed by a non-alphanumeric character:
+    /// "Howeverish" is not "However" plus a word boundary, so density is
+    /// `0.0`, not from 1 marked sentence.
     #[test]
     fn discourse_marker_density_requires_word_boundary() {
         let source = "Howeverish results came in.";
@@ -745,8 +679,8 @@ mod tests {
         assert_eq!(discourse_marker_density(&doc), 0.0);
     }
 
-    /// A document with no word tokens (empty sentence text) has density
-    /// `0.0`, not `NaN` from a zero-over-zero division.
+    /// A document with no word tokens has density `0.0`, not `NaN` from a
+    /// zero-over-zero division.
     #[test]
     fn discourse_marker_density_zero_tokens_is_zero() {
         let source = "";
@@ -756,11 +690,10 @@ mod tests {
 
     // --- contraction_ratio -------------------------------------------
 
-    /// "Do not stop. Don't stop. It is fine. It's fine." tokenizes to
-    /// `[do, not, stop, don't, stop, it, is, fine, it's, fine]`: one
-    /// `"do not"` bigram and one `"don't"` token (pair 1), one `"it is"`
-    /// bigram and one `"it's"` token (pair 2). contracted = 2,
-    /// contractible = 2, ratio = `2 / (2 + 2) = 0.5` exactly.
+    /// "Do not stop. Don't stop. It is fine. It's fine.": one `"do not"`
+    /// bigram and `"don't"` token (pair 1), one `"it is"` bigram and
+    /// `"it's"` token (pair 2). contracted = 2, contractible = 2, ratio =
+    /// `2 / (2 + 2) = 0.5` exactly.
     #[test]
     fn contraction_ratio_hand_computed() {
         let source = "Do not stop. Don't stop. It is fine. It's fine.";
@@ -768,8 +701,7 @@ mod tests {
         assert_eq!(contraction_ratio(&doc), 0.5);
     }
 
-    /// A document with neither a contracted nor a contractible form
-    /// present has ratio `0.0`, not `NaN`.
+    /// A document with neither form present has ratio `0.0`, not `NaN`.
     #[test]
     fn contraction_ratio_no_forms_is_zero() {
         let source = "Cats sit on mats quietly.";
@@ -780,21 +712,15 @@ mod tests {
     /// Regression test: an `expanded` pair must never match across a
     /// sentence boundary.
     ///
-    /// "She does. Not enough is done. It isn't clear." is one paragraph
-    /// with three sentences. Tokenized per sentence: `["she", "does"]`,
-    /// `["not", "enough", "is", "done"]`, `["it", "isn't", "clear"]`.
-    /// None of the three sentences, taken alone, contains a contractible
-    /// `expanded` phrase — the only real contraction present is `"isn't"`
-    /// in the third sentence, giving `contracted = 1`, `contractible = 0`,
-    /// ratio = `1 / (1 + 0) = 1.0` exactly.
+    /// "She does. Not enough is done. It isn't clear." — no sentence
+    /// alone has a contractible `expanded` phrase; the only real
+    /// contraction is `"isn't"`: `contracted = 1`, `contractible = 0`,
+    /// ratio = `1 / (1 + 0) = 1.0`.
     ///
-    /// Tokenizing the whole paragraph as one stream instead (the bug)
-    /// would concatenate sentence 1's last token `"does"` directly
-    /// against sentence 2's first token `"not"`, spuriously matching the
-    /// `"does not"` -> `"doesn't"` pair's `expanded` bigram even though
-    /// those words never formed a contractible construction — inflating
-    /// `contractible` to 1 and deflating the ratio to `1 / (1 + 1) =
-    /// 0.5`.
+    /// Tokenizing the whole paragraph as one stream (the bug) would match
+    /// sentence 1's `"does"` against sentence 2's `"not"` as `"does not"`
+    /// -> `"doesn't"`, inflating `contractible` to 1 and the ratio to `1
+    /// / (1 + 1) = 0.5`.
     #[test]
     fn contraction_ratio_does_not_match_across_sentence_boundary() {
         let source = "She does. Not enough is done. It isn't clear.";
@@ -805,7 +731,7 @@ mod tests {
     // --- ritual_marker_rate --------------------------------------------
 
     /// Four paragraphs: "Fine here." (not flagged), "Overall it works."
-    /// (opens with "Overall", flagged), "Good stuff." (not flagged), and
+    /// (opens with "Overall", flagged), "Good stuff." (not flagged),
     /// "Fine so far. To summarize it works." (closes with "To
     /// summarize", flagged). 2 flagged / 4 paragraphs = `0.5` exactly.
     #[test]
@@ -823,22 +749,19 @@ mod tests {
         assert_eq!(ritual_marker_rate(&doc), 0.5);
     }
 
-    /// A document with no paragraphs that have any sentences has rate
-    /// `0.0`, not `NaN`.
+    /// A document with no paragraphs that have sentences has rate `0.0`,
+    /// not `NaN`.
     #[test]
     fn ritual_marker_rate_no_paragraphs_is_zero() {
         let doc = doc_from_paragraphs("", &[]);
         assert_eq!(ritual_marker_rate(&doc), 0.0);
     }
 
-    /// Regression test for the exact bug reproduced against train doc
+    /// Regression test for the bug reproduced against
     /// `corpus/llm/blog/cde08357ef2e91de.md`: a one-sentence paragraph
-    /// whose entire text is a bold-wrapped ritual marker,
-    /// `"**Overall:**"` (the literal form `friction-parse` bridges into a
-    /// sentence's source text, see the module docs), must be flagged —
-    /// before the leading-markup strip, `starts_with_marker` saw a `*` as
-    /// the first character and never matched "Overall" at all, silently
-    /// undercounting this pattern.
+    /// whose entire text is `"**Overall:**"` must be flagged — before
+    /// the leading-markup strip, `starts_with_marker` saw `*` first and
+    /// never matched "Overall", silently undercounting.
     #[test]
     fn ritual_marker_rate_matches_bold_wrapped_marker() {
         let source = "**Overall:**";
@@ -846,8 +769,8 @@ mod tests {
         assert_eq!(ritual_marker_rate(&doc), 1.0);
     }
 
-    /// The same bold-wrapped-marker recognition applies when the marker
-    /// opens a longer sentence, and to the underscore delimiter too.
+    /// Same recognition applies when the marker opens a longer sentence,
+    /// and to the underscore delimiter.
     #[test]
     fn ritual_marker_rate_matches_underscore_wrapped_marker() {
         let source = "__Overall__, it works out fine.";

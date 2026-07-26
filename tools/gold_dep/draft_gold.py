@@ -79,10 +79,8 @@ from gold_common.align import (  # noqa: E402
     spacy_root_count,
 )
 
-# The exact ClearNLP-scheme relation names the register module's
-# transducers and detectors match on (see
-# `docs/superpowers/specs/2026-07-25-register-parser-design.md`, "Label
-# set"). Everything spaCy emits outside this set collapses to `other`.
+# The ClearNLP-scheme relation names the register module matches on.
+# Everything spaCy emits outside this set collapses to `other`.
 TARGET_RELATIONS = frozenset(
     {
         "root",

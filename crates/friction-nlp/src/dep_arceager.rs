@@ -1,55 +1,40 @@
 //! The arc-eager transition system: [`Configuration`], the shift/reduce/
 //! attach state machine a dependency parser steps through left to right,
-//! and the static [`oracle`] that recovers the unique transition sequence
-//! a known-correct [`SentenceParse`] reduces to.
+//! and the static [`oracle`] that recovers the transition sequence a
+//! known-correct [`SentenceParse`] reduces to.
 //!
-//! This module is the transition system itself, not a parser: nothing
-//! here reads a gold file, holds a weight vector, or makes a probabilistic
-//! choice. [`oracle`]/[`derive`] exist so a trainer can turn gold trees
-//! into the `(configuration, correct transition)` pairs its classifier
-//! learns from; [`Configuration::is_allowed`]/[`Configuration::apply`]
-//! exist so that same trainer (or, later, a trained model) can drive the
-//! system at inference time. Every function here is a pure function of
-//! its arguments — no RNG, no hashing over an order that could vary
-//! between runs or platforms — so the same gold tree always derives the
-//! identical transition sequence.
+//! Not a parser itself: nothing here reads a gold file, holds weights, or
+//! makes a probabilistic choice. [`oracle`]/[`derive`] turn gold trees
+//! into `(configuration, correct transition)` training pairs;
+//! [`Configuration::is_allowed`]/[`Configuration::apply`] let a trainer
+//! (or, later, a trained model) drive the system at inference. Every
+//! function is pure — no RNG, no order-dependent hashing — so a gold tree
+//! always derives the identical sequence.
 //!
 //! # Why arc-eager
 //!
-//! Arc-standard (the other classic choice) only attaches a token to its
-//! head once every one of that token's own dependents has already been
-//! collected, which forces a long right-branching chain — a verb governing
-//! a stack of trailing prepositional/participial modifiers, exactly the
-//! shape this workspace's target sentences skew toward — to sit unattached
-//! on the stack until the whole chain has been shifted. Arc-eager attaches
-//! a token to its head the moment the two are adjacent at the stack/buffer
-//! boundary, which keeps the stack shallow for that shape and lets
-//! [`Transition::RightArc`] fire immediately instead of accumulating
-//! depth.
+//! Arc-standard only attaches a token once all its own dependents are
+//! collected, forcing long right-branching chains — this workspace's
+//! sentences skew toward a verb governing trailing modifiers — to sit
+//! unattached until the whole chain is shifted. Arc-eager attaches a
+//! token the moment it's adjacent to its head, keeping the stack shallow.
 //!
 //! # Projectivity is a hard limit, not a bug
 //!
-//! This system can only produce projective trees: dependency arcs that
-//! never cross when drawn as arcs above the sentence. [`derive`] verifies
-//! its own output by replaying it and comparing the result against gold;
-//! when a gold tree has a crossing arc (or is otherwise unreachable by
-//! this transition system) it returns [`DeriveError`] instead of quietly
-//! handing back a transition sequence that reproduces the wrong tree. A
-//! caller building training data from gold trees is expected to drop, not
+//! Only projective trees are producible: arcs that never cross when drawn
+//! above the sentence. [`derive`] verifies its output by replaying it
+//! against gold; a crossing arc returns [`DeriveError`] rather than
+//! quietly reproducing the wrong tree. Callers are expected to drop, not
 //! repair, any sentence that fails here.
 
 use crate::dep::{Confidence, DepEdge, DepRelation, SentenceParse};
 
 /// One step of the arc-eager transition system.
 ///
-/// The two arc-creating variants carry the [`DepRelation`] the new arc is
-/// labelled with; [`DepRelation::Root`] is never a valid label here (see
-/// that variant's own docs) — nothing in this module enforces that by
-/// construction, since the type would have to either duplicate
-/// [`DepRelation`] minus one variant or accept a label it then has to
-/// reject at run time, and run-time rejection already happens naturally:
-/// a static oracle-derived transition never proposes `Root` as an arc
-/// label in the first place (see [`oracle`]).
+/// The two arc-creating variants carry the [`DepRelation`] label;
+/// [`DepRelation::Root`] is never valid here — unenforced by construction
+/// (not worth a near-duplicate type), but the oracle never proposes
+/// `Root` as a label anyway (see [`oracle`]).
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Transition {
     /// Moves the buffer's front token onto the stack.
@@ -66,15 +51,12 @@ pub enum Transition {
     RightArc(DepRelation),
 }
 
-/// The arc-eager parser state: which tokens are still to be shifted, which
-/// are held on the stack awaiting attachment, and which arcs have been
-/// assigned so far.
+/// The arc-eager parser state: tokens still to be shifted, tokens held on
+/// the stack awaiting attachment, and arcs assigned so far.
 ///
-/// Deliberately carries no notion of an artificial root node distinct from
-/// the real tokens — [`crate::dep::SentenceParse`]'s own data model already
-/// represents "this token is the root" as `head: None`, so a token that
-/// never receives an arc during the derivation simply stays that way; see
-/// [`Configuration::finish`].
+/// No artificial root node — [`crate::dep::SentenceParse`] already
+/// represents "this token is the root" as `head: None`, so an unattached
+/// token simply stays that way; see [`Configuration::finish`].
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Configuration {
     /// Token indices held for possible attachment, top (most recent) at
@@ -92,8 +74,7 @@ pub struct Configuration {
 
 impl Configuration {
     /// The initial configuration for a sentence of `token_count` tokens:
-    /// an empty stack, the whole sentence still in the buffer, and no arcs
-    /// assigned.
+    /// empty stack, whole sentence in the buffer, no arcs assigned.
     #[must_use]
     pub fn new(token_count: usize) -> Self {
         Self {
@@ -118,7 +99,7 @@ impl Configuration {
         (self.buffer < self.len).then_some(self.buffer)
     }
 
-    /// This configuration's sentence's total token count.
+    /// This configuration's total token count.
     #[must_use]
     pub const fn token_count(&self) -> usize {
         self.len
@@ -131,21 +112,17 @@ impl Configuration {
         self.arcs[token]
     }
 
-    /// Whether `transition` may legally be applied to this configuration —
-    /// the standard arc-eager preconditions:
+    /// Whether `transition` may legally be applied:
     ///
-    /// - [`Transition::Shift`]: the buffer is non-empty.
-    /// - [`Transition::LeftArc`]: the stack and buffer are both
-    ///   non-empty, and the stack's top token has no head yet (an
-    ///   arc-eager token gets at most one head, ever, so re-attaching an
-    ///   already-headed token would silently overwrite its real one).
-    /// - [`Transition::RightArc`]: the stack and buffer are both
-    ///   non-empty. No head-check on either side: the buffer's front
-    ///   token is fresh out of the buffer and cannot already have a head.
-    /// - [`Transition::Reduce`]: the stack is non-empty and its top token
-    ///   already has a head (popping a still-headless token would strand
-    ///   it: nothing can attach to a token buried below the stack top
-    ///   ever again).
+    /// - [`Transition::Shift`]: buffer non-empty.
+    /// - [`Transition::LeftArc`]: stack and buffer non-empty, stack top
+    ///   headless (a token gets one head ever; re-attaching would
+    ///   silently overwrite it).
+    /// - [`Transition::RightArc`]: stack and buffer non-empty. No
+    ///   head-check: a token fresh out of the buffer can't have a head.
+    /// - [`Transition::Reduce`]: stack non-empty, top already headed
+    ///   (popping a headless token strands it — nothing can attach below
+    ///   the stack top again).
     #[must_use]
     pub fn is_allowed(&self, transition: Transition) -> bool {
         let buffer_nonempty = self.buffer < self.len;
@@ -169,19 +146,12 @@ impl Configuration {
     /// Applies `transition`, mutating this configuration in place.
     ///
     /// # Panics
-    /// Panics if [`Configuration::is_allowed`] would return `false` for
-    /// `transition`, rather than applying a partial or corrupted effect.
-    /// This is a deliberate choice over returning `Result`: a disallowed
-    /// transition reaching this method is a bug in the caller (the
-    /// [`oracle`] never proposes one, and a beam/greedy driver above this
-    /// type is expected to have already consulted
-    /// [`Configuration::is_allowed`] before ranking candidates) — not a
-    /// data-dependent failure a caller should be routing through `?`
-    /// error-propagation on every single step. Forcing a `Result` return
-    /// here would push every call site into either `.unwrap()`ing (no
-    /// safer than a panic, just spelled differently) or writing dead
-    /// recovery code for a state this system's own invariants already
-    /// make unreachable.
+    /// Panics if [`Configuration::is_allowed`] would return `false`. A
+    /// disallowed transition reaching here is a caller bug ([`oracle`]
+    /// never proposes one; a driver is expected to check
+    /// [`is_allowed`](Configuration::is_allowed) first) — not worth
+    /// `Result`-and-`?` on every step when every call site would just
+    /// `.unwrap()` anyway.
     pub fn apply(&mut self, transition: Transition) {
         assert!(
             self.is_allowed(transition),
@@ -208,10 +178,9 @@ impl Configuration {
         }
     }
 
-    /// Whether no further transition is legal: the buffer is exhausted
-    /// and the stack is either empty or stuck on a headless top (which
-    /// [`Transition::Reduce`] refuses, and every other transition
-    /// requires a non-empty buffer).
+    /// Whether no further transition is legal: buffer exhausted and the
+    /// stack empty or stuck on a headless top ([`Transition::Reduce`]
+    /// refuses that; everything else needs a non-empty buffer).
     #[must_use]
     pub fn is_terminal(&self) -> bool {
         self.buffer >= self.len
@@ -221,24 +190,18 @@ impl Configuration {
                 .is_none_or(|&top| self.arcs[top].is_none())
     }
 
-    /// Consumes this configuration and materializes it as one [`DepEdge`]
-    /// per token, ready for [`SentenceParse::new`].
+    /// Consumes this configuration into one [`DepEdge`] per token, ready
+    /// for [`SentenceParse::new`].
     ///
-    /// Every token still lacking a head — whether the sentence's genuine
-    /// root or a token this derivation simply never got around to
-    /// attaching — becomes a root edge (`head: None`,
-    /// [`DepRelation::Root`]). This finishing step runs unconditionally,
-    /// not only when [`Configuration::is_terminal`] holds: a caller
-    /// walking the resulting tree (a subtree walk, a `by_relation` scan)
-    /// has no way to represent "and also this one token has no opinion
-    /// yet", so a complete-but-possibly-imperfect tree is always
-    /// preferable to a structurally partial one. Every edge carries
-    /// [`Confidence::CERTAIN`]: this transition system has no per-decision
-    /// score of its own to report — an oracle-driven derivation is
-    /// replaying a known-correct tree, not weighing alternatives, and a
-    /// trained model driving the same [`Configuration`] at inference time
-    /// is expected to attach its own real margin before a caller ever
-    /// sees these edges.
+    /// Any still-headless token — genuine root or one this derivation
+    /// never reached — becomes a root edge (`head: None`,
+    /// [`DepRelation::Root`]). Runs even when not terminal: a
+    /// tree-walking caller has no way to represent "no opinion yet", so a
+    /// complete but imperfect tree beats a partial one. Every edge
+    /// carries [`Confidence::CERTAIN`] — an oracle replay isn't weighing
+    /// alternatives; a trained model driving the same [`Configuration`]
+    /// is expected to attach its own real margin before a caller sees
+    /// these edges.
     #[must_use]
     pub fn finish(self) -> Vec<DepEdge> {
         self.arcs
@@ -268,34 +231,27 @@ fn gold_head(gold: &SentenceParse, token: usize) -> Option<usize> {
 /// `gold`'s recorded relation for `token`.
 ///
 /// # Panics
-/// Panics if `token` is out of bounds for `gold` — every caller in this
-/// module only ever passes a token index drawn from a [`Configuration`]
-/// constructed over `gold.edges().len()` tokens, so this is an internal
-/// invariant, not a data-dependent condition.
+/// Panics if `token` is out of bounds — every caller passes an index
+/// drawn from a [`Configuration`] built over `gold.edges().len()` tokens,
+/// an internal invariant, not a data-dependent case.
 fn gold_relation(gold: &SentenceParse, token: usize) -> DepRelation {
     gold.edge(token)
         .unwrap_or_else(|| panic!("token {token} out of bounds for this gold parse"))
         .relation
 }
 
-/// Whether any token still waiting in the buffer (from `config`'s current
-/// front onward, inclusive) has `head` as its gold head — i.e. whether
-/// `head` still has an unattached gold dependent ahead of it.
+/// Whether `head` has an unattached gold dependent still in the buffer
+/// (from `config`'s current front onward).
 fn has_remaining_gold_child(gold: &SentenceParse, config: &Configuration, head: usize) -> bool {
     (config.buffer..config.len).any(|token| gold_head(gold, token) == Some(head))
 }
 
-/// The static arc-eager oracle: the unique transition [`derive`] applies
-/// next to reproduce `gold` from `config`, or `None` once `config` is
-/// terminal.
+/// The static arc-eager oracle: the transition [`derive`] applies next to
+/// reproduce `gold` from `config`, or `None` once terminal.
 ///
-/// When more than one rule's precondition would independently hold —
-/// which never actually happens for a well-formed projective gold tree,
-/// since a 2-cycle would be required for both the `LeftArc` and
-/// `RightArc` conditions to hold at once — priority is fixed in the order
-/// the rules are listed below (`LeftArc` first, `Shift` last: the lowest
-/// [`Transition`] variant that applies wins), so this function never has
-/// to consult anything beyond that fixed order to stay deterministic:
+/// Two rules can't hold at once for a well-formed projective tree, but
+/// priority is still fixed by list order (`LeftArc` first, `Shift` last)
+/// so this stays deterministic without extra bookkeeping:
 ///
 /// 1. [`Transition::LeftArc`] if the stack top's gold head is the buffer
 ///    front.
@@ -336,16 +292,11 @@ pub fn oracle(gold: &SentenceParse, config: &Configuration) -> Option<Transition
 /// A gold tree could not be fully reproduced by the arc-eager transition
 /// system.
 ///
-/// In practice this means `gold` has at least one non-projective
-/// (crossing) arc: this transition system can only ever build a
-/// projective tree, since the stack/buffer discipline has no way to defer
-/// an attachment past an intervening token and revisit it later. It can
-/// also mean the token this arc-eager system attaches a dependent to at
-/// the moment they become adjacent disagrees with `gold`'s recorded head
-/// for some other, structural reason (e.g. a head assigned to a token
-/// already past the point where it could still receive one). Either way,
-/// the fix is to drop the sentence from training data, not to patch this
-/// system into accepting a tree shape it fundamentally cannot represent.
+/// Usually a non-projective (crossing) arc — the stack/buffer discipline
+/// can't defer an attachment past an intervening token. Can also be a
+/// structural disagreement with gold's recorded head. Either way, drop
+/// the sentence rather than patch this system to accept a shape it can't
+/// represent.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, thiserror::Error)]
 #[error("gold parse is not reachable by the arc-eager transition system (non-projective?)")]
 pub struct DeriveError;
@@ -354,9 +305,8 @@ pub struct DeriveError;
 /// `gold`, returning the transition sequence that reproduces it.
 ///
 /// # Errors
-/// Returns [`DeriveError`] if replaying the derived transitions does not
-/// reproduce `gold`'s arcs exactly — see [`DeriveError`]'s own docs for
-/// what that means and why it happens instead of a silent partial result.
+/// Returns [`DeriveError`] if replaying the transitions doesn't reproduce
+/// `gold`'s arcs exactly — see that type's docs for why.
 pub fn derive(gold: &SentenceParse) -> Result<Vec<Transition>, DeriveError> {
     let mut config = Configuration::new(gold.edges().len());
     let mut transitions = Vec::new();

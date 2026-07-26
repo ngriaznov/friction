@@ -1,73 +1,62 @@
 //! Averaged-perceptron [`Tagger`] implementation: the default backend.
 //!
-//! This tagger's weights are
-//! not downloaded at build time — they are vendored directly in this
+//! Weights aren't downloaded at build time — they're vendored in this
 //! crate's own `weights/perceptron_en.json.gz`, trained on a small,
-//! hand-curated gold-tag corpus drawn from this project's own vendored
-//! human documents (see `weights/NOTICE.md` for provenance: source
-//! documents, token count, annotation method, and the reproduction
-//! command). Nothing here ever touches the network, at build time or at
-//! run time.
+//! hand-curated gold-tag corpus from this project's own vendored human
+//! documents (see `weights/NOTICE.md` for provenance and the
+//! reproduction command). Nothing here ever touches the network.
 //!
 //! # Tokenization is its own
 //!
 //! [`tokenize`] is a small manual scanner producing spans that satisfy
-//! [`crate::tag::classify_token_kind`]'s tokenization rule directly:
-//! maximal alphabetic/`'`/`-` runs as [`TokenKind::Word`], a numeric-leading
-//! run of digits/`.`/`,` as [`TokenKind::Number`], maximal runs of
-//! [`crate::tag::is_prose_punctuation`] characters grouped as one
-//! [`TokenKind::Punctuation`] token, and everything else grouped as
+//! [`crate::tag::classify_token_kind`]'s rule directly: maximal
+//! alphabetic/`'`/`-` runs as [`TokenKind::Word`], a numeric-leading run
+//! of digits/`.`/`,` as [`TokenKind::Number`], maximal runs of
+//! [`crate::tag::is_prose_punctuation`] characters as one
+//! [`TokenKind::Punctuation`] token, everything else as
 //! [`TokenKind::Symbol`]. No whitespace tokens are emitted.
 //!
 //! # Non-word tokens: a deterministic passthrough, never the model
 //!
 //! [`TokenKind::Number`] gets `"CD"`; [`TokenKind::Symbol`] gets `"SYM"`;
 //! [`TokenKind::Punctuation`] gets one of nine closed Penn/spaCy-style
-//! punctuation tags from [`punctuation_tag`] — never its own literal
-//! surface text (see `weights/NOTICE.md`'s tagset decision: a
-//! surface-text tag turned "punctuation" into ~140 near-unique values,
-//! defeating every downstream consumer that treats a tag as a syntactic
-//! class rather than a token fingerprint). These categories are effectively
-//! fully determined by surface form in Penn-Treebank-style tagging, so
-//! hardcoding them removes risk without costing accuracy — and using this
-//! exact same fixed value for tag-history context during both training and
-//! inference keeps the two consistent. Only [`TokenKind::Word`] tokens ever
-//! run the perceptron.
+//! tags from [`punctuation_tag`], never its own surface text (see
+//! `weights/NOTICE.md`'s tagset decision: a surface-text tag turned
+//! "punctuation" into ~140 near-unique values, defeating any downstream
+//! consumer treating a tag as a syntactic class). These categories are
+//! effectively fully determined by surface form, so hardcoding them
+//! removes risk without costing accuracy, and using the same fixed value
+//! for tag-history context in both training and inference keeps the two
+//! consistent. Only [`TokenKind::Word`] tokens run the perceptron.
 //!
 //! # Lemma: best-effort, reusing this crate's own inflection tables
 //!
-//! There is no dictionary lemmatizer here — [`crate::inflect::lemmatize`]
-//! guesses a `Word` token's base form by generating candidate stems from
-//! its own tag (gerund/past/plural-or-third-singular) and keeping whichever
-//! one round-trips back to the surface text through
-//! [`crate::inflect::inflect`]'s own forward generation, reusing that
-//! module's tables and rules in reverse rather than duplicating them or
-//! adding new ones. A candidate that fails to round-trip (irregular in a
-//! way the tables don't cover, or simply a base-form word to begin with)
-//! falls back to the lowercased surface text — matching
-//! [`TaggedToken::lemma`]'s own documented fallback ("equal to the token's
-//! own surface text... when the tagger has no lemma for it"). Non-`Word`
+//! No dictionary lemmatizer — [`crate::inflect::lemmatize`] guesses a
+//! `Word` token's base form by generating candidate stems from its tag
+//! and keeping whichever round-trips back through
+//! [`crate::inflect::inflect`]'s forward generation, reusing that
+//! module's tables in reverse rather than duplicating them. A candidate
+//! that fails to round-trip falls back to the lowercased surface text —
+//! matching [`TaggedToken::lemma`]'s documented fallback. Non-`Word`
 //! tokens always get the lowercased surface text directly.
 //!
 //! # Determinism
 //!
-//! The feature list for each token is a fixed-order `Vec<Box<str>>`, built
-//! from a fixed code path rather than iterated out of a hash collection, so
-//! summation order (and therefore the resulting float scores) is identical
-//! run to run. Scoring indexes a plain array by each class's load-time
-//! sorted position and picks the argmax by strict `>` comparison scanning
-//! in that fixed order, so ties always resolve to the lexicographically
-//! earliest tag — never to hash-map iteration order.
+//! The feature list is a fixed-order `Vec<Box<str>>` built from a fixed
+//! code path, not iterated out of a hash collection, so summation order
+//! — and the resulting scores — is identical run to run. Scoring indexes
+//! a plain array by each class's load-time sorted position and picks the
+//! argmax by strict `>` in that fixed order, so ties always resolve to
+//! the lexicographically earliest tag, never hash-map iteration order.
 //!
 //! # Per-call sentence-reset semantics
 //!
-//! [`PerceptronTagger::tag`] does **not**
-//! re-segment multi-sentence `text` internally: it treats the whole `text` argument as one tag-history
-//! sequence, resetting the start-of-sequence sentinels once. Every
-//! production call site in this workspace already calls `tag()` per
-//! already-segmented sentence, so this is a safe simplification — but a
-//! caller must not pass an unsegmented paragraph expecting sentence-internal
-//! resets.
+//! [`PerceptronTagger::tag`] does **not** re-segment multi-sentence
+//! `text`: it treats the whole argument as one tag-history sequence,
+//! resetting the start-of-sequence sentinels once. Every production call
+//! site already calls `tag()` per already-segmented sentence, so this is
+//! safe — but a caller must not pass an unsegmented paragraph expecting
+//! sentence-internal resets.
 
 use std::collections::{BTreeMap, HashMap};
 use std::io::Read as _;
@@ -113,11 +102,10 @@ pub enum PerceptronTagError {
 /// On-disk shape of the weight artifact: `BTreeMap`s throughout so the
 /// serialized JSON is stable and diffable across re-training runs.
 ///
-/// Public (rather than crate-private) only because the `train-tooling`
-/// feature's `train_support` module hands one back to an external training
-/// tool (`examples/train_perceptron.rs`, compiled as its own crate) — the
-/// type is otherwise unreachable from outside this module, since
-/// `tag_perceptron` itself is a private module and this struct is never
+/// Public only because `train-tooling`'s `train_support` module hands one
+/// back to an external training tool (`examples/train_perceptron.rs`,
+/// compiled as its own crate) — otherwise unreachable from outside this
+/// module, since `tag_perceptron` is private and this struct is never
 /// re-exported directly.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct WeightFile {
@@ -139,9 +127,9 @@ struct WeightTable {
 
 impl WeightTable {
     /// Builds a `(sorted classes, WeightTable)` pair from a [`WeightFile`],
-    /// translating each stored class index through a lookup into the
-    /// freshly sorted class list so the table is correct regardless of
-    /// what order the file's own `classes` array was written in.
+    /// translating each stored class index through the freshly sorted
+    /// class list so the table is correct regardless of what order the
+    /// file's own `classes` array was written in.
     fn from_file(file: WeightFile) -> (Vec<Box<str>>, Self) {
         let WeightFile {
             classes: file_classes,
@@ -183,9 +171,9 @@ impl WeightTable {
     }
 
     /// Sums each feature's dense per-class weight vector, in `features`'
-    /// own fixed order — the determinism-critical step: float summation
-    /// order is identical across runs because iteration order here is
-    /// fixed by the caller-supplied `Vec`, never by hash-map iteration.
+    /// own fixed order — the determinism-critical step: summation order
+    /// is identical across runs because iteration order is fixed by the
+    /// caller-supplied `Vec`, never by hash-map iteration.
     fn score(&self, features: &[Box<str>]) -> Vec<f32> {
         let mut scores = vec![0f32; self.num_classes];
         for feature in features {
@@ -214,21 +202,18 @@ fn argmax(scores: &[f32]) -> usize {
     best
 }
 
-/// A word's *identity* feature value, normalized for generalization past a
-/// small training vocabulary: lowercased, and — because a small hand-tagged
-/// corpus cannot enumerate every hyphenated compound or numeral-bearing
-/// token it might meet at inference time — collapsed to one of three
-/// closed, documented sentinel buckets, rather than kept as a literal (and
-/// likely unseen) string. Mirrors real NLTK's own `_normalize` bucket
-/// order and conditions (hyphen, then four-digit year, then any other
-/// leading-digit token) rather than a looser "contains a digit anywhere" /
-/// "contains a hyphen anywhere" test, so a word like `"co2"` or `"a-1"`
-/// buckets the same way NLTK's tagger would.
+/// A word's *identity* feature value, normalized past a small training
+/// vocabulary: lowercased, and collapsed to one of three closed sentinel
+/// buckets rather than kept as a literal (likely unseen) string — a small
+/// hand-tagged corpus can't enumerate every hyphenated or numeral-bearing
+/// token it might meet at inference. Mirrors NLTK's `_normalize` bucket
+/// order (hyphen, then four-digit year, then any leading-digit token)
+/// rather than a looser "contains a digit/hyphen anywhere" test, so
+/// `"co2"`/`"a-1"` bucket the same way NLTK's tagger would.
 ///
-/// Only the *identity* feature is bucketed this way; suffix and
-/// first-character features always read the literal word (see
-/// [`extract_features`]), since those stay informative even for a bucketed
-/// word.
+/// Only the *identity* feature is bucketed; suffix and first-character
+/// features always read the literal word (see [`extract_features`]),
+/// since those stay informative even for a bucketed word.
 fn normalize_word_identity(word_lower: &str) -> &str {
     let Some(first) = word_lower.chars().next() else {
         return word_lower;
@@ -257,21 +242,19 @@ fn suffix3(word_lower: &str) -> &str {
     &word_lower[byte_start..]
 }
 
-/// Classifies a [`TokenKind::Punctuation`] token's surface text into one of
-/// nine closed Penn/spaCy-style punctuation tags — `.` `,` `:` `-LRB-`
-/// `-RRB-` `` ` `` `''` `HYPH` `NFP` — never the surface text itself. See
-/// `weights/NOTICE.md`'s tagset decision for why: a per-surface-string tag
-/// (the previous scheme) emitted ~140 distinct punctuation "tags" across
-/// the corpus, each one carrying no more information than the token's own
-/// text.
+/// Classifies a [`TokenKind::Punctuation`] token's surface text into one
+/// of nine closed Penn/spaCy-style tags — `.` `,` `:` `-LRB-` `-RRB-`
+/// `` ` `` `''` `HYPH` `NFP` — never the surface text itself. See
+/// `weights/NOTICE.md`: the old per-surface-string scheme emitted ~140
+/// distinct punctuation "tags", each carrying no more information than
+/// the token's own text.
 ///
-/// `surface` is [`tokenize`]'s own maximal run of [`is_prose_punctuation`]
-/// characters (non-empty for every real `Punctuation`-kind token this
-/// crate produces) and can mix distinct punctuation characters (`"),"`,
-/// `"?!"`), unlike genuine Penn-Treebank/CoNLL-U tokenization, which always
-/// isolates one character per token. Classification is by the character
-/// *set* the whole run is drawn from, checked in this fixed order (a run
-/// satisfying an earlier rule never reaches a later one):
+/// `surface` is [`tokenize`]'s maximal run of [`is_prose_punctuation`]
+/// characters and can mix distinct punctuation characters (`"),"`,
+/// `"?!"`), unlike genuine Penn-Treebank/CoNLL-U tokenization, which
+/// always isolates one character per token. Classified by the character
+/// *set* the run is drawn from, in this fixed order (an earlier rule
+/// always wins):
 ///
 /// 1. every character is one of `.!?` (including a repeated run like
 ///    `"!!!"` or `"..."`) -> `.`, the sentence-final-punctuation bucket
@@ -355,18 +338,16 @@ fn context_word(surfaces: &[Box<str>], idx: isize) -> &str {
 /// current-word; previous word; previous word's 3-char suffix; word two
 /// back; next word; next word's 3-char suffix; word two forward.
 ///
-/// `surfaces` is every token's lowercased surface text in the whole `tag()`
-/// call (word or not — punctuation legitimately participates in word
-/// context, the same way it does in genuine Penn-Treebank tagging).
-/// `raw_current` is token `i`'s surface text in its *original* case: real
-/// NLTK's own `_get_features` computes `word[-3:]`/`word[0]` from the raw,
-/// un-normalized token (only the identity feature — `context[i]` — reads
-/// the lowercased form), so this is the one place in the whole feature list
-/// that ever sees capitalization; every neighboring-word suffix/identity
-/// feature below deliberately still reads the lowercased `surfaces` entry,
-/// matching NLTK's `context[i-1]`/`context[i+1]` exactly. `prev1_tag`/
-/// `prev2_tag` are the tags already assigned to tokens `i-1`/`i-2` (or a
-/// start-of-sequence sentinel).
+/// `surfaces` is every token's lowercased surface text for the whole
+/// `tag()` call (punctuation included — it legitimately participates in
+/// word context, as in genuine Penn-Treebank tagging). `raw_current` is
+/// token `i`'s text in its *original* case: NLTK's `_get_features`
+/// computes `word[-3:]`/`word[0]` from the raw token, not the normalized
+/// `context[i]`, so this is the only place the feature list sees
+/// capitalization — every neighboring-word feature still reads the
+/// lowercased `surfaces` entry, matching `context[i-1]`/`context[i+1]`
+/// exactly. `prev1_tag`/`prev2_tag` are the tags already assigned to
+/// tokens `i-1`/`i-2` (or a start-of-sequence sentinel).
 fn extract_features(
     surfaces: &[Box<str>],
     raw_current: &str,
@@ -423,12 +404,11 @@ struct ScannedToken {
 /// containing at least one alphabetic character as [`TokenKind::Word`]; a
 /// numeric-leading run of digits/`.`/`,` as [`TokenKind::Number`]; maximal
 /// runs of [`is_prose_punctuation`] characters (including a bare run of
-/// `'`/`-` with no alphabetic character at all) as one
-/// [`TokenKind::Punctuation`] token; everything else grouped into maximal
-/// runs as [`TokenKind::Symbol`]. Whitespace is skipped, never emitted as a
-/// token. This is the same partition [`classify_token_kind`] describes for
-/// a single already-split token, applied here to decide the splits
-/// themselves.
+/// `'`/`-` with no alphabetic character) as one [`TokenKind::Punctuation`]
+/// token; everything else grouped into maximal runs as [`TokenKind::Symbol`].
+/// Whitespace is skipped, never emitted. The same partition
+/// [`classify_token_kind`] describes for a single already-split token,
+/// applied here to decide the splits themselves.
 fn tokenize(text: &str) -> Vec<ScannedToken> {
     let mut tokens = Vec::new();
     let mut chars = text.char_indices().peekable();
@@ -552,11 +532,10 @@ impl PerceptronTagger {
     /// artifact.
     ///
     /// # Errors
-    /// [`PerceptronTagError::Decompress`] if the embedded bytes are not
+    /// [`PerceptronTagError::Decompress`] if the embedded bytes aren't
     /// valid gzip; [`PerceptronTagError::Parse`] if the decompressed JSON
-    /// does not match the expected shape. Neither should happen for the
-    /// vendored artifact this crate ships — covered by this module's own
-    /// tests.
+    /// doesn't match the expected shape. Neither should happen for the
+    /// vendored artifact — covered by this module's own tests.
     pub fn new() -> Result<Self, PerceptronTagError> {
         let mut decoder = flate2::read::GzDecoder::new(WEIGHTS_BYTES);
         let mut json = String::new();
@@ -574,10 +553,9 @@ impl PerceptronTagger {
     }
 
     /// Tags one [`TokenKind::Word`] token at `i`: a tagdict hit short-
-    /// circuits the model entirely; otherwise scores every class and
-    /// returns the argmax. `raw` is the token's original-case surface text,
-    /// used only for its suffix/first-character features — see
-    /// [`extract_features`].
+    /// circuits the model; otherwise scores every class and returns the
+    /// argmax. `raw` is the token's original-case surface text, used only
+    /// for its suffix/first-character features — see [`extract_features`].
     fn tag_word(
         &self,
         surfaces: &[Box<str>],
@@ -659,19 +637,20 @@ pub mod train_support {
         PerceptronTagError, WeightFile, extract_features, normalize_word_identity, punctuation_tag,
     };
 
-    /// One gold-tagged sentence: `(lowercased surface, gold tag)` pairs.
+    /// One gold-tagged sentence: `(lowercased surface, gold tag)` pairs, in
+    /// order.
     ///
-    /// In order. Non-word tokens (punctuation/number/symbol) carry the
-    /// exact same deterministic passthrough tag [`super::Tagger::tag`]
-    /// assigns them at inference, so a gold file is entirely self-consistent
-    /// with runtime tag-history context.
+    /// Non-word tokens (punctuation/number/symbol) carry the same
+    /// deterministic passthrough tag [`super::Tagger::tag`] assigns at
+    /// inference, so a gold file stays self-consistent with runtime
+    /// tag-history context.
     pub type GoldSentence = Vec<(String, String)>;
 
     /// Parses a hand-rolled tab-separated gold file.
     ///
     /// `word<TAB>tag` per line, a blank line marking a sentence break. No
-    /// external CoNLL-U crate needed, and no external corpus dependency —
-    /// the file is entirely this project's own hand-curated data.
+    /// external CoNLL-U crate or corpus dependency — the file is entirely
+    /// this project's own hand-curated data.
     #[must_use]
     pub fn parse_gold_file(text: &str) -> Vec<GoldSentence> {
         let mut sentences = Vec::new();
@@ -699,20 +678,19 @@ pub mod train_support {
     ///
     /// Like [`parse_gold_file`], but additionally reads a `# split=train` /
     /// `# split=test` marker line required immediately before every
-    /// sentence's token lines, keeping only the sentences whose marker
-    /// equals `want_split` (`"train"` or `"test"`).
+    /// sentence's token lines, keeping only sentences whose marker equals
+    /// `want_split` (`"train"` or `"test"`).
     ///
     /// A marker line carries no tab, so [`parse_gold_file`] (and any other
-    /// unmodified reader of the same file) already skips it silently
-    /// without disturbing sentence boundaries — this is what lets the gold
-    /// file carry a split marker while keeping its line format
-    /// byte-for-byte the same otherwise.
+    /// unmodified reader) already skips it silently without disturbing
+    /// sentence boundaries — this is what lets the gold file carry a split
+    /// marker while keeping its line format byte-for-byte the same
+    /// otherwise.
     ///
     /// # Panics
-    /// If a sentence's marker is missing, or is present but is neither
-    /// `"train"` nor `"test"` — a malformed or hand-edited gold file must
-    /// fail loudly here rather than silently mis-splitting training data
-    /// into (or out of) the held-out set.
+    /// If a sentence's marker is missing or is neither `"train"` nor
+    /// `"test"` — a malformed or hand-edited gold file must fail loudly
+    /// here rather than silently mis-splitting training data.
     #[must_use]
     pub fn parse_gold_file_split(text: &str, want_split: &str) -> Vec<GoldSentence> {
         assert!(
@@ -774,14 +752,13 @@ pub mod train_support {
     ///
     /// The loop must call it once per token, interleaved with the model's
     /// own live prediction feeding `prev1_tag`/`prev2_tag` for the *next*
-    /// token — this is exactly the perceptron-tagger convention this
-    /// module's own inference path follows (the model's guess, not the
-    /// gold tag, becomes tag-history context), so training and inference
-    /// never disagree about what "previous tag" means. `raw_word` must be
-    /// token `i`'s original-case gold-file text (not `surfaces[i]`, which
-    /// is already lowercased) — see [`extract_features`]'s own doc comment
-    /// for why the current token's suffix/first-character features need
-    /// the un-normalized form to match training and inference.
+    /// token — the perceptron-tagger convention this module's inference
+    /// path follows (the model's guess, not the gold tag, becomes
+    /// tag-history context), so training and inference never disagree
+    /// about "previous tag". `raw_word` must be token `i`'s original-case
+    /// gold-file text (not `surfaces[i]`, already lowercased) — see
+    /// [`extract_features`]'s doc comment for why the current token's
+    /// suffix/first-character features need the un-normalized form.
     #[must_use]
     pub fn features_for(
         surfaces: &[Box<str>],
@@ -796,8 +773,8 @@ pub mod train_support {
     /// A minimal from-scratch averaged perceptron.
     ///
     /// Follows the standard lazy-averaging trick (accumulate `weight *
-    /// (iterations held)` and divide by the total iteration count at the
-    /// end) rather than naively summing every intermediate weight.
+    /// iterations held`, divide by total iterations at the end) rather
+    /// than naively summing every intermediate weight.
     #[derive(Default)]
     pub struct AveragedPerceptron {
         weights: BTreeMap<Box<str>, BTreeMap<Box<str>, f64>>,
@@ -856,9 +833,8 @@ pub mod train_support {
                 .copied()
                 .unwrap_or(0.0);
             let last_ts = self.timestamps.get(&key).copied().unwrap_or(0);
-            // Training runs for a handful of epochs over a small gold
-            // corpus, so `iterations` never comes close to 2^52 — this
-            // conversion never loses meaningful precision.
+            // A handful of epochs over a small gold corpus never gets
+            // `iterations` near 2^52 — no meaningful precision lost here.
             #[allow(clippy::cast_precision_loss)]
             let held = (self.iterations - last_ts) as f64;
             let total = self.totals.entry(key.clone()).or_insert(0.0);
@@ -967,7 +943,7 @@ pub mod train_support {
 
     /// Loads a gzip-compressed [`WeightFile`] from `path` — the same shape
     /// [`super::PerceptronTagger::new`] reads from its embedded bytes, used
-    /// by `examples/train_perceptron.rs`'s own reproducibility check.
+    /// by `examples/train_perceptron.rs`'s reproducibility check.
     ///
     /// # Errors
     /// [`PerceptronTagError::Decompress`] / [`PerceptronTagError::Parse`].
@@ -991,10 +967,10 @@ pub mod train_support {
     /// Re-exposes [`punctuation_tag`] for training/eval tooling.
     ///
     /// Lets a training tool's gold-file consistency check
-    /// (`expected_passthrough_tag` in `examples/train_perceptron.rs`) and a
-    /// gold-drafting tool compute the exact same deterministic punctuation
-    /// tag runtime inference assigns, without duplicating the
-    /// classification rule.
+    /// (`expected_passthrough_tag` in `examples/train_perceptron.rs`) and
+    /// a gold-drafting tool compute the same deterministic punctuation tag
+    /// runtime inference assigns, without duplicating the classification
+    /// rule.
     #[must_use]
     pub fn punctuation_tag_for_diagnostics(surface: &str) -> &'static str {
         punctuation_tag(surface)
@@ -1031,9 +1007,9 @@ mod tests {
                 &text[t.token.range.start - base_offset..t.token.range.end - base_offset] == "foxes"
             })
             .expect("foxes token present");
-        // The lemma is either a successfully round-tripped base form
-        // ("fox", if tagged NNS/VBZ) or the documented surface-text
-        // fallback ("foxes") -- never anything else, and never empty.
+        // The lemma is either a round-tripped base form ("fox") or the
+        // documented surface-text fallback ("foxes") -- never anything
+        // else, and never empty.
         assert!(
             matches!(&*foxes.lemma, "fox" | "foxes"),
             "{:?}",
@@ -1103,7 +1079,7 @@ mod tests {
             .find(|t| &text[t.token.range.clone()] == "...")
             .expect("ellipsis token present");
         // A run of three literal periods is entirely drawn from the
-        // sentence-final-mark set, so it is the "." bucket, not "NFP" --
+        // sentence-final-mark set, so it's the "." bucket, not "NFP" --
         // "NFP" is reserved for a run mixing distinct punctuation classes.
         assert_eq!(ellipsis.pos.as_str(), ".");
 
@@ -1113,9 +1089,8 @@ mod tests {
             .iter()
             .find(|t| &mixed_text[t.token.range.clone()] == "?!")
             .expect("mixed run token present");
-        // "?!" is still drawn entirely from the sentence-final-mark set
-        // (`.!?`), so it also lands on "." -- exercise a genuinely mixed
-        // run instead to reach "NFP".
+        // "?!" is still entirely sentence-final-mark, so it also lands on
+        // "." -- exercise a genuinely mixed run to reach "NFP".
         assert_eq!(mixed.pos.as_str(), ".");
 
         let punct_run_text = "words).:more";
@@ -1129,11 +1104,10 @@ mod tests {
 
     #[test]
     fn tag_punctuation_tags_are_always_members_of_the_closed_set() {
-        // Regression guard for the tagset decision itself: every
-        // punctuation token's assigned tag is one of the nine closed
-        // strings below, never an arbitrary literal like the old
-        // surface-text-as-tag scheme would have produced for a run like
-        // "):." below.
+        // Regression guard for the tagset decision: every punctuation
+        // token's tag is one of the nine closed strings below, never an
+        // arbitrary literal like the old surface-text-as-tag scheme would
+        // produce for a run like "):." below.
         let text = "Section 1.2.3, see (note):";
         let tagged = tagger().tag(text, 0);
         for t in tagged
@@ -1199,9 +1173,9 @@ mod tests {
     }
 
     /// A constructed near-tie input (an out-of-vocabulary word with no
-    /// informative feature weights at all) still resolves to the exact
-    /// same tag on every run — the tie-break is deterministic by
-    /// construction (lowest sorted-class index wins), not by luck.
+    /// informative feature weights) still resolves to the same tag every
+    /// run — the tie-break is deterministic by construction (lowest
+    /// sorted-class index wins), not by luck.
     #[test]
     fn tag_tie_break_is_stable_across_repeated_runs() {
         let text = "Zzzznope.";
@@ -1216,7 +1190,7 @@ mod tests {
     // ---------------------------------------------------------------
 
     /// The current token's suffix/first-character features must read its
-    /// *original* case (matching real NLTK's own `word[-3:]`/`word[0]`,
+    /// *original* case (matching real NLTK's `word[-3:]`/`word[0]`,
     /// computed from the raw token, not the normalized `context` list) —
     /// while its identity feature (`word=`) stays lowercased/normalized
     /// either way, since that one deliberately generalizes across case.

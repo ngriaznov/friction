@@ -15,10 +15,9 @@
 //!   ```
 //!
 //!   which prints the resulting hash. To confirm stability across
-//!   separate process invocations (not just repeated calls within one
-//!   process), run that same command two or three times in a row and
-//!   compare the printed hash by eye — each invocation hashes the corpus
-//!   three times in-process on top of that.
+//!   separate process invocations, run that command a few times and
+//!   compare the printed hash by eye — each invocation already hashes the
+//!   corpus three times in-process on top of that.
 
 use std::fmt::Write as _;
 use std::fs;
@@ -36,9 +35,8 @@ fn corpus_root() -> PathBuf {
 
 /// Appends every `.md` file found (recursively) under `dir` to `out`, one
 /// directory level at a time, sorting each level's entries by name before
-/// descending. This never relies on the operating system's own directory
-/// iteration order, which `std::fs::read_dir` explicitly does not
-/// guarantee to be stable.
+/// descending — never relies on `std::fs::read_dir`'s iteration order,
+/// which isn't guaranteed stable.
 fn collect_md_files(dir: &Path, out: &mut Vec<PathBuf>) {
     let Ok(entries) = fs::read_dir(dir) else {
         return;
@@ -61,10 +59,9 @@ fn collect_md_files(dir: &Path, out: &mut Vec<PathBuf>) {
 /// this writing), sorted by path for a deterministic, machine-independent
 /// order.
 ///
-/// `corpus/incoming` is excluded — it is a staging area for documents not
-/// yet promoted into the labeled corpus, duplicating some of
-/// `corpus/human`'s content — and `corpus/prompts` holds generation
-/// config, not documents.
+/// `corpus/incoming` is excluded — a staging area for documents not yet
+/// promoted into the labeled corpus, duplicating some of `corpus/human`'s
+/// content — and `corpus/prompts` holds generation config, not documents.
 fn corpus_docs() -> Vec<PathBuf> {
     let root = corpus_root();
     let mut docs = Vec::new();
@@ -78,9 +75,9 @@ fn corpus_docs() -> Vec<PathBuf> {
 /// Runs parse -> segment -> tag over `path`'s contents and folds a
 /// canonical, deterministic serialization of every resulting token into
 /// `hasher`: one line per token, in document order, naming the source
-/// file (relative to the corpus root, so the hash does not depend on
-/// where the corpus happens to be checked out on a given machine),
-/// sentence index, absolute byte span, lexical kind, POS tag, and lemma.
+/// file (relative to the corpus root, so the hash doesn't depend on where
+/// the corpus is checked out), sentence index, absolute byte span,
+/// lexical kind, POS tag, and lemma.
 fn hash_document(
     root: &Path,
     path: &Path,
@@ -167,11 +164,10 @@ fn corpus_determinism_smoke() {
 /// Full corpus variant: hashes every document in the corpus fixture three
 /// times in-process and asserts every run agrees, printing the resulting
 /// hash. `#[ignore]`d by default since it runs the tagger over the whole
-/// corpus; see this file's module docs for the command to run it
-/// explicitly (including confirming stability across separate process
-/// invocations, which an in-process check alone cannot rule out — for
-/// instance, nondeterminism seeded from the process's environment or
-/// address-space layout rather than from any per-call state).
+/// corpus; see the module docs for the command to run it explicitly and
+/// confirm stability across separate process invocations — nondeterminism
+/// seeded from the environment or address-space layout, not per-call
+/// state, is what an in-process check alone can't rule out.
 #[test]
 #[ignore = "runs the tagger over the full 712-document corpus; see module docs for the explicit invocation"]
 fn corpus_determinism_full() {

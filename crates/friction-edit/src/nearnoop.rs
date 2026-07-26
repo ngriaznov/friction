@@ -1,12 +1,10 @@
 //! [`PivotBudget`]: the derivational-pivot overfire brake.
 //!
 //! Humans use light-verb constructions at a measurably lower rate than
-//! machine-register text; the pivot operation is therefore a rate tell in
-//! its own right, and a document whose pivot rate would exceed what the
-//! calibrated TRAIN-human ceiling allows must have its excess pivots held
-//! rather than applied, even when every other gate passed. One budget is
-//! built per document (see `crate::document::edit_document`) and shared,
-//! left to right, across every sentence's pivot stage.
+//! machine-register text, so a document whose pivot rate would exceed
+//! the calibrated human ceiling must have its excess pivots held, even
+//! when every other gate passed. One budget is built per document and
+//! shared, left to right, across every sentence's pivot stage.
 
 use friction_packs::NearNoOpCalibration;
 

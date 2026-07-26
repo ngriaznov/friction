@@ -1,32 +1,27 @@
 //! [`PerceptronParser`]: an averaged-structured-perceptron [`DepParser`]
 //! that drives [`crate::dep_arceager::Configuration`] at inference time —
-//! the classifier the module docs on `dep_arceager` describe as "later, an
+//! the classifier `dep_arceager`'s module docs describe as "later, an
 //! actual `DepParser` implementation".
 //!
 //! # Action space
 //!
 //! Every decision is one of 42 actions: [`Transition::Shift`],
 //! [`Transition::Reduce`], and [`Transition::LeftArc`]/[`Transition::RightArc`]
-//! over each of the 20 non-[`DepRelation::Root`] relations (`Root` is never a
-//! legal arc label — see that variant's own docs). [`action_index`]/
-//! [`action_at`] fix a single, deterministic enumeration of that space
-//! ([`RELATIONS`], in [`DepRelation`]'s own declaration order) so "the
-//! lowest action index" is a stable, load-bearing tie-break rather than an
-//! accident of iteration order.
+//! over each of the 20 non-[`DepRelation::Root`] relations. [`action_index`]/
+//! [`action_at`] fix a single, deterministic enumeration ([`RELATIONS`], in
+//! [`DepRelation`]'s declaration order), so "lowest action index" is a
+//! stable tie-break, not an accident of iteration order.
 //!
 //! # Feature templates
 //!
-//! Fixed, and load-bearing: the vendored artifact
-//! (`weights/parser_en.json.gz`) was trained against the exact template list
-//! below, keyed by a template tag so two templates whose *values* happen to
-//! coincide never collide. Changing this list invalidates that artifact.
-//! `s0`/`s1` are the top two stack items, `b0`/`b1`/`b2` the first three
-//! buffer items (all by token index into the sentence); `w` is a token's
-//! lowercased surface text, `t` its Penn tag. A position that does not exist
-//! (an empty stack slot, a buffer past the sentence end, a token with no
-//! assigned dependent yet) contributes the sentinel [`NONE`] rather than
-//! being omitted, so every token always emits the same fixed-length feature
-//! list regardless of configuration shape.
+//! Fixed and load-bearing: the vendored artifact
+//! (`weights/parser_en.json.gz`) was trained against the exact list below,
+//! keyed by a template tag so coincidentally equal *values* never collide.
+//! Changing this list invalidates the artifact. `s0`/`s1` are the top two
+//! stack items, `b0`/`b1`/`b2` the first three buffer items; `w` is a
+//! token's lowercased text, `t` its Penn tag. An absent position
+//! contributes [`NONE`] rather than being omitted, so every step emits
+//! the same fixed-length list.
 //!
 //! - Unigrams: `s0.w`, `s0.t`, `s0.wt` (`w+t`), `s1.w`, `s1.t`, `s1.wt`,
 //!   `b0.w`, `b0.t`, `b0.wt`, `b1.w`, `b1.t`, `b1.wt`, `b2.t`
@@ -40,48 +35,37 @@
 //!   into `1`, `2`, `3`, `4`, `5`, `6-10`, `>10` (or [`NONE`] if either side
 //!   is absent), conjoined with `s0.t+b0.t`
 //!
-//! Thirty feature strings per decision, always, in that fixed order —
-//! [`extract_features`] is the single source of truth for the exact format
-//! of each one.
+//! Thirty feature strings per decision, always, in this fixed order —
+//! [`extract_features`] is the single source of truth for the format.
 //!
 //! # Training: structured perceptron with early update
 //!
 //! [`train_support::train_sentence`] decodes greedily from a fresh
-//! [`Configuration`], scoring every step with the model's own live (not yet
-//! averaged) weights, masked to [`Configuration::is_allowed`]. The instant
-//! the model's masked argmax disagrees with
-//! [`crate::dep_arceager::oracle`]'s transition, the oracle's action is
-//! promoted and the model's wrong pick demoted for every feature of that
-//! step, and the sentence is abandoned right there — the rest of it, which
-//! the model never got to see because it already went wrong, contributes no
-//! further signal. A sentence the model gets entirely right contributes one
-//! full oracle-length walk of updates-that-never-fire (since agreement never
-//! triggers a bump). Final weights are the standard lazy-averaged perceptron
-//! (see [`train_support::AveragedPerceptron`]), the same accumulate-by-
-//! timestamp trick [`crate::tag_perceptron`]'s tagger trainer uses, adapted
-//! from string class names to a fixed `u8` action index instead of
-//! duplicating a second copy of that same lazy-averaging arithmetic
-//! unchanged.
+//! [`Configuration`], scoring each step with the model's live (unaveraged)
+//! weights masked to [`Configuration::is_allowed`]. The instant the masked
+//! argmax disagrees with [`crate::dep_arceager::oracle`], the oracle's
+//! action is promoted and the wrong pick demoted for every feature of
+//! that step, and the sentence is abandoned there — the rest contributes
+//! no signal, since the model never saw it. A sentence the model gets
+//! entirely right contributes a full walk of updates that never fire.
+//! Final weights use the standard lazy-averaged perceptron (see
+//! [`train_support::AveragedPerceptron`]), the same accumulate-by-
+//! timestamp trick [`crate::tag_perceptron`]'s trainer uses, adapted to a
+//! fixed `u8` action index.
 //!
-//! Only sentences whose gold tree [`crate::dep_arceager::derive`] can
-//! actually reproduce ever reach training — see that function's own docs
-//! for why a non-derivable gold tree (in practice, non-projective) has to be
-//! dropped rather than trained on: walking it with the oracle would silently
-//! teach the model a transition sequence that does not reconstruct the gold
-//! parse it was supposedly learning.
+//! Only sentences [`crate::dep_arceager::derive`] can actually reproduce
+//! reach training — a non-derivable (in practice non-projective) gold
+//! tree would silently teach a transition sequence that doesn't
+//! reconstruct the parse it was supposed to learn.
 //!
 //! # Determinism
 //!
-//! No randomness anywhere in this module, at training or at inference:
-//! [`train_support`]'s epoch loop walks `weights/gold_dep_en.conllu`'s
-//! sentences in the file's own on-disk order (no shuffling), matching
-//! `examples/train_perceptron.rs`'s own choice for the same reason —
-//! reproducibility that does not depend on a seed at all beats
-//! reproducibility that depends on getting a seed right forever. At
-//! inference, [`best_allowed_action`] breaks every tie toward the lowest
-//! action index, and feature-list order is the fixed order documented
-//! above, so summation order (and therefore the resulting scores) is
-//! identical on every run.
+//! No randomness anywhere: [`train_support`]'s epoch loop walks
+//! `weights/gold_dep_en.conllu` in its own on-disk order (no shuffling),
+//! matching `examples/train_perceptron.rs`. At inference,
+//! [`best_allowed_action`] breaks ties toward the lowest action index,
+//! and feature order is fixed, so summation — and the resulting scores —
+//! is identical every run.
 
 use std::collections::HashMap;
 use std::io::Read as _;
@@ -98,17 +82,15 @@ use crate::tag::TaggedToken;
 /// regenerates it.
 static WEIGHTS_BYTES: &[u8] = include_bytes!("../weights/parser_en.json.gz");
 
-/// Sentinel feature value for an absent stack/buffer position, an absent
-/// assigned dependent, or an incomputable distance bucket. Distinct from any
-/// real lowercased word or Penn tag, so a feature built from it can never be
-/// confused with a genuine one.
+/// Sentinel for an absent stack/buffer position, dependent, or distance
+/// bucket — distinct from any real lowercased word or Penn tag, so a
+/// feature built from it is never confused with a genuine one.
 const NONE: &str = "<none>";
 
 /// The 20 relations [`Transition::LeftArc`]/[`Transition::RightArc`] may
-/// carry, in [`DepRelation`]'s own declaration order — the fixed
-/// enumeration [`action_index`]/[`action_at`] build the 42-way action space
-/// from. [`DepRelation::Root`] is excluded: it is never a legal arc label
-/// (see that variant's own docs).
+/// carry, in [`DepRelation`]'s declaration order — the enumeration
+/// [`action_index`]/[`action_at`] build the 42-way action space from.
+/// [`DepRelation::Root`] is excluded: never a legal arc label.
 const RELATIONS: [DepRelation; 20] = [
     DepRelation::Acl,
     DepRelation::Advcl,
@@ -139,17 +121,14 @@ const NUM_ACTIONS: usize = 2 + 2 * RELATIONS.len();
 
 /// `rel`'s position in [`RELATIONS`].
 ///
-/// Only [`action_index`] calls this (in turn only needed by training and by
-/// this module's own round-trip tests — inference only ever goes
-/// [`action_at`]'s direction, index to transition, never the reverse), so
-/// it is gated the same way `action_index` is.
+/// Only [`action_index`] calls this, for training and round-trip tests —
+/// inference only goes index-to-transition via [`action_at`] — so it's
+/// gated the same way.
 ///
 /// # Panics
-/// Panics if `rel` is [`DepRelation::Root`] — never a legal arc label, so
-/// never legally reachable here; every caller in this module only ever
-/// passes a relation carried by [`Transition::LeftArc`]/
-/// [`Transition::RightArc`], which [`crate::dep_arceager::oracle`] never
-/// labels `Root` (see that function's own docs).
+/// Panics if `rel` is [`DepRelation::Root`]: every caller passes a
+/// relation carried by [`Transition::LeftArc`]/[`Transition::RightArc`],
+/// and [`crate::dep_arceager::oracle`] never labels those `Root`.
 #[cfg(any(test, feature = "train-tooling"))]
 fn relation_index(rel: DepRelation) -> usize {
     RELATIONS
@@ -159,10 +138,8 @@ fn relation_index(rel: DepRelation) -> usize {
 }
 
 /// `transition`'s position in the fixed 42-way action enumeration —
-/// [`action_at`]'s exact inverse. Only training
-/// ([`train_support::train_sentence`], scoring the oracle's own transition)
-/// and this module's own round-trip tests ever need to go this direction;
-/// inference only ever goes index -> transition via [`action_at`].
+/// [`action_at`]'s exact inverse. Only training and round-trip tests need
+/// this direction; inference only goes index -> transition.
 #[cfg(any(test, feature = "train-tooling"))]
 fn action_index(transition: Transition) -> usize {
     match transition {
@@ -177,10 +154,9 @@ fn action_index(transition: Transition) -> usize {
 /// enumeration — [`action_index`]'s exact inverse.
 ///
 /// # Panics
-/// Panics if `index` is out of range for the fixed [`NUM_ACTIONS`]-entry
-/// action space — every caller in this module only ever passes an index
-/// produced by [`action_index`] or scanned from a fixed `0..NUM_ACTIONS`
-/// range.
+/// Panics if `index` is out of range for [`NUM_ACTIONS`] — every caller
+/// passes an index produced by [`action_index`] or scanned from
+/// `0..NUM_ACTIONS`.
 fn action_at(index: usize) -> Transition {
     match index {
         0 => Transition::Shift,
@@ -212,11 +188,9 @@ fn at<'a>(words: &'a [Box<str>], tags: &'a [Box<str>], idx: Option<usize>) -> Vi
 }
 
 /// `head`'s leftmost and rightmost assigned dependents in `config`, by
-/// token index (not by attachment order) — a linear scan over every token,
-/// since a dependent may be anywhere in the sentence and
-/// [`Configuration`] exposes no reverse (head -> children) index of its
-/// own, only the forward `token -> (head, relation)` one
-/// ([`Configuration::arc`]).
+/// token index — a linear scan, since [`Configuration`] only exposes the
+/// forward `token -> (head, relation)` index ([`Configuration::arc`]), not
+/// a reverse head -> children one.
 fn children_of(config: &Configuration, head: usize) -> (Option<usize>, Option<usize>) {
     let mut left = None;
     let mut right = None;
@@ -233,10 +207,9 @@ fn children_of(config: &Configuration, head: usize) -> (Option<usize>, Option<us
     (left, right)
 }
 
-/// Appends `{prefix}.t=` and `{prefix}.rel=` features describing `child`'s
-/// tag and its own arc relation (the relation attaching it to its head,
-/// i.e. exactly the label a caller wants when `child` is being reported as
-/// someone else's dependent) — [`NONE`] for both if `child` is absent.
+/// Appends `{prefix}.t=` and `{prefix}.rel=` features for `child`'s tag
+/// and its arc relation (the label attaching it to its own head) —
+/// [`NONE`] for both if `child` is absent.
 fn push_child_features(
     feats: &mut Vec<Box<str>>,
     prefix: &str,
@@ -252,9 +225,9 @@ fn push_child_features(
     feats.push(Box::from(format!("{prefix}.rel={relation}")));
 }
 
-/// `diff` (a buffer-minus-stack token-index distance, always positive since
-/// the buffer only ever holds indices past every stacked one) bucketed into
-/// `1`, `2`, `3`, `4`, `5`, `6-10`, `>10`.
+/// `diff` (buffer-minus-stack distance, always positive — the buffer only
+/// holds indices past every stacked one) bucketed into `1`, `2`, `3`, `4`,
+/// `5`, `6-10`, `>10`.
 const fn bucket_distance(diff: usize) -> &'static str {
     match diff {
         1 => "1",
@@ -267,13 +240,13 @@ const fn bucket_distance(diff: usize) -> &'static str {
     }
 }
 
-/// Builds one configuration's fixed, 30-entry feature list. See the module
-/// docs for the exact template catalogue this implements; this function is
-/// that catalogue's single source of truth.
+/// Builds one configuration's fixed, 30-entry feature list — see the
+/// module docs for the template catalogue; this function is its single
+/// source of truth.
 ///
-/// `words`/`tags` are the whole sentence's lowercased surface text and Penn
-/// tags, indexed by token — the same slices for every call across one
-/// sentence's decode, since only `config` changes step to step.
+/// `words`/`tags` are the whole sentence's lowercased text and tags,
+/// indexed by token — the same slices across one sentence's decode, since
+/// only `config` changes step to step.
 fn extract_features(
     words: &[Box<str>],
     tags: &[Box<str>],
@@ -357,12 +330,11 @@ fn extract_features(
     feats
 }
 
-/// The highest-scoring action among those [`Configuration::is_allowed`]
-/// permits, breaking ties toward the lowest action index — `None` only if
-/// no action is legal at all, which never happens while `config` is not
-/// [`Configuration::is_terminal`] (see that method's own docs: a non-empty
-/// buffer always makes [`Transition::Shift`] legal, and an exhausted buffer
-/// that is not terminal always makes [`Transition::Reduce`] legal).
+/// The highest-scoring action [`Configuration::is_allowed`] permits, ties
+/// broken toward the lowest index — `None` only if no action is legal,
+/// which never happens while `config` is not terminal (a non-empty buffer
+/// always makes `Shift` legal; an exhausted, non-terminal buffer always
+/// makes `Reduce` legal).
 fn best_allowed_action(scores: &[f32; NUM_ACTIONS], config: &Configuration) -> Option<usize> {
     let mut best: Option<(usize, f32)> = None;
     for (index, &score) in scores.iter().enumerate() {
@@ -380,16 +352,15 @@ fn best_allowed_action(scores: &[f32; NUM_ACTIONS], config: &Configuration) -> O
     best.map(|(index, _)| index)
 }
 
-/// On-disk shape of the dependency-parser weight artifact: a `BTreeMap` so
-/// the serialized JSON is stable and diffable across re-training runs, and a
-/// sparse per-feature action list rather than a dense one, since most
-/// features only ever fire for a handful of the 42 actions.
+/// On-disk shape of the weight artifact: `BTreeMap` for stable, diffable
+/// JSON across re-training runs; sparse per-feature action list since
+/// most features only fire for a handful of the 42 actions.
 ///
-/// `pub` (not exported at the crate root) purely so
-/// `train_support::AveragedPerceptron::finish` and
-/// [`PerceptronParser::from_weight_file`] can hand one to each other and to
-/// `examples/train_parser.rs` — mirrors [`crate::tag_perceptron`]'s own
-/// `WeightFile`, including that same crate-internal-only reachability.
+/// `pub` but not exported at the crate root, purely so
+/// `train_support::AveragedPerceptron::finish`,
+/// [`PerceptronParser::from_weight_file`], and `examples/train_parser.rs`
+/// can pass it around — mirrors [`crate::tag_perceptron`]'s own
+/// `WeightFile`.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct WeightFile {
     /// feature string -> sparse `[(action index into the fixed 42-way
@@ -419,10 +390,10 @@ impl WeightTable {
     }
 
     /// Sums each feature's dense per-action weight array, in `features`'
-    /// own fixed order — float summation order is identical across runs
-    /// because iteration order here is fixed by the caller-supplied slice,
-    /// never by hash-map iteration (mirrors
-    /// [`crate::tag_perceptron`]'s `WeightTable::score`).
+    /// own fixed order — summation order (and so the resulting scores) is
+    /// identical across runs since it's fixed by the caller's slice, never
+    /// by hash-map iteration (mirrors [`crate::tag_perceptron`]'s
+    /// `WeightTable::score`).
     fn score(&self, features: &[Box<str>]) -> [f32; NUM_ACTIONS] {
         let mut scores = [0f32; NUM_ACTIONS];
         for feature in features {
@@ -459,10 +430,10 @@ impl PerceptronParser {
     /// Loads the parser from its embedded, gzip-compressed weight artifact.
     ///
     /// # Errors
-    /// [`PerceptronParseError::Decompress`] if the embedded bytes are not
+    /// [`PerceptronParseError::Decompress`] if the embedded bytes aren't
     /// valid gzip; [`PerceptronParseError::Parse`] if the decompressed JSON
-    /// does not match the expected shape. Neither should happen for the
-    /// vendored artifact this crate ships.
+    /// doesn't match the expected shape. Neither should happen for the
+    /// vendored artifact.
     pub fn new() -> Result<Self, PerceptronParseError> {
         let mut decoder = flate2::read::GzDecoder::new(WEIGHTS_BYTES);
         let mut json = String::new();
@@ -476,13 +447,12 @@ impl PerceptronParser {
     }
 
     /// Builds a parser directly from an in-memory [`WeightFile`], bypassing
-    /// the embedded artifact entirely.
+    /// the embedded artifact.
     ///
     /// Exists so `examples/train_parser.rs` can evaluate a freshly trained
-    /// model — through this exact same inference path — before that model
-    /// is written to disk and compiled back in as the vendored artifact;
-    /// gated behind `train-tooling` so a production build never exposes a
-    /// way to load an untrusted weight file.
+    /// model through this exact inference path before it's written to disk
+    /// as the vendored artifact; gated behind `train-tooling` so a
+    /// production build can't load an untrusted weight file.
     #[cfg(feature = "train-tooling")]
     #[must_use]
     pub fn from_weight_file(file: WeightFile) -> Self {
@@ -510,9 +480,8 @@ impl DepParser for PerceptronParser {
             match best_allowed_action(&scores, &config) {
                 Some(index) => config.apply(action_at(index)),
                 // Unreachable while `!config.is_terminal()` (see
-                // `best_allowed_action`'s own docs) — defensive rather than
-                // a panic, since a `DepParser` implementation must never
-                // panic on any input (see `DepParser::parse`'s contract).
+                // `best_allowed_action`'s docs) — defensive, not a panic,
+                // since a `DepParser` must never panic on any input.
                 None => break,
             }
         }
@@ -584,16 +553,15 @@ pub mod train_support {
 
     /// Parses the tab-separated CoNLL-U-like gold format.
     ///
-    /// `gold_dep_en.conllu` uses: `# sent_id = ...` / `# split = train|test`
+    /// `gold_dep_en.conllu` uses `# sent_id = ...` / `# split = train|test`
     /// / `# text = ...` comment lines, then one `index<TAB>surface<TAB>
-    /// penn_pos<TAB>head_index<TAB>relation` row per token (1-based indices,
-    /// head `0` for root), a blank line ending each sentence.
+    /// penn_pos<TAB>head_index<TAB>relation` row per token (1-based, head
+    /// `0` for root), with a blank line ending each sentence.
     ///
     /// # Errors
-    /// The first [`GoldParseError`] encountered — a malformed row, an
-    /// unparseable head index, an unrecognized relation name, or an
-    /// internally-inconsistent edge list (a self-head, an out-of-bounds
-    /// head).
+    /// The first [`GoldParseError`] encountered — malformed row, unparseable
+    /// head index, unrecognized relation, or an inconsistent edge list
+    /// (self-head, out-of-bounds head).
     pub fn parse_gold_file(text: &str) -> Result<Vec<GoldSentence>, GoldParseError> {
         let mut sentences = Vec::new();
         let mut split: Option<Box<str>> = None;
@@ -675,13 +643,13 @@ pub mod train_support {
 
     /// A minimal from-scratch averaged structured perceptron.
     ///
-    /// Scores the fixed 42-way action space and follows the same lazy-
-    /// averaging trick as
+    /// Scores the fixed 42-way action space, following the same
+    /// lazy-averaging trick as
     /// [`crate::tag_perceptron::train_support::AveragedPerceptron`]
-    /// (accumulate `weight * (iterations held)` and divide by the total
-    /// iteration count at the end), keyed by a `u8` action index instead of
-    /// a string class name since this classifier's class set is fixed at
-    /// compile time rather than discovered from data.
+    /// (accumulate `weight * iterations held`, divide by total iterations
+    /// at the end) — keyed by a `u8` action index rather than a string
+    /// class name, since this classifier's class set is fixed at compile
+    /// time.
     #[derive(Default)]
     pub struct AveragedPerceptron {
         weights: BTreeMap<Box<str>, BTreeMap<u8, f64>>,
@@ -697,10 +665,10 @@ pub mod train_support {
         }
 
         /// Sums every feature's live (non-averaged) per-action weights,
-        /// cast to `f32` at the point of summation — the same precision
-        /// [`super::WeightTable::score`] scores with at inference, so
-        /// training-time masked prediction sees the same rounding behavior
-        /// the shipped artifact will.
+        /// cast to `f32` at summation — the same precision
+        /// [`super::WeightTable::score`] uses at inference, so
+        /// training-time prediction sees the rounding behavior the shipped
+        /// artifact will.
         fn score(&self, features: &[Box<str>]) -> [f32; NUM_ACTIONS] {
             let mut scores = [0f32; NUM_ACTIONS];
             for feature in features {
@@ -725,9 +693,8 @@ pub mod train_support {
                 .copied()
                 .unwrap_or(0.0);
             let last_ts = self.timestamps.get(&key).copied().unwrap_or(0);
-            // Training runs for a handful of epochs over a few thousand
-            // sentences, so `iterations` never comes close to 2^52 — this
-            // conversion never loses meaningful precision.
+            // A handful of epochs over a few thousand sentences never gets
+            // `iterations` near 2^52 — no meaningful precision lost here.
             #[allow(clippy::cast_precision_loss)]
             let held = (self.iterations - last_ts) as f64;
             let total = self.totals.entry(key.clone()).or_insert(0.0);
@@ -740,10 +707,10 @@ pub mod train_support {
         }
 
         /// One early-update training step: scores `features` under
-        /// `config`'s legal-action mask using the model's current live
-        /// weights, and if the masked argmax disagrees with `gold_index`,
-        /// bumps `gold_index` up and the wrong prediction down for every
-        /// feature. Returns the predicted action index.
+        /// `config`'s legal-action mask, and if the masked argmax
+        /// disagrees with `gold_index`, bumps `gold_index` up and the
+        /// wrong prediction down for every feature. Returns the predicted
+        /// action index.
         fn train_one(
             &mut self,
             features: &[Box<str>],
@@ -804,13 +771,12 @@ pub mod train_support {
         }
     }
 
-    /// Runs one sentence through greedy oracle-guided decoding with early update.
-    ///
-    /// See the module docs' "Training" section. Stops the instant `model`'s
-    /// masked prediction disagrees with the oracle, having already applied
-    /// that step's weight update. Returns whether the model matched the
-    /// oracle all the way to a terminal configuration (i.e. this sentence
-    /// needed no update at all this epoch).
+    /// Runs one sentence through greedy oracle-guided decoding with early
+    /// update — see the module docs' "Training" section. Stops the instant
+    /// `model`'s masked prediction disagrees with the oracle, having
+    /// already applied that step's update. Returns whether the model
+    /// matched the oracle all the way to a terminal configuration (no
+    /// update needed this epoch).
     pub fn train_sentence(
         model: &mut AveragedPerceptron,
         words: &[Box<str>],
@@ -832,9 +798,9 @@ pub mod train_support {
         }
     }
 
-    /// Re-exposes [`action_at`] for a training tool's own diagnostics
-    /// (e.g. reporting a per-action breakdown of update frequency) without
-    /// duplicating the fixed action enumeration.
+    /// Re-exposes [`action_at`] for a training tool's diagnostics (e.g. a
+    /// per-action update-frequency breakdown) without duplicating the
+    /// enumeration.
     #[must_use]
     pub fn action_at_index(index: usize) -> crate::dep_arceager::Transition {
         action_at(index)
@@ -858,8 +824,8 @@ pub mod train_support {
     }
 
     /// Loads a gzip-compressed [`WeightFile`] from `path` — used by a
-    /// training tool's own reproducibility check (train twice, compare the
-    /// two on-disk artifacts).
+    /// training tool's reproducibility check (train twice, compare
+    /// artifacts).
     ///
     /// # Errors
     /// [`PerceptronParseError::Decompress`] / [`PerceptronParseError::Parse`].
@@ -877,9 +843,9 @@ pub mod train_support {
 mod tests {
     use super::*;
 
-    /// [`action_index`]/[`action_at`] round-trip for every one of the 42
-    /// actions, and the enumeration is exactly 42 entries — the load-bearing
-    /// contract the shipped artifact was trained against.
+    /// [`action_index`]/[`action_at`] round-trip for all 42 actions, and
+    /// the enumeration is exactly 42 entries — the contract the shipped
+    /// artifact was trained against.
     #[test]
     fn action_index_and_action_at_round_trip_every_action() {
         assert_eq!(NUM_ACTIONS, 42);
@@ -915,8 +881,8 @@ mod tests {
     }
 
     /// [`extract_features`] always returns exactly 30 features, even for
-    /// the empty-stack, single-token-buffer initial configuration where
-    /// every "child" and most "neighbor" positions are absent.
+    /// the empty-stack initial configuration where most positions are
+    /// absent.
     #[test]
     fn extract_features_always_returns_thirty_features() {
         let words: Vec<Box<str>> = vec![Box::from("the"), Box::from("cat"), Box::from("sat")];
@@ -933,8 +899,7 @@ mod tests {
     }
 
     /// Loading the embedded weight artifact never panics — covers the
-    /// gunzip/JSON round trip end to end, independent of how accurate the
-    /// resulting model is.
+    /// gunzip/JSON round trip, independent of model accuracy.
     #[test]
     fn embedded_weight_artifact_loads() {
         PerceptronParser::new().expect("embedded weights must load");

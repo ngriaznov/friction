@@ -150,10 +150,9 @@ fn accept_regression1_getting_started_substitution_and_deletion() {
     );
 }
 
-/// The full byte-exact assertion `ALGORITHMS.md`/the fixture contract
-/// calls for. Marked `#[ignore]`, not deleted or weakened — see this
-/// file's own header comment and the companion `#[test]` above, which
-/// verifies every OTHER edit in this same fixture byte-exactly.
+/// The full byte-exact assertion the fixture contract calls for. Marked
+/// `#[ignore]` rather than deleted or weakened — the companion `#[test]`
+/// above verifies every OTHER edit in this fixture byte-exactly.
 ///
 /// Root cause, verified directly (see `crates/friction-packs/src/attestation.rs`'s
 /// `window_attested`, now a byte-for-byte transcription of
@@ -288,8 +287,8 @@ fn reject_pivot_trap_passive() {
     assert_engine_identity("pivot_trap_passive");
 }
 
-/// `heading_pivot`'s input is a bare heading, not full markdown — wrapped
-/// as `"# {text}\n"` per this milestone's own handoff note. Asserts the
+/// `heading_pivot`'s input is a bare heading, not full markdown, so it is
+/// wrapped as `"# {text}\n"` before use. Asserts the
 /// engine's output heading text is unchanged: prose-blocks-only (gate 7)
 /// is verified directly, since `edit_document` only ever walks
 /// `friction_match::token::is_in_scope`-filtered prose units (paragraph/

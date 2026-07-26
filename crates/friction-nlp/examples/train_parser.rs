@@ -24,16 +24,14 @@ use friction_nlp::dep_train_support::{
 use friction_nlp::{DepParser, DepRelation, PerceptronParser, PosTag, TaggedToken};
 
 /// Fixed epoch cap, chosen from one comparison run of 15 vs. 40 vs. 60
-/// epochs against this file's own test split (numbers recorded in this
-/// binary's own `NOTICE.md` section, not re-derived here): full-sentence
-/// train-set match rises the whole way from 15 (65.3%) through 40 (92.9%)
-/// to 60 (97.1%) epochs, but test UAS/LAS *peaks* at 40 (76.74%/73.11%) and
-/// is already slightly *worse* at 60 (76.42%/72.81%) despite the higher
-/// train-set fit — the textbook overfitting signature (train score still
-/// climbing, held-out score turning over). 40 is kept as the fixed cap
-/// rather than switching to a stopping rule that watches the test split
-/// during training, which would make the test numbers this file reports no
-/// longer honestly held out.
+/// epochs (numbers recorded in `NOTICE.md`, not re-derived here):
+/// full-sentence train-set match rises from 15 (65.3%) through 40 (92.9%)
+/// to 60 (97.1%) epochs, but test UAS/LAS *peaks* at 40 (76.74%/73.11%)
+/// and is already slightly *worse* at 60 (76.42%/72.81%) — the textbook
+/// overfitting signature (train score still climbing, held-out score
+/// turning over). Kept as a fixed cap rather than a stopping rule that
+/// watches the test split during training, which would make the test
+/// numbers this file reports no longer honestly held out.
 const EPOCHS: usize = 40;
 
 /// Test-split relations at or below this many gold occurrences are reported
@@ -74,10 +72,10 @@ struct RelStats {
 }
 
 /// Builds a synthetic `(source, tokens)` pair from a [`GoldSentence`]'s
-/// already-lowercased words and tags, space-joined, so evaluation can drive
+/// already-lowercased words and tags, space-joined, so evaluation drives
 /// the exact same [`DepParser::parse`] entry point production inference
-/// uses (source-slicing included) rather than a shortcut that only
-/// exercises the decode loop.
+/// uses (source-slicing included), not a shortcut that only exercises the
+/// decode loop.
 fn synthetic_source(sentence: &GoldSentence) -> (String, Vec<TaggedToken>) {
     let mut source = String::new();
     let mut tokens = Vec::with_capacity(sentence.words.len());

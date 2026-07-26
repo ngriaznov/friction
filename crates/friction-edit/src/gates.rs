@@ -1,14 +1,13 @@
 //! Shared gate helpers: the clause gate, and the gated-span-deletion seam
-//! + skeleton gates (ALGORITHMS.md §4.2 / §4.5).
+//! + skeleton gates.
 //!
 //! Every gate here operates on real, case-preserved text tagged directly
 //! by the shipped tagger — the same convention `corpus-tool attest` used
-//! to mine the [`friction_packs::AttestationPack`] this module queries
-//! (see that module's own doc comment on tokenization/tagging
-//! conventions), rather than reconstructing a lowercased, pre-tokenized
-//! word list the way the Python reference tags its own candidate spans.
-//! Tagging real text keeps the tag distribution this module measures
-//! consistent with the tag distribution the pack itself was built from.
+//! to mine the [`friction_packs::AttestationPack`] this module queries,
+//! rather than reconstructing a lowercased, pre-tokenized word list the
+//! way the Python reference tags its own candidate spans. This keeps the
+//! tag distribution measured here consistent with what the pack was
+//! built from.
 
 use std::collections::BTreeSet;
 use std::ops::Range;
@@ -19,37 +18,31 @@ use friction_nlp::{
 };
 use friction_packs::AttestationPack;
 
-/// `true` if `tokens` (tagged from `text`) satisfies the clause-
-/// completeness test on its own: a finite verb somewhere, or an
-/// imperative-initial `VB`.
+/// `true` if `tokens` (tagged from `text`) satisfies clause-completeness
+/// on its own: a finite verb somewhere, or an imperative-initial `VB`.
 ///
 /// Falls back to [`has_ambiguous_s_verb`] alongside the strict Penn-tag
-/// check — a measured compensation for the shipped tagger's own
-/// weakness on this exact ambiguity class, not a loosening of what
-/// counts as a clause; see that function's own docs.
+/// check — a measured compensation for the tagger's own weakness here,
+/// not a loosening of what counts as a clause.
 #[must_use]
 pub fn clause_ok(tokens: &[TaggedToken], text: &str) -> bool {
     has_finite_verb(tokens) || is_imperative_initial(tokens) || has_ambiguous_s_verb(tokens, text)
 }
 
-/// A narrow, targeted compensation for a measured weakness in the shipped
-/// tagger.
+/// A narrow, targeted compensation for a measured weakness in the
+/// shipped tagger.
 ///
-/// An `-s`-suffixed word immediately followed by an infinitival
-/// `to VB` complement (`"needs to be placed"`, `"requires to run"`-shaped)
-/// is unambiguous evidence of a finite verb in that slot regardless of
-/// what tag the token itself carries — English's `-s` suffix is
-/// genuinely ambiguous between a plural noun and a third-person-singular
-/// verb, and this tagger sometimes resolves that ambiguity the wrong way
-/// specifically in this shape (measured directly against the accept
-/// fixtures: `"the configuration file needs to be placed"` tags `needs`
-/// as `RB`, not `VBZ`, in every context tried, isolated or not).
+/// An `-s`-suffixed word immediately followed by an infinitival `to VB`
+/// complement (`"needs to be placed"`-shaped) is unambiguous evidence of
+/// a finite verb regardless of the token's own tag — English's `-s` is
+/// genuinely ambiguous between plural noun and third-person-singular
+/// verb, and this tagger resolves it wrong in this shape (measured:
+/// `"the configuration file needs to be placed"` tags `needs` as `RB`,
+/// not `VBZ`, in every context tried).
 ///
-/// Deliberately narrow to avoid the much larger false-positive class a
-/// bare "ends in s, tagged NN/NNS/RB" check would open (an ordinary noun
-/// phrase like `"a place to go"` or `"nothing to lose"` never satisfies
-/// this — `place`/`nothing` don't end in `s` — so this only ever fires on
-/// the specific morphological-ambiguity shape it targets).
+/// Deliberately narrow: a bare "ends in s, tagged NN/NNS/RB" check would
+/// open a much larger false-positive class (`"a place to go"`, `"nothing
+/// to lose"` never satisfy this, since neither ends in `s`).
 #[must_use]
 pub fn has_ambiguous_s_verb(tokens: &[TaggedToken], text: &str) -> bool {
     for i in 0..tokens.len().saturating_sub(2) {
@@ -73,7 +66,7 @@ pub fn has_ambiguous_s_verb(tokens: &[TaggedToken], text: &str) -> bool {
 
 /// The post-edit clause gate: `clause_ok(post_edit_tokens, text) ||
 /// !original_had_a_clause` — enforced only when the original sentence had
-/// one, per ALGORITHMS.md §4.5.
+/// one.
 #[must_use]
 pub fn clause_gate(post_edit_tokens: &[TaggedToken], text: &str, original_clause_ok: bool) -> bool {
     clause_ok(post_edit_tokens, text) || !original_clause_ok
@@ -104,7 +97,7 @@ pub enum DeletionGateOutcome {
     ClauseIncomplete,
 }
 
-/// Checks every gate ALGORITHMS.md §4.2/§4.5 requires for deleting
+/// Checks every gate required for deleting
 /// `match_range` (a byte range into `working_text`) with no replacement.
 ///
 /// `original_clause_ok` is `clause_ok` computed once from the untouched
@@ -127,8 +120,8 @@ pub fn check_deletion_gates(
     let left = pre_tokens.last().map_or("<s>", |t| &t.text);
     let right = post_tokens.first().map_or(".", |t| &t.text);
     // Only a literal `.` is auto-safe, matching the reference's `R ==
-    // "."` exactly — `!` and `?` are not sentence-final free passes and
-    // must clear the bigram check like any other right token below.
+    // "."` exactly — `!`/`?` must clear the bigram check like any other
+    // right token below.
     let right_is_terminal = post_tokens
         .first()
         .is_none_or(|t| t.kind == AnalysisTokenKind::Punctuation && t.text.as_ref() == ".");
@@ -139,10 +132,9 @@ pub fn check_deletion_gates(
         return DeletionGateOutcome::SeamNotAttested;
     }
 
-    // Build the excised-candidate text for tagging: pre and post,
-    // trimmed and joined by exactly one space (mirrors the reference's
-    // `pre.rstrip() + " " + post.lstrip()`), so the boundary byte offset
-    // used to compute `lo` is exactly `pre_trimmed.len()`.
+    // Excised-candidate text for tagging: pre and post, trimmed and
+    // joined by one space (mirrors the reference's `pre.rstrip() + " "
+    // + post.lstrip()`), so `lo`'s boundary offset is `pre_trimmed.len()`.
     let pre_trimmed = pre.trim_end();
     let post_trimmed = post.trim_start();
     let ct_text = match (pre_trimmed.is_empty(), post_trimmed.is_empty()) {
@@ -173,13 +165,11 @@ pub fn check_deletion_gates(
     coarse.push("<E>".to_string());
     let coarse_refs: Vec<&str> = coarse.iter().map(String::as_str).collect();
 
-    // Deliberately unshifted: `ref_engine.py::skeleton_ok` computes `lo`/
-    // `hi` as indices into the UNWRAPPED excised token list (`ct`), then
-    // uses those same, unshifted values directly as indices into the
-    // `<S>`-prefixed WRAPPED tag sequence — i.e. it never corrects for the
-    // sentinel's own extra leading slot. This is transcribed verbatim
-    // (not "fixed" to shift by one) because the target is `ref_engine.py`'s
-    // exact byte-level behavior, and the accept fixtures were validated
+    // Deliberately unshifted: `ref_engine.py::skeleton_ok` computes
+    // `lo`/`hi` as indices into the UNWRAPPED token list, then reuses
+    // them unshifted as indices into the `<S>`-prefixed WRAPPED sequence
+    // — never correcting for the sentinel's leading slot. Transcribed
+    // verbatim, not "fixed", because the accept fixtures were validated
     // against this exact window placement.
     if attestation.skeleton().window_attested(&coarse_refs, lo, hi) {
         DeletionGateOutcome::Allowed
@@ -189,24 +179,18 @@ pub fn check_deletion_gates(
 }
 
 /// Lowercased surface text of every token in `tags` (a whole, untouched
-/// original sentence's tagged tokens) that carries a finite-verb tag.
+/// original sentence) that carries a finite-verb tag.
 ///
 /// Used by the paired-substitution clause gate as a fallback when
-/// re-tagging the freshly-substituted candidate sentence fails to find a
-/// finite verb: the shipped tagger is measurably less reliable on a
-/// sentence immediately after a word has been swapped for a different
-/// one of the same part of speech (a fresh, out-of-training-distribution
-/// local context) than it is on the original, natural sentence it was
-/// trained on the shape of. Rather than trust that single re-tag, this
-/// checks whether the substitution's own matched span consumed one of the
-/// *original* sentence's finite-verb words in the first place — if it
-/// did not, the original verb is untouched and clause completeness holds
-/// trivially regardless of how the rewritten sentence retags; if it did,
-/// the pack's replacement text was curated specifically to still function
-/// as a verb in that slot (every `substitution_pairs` entry that touches
-/// a verb replaces it with another verb-shaped word, checked for closure
-/// at pack build time), so consuming the original verb is itself the
-/// signal this fallback trusts.
+/// re-tagging the substituted candidate fails to find a finite verb: the
+/// tagger is measurably less reliable right after a word swap (a fresh,
+/// out-of-training-distribution context) than on the natural sentence it
+/// trained on. Instead of trusting that re-tag, this checks whether the
+/// match consumed one of the *original* sentence's finite-verb words —
+/// if not, the original verb is untouched and completeness holds
+/// trivially; if so, the pack's replacement was curated to still
+/// function as a verb there (`substitution_pairs` closure-checks this at
+/// build time), so consuming the original verb is the signal trusted.
 #[must_use]
 pub fn original_finite_verb_words(tags: &[TaggedToken], text: &str) -> BTreeSet<Box<str>> {
     tags.iter()
@@ -217,10 +201,10 @@ pub fn original_finite_verb_words(tags: &[TaggedToken], text: &str) -> BTreeSet<
 
 /// The paired-substitution clause gate.
 ///
-/// `clause_ok` over the freshly re-tagged candidate sentence when that
-/// succeeds, falling back to `original_verb_words` survival when it does
-/// not (see [`original_finite_verb_words`]'s own docs for why). Always
-/// passes when the original sentence had no clause to preserve.
+/// `clause_ok` over the re-tagged candidate when that succeeds, falling
+/// back to `original_verb_words` survival otherwise (see
+/// [`original_finite_verb_words`]). Always passes when the original had
+/// no clause to preserve.
 #[must_use]
 pub fn substitution_clause_gate(
     matched_text: &str,
@@ -255,16 +239,15 @@ pub fn capitalize(text: &str) -> String {
 /// `true` if `range` falls inside (or crosses the boundary of) a
 /// double-quoted span of `text`.
 ///
-/// Quoted text is a mention (an example, a citation, a string someone
-/// else wrote), not the author's own register, so no operation may
-/// rewrite it.
+/// Quoted text is a mention — an example, a citation, someone else's
+/// words — not the author's own register, so no operation may rewrite it.
 ///
 /// Straight `"` marks are tracked by parity: an odd count before
 /// `range.start` means the range starts inside a quotation. Curly
-/// `\u{201c}`/`\u{201d}` marks are directional, so they are tracked by
-/// nesting depth instead. A matched slice that itself contains any
-/// double-quote character crosses a quotation boundary and is treated as
-/// quoted too — conservative in exactly the direction a hold should be.
+/// `\u{201c}`/`\u{201d}` marks are directional, tracked by nesting depth
+/// instead. A matched slice containing any double-quote character
+/// crosses a boundary and counts as quoted too — conservative in the
+/// direction a hold should be.
 #[must_use]
 pub fn in_quoted_span(text: &str, range: &std::ops::Range<usize>) -> bool {
     let is_quote = |c: char| c == '"' || c == '\u{201c}' || c == '\u{201d}';

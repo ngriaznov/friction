@@ -1,6 +1,5 @@
-//! [`PackError`] (the shared error type every pack parser in this crate
-//! reports through) and [`Sha256`] (the pinned-checksum type the pack
-//! registry records and verifies pack bytes against).
+//! [`PackError`] (the error every parser here reports) and [`Sha256`]
+//! (the pinned checksum the pack registry verifies pack bytes against).
 
 use std::fmt;
 
@@ -10,25 +9,22 @@ use sha2::{Digest, Sha256 as Sha2Hasher};
 #[derive(Debug, thiserror::Error)]
 #[non_exhaustive]
 pub enum PackError {
-    /// A pack's TOML failed to parse.
+    /// TOML failed to parse.
     #[error("pack is not valid TOML: {0}")]
     Toml(#[from] Box<toml::de::Error>),
 
-    /// A `sha256` field is not a well-formed 64-character lowercase or
-    /// uppercase hex digest.
+    /// A `sha256` field isn't 64 well-formed hex digits (either case).
     #[error("{value:?} is not a valid sha256 checksum (expected 64 hex digits)")]
     InvalidChecksum {
-        /// The offending value, as written in the pack.
+        /// The offending value.
         value: String,
     },
 
-    /// An envelope pack's `[<genre>.<metric>]` band has `lo > hi` or a
-    /// non-finite bound (see [`crate::EnvelopePack::parse`]).
+    /// An envelope pack's `[<genre>.<metric>]` band has `lo > hi` or is
+    /// non-finite (see [`crate::EnvelopePack::parse`]).
     #[error("{genre}.{metric}: invalid band [lo={lo}, hi={hi}] (must be finite with lo <= hi)")]
     InvalidBand {
-        /// The band's genre.
         genre: String,
-        /// The band's metric name.
         metric: String,
         /// The offending lower bound.
         lo: f64,
@@ -36,18 +32,18 @@ pub enum PackError {
         hi: f64,
     },
 
-    /// A DMS index pack's `[streams.<name>].ids` field is not a
-    /// comma-separated list of `u32` values (see [`crate::DmsIndex::parse`]).
+    /// A DMS index pack's `[streams.<name>].ids` isn't a comma-separated
+    /// list of `u32` values (see [`crate::DmsIndex::parse`]).
     #[error("streams.{stream}.ids: {value:?} is not a valid u32 token id")]
     DmsMalformedIds {
-        /// Which stream's `ids` field was malformed.
+        /// Which stream's `ids` was malformed.
         stream: String,
         /// The offending comma-separated field.
         value: String,
     },
 
-    /// A DMS index pack's stream references a token id past the end of
-    /// its own `[vocab]` table (see [`crate::DmsIndex::parse`]).
+    /// A DMS index stream references a token id past its own `[vocab]`
+    /// table's end (see [`crate::DmsIndex::parse`]).
     #[error(
         "streams.{stream}.ids: token id {id} is out of range for a vocab of {vocab_len} token(s)"
     )]
@@ -56,15 +52,13 @@ pub enum PackError {
         stream: String,
         /// The offending token id.
         id: u32,
-        /// The pack's vocabulary size.
         vocab_len: usize,
     },
 
-    /// An inventory pack entry's `pattern` field is not a valid regex
-    /// (see [`crate::InventoryPack::parse`]).
+    /// An inventory entry's `pattern` field isn't a valid regex (see
+    /// [`crate::InventoryPack::parse`]).
     #[error("{id}: pattern {pattern:?} does not compile: {message}")]
     InventoryInvalidPattern {
-        /// The entry's id.
         id: String,
         /// The offending pattern source.
         pattern: String,
@@ -72,50 +66,46 @@ pub enum PackError {
         message: String,
     },
 
-    /// A `deletion_spans` entry's `anchor` field is not one of
-    /// `"sentence_initial"`, `"mid_sentence"`, or `"trailing"`.
+    /// A `deletion_spans` entry's `anchor` isn't one of `"sentence_initial"`,
+    /// `"mid_sentence"`, or `"trailing"`.
     #[error("{id}: {value:?} is not a known anchor")]
     InventoryUnknownAnchor {
-        /// The entry's id.
         id: String,
-        /// The offending value, as written in the pack.
+        /// The offending value.
         value: String,
     },
 
-    /// A `deletion_spans`/`ritual_frames`/`preview_frames` entry's
-    /// `repair` field is not one of `"delete"` or `"diagnostic_only"`.
+    /// A `deletion_spans`/`ritual_frames`/`preview_frames` entry's `repair`
+    /// isn't `"delete"` or `"diagnostic_only"`.
     #[error("{id}: {value:?} is not a known repair kind for this family")]
     InventoryUnknownRepairKind {
-        /// The entry's id.
         id: String,
-        /// The offending value, as written in the pack.
+        /// The offending value.
         value: String,
     },
 
-    /// A `substitution_pairs` entry's `repair` field is not literally
-    /// `"substitute"` — by construction, a substitution pair can never
-    /// carry a `diagnostic_only` state.
+    /// A `substitution_pairs` entry's `repair` isn't literally `"substitute"`
+    /// — by construction it can never be `diagnostic_only`.
     #[error("{id}: {family}'s repair field must be \"substitute\", found {found:?}")]
     InventoryInvalidRepairForFamily {
-        /// The entry's id.
         id: String,
         /// The family name (`"substitution_pairs"`).
         family: &'static str,
-        /// The offending value, as written in the pack.
+        /// The offending value.
         found: String,
     },
 
-    /// An `output_frequency_bands` entry's `unit` field is not
+    /// An `output_frequency_bands` entry's `unit` field isn't
     /// `"per_thousand_words"`.
     #[error("{frame}: {value:?} is not a known frequency unit")]
     InventoryUnknownFrequencyUnit {
         /// The band's frame text.
         frame: String,
-        /// The offending value, as written in the pack.
+        /// The offending value.
         value: String,
     },
 
-    /// The same `id` appears in more than one of
+    /// The same `id` is reused across
     /// `deletion_spans`/`substitution_pairs`/`ritual_frames`/`preview_frames`.
     #[error("duplicate id across inventory families: {id:?}")]
     InventoryDuplicateId {
@@ -123,39 +113,35 @@ pub enum PackError {
         id: String,
     },
 
-    /// The same `nominalization` appears in more than one `lvc_pairs` entry.
+    /// The same `nominalization` is reused across `lvc_pairs` entries.
     #[error("duplicate lvc_pairs nominalization: {nominalization:?}")]
     InventoryDuplicateLvcNominalization {
         /// The duplicated nominalization.
         nominalization: String,
     },
 
-    /// An `lvc_pairs` entry's `(nominalization, derived_verb)` does not
+    /// An `lvc_pairs` entry's `(nominalization, derived_verb)` doesn't
     /// resolve in `friction_nlp::lvc::DERIVATIONAL_LEXICON`.
     #[error(
         "lvc_pairs: ({nominalization:?}, {derived_verb:?}) does not resolve in \
          friction_nlp::lvc::DERIVATIONAL_LEXICON"
     )]
     InventoryUnresolvableLvcPair {
-        /// The entry's nominalization.
         nominalization: String,
-        /// The entry's derived verb.
         derived_verb: String,
     },
 
-    /// An `lvc_pairs` entry's `light_verb_base` is not a base-form key in
+    /// An `lvc_pairs` entry's `light_verb_base` isn't a base-form key in
     /// `friction_nlp::lvc::LIGHT_VERBS`.
     #[error("lvc_pairs.{nominalization}: {light_verb_base:?} is not a known base-form light verb")]
     InventoryUnknownLightVerbBase {
-        /// The entry's nominalization.
         nominalization: String,
-        /// The offending light-verb-base value, as written in the pack.
+        /// The offending light-verb-base value.
         light_verb_base: String,
     },
 
-    /// An attestation pack's `[bigram].lefts`/`[bigram].rights` field
-    /// contains a value that doesn't parse as `u32` (see
-    /// [`crate::AttestationPack::parse`]).
+    /// An attestation pack's `[bigram].lefts`/`[bigram].rights` has a
+    /// non-`u32` value (see [`crate::AttestationPack::parse`]).
     #[error("attestation {field}: {value:?} is not a valid u32 token id")]
     AttestationMalformedId {
         /// Which field was malformed (`"bigram.lefts"` or
@@ -166,7 +152,7 @@ pub enum PackError {
     },
 
     /// An attestation pack's `[bigram]` table references a token id past
-    /// the end of its own `[vocab]` table.
+    /// its own `[vocab]` table's end.
     #[error(
         "attestation {field}: token id {id} is out of range for a vocab of {vocab_len} token(s)"
     )]
@@ -175,7 +161,6 @@ pub enum PackError {
         field: &'static str,
         /// The offending token id.
         id: u32,
-        /// The pack's vocabulary size.
         vocab_len: usize,
     },
 
@@ -189,15 +174,15 @@ pub enum PackError {
         rights: usize,
     },
 
-    /// An attestation pack's `[skeleton].tag5`/`tag4` field contains a
-    /// value that doesn't parse as `u64`.
+    /// An attestation pack's `[skeleton].tag5`/`tag4` field has a
+    /// non-`u64` value.
     #[error("attestation skeleton: {value:?} is not a valid u64 packed tag code")]
     AttestationMalformedSkeletonCode {
         /// The offending value.
         value: String,
     },
 
-    /// A register pack's `[features.<name>]` band does not satisfy `low <
+    /// A register pack's `[features.<name>]` band doesn't satisfy `low <
     /// median < high` with every bound finite (see
     /// [`crate::RegisterPack::parse`]).
     #[error(
@@ -225,8 +210,8 @@ impl From<toml::de::Error> for PackError {
 /// The value of one ASCII hex digit, `0..=15`.
 ///
 /// # Panics
-/// Panics if `byte` is not an ASCII hex digit — every caller here checks
-/// that with `is_ascii_hexdigit` first.
+/// Panics if `byte` isn't an ASCII hex digit — every caller checks with
+/// `is_ascii_hexdigit` first.
 const fn hex_nibble(byte: u8) -> u8 {
     match byte {
         b'0'..=b'9' => byte - b'0',
@@ -244,7 +229,7 @@ impl Sha256 {
     /// Parses a 64-character hex digest (either case) into a checksum.
     ///
     /// # Errors
-    /// Returns [`PackError::InvalidChecksum`] if `hex` is not exactly 64
+    /// Returns [`PackError::InvalidChecksum`] if `hex` isn't exactly 64
     /// ASCII hex digits.
     pub fn parse_hex(hex: &str) -> Result<Self, PackError> {
         let trimmed = hex.trim();
@@ -274,8 +259,8 @@ impl Sha256 {
         hasher.finalize().as_slice() == self.0
     }
 
-    /// Computes the sha256 checksum of `bytes` directly, rather than
-    /// parsing one from a hex digest.
+    /// Computes the sha256 checksum of `bytes` directly (no hex-digest
+    /// parsing).
     #[must_use]
     pub fn of_bytes(bytes: &[u8]) -> Self {
         let mut hasher = Sha2Hasher::new();
@@ -300,8 +285,8 @@ impl fmt::Display for Sha256 {
 mod tests {
     use super::*;
 
-    /// `Sha256::parse_hex` accepts a well-formed digest and round-trips it
-    /// through `Display` as lowercase hex.
+    /// `Sha256::parse_hex` round-trips a well-formed digest through
+    /// `Display` as lowercase hex.
     #[test]
     fn sha256_parses_and_displays_lowercase() {
         let hex = "c4368b1c4c73825e3ebdf8d5750ce87bb035a69fd4f99db7930f8828a96347aa";
@@ -313,7 +298,7 @@ mod tests {
         assert_eq!(from_upper.to_string(), hex);
     }
 
-    /// A checksum of the wrong length is rejected.
+    /// A wrong-length checksum is rejected.
     #[test]
     fn sha256_rejects_wrong_length() {
         let err = Sha256::parse_hex("deadbeef").unwrap_err();
@@ -336,8 +321,8 @@ mod tests {
         assert_eq!(Sha256::of_bytes(b""), Sha256::parse_hex(hex).unwrap());
     }
 
-    /// `Sha256::verify` matches the checksum of the exact bytes it was
-    /// computed from, and rejects any other bytes.
+    /// `Sha256::verify` accepts the exact bytes it was computed from and
+    /// rejects any others.
     #[test]
     fn sha256_verify_checks_bytes() {
         let checksum =

@@ -4,29 +4,23 @@
 //! # Input contract
 //!
 //! [`DepParser::parse`] consumes exactly what [`crate::Tagger::tag`]
-//! produces for one sentence: the sentence's original source text (so an
-//! implementation can slice out exact surface characters when a POS tag
-//! alone is ambiguous — e.g. telling a comma from a semicolon, or "and"
-//! from "but") plus that sentence's slice of [`crate::TaggedToken`]s.
-//! Nothing here re-tags or re-tokenizes; a caller is responsible for
-//! partitioning a document's tagged tokens into per-sentence slices before
-//! calling [`DepParser::parse`].
+//! produces for one sentence: the source text (so an implementation can
+//! slice exact characters when a POS tag alone is ambiguous, e.g. a comma
+//! vs. a semicolon) plus that sentence's slice of [`crate::TaggedToken`]s.
+//! Nothing here re-tags or re-tokenizes; a caller partitions a document's
+//! tagged tokens into per-sentence slices first.
 //!
 //! # Confidence contract
 //!
-//! Every [`DepEdge`] carries a [`Confidence`]: an estimate, in `[0.0,
-//! 1.0]`, of how much the parser's chosen head/relation for that token beat
-//! its next-best alternative. `1.0` means the parser considers the
-//! decision essentially unambiguous; values near `0.0` mean it found
-//! multiple similarly plausible analyses (for a pattern-based
-//! implementation, a weak or partial pattern match; for a model-backed
-//! implementation, a narrow top-2 softmax margin — see
-//! [`crate::dep_onnx::softmax_top2_margin`]). Callers that turn a
-//! `DepParser` finding into a `Patch` or `Finding` should treat a
-//! low-confidence edge as grounds to demote that finding from `Fix` to
-//! `Suggest` tier rather than trusting it outright — this crate does not
-//! hardcode the threshold, since how conservative to be is a rule's
-//! decision, not a parser's.
+//! Every [`DepEdge`] carries a [`Confidence`] in `[0.0, 1.0]`: how much the
+//! chosen head/relation beat its next-best alternative. `1.0` means
+//! essentially unambiguous; values near `0.0` mean multiple similarly
+//! plausible analyses (a weak pattern match, or a narrow top-2 margin for
+//! a model-backed implementation). Callers turning a `DepParser` finding
+//! into a `Patch` or `Finding` should treat low confidence as grounds to
+//! demote from `Fix` to `Suggest` rather than trust it outright — this
+//! crate doesn't hardcode the threshold, since how conservative to be is
+//! a rule's decision, not a parser's.
 
 use std::fmt;
 use std::str::FromStr;
@@ -36,29 +30,23 @@ use crate::tag::TaggedToken;
 /// The dependency relation a [`DepEdge`] assigns its token, relative to its
 /// head.
 ///
-/// These are the ClearNLP/OntoNotes relation names, not Universal
-/// Dependencies v2 names — a deliberate choice, not an oversight. UD would
-/// spell several of these differently (`obj` for [`Self::Dobj`], `obl` for
-/// what this vocabulary folds into [`Self::Prep`]/[`Self::Pobj`], `case`
-/// for a plain adposition, `aux:pass` for [`Self::AuxPass`], `nsubj:pass`
-/// for [`Self::NsubjPass`]), but every consumer of a [`SentenceParse`] in
-/// this workspace was written matching against the `ClearNLP` spellings.
-/// Swapping in UD names would not fail loudly — it would leave those
-/// matches silently matching nothing, which is worse than the naming
-/// mismatch this comment is documenting.
+/// These are ClearNLP/OntoNotes relation names, not Universal Dependencies
+/// v2 — deliberate. UD spells several differently (`obj` for
+/// [`Self::Dobj`], `obl` for what this folds into [`Self::Prep`]/
+/// [`Self::Pobj`], `case` for a plain adposition, `aux:pass` for
+/// [`Self::AuxPass`], `nsubj:pass` for [`Self::NsubjPass`]), but every
+/// [`SentenceParse`] consumer here matches `ClearNLP` spellings — swapping
+/// in UD names wouldn't fail loudly, it would silently match nothing.
 ///
-/// [`Self::Root`] is not itself an arc label: a root token's [`DepEdge`]
-/// carries `head: None`, so there is no head for the label to describe.
-/// It exists as a variant purely so a relation is always nameable (a
-/// caller asking "what is this token's relation" never has to special-case
-/// "well, nothing, it's the root" as a missing value) — but the arc-eager
-/// transition system's action space
+/// [`Self::Root`] isn't itself an arc label: a root's [`DepEdge`] carries
+/// `head: None`, so there's no head to describe. It exists purely so a
+/// relation is always nameable — but the arc-eager action space
 /// ([`crate::dep_arceager::Transition::LeftArc`] /
-/// [`crate::dep_arceager::Transition::RightArc`]) is only ever labelled
-/// with one of the other twenty variants, never `Root`.
+/// [`crate::dep_arceager::Transition::RightArc`]) never labels one
+/// `Root`.
 ///
-/// [`Self::Other`] is the collapse target for any relation this crate does
-/// not model as its own variant.
+/// [`Self::Other`] is the collapse target for any relation this crate
+/// doesn't model as its own variant.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 #[non_exhaustive]
 pub enum DepRelation {
@@ -162,11 +150,10 @@ impl FromStr for DepRelation {
     type Err = ParseDepRelationError;
 
     /// Parses a relation's lowercase canonical name, the exact inverse of
-    /// [`DepRelation::as_str`]. Case-sensitive and space-sensitive by
-    /// design: a gold file's labels are expected to already be normalized
-    /// to this vocabulary's exact spelling, and silently accepting near
-    /// misses (`"Nsubj"`, `"nsubj_pass"`) would hide a gold-file bug this
-    /// type's whole purpose is to catch at load time.
+    /// [`DepRelation::as_str`]. Case- and space-sensitive by design: gold
+    /// file labels are expected already normalized, and silently accepting
+    /// near misses (`"Nsubj"`, `"nsubj_pass"`) would hide a gold-file bug
+    /// this type exists to catch at load time.
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         Ok(match s {
             "root" => Self::Root,
@@ -349,10 +336,9 @@ pub trait DepParser {
     /// `tokens` is that sentence's tagged tokens, in source order.
     ///
     /// # Errors
-    /// Returns [`DepParseError`] if the parse cannot be produced (a
-    /// model-backed implementation with no usable model, or an internal
-    /// consistency failure) — implementations must not panic on any input,
-    /// including a malformed or empty token slice.
+    /// Returns [`DepParseError`] if the parse can't be produced (no usable
+    /// model, or an internal consistency failure) — implementations must
+    /// not panic on any input, including a malformed or empty slice.
     fn parse(&self, source: &str, tokens: &[TaggedToken]) -> Result<SentenceParse, DepParseError>;
 }
 

@@ -32,7 +32,7 @@ use crate::{fragment, tellspan};
 ///    bounded to `[0, 1]` by [`friction_packs::exceedance`]'s own cap) and
 ///    capped in *influence* (lowest tier — it can only break a tie both
 ///    tier 1 and tier 2 leave standing, never overturn either). Known
-///    limitation, verified empirically and left as-is per this milestone's
+///    limitation, verified empirically and left as-is by this crate's
 ///    scope: this signal alone gets the chat-speak-vs-human-prose and
 ///    dumb-human-collapse-vs-conservative-rewrite orderings backwards on
 ///    several individual genres (rewarding band conformance a deliberately

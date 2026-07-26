@@ -2,21 +2,22 @@
 //!
 //! Shared between detection (`friction-harness::pivot`'s runtime gate,
 //! which licenses only the fixed 30-entry [`DERIVATIONAL_LEXICON`]) and
-//! offline mining (a corpus tool's LVC-rate measurement and new-candidate
-//! discovery, which needs the same surface tables but must be able to
-//! probe an arbitrary candidate nominalization, not just the licensed
-//! set). This module owns the tables and the two matching functions;
-//! deciding which pairs are *licensed* for a runtime rewrite stays a pack
-//! concern, not this module's.
+//! offline mining (a corpus tool's LVC-rate measurement and
+//! new-candidate discovery, which needs the same surface tables but
+//! must probe an arbitrary candidate nominalization, not just the
+//! licensed set). This module owns the tables and the two matching
+//! functions; deciding which pairs are *licensed* for a runtime rewrite
+//! stays a pack concern.
 //!
 //! Everything here except [`scan_construction_shape`] is a straight
-//! relocation, unchanged in content, of what used to be private tables in
-//! `friction-harness::pivot`: [`LightVerbForm`], [`LIGHT_VERBS`] (formerly
-//! `LV`), [`BE_FORMS`] (formerly `BE`), [`DERIVATIONAL_LEXICON`] (formerly
-//! `DERIV`), and [`conjugate`] (formerly a private `inflect`, renamed here
-//! to avoid colliding with [`crate::inflect`] — a different, already
-//! public, surface-shape-based inflector this crate ships; the two serve
-//! different callers and must not share a name).
+//! relocation of what used to be private tables in
+//! `friction-harness::pivot`: [`LightVerbForm`], [`LIGHT_VERBS`]
+//! (formerly `LV`), [`BE_FORMS`] (formerly `BE`),
+//! [`DERIVATIONAL_LEXICON`] (formerly `DERIV`), and [`conjugate`]
+//! (formerly a private `inflect`, renamed to avoid colliding with
+//! [`crate::inflect`] — a different, already public,
+//! surface-shape-based inflector this crate ships; the two must not
+//! share a name).
 
 use std::collections::{BTreeMap, BTreeSet};
 use std::ops::Range;
@@ -27,13 +28,16 @@ use crate::{TaggedToken, Tagger};
 /// Which inflectional form a light-verb surface token represents.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum LightVerbForm {
-    /// Bare infinitive/present plural form (`perform`, `conduct`, `make`, `do`).
+    /// Bare infinitive/present plural form (`perform`, `conduct`,
+    /// `make`, `do`).
     Base,
-    /// Third-person singular present (`performs`, `conducts`, `makes`, `does`).
+    /// Third-person singular present (`performs`, `conducts`, `makes`,
+    /// `does`).
     ThirdSg,
     /// Past tense (`performed`, `conducted`, `made`, `did`).
     Past,
-    /// Gerund/present participle (`performing`, `conducting`, `making`, `doing`).
+    /// Gerund/present participle (`performing`, `conducting`, `making`,
+    /// `doing`).
     Gerund,
 }
 
@@ -64,17 +68,18 @@ pub static LIGHT_VERBS: LazyLock<BTreeMap<&'static str, LightVerbForm>> = LazyLo
 pub static BE_FORMS: LazyLock<BTreeSet<&'static str>> =
     LazyLock::new(|| BTreeSet::from(["is", "are", "was", "were", "been", "being", "be"]));
 
-/// The licensed (nominalization -> derived verb) candidate table: 31 entries.
+/// The licensed (nominalization -> derived verb) candidate table: 31
+/// entries.
 ///
-/// This is a *candidate* table, not an auto-licensed one — a runtime
-/// rewrite gate still has to consult a pack's own licensing decision
-/// (today, `friction-harness::pivot` licenses every entry here
-/// unconditionally; that is a pack-format simplification this milestone
-/// does not change). Entries here are seeded from NOMLEX/CatVar-style
-/// noun -> verb derivational mappings, chosen so the derived verb is
-/// unambiguous and the nominalization is not a common artifact noun
-/// (deliberately absent: `"approval"`, subject-genitive-prone; `"index"`,
-/// an artifact noun rather than an LVC nominalization).
+/// A *candidate* table, not an auto-licensed one — a runtime rewrite
+/// gate still consults a pack's own licensing decision (today,
+/// `friction-harness::pivot` licenses every entry unconditionally, a
+/// pack-format simplification this crate doesn't change). Entries are
+/// seeded from NOMLEX/CatVar-style noun -> verb mappings, chosen so the
+/// derived verb is unambiguous and the nominalization isn't a common
+/// artifact noun (deliberately absent: `"approval"`,
+/// subject-genitive-prone; `"index"`, an artifact noun rather than an
+/// LVC nominalization).
 pub static DERIVATIONAL_LEXICON: LazyLock<BTreeMap<&'static str, &'static str>> =
     LazyLock::new(|| {
         BTreeMap::from([
@@ -130,12 +135,12 @@ pub fn conjugate(verb: &str, form: LightVerbForm) -> String {
     }
 }
 
-/// Why a candidate light-verb construction was rejected before licensing
-/// was checked.
+/// Why a candidate light-verb construction was rejected before
+/// licensing was checked.
 ///
-/// Relocated verbatim from what used to be a private enum in
-/// `friction-harness::pivot` — that module now re-exports this type so its
-/// own public shape is unchanged; see [`classify_candidate`].
+/// Relocated from a private enum in `friction-harness::pivot`, which
+/// now re-exports this type so its public shape is unchanged; see
+/// [`classify_candidate`].
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum PivotRejection {
     /// The light verb is a past form preceded by a form of "be".
@@ -151,14 +156,14 @@ pub enum PivotRejection {
 /// [`classify_candidate`].
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct LicensedConstruction {
-    /// Absolute byte range in whatever `text` [`classify_candidate`] was
-    /// called with, from the light verb through the trailing `of` (if
-    /// present) or the nominalization (if not).
+    /// Absolute byte range in whatever `text` [`classify_candidate`]
+    /// was called with, from the light verb through the trailing `of`
+    /// (if present) or the nominalization (if not).
     pub range: Range<usize>,
-    /// Index one past the construction's last token (`of`'s index + 1, or
-    /// the nominalization's index + 1) — lets a caller scanning for every
-    /// match in a sentence resume immediately after this one without
-    /// rescanning tokens already consumed by it.
+    /// Index one past the construction's last token (`of`'s index + 1,
+    /// or the nominalization's index + 1) — lets a caller scanning for
+    /// every match in a sentence resume immediately after this one
+    /// without rescanning tokens already consumed by it.
     pub end_token_index: usize,
     /// The derived verb, inflected to match the light verb's own form,
     /// e.g. `"initializes"`.
@@ -173,14 +178,15 @@ pub struct LicensedConstruction {
 pub enum CandidateOutcome {
     /// `tokens[lv_index]` is not a member of [`LIGHT_VERBS`] at all.
     NotLightVerb,
-    /// A light verb was found but a guard rejected it before licensing was
-    /// even checked.
+    /// A light verb was found but a guard rejected it before licensing
+    /// was even checked.
     Rejected(PivotRejection),
-    /// A light verb (optionally followed by a determiner) was found, but
-    /// no token follows to be a candidate nominalization.
+    /// A light verb (optionally followed by a determiner) was found,
+    /// but no token follows to be a candidate nominalization.
     NoNominalFollows,
-    /// A light-verb-construction shape was found, but the nominalization
-    /// is not a key in the caller's `lexicon` — not a licensed pair.
+    /// A light-verb-construction shape was found, but the
+    /// nominalization is not a key in the caller's `lexicon` — not a
+    /// licensed pair.
     Unlicensed,
     /// A licensed light-verb construction, ready to collapse.
     Licensed(LicensedConstruction),
@@ -190,21 +196,18 @@ pub enum CandidateOutcome {
 /// `tokens[lv_index]`.
 ///
 /// `tokens` must already carry the caller's real absolute byte offsets
-/// (`tagger.tag(text, base_offset)` with whatever `base_offset` the
-/// caller's sentence sits at) and `text` must be the exact string those
-/// offsets index into — this function performs no tagging itself, and is
-/// agnostic to whatever `base_offset` the caller used.
+/// (`tagger.tag(text, base_offset)`) and `text` must be the exact
+/// string those offsets index into — this function does no tagging
+/// itself and is agnostic to whatever `base_offset` the caller used.
 ///
-/// Factored out of what was `friction-harness::pivot`'s private loop body
-/// so both that module (which stops at the sentence's first licensed
-/// match, matching `ref_pivot.py::pivot()`) and a detection channel
-/// (which reports every non-overlapping licensed match in a sentence)
-/// share one gate/licensing implementation; each call site's own docs
-/// describe how they differ only in outer-loop policy.
+/// Factored out of `friction-harness::pivot`'s private loop body so
+/// both that module (stops at the sentence's first licensed match,
+/// matching `ref_pivot.py::pivot()`) and a detection channel (reports
+/// every non-overlapping licensed match) share one gate/licensing
+/// implementation, differing only in outer-loop policy.
 ///
-/// Gate order mirrors `ref_pivot.py::pivot()`: passive check, then the
-/// modified-nominal (`JJ`) check, then the plural-nominal check, then
-/// licensing.
+/// Gate order mirrors `ref_pivot.py::pivot()`: passive, then
+/// modified-nominal (`JJ`), then plural-nominal, then licensing.
 #[must_use]
 pub fn classify_candidate(
     tokens: &[TaggedToken],
@@ -281,27 +284,26 @@ pub struct ConstructionMatch {
     pub nominalization: String,
     /// Whether the match was followed by a literal `"of"`.
     pub has_of: bool,
-    /// The full matched surface text, e.g. `"performs an initialization of"`.
+    /// The full matched surface text, e.g. `"performs an initialization
+    /// of"`.
     pub matched_text: String,
 }
 
-/// Scans `sentence` for every `LV (DET)? candidate (of)?` construction shape.
+/// Scans `sentence` for every `LV (DET)? candidate (of)?` construction
+/// shape.
 ///
 /// `candidate` is looked up in `candidate_noms` rather than
-/// [`DERIVATIONAL_LEXICON`], and without the passive/`JJ`/plural gates
+/// [`DERIVATIONAL_LEXICON`], and skips the passive/`JJ`/plural gates
 /// `friction-harness::pivot`'s runtime `match_pivot` applies before
-/// licensing — this is the same left-to-right walk (LV-form -> optional
-/// determiner -> candidate token -> optional literal `"of"`), stripped
-/// down for offline measurement rather than a runtime accept/reject
-/// decision, so it can probe candidate nominalizations that are not (yet)
+/// licensing — the same left-to-right walk, stripped down for offline
+/// measurement so it can probe nominalizations that aren't (yet)
 /// licensed at all.
 ///
-/// Unlike a runtime matcher, this does not stop at the first match: it
-/// walks every light-verb-table token in the sentence, left to right, and
-/// reports every position whose following (optional-determiner) token is
-/// a member of `candidate_noms`, so a mining pass can count occurrences
-/// across a whole corpus rather than produce a single per-sentence
-/// verdict.
+/// Unlike a runtime matcher, this doesn't stop at the first match: it
+/// walks every light-verb-table token left to right and reports every
+/// position whose following token is a member of `candidate_noms`, so a
+/// mining pass can count occurrences across a corpus rather than
+/// produce a single per-sentence verdict.
 #[must_use]
 pub fn scan_construction_shape(
     sentence: &str,
@@ -381,9 +383,9 @@ mod tests {
 
     #[test]
     fn classify_candidate_byte_range_is_offset_agnostic() {
-        // The real sentence sits at a non-zero offset within a larger
-        // string, proving `classify_candidate` is genuinely offset-aware
-        // rather than hardcoded to `base_offset == 0`.
+        // The real sentence sits at a non-zero offset, proving
+        // `classify_candidate` is offset-aware, not hardcoded to
+        // `base_offset == 0`.
         let text = "PREFIX. The system performs an initialization of the database.";
         let base_offset = "PREFIX. ".len();
         let sentence = &text[base_offset..];
@@ -468,9 +470,9 @@ mod tests {
 
     #[test]
     fn scan_construction_shape_probes_beyond_the_licensed_table() {
-        // "setup" is not a `DERIVATIONAL_LEXICON` key at all, but
-        // `scan_construction_shape` takes an arbitrary candidate set, so
-        // it must still find this one where `match_pivot` would not.
+        // "setup" isn't a `DERIVATIONAL_LEXICON` key, but
+        // `scan_construction_shape` takes an arbitrary candidate set,
+        // so it must still find this where `match_pivot` would not.
         let candidates = BTreeSet::from(["setup"]);
         let matches = scan_construction_shape("The wizard performs setup.", tagger(), &candidates);
         assert_eq!(matches.len(), 1);

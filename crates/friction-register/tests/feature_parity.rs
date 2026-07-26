@@ -2,21 +2,13 @@
 //! fixture.
 //!
 //! `docs/research/regvec/feature_parity.json` carries, for 188 sentences,
-//! the reference dependency parse *and* the exact per-feature counts the
-//! reference extractor (`docs/research/regvec/biber.py`, driven through
-//! `tools/regvec/build_feature_parity.py`'s `counts_for`) produced from
-//! that exact parse. This test builds a [`SentenceParse`] and a
-//! `Vec<TaggedToken>` from the fixture's own parse for every sentence --
-//! never from running this workspace's own tagger or parser on the
-//! sentence text -- and checks [`RegisterCounts::count`] against the
-//! fixture's counts. Feeding the reference parse in is the whole point: it
-//! isolates this crate's counting logic from parser quality, so a mismatch
-//! here means the port is wrong, not that some other component is.
-//!
-//! Every mismatch is collected and reported together (sentence id, feature
-//! name, expected, actual, sentence text) and the test fails once at the
-//! end, rather than on the first mismatch -- a fixture this size is
-//! painful to fix one panic at a time.
+//! the reference parse *and* the per-feature counts `biber.py` produced
+//! from it. This test builds a [`SentenceParse`] from the fixture's own
+//! parse -- never by running this workspace's tagger/parser -- and checks
+//! [`RegisterCounts::count`] against it: a mismatch means the port is
+//! wrong, not parser quality. Every mismatch is collected and reported
+//! together, failing once at the end -- a fixture this size is painful
+//! to fix one panic at a time.
 
 use friction_core::Token;
 use friction_nlp::{
@@ -30,32 +22,22 @@ const FIXTURE_JSON: &str = include_str!(concat!(
 ));
 
 /// Divergences from the reference that are accepted, enumerated exactly,
-/// and not to be widened without a reason written here.
+/// and not to be widened without a reason written here. Not a gap in test
+/// inputs: this workspace's tagger emits Penn tags with no universal
+/// category to read, so `coarse_pos`'s reconstruction is what runs in
+/// production -- the fixture exercises the real code path.
 ///
-/// The reference reads a universal part-of-speech category the fixture does
-/// not carry, so this crate reconstructs it from the Penn tag and the
-/// dependency relation. That reconstruction is not a test artifact: it is
-/// what runs in production, because this workspace's tagger emits Penn tags
-/// and there is no universal category to read at any point. The fixture is
-/// therefore exercising the real code path, and what follows is a genuine
-/// limit rather than a gap in the test's inputs.
-///
-/// The limit is that a dual-use word cannot be resolved from tag and
-/// relation alone. In the listed sentence `since` heads a subordinate
-/// clause, but the reference parse attached it as a preposition, complete
-/// with an object — structurally identical to `since Monday`. The
-/// unambiguous members of that class are resolved outright, checked against
-/// every occurrence in the fixture; `since` deliberately is not, because it
-/// is a real preposition often enough that hardcoding it would trade this
-/// miss for a more common one in the other direction.
-///
-/// The cost is bounded: `prepositions` is a reported diagnostic, not one of
-/// the features anything homes toward.
+/// The genuine limit is `since` (dual-use: preposition in "since Monday",
+/// subordinator in "since it failed"). The listed sentence attaches it as
+/// a preposition with an object, so tag and relation can't resolve it;
+/// unambiguous dual-use words are resolved outright and checked
+/// fixture-wide, but `since` is a real preposition too often to hardcode.
+/// `prepositions` is a reported diagnostic, not a feature anything homes
+/// toward, so the cost is bounded.
 const KNOWN_DIVERGENCES: &[(&str, &str)] = &[("08d07d7b04ccd440:7", "prepositions")];
 
-/// The seventeen counted features, in the exact spelling
-/// `tools/regvec/build_feature_parity.py::counts_for` used as its dict
-/// keys (and so the fixture's own `counts` object keys).
+/// The seventeen counted features, spelled as `build_feature_parity.py`'s
+/// `counts_for` did -- the fixture's own `counts` object keys.
 const FEATURE_NAMES: [&str; 17] = [
     "present_participial",
     "nominalization",
@@ -76,9 +58,9 @@ const FEATURE_NAMES: [&str; 17] = [
     "demon_sent_initial",
 ];
 
-/// Reads `name`'s field off `counts` -- the inverse of `RegisterCounts`'
-/// field list, kept as one `match` rather than reflection so a renamed
-/// field fails this test to compile instead of silently reading zero.
+/// Reads `name`'s field off `counts` as one `match` rather than
+/// reflection, so a renamed field fails to compile instead of silently
+/// reading zero.
 fn field(counts: &RegisterCounts, name: &str) -> usize {
     match name {
         "present_participial" => counts.present_participial,
@@ -102,17 +84,13 @@ fn field(counts: &RegisterCounts, name: &str) -> usize {
     }
 }
 
-/// Builds a synthetic single-space-joined sentence text, its
-/// `Vec<TaggedToken>`, and its [`SentenceParse`] from one fixture
-/// sentence's `tokens` array (`[surface, penn_pos, head_index,
-/// relation]` per `docs/research/regvec/README.md`, head `-1` marking the
-/// root).
-///
-/// The synthetic text does not reproduce the original sentence's real
-/// inter-token spacing (a fixture token carries no byte-offset field to
-/// reconstruct it from) -- only that `text[token.range]` yields back
-/// exactly that token's surface text, which is all any detector in
-/// `friction_register::features` ever reads a token's range for.
+/// Builds a synthetic sentence text, `Vec<TaggedToken>`, and
+/// [`SentenceParse`] from one fixture sentence's `tokens` array
+/// (`[surface, penn_pos, head_index, relation]`, head `-1` marking the
+/// root). The synthetic text doesn't reproduce real inter-token spacing
+/// (the fixture has no byte-offset field for that) -- it only guarantees
+/// `text[token.range]` yields the token's surface text, all any detector
+/// reads a range for.
 fn build_sentence(tokens: &serde_json::Value) -> (String, Vec<TaggedToken>, SentenceParse) {
     let tokens = tokens
         .as_array()
@@ -144,10 +122,8 @@ fn build_sentence(tokens: &serde_json::Value) -> (String, Vec<TaggedToken>, Sent
             lemma: surface.to_lowercase().into_boxed_str(),
         });
 
-        // The fixture spells the root relation "ROOT" (spaCy's own
-        // spelling); every other relation it uses is already one of
-        // `DepRelation`'s lowercase canonical names (`KEEP_DEPS` in
-        // `tools/regvec/build_feature_parity.py` was chosen to match).
+        // The fixture spells root "ROOT" (spaCy's spelling); every other
+        // relation is already one of `DepRelation`'s lowercase names.
         let relation = if relation == "ROOT" {
             DepRelation::Root
         } else {
@@ -222,14 +198,12 @@ fn feature_parity_against_reference_fixture() {
          returns zero would otherwise pass silently): {uncovered:?}"
     );
 
-    // Note for anyone reading this as a weakened equality check: it is not
-    // one. Both directions fail. A mismatch outside `KNOWN_DIVERGENCES`
-    // fails the first assertion, and a `KNOWN_DIVERGENCES` entry that stops
-    // mismatching fails the second — because that would mean the counting
-    // changed and the note explaining why the divergence was accepted is now
-    // describing something that no longer happens. Deleting the check
-    // outright, or asserting a floor like "at most one mismatch", would
-    // catch neither.
+    // Not a weakened equality check: both directions fail. A mismatch
+    // outside `KNOWN_DIVERGENCES` fails this assertion; a
+    // `KNOWN_DIVERGENCES` entry that stops mismatching fails the next one
+    // below, since the note explaining it is now stale. Deleting the
+    // check, or asserting a floor like "at most one mismatch", catches
+    // neither.
     assert!(
         unexpected.is_empty(),
         "{} unexpected mismatch(es) against the reference fixture:\n{}",

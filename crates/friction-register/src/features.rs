@@ -1,84 +1,61 @@
 //! Register-marking construction counts over a dependency parse.
 //!
-//! Ported from `docs/research/regvec/biber.py`'s counting logic -- see that
-//! file's own module doc for what it is and, more importantly, what it is
-//! not: a reading of Biber's register categories through spaCy's parser
-//! output, not a faithful `pseudobibeR` port, and the research phase's own
-//! largest source of error. This module ports the *counting*, driven by
-//! this crate's own [`SentenceParse`] instead of spaCy's `Doc`.
+//! Ported from `docs/research/regvec/biber.py`'s counting logic (see that
+//! module's own doc for what it is and isn't -- a reading of Biber's
+//! register categories through spaCy's output, not a `pseudobibeR` port,
+//! and the research phase's largest source of error). This module ports
+//! the *counting*, using this crate's own [`SentenceParse`] instead of
+//! spaCy's `Doc`.
 //!
 //! # Reconstructing a coarse part-of-speech spaCy predicted directly
 //!
-//! `biber.py`'s detectors read spaCy's `Token.pos_` (a universal
-//! part-of-speech spaCy's tagger predicts independently of the fine-grained
-//! Penn tag and of the parser's dependency label) directly. Neither this
-//! crate's tagger nor `docs/research/regvec/feature_parity.json` -- the
-//! fixture this module is checked against, which carries only a token's
-//! Penn tag and a closed dependency-relation vocabulary -- exposes that
-//! second, independently-predicted layer. [`coarse_pos`] rebuilds it from
-//! the Penn tag plus, where the tag alone is genuinely ambiguous, the
-//! token's relation and surface text. The alternative -- shipping a
-//! spaCy-only `pos_` field in the fixture and reading it directly -- was
-//! rejected: it would make every consumer of a [`SentenceParse`] this crate
-//! ever builds from its own parser permanently unable to satisfy this
-//! module, since nothing outside the fixture will ever carry that field.
+//! `biber.py`'s detectors read spaCy's `Token.pos_`, predicted
+//! independently of the Penn tag and dependency label. Neither this
+//! crate's tagger nor the fixture exposes that layer, so [`coarse_pos`]
+//! rebuilds it from the Penn tag plus, where ambiguous, relation and
+//! surface text. A spaCy-only `pos_` field in the fixture was rejected:
+//! no [`SentenceParse`] this crate builds would ever carry it.
 //!
-//! Three of the table's entries are lexical exceptions the fixture itself
-//! forced into the open by disagreeing with a pure tag-based mapping:
-//! negation (`not`/`n't`, tag `RB`, never counts as an adverb), indefinite
-//! `-thing`/`-one`/`-body` pronouns (tag `NN`, but a pronoun, not a noun),
-//! and a closed set of English words that are complementizers or
-//! subordinating conjunctions and never prepositions (`that`, `if`,
-//! `because`, `although`, `though`, `unless`, `whether` -- every instance of
-//! each across the whole fixture is a subordinator use, never a genuine
-//! prepositional one). A fourth, narrower case does not fully close:
-//! `since` is genuinely dual-use (a preposition in "since Monday", a
-//! subordinator in "since it failed"), and the one fixture sentence where
-//! it is a subordinator attached with a `prep` relation rather than `mark`
-//! cannot be told apart, from tag and relation alone, from a genuine
-//! prepositional `since` -- see [`prepositions`]'s own doc.
+//! Three entries are lexical exceptions the fixture forced into the open
+//! (negation, indefinite `-thing`/`-one`/`-body` pronouns, a closed
+//! subordinator set) -- see each list's own doc for specifics. One case
+//! doesn't close: `since` is dual-use, and the fixture sentence where it's
+//! a subordinator attached with `prep` rather than `mark` can't be told
+//! apart from a genuine prepositional `since` -- see [`prepositions`].
 
 use friction_nlp::{DepEdge, DepRelation, SentenceParse, TaggedToken};
 
 /// Per-feature counts of the register-marking constructions this module
 /// detects in one sentence.
 ///
-/// A struct with one named field per feature, not a `HashMap<&str,
-/// usize>`: these seventeen features are a fixed, closed set (the counting
-/// half of `docs/research/regvec/biber.py`'s own per-sentence dict, minus
-/// the two outputs -- `mean_word_length` and the raw word total -- that are
-/// rates or rate inputs rather than counts, and so are a caller's business,
-/// not this module's), and a typo in a map key would silently produce a
-/// missing feature rather than a compile error.
+/// A struct with one field per feature, not a `HashMap<&str, usize>`:
+/// these seventeen features are `biber.py`'s per-sentence dict minus
+/// the two rate-based outputs (a caller's business), and a typo in a
+/// map key would fail to compile instead of silently reading a missing
+/// feature.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
 pub struct RegisterCounts {
-    /// A non-finite `VBG` clause (`acl`/`advcl`/`xcomp`), excluding
-    /// progressives. See [`present_participials`].
+    /// A non-finite `VBG` clause, not a progressive. See [`present_participials`].
     pub present_participial: usize,
-    /// A deverbal or deadjectival noun by suffix. See [`nominalizations`].
+    /// A deverbal or deadjectival noun. See [`nominalizations`].
     pub nominalization: usize,
-    /// A coordination whose conjuncts are phrases, not clauses. See
-    /// [`phrasal_coordinations`].
+    /// A phrase-level coordination. See [`phrasal_coordinations`].
     pub phrasal_coord: usize,
-    /// A `that`-clause functioning as a clausal subject. See
-    /// [`that_subjects`].
+    /// A `that`-clause as clausal subject. See [`that_subjects`].
     pub that_subj: usize,
     /// A passive verb with no agent. See [`agentless_passives`].
     pub agentless_passive: usize,
-    /// A coordination whose conjuncts are clauses. See
-    /// [`clausal_coordinations`].
+    /// A clause-level coordination. See [`clausal_coordinations`].
     pub clausal_coord: usize,
-    /// An adjectival modifier of a noun. See [`attributive_adjectives`].
+    /// An adjectival noun modifier. See [`attributive_adjectives`].
     pub attributive_adj: usize,
-    /// A postnominal past-participial modifier. See
-    /// [`postnominal_past_participles`].
+    /// A postnominal past-participial modifier. See [`postnominal_past_participles`].
     pub past_part_postnom: usize,
     /// An adverb. See [`adverbs`].
     pub adverbs: usize,
     /// A downtoner. See [`downtoners`].
     pub downtoners: usize,
-    /// A demonstrative determiner or pronoun, excluding complementizer
-    /// `that`. See [`demonstratives`].
+    /// A demonstrative, excluding complementizer `that`. See [`demonstratives`].
     pub demonstratives: usize,
     /// A preposition. See [`prepositions`].
     pub prepositions: usize,
@@ -90,21 +67,18 @@ pub struct RegisterCounts {
     pub hedges: usize,
     /// A first-person pronoun. See [`first_person_pronouns`].
     pub first_person: usize,
-    /// A sentence-initial demonstrative. See
-    /// [`sentence_initial_demonstratives`].
+    /// A sentence-initial demonstrative. See [`sentence_initial_demonstratives`].
     pub demon_sent_initial: usize,
 }
 
 impl RegisterCounts {
     /// Counts every feature in one sentence.
     ///
-    /// Calls the same per-feature detector functions this module exposes
-    /// individually and takes their lengths -- counting and "which token"
-    /// are two views onto one implementation, never two implementations
-    /// that could quietly disagree about what matched. `tokens` and
-    /// `parse` must describe the same sentence, one entry each, in the
-    /// same order (the contract [`friction_nlp::DepParser::parse`]'s own
-    /// output already satisfies).
+    /// Calls the same detector functions this module exposes individually
+    /// and takes their lengths, so counting and "which token" can't
+    /// quietly disagree. `tokens` and `parse` must describe the same
+    /// sentence, one entry each, in the same order (as
+    /// [`friction_nlp::DepParser::parse`]'s output already does).
     #[must_use]
     pub fn count(text: &str, tokens: &[TaggedToken], parse: &SentenceParse) -> Self {
         Self {
@@ -129,14 +103,10 @@ impl RegisterCounts {
     }
 }
 
-// --------------------------------------------------------------------
-// Coarse part-of-speech reconstruction -- see the module doc for why
-// this exists instead of a direct field read.
-// --------------------------------------------------------------------
+// Coarse part-of-speech reconstruction; see the module doc for why.
 
-/// A coarse part-of-speech category, reconstructed from a Penn tag (and,
-/// for the handful of tags that are genuinely ambiguous on their own,
-/// relation and surface text too). See [`coarse_pos`].
+/// A coarse part-of-speech, reconstructed from a Penn tag and, where
+/// ambiguous, relation and surface text. See [`coarse_pos`].
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 enum CoarsePos {
     Noun,
@@ -145,35 +115,26 @@ enum CoarsePos {
     Adverb,
     Adposition,
     /// A complementizer or subordinating conjunction: never a preposition
-    /// for the purposes of [`prepositions`], whatever dependency relation
-    /// it happens to carry.
+    /// for [`prepositions`], regardless of relation.
     Subordinator,
     Determiner,
     Pronoun,
     Number,
-    /// A main or auxiliary verb. `biber.py`'s only detector that
-    /// distinguishes spaCy's `VERB` from its `AUX` is
-    /// [`clausal_coordinations`], which accepts both -- so nothing in this
-    /// module ever needs to tell them apart, and folding them into one
-    /// variant avoids reconstructing a distinction (which of "be", "have",
-    /// "do", and the modals are functioning as an auxiliary in this
-    /// particular clause) that genuinely depends on more context than a
-    /// Penn tag and a relation carry.
+    /// A main or auxiliary verb: [`clausal_coordinations`], the only
+    /// detector that cares, accepts both, so folding them together
+    /// avoids deciding whether "be"/"have"/"do"/a modal is acting as an
+    /// auxiliary, a call needing context beyond a tag and relation.
     VerbLike,
     /// Everything else: coordinators, punctuation, symbols, and the
-    /// negation particle (`not`/`n't`), which the fixture confirms is
-    /// never counted as an adverb (see the module doc).
+    /// negation particle (`not`/`n't`, never an adverb -- see module doc).
     Other,
 }
 
 const NEGATION_PARTICLES: [&str; 2] = ["not", "n't"];
 
-/// The `-thing`/`-one`/`-body` indefinite pronouns: tagged `NN` in the
-/// Penn tagset (Penn has no separate indefinite-pronoun tag), but not
-/// nouns -- confirmed by two fixture sentences where a nominal-feature
-/// count only matches once "something"/"everything" are excluded from
-/// [`nouns`] (and, downstream, from [`postnominal_past_participles`]'s
-/// head check).
+/// The `-thing`/`-one`/`-body` indefinite pronouns: tagged `NN` (Penn has
+/// no indefinite-pronoun tag) but not nouns -- confirmed by two fixture
+/// sentences excluding "something"/"everything" from [`nouns`].
 const INDEFINITE_PRONOUNS: [&str; 10] = [
     "something",
     "anything",
@@ -187,18 +148,12 @@ const INDEFINITE_PRONOUNS: [&str; 10] = [
     "anybody",
 ];
 
-/// English words that are complementizers or subordinating conjunctions
-/// and never prepositions. Tagged `IN` like a preposition, and sometimes
-/// attached with a relation other than `mark` in the reference parse (a
-/// parser-labeling quirk, not a genuine prepositional use) -- every
-/// occurrence of every word in this list, across the whole fixture, is a
-/// subordinator. Deliberately narrower than the full set of English
-/// subordinators: words that really can be either (`since`, `while`,
-/// `once`, `before`, `after`, `as`) are left to the relation-based check
-/// in [`coarse_pos`], not added here, because unlike this list every one of
-/// them is attested as a genuine preposition somewhere in ordinary use --
-/// hardcoding them would trade a real preposition miss for a subordinator
-/// miss rather than fixing anything.
+/// Complementizers/subordinating conjunctions that are never prepositions
+/// -- tagged `IN`, sometimes attached with a relation other than `mark`.
+/// Narrower than the full subordinator set: dual-use words (`since`,
+/// `while`, `once`, `before`, `after`, `as`) go to [`coarse_pos`]'s
+/// relation-based check instead, since each is also a genuine preposition
+/// somewhere -- hardcoding them would trade one miss for the other.
 const PURE_SUBORDINATORS: [&str; 7] = [
     "that", "if", "because", "although", "though", "unless", "whether",
 ];
@@ -213,11 +168,10 @@ fn is_one_of(word: &str, candidates: &[&str]) -> bool {
         .any(|candidate| word.eq_ignore_ascii_case(candidate))
 }
 
-/// Reconstructs the coarse part-of-speech a `biber.py` detector would read
-/// from spaCy's `Token.pos_`, from `pos` (a Penn tag), `relation` (this
-/// token's own dependency relation to its head), and `surface` (this
-/// token's exact surface text). See the module doc for the lexical
-/// exceptions and the one case (dual-use `since`) that does not close.
+/// Reconstructs the category a `biber.py` detector reads from spaCy's
+/// `Token.pos_`, given `pos` (Penn tag), `relation` (to its head), and
+/// `surface` (exact text). See the module doc for exceptions and the
+/// open case (`since`).
 fn coarse_pos(pos: &str, relation: DepRelation, surface: &str) -> CoarsePos {
     if matches!(pos, "RB" | "RBR" | "RBS") && is_one_of(surface, &NEGATION_PARTICLES) {
         return CoarsePos::Other;
@@ -241,15 +195,10 @@ fn coarse_pos(pos: &str, relation: DepRelation, surface: &str) -> CoarsePos {
             }
         }
         // `DT`/`PDT`/`WDT` cover both an adnominal determiner ("that
-        // book") and a standalone demonstrative or relative pronoun
-        // ("that is fine", relative "that"/"which" heading its own
-        // clause) -- Penn's tagset does not distinguish them, but the
-        // `det` relation does: a token modifying a head noun gets `det`,
-        // one standing in for a noun phrase on its own gets some other
-        // relation (`nsubj`, `dobj`, `conj`...). Confirmed by a fixture
-        // sentence where a coordinated "those" only counts as a phrasal
-        // coordination once it is read as a pronoun rather than a
-        // determiner.
+        // book") and a standalone demonstrative/relative pronoun ("that
+        // is fine") -- Penn doesn't distinguish them, but `det` does. A
+        // fixture sentence confirms it: coordinated "those" counts as
+        // phrasal only once read as a pronoun.
         "DT" | "PDT" | "WDT" => {
             if relation == DepRelation::Det {
                 CoarsePos::Determiner
@@ -264,10 +213,10 @@ fn coarse_pos(pos: &str, relation: DepRelation, surface: &str) -> CoarsePos {
     }
 }
 
-/// [`coarse_pos`] for the token at `index`, reading its own relation from
-/// `parse`. Every other call site needs a *different* token's relation
-/// (a child's, when deciding whether it marks its head), so only this one
-/// convenience wrapper is worth having.
+/// [`coarse_pos`] for the token at `index`, using its own relation from
+/// `parse` -- other call sites need a *different* token's relation (a
+/// child's, checking whether it marks its head), so only this one earns
+/// a wrapper.
 fn coarse_pos_at(
     text: &str,
     tokens: &[TaggedToken],
@@ -291,20 +240,15 @@ fn children_of(parse: &SentenceParse, head: usize) -> impl Iterator<Item = &DepE
         .filter(move |edge| edge.head == Some(head))
 }
 
-// --------------------------------------------------------------------
-// Detectors. Each returns the indices of the tokens it matched, in
-// source order, so a rewriting caller knows *which* token licensed a
-// count without re-deriving the same condition independently.
-// --------------------------------------------------------------------
+// Detectors. Each returns matched token indices, in source order, so a
+// caller knows *which* token licensed a count without re-deriving it.
 
-/// A `VBG` heading a non-finite clause (`acl`/`advcl`/`xcomp`), excluding
-/// progressives.
+/// A `VBG` heading a non-finite clause (`acl`/`advcl`/`xcomp`), excluding progressives.
 ///
 /// A progressive ("is running") has an `aux`/`auxpass` child and is
-/// excluded regardless of relation. An `xcomp` case ("kept running") is
-/// progressive-shaped rather than a true participial adjunct unless a
-/// comma directly precedes it (a real participial adjunct: "..., running
-/// low on memory, ..."), so it counts only then.
+/// excluded regardless of relation. An `xcomp` case ("kept running")
+/// only counts with a comma directly before it (a real adjunct: "...,
+/// running low on memory, ...") -- otherwise it's progressive-shaped.
 #[must_use]
 pub fn present_participials(
     text: &str,
@@ -339,14 +283,13 @@ pub fn present_participials(
     out
 }
 
-/// A deverbal or deadjectival noun by suffix.
+/// A deverbal or deadjectival noun, identified by suffix.
 ///
-/// A common noun (not a proper noun, and not one of the indefinite
-/// pronouns [`coarse_pos`] excludes from `NOUN`) at least six characters
-/// long, ending in one of a fixed set of nominalizing suffixes, and not
-/// one of a fixed exception list of words that end in those suffixes
-/// without being nominalizations (`signal`, `nature`, `figure`...). Ported
-/// verbatim from `biber.py`'s `NOMINAL_SUFFIXES`/`NOMINAL_EXCEPT`.
+/// A common noun (not proper, not one of [`coarse_pos`]'s indefinite
+/// pronouns) at least six characters long, ending in a fixed
+/// nominalizing suffix and absent from a fixed exception list
+/// (`signal`, `nature`, `figure`...). Both lists are ported verbatim
+/// from the reference.
 #[must_use]
 pub fn nominalizations(text: &str, tokens: &[TaggedToken], parse: &SentenceParse) -> Vec<usize> {
     const SUFFIXES: [&str; 14] = [
@@ -374,9 +317,9 @@ pub fn nominalizations(text: &str, tokens: &[TaggedToken], parse: &SentenceParse
     out
 }
 
-/// A coordination (`conj`) whose conjunct, and whose conjunct's own head,
-/// are both phrase-level categories (noun, proper noun, pronoun,
-/// adjective, adverb, or number) rather than clauses.
+/// A coordination (`conj`) whose conjunct and its head are both
+/// phrase-level (noun, proper noun, pronoun, adjective, adverb,
+/// number), not clausal.
 #[must_use]
 pub fn phrasal_coordinations(
     text: &str,
@@ -411,8 +354,7 @@ pub fn phrasal_coordinations(
     out
 }
 
-/// A `that`-clause functioning as a clausal subject: a `csubj` token with
-/// a `mark` child spelled "that".
+/// A `that`-clause functioning as a clausal subject: a `csubj` token with a `mark` child spelled "that".
 #[must_use]
 pub fn that_subjects(text: &str, tokens: &[TaggedToken], parse: &SentenceParse) -> Vec<usize> {
     let mut out = Vec::new();
@@ -432,8 +374,7 @@ pub fn that_subjects(text: &str, tokens: &[TaggedToken], parse: &SentenceParse) 
     out
 }
 
-/// A coordination (`conj`) whose conjunct is verb-like: a clausal, not
-/// phrasal, coordination.
+/// A coordination (`conj`) whose conjunct is verb-like: a clausal, not phrasal, coordination.
 #[must_use]
 pub fn clausal_coordinations(
     text: &str,
@@ -453,12 +394,10 @@ pub fn clausal_coordinations(
 
 /// A passive verb (one with an `auxpass` child) that names no agent.
 ///
-/// "Names no agent" means no `agent` child, and no `prep` child spelled
-/// "by". A passive *with* an agent is the complement class this
-/// deliberately does not count -- the fixture pins both directly (one
-/// sentence has `auxpass` and an `agent` child and a count of 0; another
-/// has `auxpass` and a `by`-prep child and a count of 0; a third has bare
-/// `auxpass` and a count of 1).
+/// "Names no agent" means no `agent` child and no `by`-prep child (a
+/// passive *with* an agent is deliberately excluded). Fixture-pinned:
+/// `auxpass`+`agent` is 0, `auxpass`+`by`-prep is 0, bare `auxpass` is
+/// 1.
 #[must_use]
 pub fn agentless_passives(text: &str, tokens: &[TaggedToken], parse: &SentenceParse) -> Vec<usize> {
     let mut out = Vec::new();
@@ -493,8 +432,7 @@ pub fn attributive_adjectives(parse: &SentenceParse) -> Vec<usize> {
         .collect()
 }
 
-/// A postnominal past-participial modifier: a `VBN` attached to its head
-/// noun with `acl` ("the result **set returned by the database**").
+/// A postnominal past-participial modifier: a `VBN` attached to its head noun with `acl` ("the result **set returned by the database**").
 #[must_use]
 pub fn postnominal_past_participles(
     text: &str,
@@ -550,14 +488,12 @@ pub fn downtoners(text: &str, tokens: &[TaggedToken]) -> Vec<usize> {
 
 const DEMONSTRATIVE_WORDS: [&str; 4] = ["this", "that", "these", "those"];
 
-/// A demonstrative determiner or pronoun: "this"/"that"/"these"/"those",
-/// excluding complementizer "that" (relation `mark`).
+/// A demonstrative determiner or pronoun ("this"/"that"/"these"/"those").
 ///
-/// This exclusion is the single most load-bearing line in this module.
-/// `biber.py`'s own comment on the equivalent line names the exact failure
-/// mode: complementizer "that" silently counting as a demonstrative is
-/// invisible in a rewrite's output text and was only caught by a
-/// downstream delta-validation check, not by reading the result.
+/// Excludes complementizer "that" (relation `mark`) -- the single most
+/// load-bearing exclusion here: counting it silently as a demonstrative
+/// is invisible in a rewrite's output, caught only by a downstream
+/// delta-validation check.
 #[must_use]
 pub fn demonstratives(text: &str, tokens: &[TaggedToken], parse: &SentenceParse) -> Vec<usize> {
     let mut out = Vec::new();
@@ -581,10 +517,9 @@ pub fn demonstratives(text: &str, tokens: &[TaggedToken], parse: &SentenceParse)
 
 /// A preposition.
 ///
-/// `since` used as a subordinator but attached with a relation other than
-/// `mark` in the reference parse is the one case this module cannot
-/// distinguish from a genuine prepositional `since` -- see the module doc.
-/// It affects one sentence out of the reference fixture's 188.
+/// `since` attached with a relation other than `mark` is the one case
+/// this module can't tell from a genuine prepositional `since` -- see
+/// the module doc. Affects one sentence of the fixture's 188.
 #[must_use]
 pub fn prepositions(text: &str, tokens: &[TaggedToken], parse: &SentenceParse) -> Vec<usize> {
     (0..tokens.len())
@@ -660,8 +595,7 @@ pub fn hedges(text: &str, tokens: &[TaggedToken]) -> Vec<usize> {
 
 const FIRST_PERSON_WORDS: [&str; 6] = ["i", "we", "my", "our", "us", "me"];
 
-/// A first-person pronoun or possessive ("I", "we", "my", "our", "us",
-/// "me").
+/// A first-person pronoun or possessive ("I", "we", "my", "our", "us", "me").
 #[must_use]
 pub fn first_person_pronouns(text: &str, tokens: &[TaggedToken]) -> Vec<usize> {
     (0..tokens.len())
@@ -671,21 +605,16 @@ pub fn first_person_pronouns(text: &str, tokens: &[TaggedToken]) -> Vec<usize> {
 
 const SENTENCE_INITIAL_DEMONSTRATIVE_WORDS: [&str; 3] = ["this", "these", "that"];
 
-/// A sentence-initial demonstrative: "this"/"these"/"that" (not "those") at
-/// token index 0.
+/// A sentence-initial demonstrative: "this"/"these"/"that" (not "those")
+/// at token index 0 -- "index 0" since callers pass one sentence at a
+/// time.
 ///
-/// A positional signature, not one of Biber's own categories: the repair
-/// for a present participial ("... . **This** ensures X") concentrates
-/// demonstratives at sentence-initial position, which the plain
-/// [`demonstratives`] count cannot express on its own. Unlike
-/// [`demonstratives`], this has no dependency-relation or part-of-speech
-/// filter and no "those" -- `biber.py`'s own detector doesn't have them
-/// either, so a sentence-initial complementizer "that" (which cannot occur
-/// in well-formed English, since a complementizer never opens a sentence)
-/// would count here if it somehow did.
-///
-/// Callers pass one sentence's tokens at a time, so "sentence-initial"
-/// here is simply "index 0" rather than a document-relative flag.
+/// A positional signature, not one of Biber's categories: the repair for
+/// a present participial ("... . **This** ensures X") concentrates
+/// demonstratives sentence-initially, which plain [`demonstratives`]
+/// can't express. No relation/part-of-speech filter and no "those"
+/// (matching `biber.py`), so a sentence-initial complementizer "that" --
+/// impossible in well-formed English -- would count here if it occurred.
 #[must_use]
 pub fn sentence_initial_demonstratives(text: &str, tokens: &[TaggedToken]) -> Vec<usize> {
     if tokens.is_empty()

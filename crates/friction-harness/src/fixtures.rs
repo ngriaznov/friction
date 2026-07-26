@@ -69,7 +69,7 @@ pub struct Fixtures {
     pub inventory_frontier: InventoryFrontier,
 }
 
-/// One `accept` fixture: an input this milestone's checks (closure,
+/// One `accept` fixture: an input the checks (closure,
 /// tell-span reduction, score improvement) must all hold for, given its
 /// documented `output`.
 #[derive(Debug, Clone, Deserialize)]

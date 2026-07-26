@@ -48,15 +48,14 @@ fn main() {
 
     report("composed_four_operation_paragraph (~700 B)", &engine, SMALL);
 
-    // A mid-size document: repeat the small fixture to approximate a
-    // 5-10 KB document without depending on a specific corpus file's
-    // exact bytes (kept dependency-free here; corpus-backed sizing is
-    // exercised by the crate's own idempotence test instead).
+    // Repeat the small fixture to approximate a 5-10 KB document without
+    // depending on a specific corpus file's bytes (corpus-backed sizing
+    // is exercised by the crate's idempotence test instead).
     let mid_size = SMALL.repeat(10);
     report("synthetic mid-size document (~7 KB)", &engine, &mid_size);
 
     println!(
-        "target: sub-10 ms/KB end to end (ALGORITHMS.md section 5). Numbers above are measured, \
+        "target: sub-10 ms/KB end to end. Numbers above are measured, \
          not asserted — see this file's own doc comment."
     );
 }

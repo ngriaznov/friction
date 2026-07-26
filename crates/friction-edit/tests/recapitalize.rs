@@ -1,10 +1,9 @@
 //! Sentence-initial recapitalization guards.
 //!
-//! The recapitalization step exists to repair an opener the engine's own
-//! leading deletion exposed — it must never "fix" an author's deliberate
-//! lowercase opener (a product name like `mimalloc`), and must never
-//! emit a recapitalization-only patch for a sentence it did not
-//! otherwise edit.
+//! Recapitalization repairs an opener the engine's own leading deletion
+//! exposed — it must never "fix" a deliberate lowercase opener (a
+//! product name like `mimalloc`), and never emit a recapitalization-only
+//! patch for a sentence it didn't otherwise edit.
 
 use friction_edit::Engine;
 

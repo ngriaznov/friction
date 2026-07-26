@@ -1,19 +1,18 @@
 //! The friction v4 repair engine: four operations (ritual deletion, paired
 //! substitution, derivational pivot, gated span deletion) applied per
-//! sentence, in that fixed order, gated by the curated inventory pack and
-//! the corpus-attested seam-bigram/skeleton tables — never by a metric or
+//! sentence, in fixed order, gated by the curated inventory pack and the
+//! corpus-attested seam-bigram/skeleton tables — never by a metric or
 //! genre envelope.
 //!
-//! [`Engine`] is the top-level entry point: it loads the embedded tagger,
-//! segmenter, inventory pack, and attestation pack once, and
-//! [`Engine::fix_document`] runs the bounded two-pass pipeline
-//! (`document::edit_document`) over a document's prose.
+//! [`Engine`] is the top-level entry point: loads the embedded tagger,
+//! segmenter, inventory pack, and attestation pack once; `fix_document`
+//! runs the bounded two-pass pipeline (`document::edit_document`) over a
+//! document's prose.
 //!
 //! No synthesis: every emitted [`friction_core::Patch`] either deletes,
 //! substitutes a fixed pack string, or derives a verb via
-//! `friction_nlp::lvc::conjugate`'s static morphology tables. When a gate
-//! fails, the candidate is held (Suggest-tier) and the source bytes are
-//! left untouched.
+//! `friction_nlp::lvc::conjugate`'s static morphology. A failed gate
+//! holds the candidate (Suggest-tier) and leaves the source bytes untouched.
 
 pub mod document;
 mod error;
@@ -82,10 +81,9 @@ impl Engine {
     }
 
     /// `source`'s total prose word-token count, counted the same way this
-    /// engine's own per-document pivot budget is scaled — exposed so a
-    /// calibration tool measuring a natural pivot rate (patches per 1000
-    /// words) uses the identical word-counting convention the budget it
-    /// calibrates will later be constrained by.
+    /// engine's per-document pivot budget is scaled — exposed so a
+    /// calibration tool measuring pivot rate (patches per 1000 words)
+    /// uses the same word-counting convention the budget uses.
     ///
     /// # Errors
     /// Returns [`EditError`] if `source` fails to parse or segment.

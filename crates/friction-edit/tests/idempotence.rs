@@ -2,14 +2,11 @@
 //! fix_document(fix_document(x))`, byte-for-byte, over the fixture inputs
 //! plus a deterministic sample of the TRAIN-split corpus.
 //!
-//! This deliberately re-invokes `Engine::fix_document` (which already
-//! runs its own internal, bounded two-pass loop) three separate times
-//! over its own prior output — the stronger interpretation of "a third
-//! pass must be a no-op": it must hold not just within one
-//! `edit_document` call's own bounded loop, but treating the engine as a
-//! black box a caller might re-invoke, exactly `friction fix`'s real
-//! usage pattern (a user re-running `friction fix` on already-fixed
-//! output).
+//! Deliberately re-invokes `Engine::fix_document` (already a bounded
+//! two-pass loop internally) three separate times over its own prior
+//! output — the stronger claim that a third pass is a no-op even
+//! treating the engine as a black box, exactly `friction fix`'s real
+//! usage pattern (re-running on already-fixed output).
 
 use std::path::{Path, PathBuf};
 
@@ -20,8 +17,7 @@ fn corpus_root() -> PathBuf {
 }
 
 /// Fixture inputs this crate's own accept/reject fixtures exercise,
-/// embedded directly (no dependency on `friction-harness` — see this
-/// crate's own `B.0` dependency graph, which does not include it).
+/// embedded directly (no dependency on `friction-harness`).
 fn fixture_inputs() -> Vec<&'static str> {
     vec![
         "This guide will walk you through installing the tool, performing a basic scan, and \
@@ -62,12 +58,10 @@ fn fixture_inputs() -> Vec<&'static str> {
     ]
 }
 
-/// A fixed, deterministic sample of up to 50 TRAIN-split human+llm corpus
-/// documents' text: manifest records sorted by id, then every Nth taken
-/// so the sample spans the whole split rather than clustering at the
-/// front. Deliberately a fixed stride rather than a random sample, so
-/// this test's own sample is itself deterministic and a failure is
-/// reproducible from the corpus alone.
+/// A fixed, deterministic sample of up to 50 TRAIN-split corpus
+/// documents: manifest records sorted by id, every Nth taken so the
+/// sample spans the whole split. A fixed stride, not a random sample,
+/// keeps a failure reproducible from the corpus alone.
 fn sample_of_train_corpus_docs(limit: usize) -> Vec<String> {
     let root = corpus_root();
     let manifest_path = root.join("manifest.jsonl");

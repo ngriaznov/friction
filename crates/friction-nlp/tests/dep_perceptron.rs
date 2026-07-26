@@ -31,7 +31,7 @@ fn embedded_artifact_loads() {
 /// token, and exactly one of those tokens is the sentence root (`head:
 /// None`) — the structural invariant [`friction_nlp::dep_arceager::Configuration::finish`]
 /// guarantees by construction, checked here end to end through the real
-/// trained model rather than assumed.
+/// trained model.
 #[test]
 fn parse_produces_one_edge_per_token_and_exactly_one_root() {
     let text = "The team shipped the update to every customer last week.";
@@ -77,11 +77,11 @@ fn parse_accepts_empty_input() {
 }
 
 /// A short, hand-picked sentence whose exact head/relation structure was
-/// verified by hand against the shipped model's actual output — this is a
-/// smoke test of the `Tagger` -> `PerceptronParser` wiring (tokenization,
-/// tag lookup, greedy decode, edge construction), *not* a claim that this
-/// one sentence is representative of the model's overall accuracy. See
-/// `weights/NOTICE.md` for the honest, corpus-wide UAS/LAS numbers.
+/// verified by hand against the shipped model's actual output — a smoke
+/// test of the `Tagger` -> `PerceptronParser` wiring (tokenization, tag
+/// lookup, greedy decode, edge construction), *not* a claim that this one
+/// sentence is representative of overall accuracy. See `weights/NOTICE.md`
+/// for the honest, corpus-wide UAS/LAS numbers.
 #[test]
 fn parses_a_verified_simple_sentence_correctly() {
     let text = "The team shipped the update.";

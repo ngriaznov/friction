@@ -2,25 +2,23 @@
 //! form of the replacement that agrees with the surface word's
 //! morphology.
 //!
-//! This is a lexical-substitution helper, not a general morphological
-//! generator: [`inflect`] looks only at the *shape* of `surface` (its
-//! ending, plus small closed tables of common irregular verbs and nouns)
-//! to decide which of four forms to produce — base, third-person-singular
-//! present / plural ("-s"), gerund/present-participle ("-ing"), or past
-//! ("-ed") — and applies that same form to `target_lemma`. It does not
-//! receive or need a part-of-speech tag: regular "-s" formation is
-//! identical for a plural noun and a third-person-singular verb, so one
-//! code path covers both.
+//! A lexical-substitution helper, not a general morphological generator:
+//! [`inflect`] looks only at the *shape* of `surface` (its ending, plus
+//! small closed tables of common irregular verbs and nouns) to decide
+//! which of four forms to produce — base, third-person-singular present /
+//! plural ("-s"), gerund/present-participle ("-ing"), or past ("-ed") —
+//! and applies that form to `target_lemma`. It needs no part-of-speech
+//! tag: regular "-s" formation is identical for a plural noun and a
+//! third-person-singular verb, so one code path covers both.
 
 /// A lemma's real part of speech, and therefore which inflected forms
 /// [`agreeing_forms`] may legitimately derive for it.
 ///
-/// Mechanically generating an "-s" form for a lemma regardless of its real
-/// part of speech is a genuine false-positive risk for a caller matching
-/// against generated forms: `"valuable"` (adjective) plus an "-s" suffix
-/// produces `"valuables"`, which is not "more than one valuable thing" but
-/// an *established, differently-meaning* English noun. [`WordClass`] fixes
-/// this at the root: [`agreeing_forms`] only derives the forms a lemma's
+/// Mechanically generating an "-s" form regardless of a lemma's real part
+/// of speech is a genuine false-positive risk: `"valuable"` (adjective)
+/// plus "-s" produces `"valuables"`, not "more than one valuable thing"
+/// but an *established, differently-meaning* noun. [`WordClass`] fixes
+/// this at the root — [`agreeing_forms`] only derives forms a lemma's
 /// actual class can legitimately take.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum WordClass {
@@ -46,15 +44,13 @@ const AGREEMENT_TEMPLATES: [&str; 3] = ["uses", "using", "used"];
 /// Always includes `lemma` itself; [`WordClass::Noun`] additionally
 /// includes the plural form; [`WordClass::Verb`] additionally includes
 /// plural/third-person-singular, gerund, and past. Deduplicated, in a
-/// fixed, deterministic order (base first, then each template in
-/// [`AGREEMENT_TEMPLATES`] order).
+/// fixed order (base first, then each [`AGREEMENT_TEMPLATES`] template).
 ///
-/// Reuses [`inflect`] itself rather than a separate surface-form generator:
-/// applying a lemma to fixed, unambiguously-regular templates runs the same
-/// code path that will later generate an actual replacement, so the two
-/// directions (which surface forms match a lemma, and what a matched
-/// surface form's replacement should look like) can never quietly
-/// disagree.
+/// Reuses [`inflect`] rather than a separate surface-form generator:
+/// applying a lemma to fixed, unambiguously-regular templates runs the
+/// same code path that later generates an actual replacement, so the two
+/// directions (which surface forms match a lemma, what a matched form's
+/// replacement looks like) can never quietly disagree.
 ///
 /// # Examples
 /// ```
@@ -89,16 +85,15 @@ pub fn agreeing_forms(lemma: &str, class: WordClass) -> Vec<String> {
 /// surface text and a coarse Penn tag, guesses the base-form lemma by
 /// generating candidate stems and keeping the one that round-trips back to
 /// `surface` through [`inflect`]'s own forward generation — so this never
-/// duplicates a suffix/irregular rule, it only reuses the forward
-/// direction's own tables and logic in reverse. Falls back to `surface`
-/// itself, lowercased, when no candidate round-trips (matching
-/// [`crate::TaggedToken::lemma`]'s own documented fallback for "the tagger
-/// has no lemma for it").
+/// duplicates a suffix/irregular rule, only reuses the forward direction's
+/// tables and logic in reverse. Falls back to the lowercased `surface`
+/// when no candidate round-trips, matching
+/// [`crate::TaggedToken::lemma`]'s documented fallback.
 ///
-/// `pos` is used only to pick which suffix family to try candidates for
-/// (`VBG` gerunds, `VBD`/`VBN` past forms, `VBZ`/`NNS` "-s" forms); any
-/// other tag returns the lowercased surface unchanged, since a base-form
-/// word's lemma is already itself.
+/// `pos` only picks which suffix family to try (`VBG` gerunds,
+/// `VBD`/`VBN` past forms, `VBZ`/`NNS` "-s" forms); any other tag returns
+/// the lowercased surface unchanged, since a base-form word's lemma is
+/// already itself.
 #[must_use]
 pub fn lemmatize(surface: &str, pos: &str) -> Box<str> {
     let lower = surface.to_lowercase();
@@ -150,14 +145,14 @@ fn undoubled(stem: &str) -> Option<String> {
 ///
 /// Order matters more than it looks: naively stripping `"-ing"` almost
 /// always leaves a stem that trivially regenerates the original surface
-/// through [`inflect`]'s default (no-special-rule) branch, whether or not
-/// that stem is the *real* lemma — so a structurally-informed candidate
-/// (undoing a doubled final consonant, restoring a `"-ie"` ending) has to
-/// be tried *before* the naive stem, or the naive-but-wrong stem would
-/// always win by being checked first. A short (<=2-character) stem is
-/// additionally tried with a restored trailing `"e"` first, since a
-/// bare two-letter consonant-final "word" is rarely a genuine English verb
-/// on its own (`"us"` vs. the real `"use"`).
+/// through [`inflect`]'s default branch, whether or not it's the *real*
+/// lemma — so a structurally-informed candidate (undoing a doubled final
+/// consonant, restoring a `"-ie"` ending) must be tried *before* the
+/// naive stem, or the naive-but-wrong one always wins by being checked
+/// first. A short (<=2-character) stem is additionally tried with a
+/// restored trailing `"e"` first, since a bare two-letter consonant-final
+/// "word" is rarely a genuine English verb on its own (`"us"` vs. the
+/// real `"use"`).
 fn ing_candidates(word: &str) -> Vec<String> {
     let Some(stem) = word.strip_suffix("ing") else {
         return Vec::new();
@@ -166,12 +161,11 @@ fn ing_candidates(word: &str) -> Vec<String> {
     if let Some(un) = undoubled(stem) {
         out.push(un);
     }
-    // Only the genuine `"ie"`-verb family (tie/die/lie/vie: root length 1,
-    // stem after stripping `"-ing"` length 2) restores an `"-ie"` ending —
-    // a longer stem ending in `"-ying"` (`"carrying"` -> `"carry"`,
-    // `"worrying"` -> `"worry"`) is the far more common plain
-    // consonant-`"y"` verb, whose own `"-ing"` needs no special handling at
-    // all, so it must not be shadowed by a wrongly-restored `"-ie"` guess.
+    // Only the genuine `"ie"`-verb family (tie/die/lie/vie: stem length 2
+    // after stripping `"-ing"`) restores an `"-ie"` ending — a longer
+    // `"-ying"` stem (`"carrying"` -> `"carry"`, `"worrying"` -> `"worry"`)
+    // is the far more common plain consonant-`"y"` verb and must not be
+    // shadowed by a wrongly-restored `"-ie"` guess.
     if stem.chars().count() <= 2
         && let Some(base) = word.strip_suffix("ying")
     {
@@ -232,9 +226,8 @@ fn suffix_s_candidates(word: &str) -> Vec<String> {
 /// morphology, with `surface`'s capitalization pattern (lowercase, Title
 /// Case, or ALL CAPS) transferred onto the result.
 ///
-/// Returns `None` if either `surface` or `target_lemma` contains no
-/// alphabetic character — inflecting a token that is not a word is not
-/// meaningful.
+/// Returns `None` if either `surface` or `target_lemma` has no
+/// alphabetic character — inflecting a non-word token isn't meaningful.
 ///
 /// # Examples
 /// ```
@@ -277,10 +270,8 @@ enum Form {
 
 /// Common irregular verbs whose third-person-singular, gerund, or past
 /// form is not derivable by the regular suffix rules — `(base, 3sg, ing,
-/// past)`. Regular verbs (even ones that look tricky, like "leave" ->
-/// "leaves"/"leaving"/"left"... wait, "left" *is* irregular, so "leave" is
-/// here too) are deliberately omitted: the regular rules already produce
-/// their correct forms.
+/// past)`. Regular verbs are deliberately omitted: the regular rules
+/// already produce their correct forms.
 const IRREGULAR_VERBS: &[(&str, &str, &str, &str)] = &[
     ("be", "is", "being", "was"),
     ("have", "has", "having", "had"),
@@ -351,9 +342,9 @@ const IRREGULAR_NOUNS: &[(&str, &str)] = &[
 
 /// Multi-syllable common words whose final consonant looks like it should
 /// double under the naive consonant-vowel-consonant heuristic (see
-/// [`should_double_final_consonant`]) but does not, because English
+/// [`should_double_final_consonant`]) but doesn't, because English
 /// doubling depends on which syllable is stressed — information this
-/// heuristic (deliberately, to stay dependency-free) does not have.
+/// heuristic deliberately lacks, to stay dependency-free.
 const NO_DOUBLE_EXCEPTIONS: &[&str] = &[
     "open",
     "happen",
@@ -398,13 +389,11 @@ const NO_DOUBLE_EXCEPTIONS: &[&str] = &[
     "total",
     "equal",
     "fuel",
-    // "enter" compounds share its own unstressed final syllable and the
-    // same false-doubling risk, but weren't listed alongside it. Added
-    // after real prose surfaced "encounter" -> "encounterred", "empower"
-    // -> "empowerred", and "discover" -> "discoverred" (all
-    // `friction-register` T4 rewrites consuming this function's regular
-    // past-tense generator, which had no exception entry for any of
-    // them).
+    // "enter" compounds share the same unstressed-final-syllable
+    // false-doubling risk. Added after real prose surfaced "encounter" ->
+    // "encounterred", "empower" -> "empowerred", "discover" ->
+    // "discoverred" from `friction-register` rewrites with no exception
+    // entry for any of them.
     "encounter",
     "counter",
     "empower",
@@ -569,9 +558,8 @@ fn ends_with_silent_e(lemma: &str) -> bool {
 /// English's "1-1-1" doubling rule, approximated without syllable/stress
 /// information: double the final consonant before a vowel suffix when the
 /// word ends in a single vowel followed by a single non-w/x/y consonant
-/// preceded by another consonant (or the word is only three letters), and
-/// the word is not a known exception to the rule (see
-/// [`NO_DOUBLE_EXCEPTIONS`]).
+/// preceded by another consonant (or is only three letters), and isn't a
+/// known exception (see [`NO_DOUBLE_EXCEPTIONS`]).
 fn should_double_final_consonant(lemma: &str) -> bool {
     if NO_DOUBLE_EXCEPTIONS.contains(&lemma) {
         return false;
@@ -591,10 +579,10 @@ fn should_double_final_consonant(lemma: &str) -> bool {
     // Past this point chars.len() >= 4 (the == 3 case already returned).
     let two_back = chars[chars.len() - 3];
     let three_back = chars[chars.len() - 4];
-    // "qu" is a single consonant unit (/kw/): the 'u' immediately after a
-    // 'q' is not a second vowel of its own, so e.g. "quit" and "equip"
-    // are still single-vowel CVC words for doubling purposes ("quitting",
-    // "equipping"), not two-vowel VVC words like "boat" ("boating").
+    // "qu" is a single consonant unit (/kw/): the 'u' after 'q' isn't a
+    // second vowel, so "quit"/"equip" are still single-vowel CVC words
+    // for doubling ("quitting", "equipping"), not VVC words like "boat"
+    // ("boating").
     let two_back_is_real_vowel = is_vowel(two_back) && !(two_back == 'u' && three_back == 'q');
     !two_back_is_real_vowel
 }
@@ -650,13 +638,11 @@ mod tests {
     /// `(surface, target_lemma, expected)` triples covering: regular
     /// third-person-singular/plural "-s" (plain, sibilant "+es",
     /// consonant-y "-ies"), regular gerund "-ing" (silent-e drop, "ie" ->
-    /// "ying", consonant doubling, vowel-y kept), regular past "-ed"
-    /// (silent-e, consonant-y, doubling), the common-verb irregulars
-    /// table (surface irregular -> regular target, and regular surface ->
-    /// irregular target), irregular noun plurals (both directions),
-    /// capitalization transfer (Title Case, ALL CAPS) independent of
-    /// target-lemma casing, uninflected base-form passthrough, and
-    /// `None` for non-word input.
+    /// "ying", doubling, vowel-y kept), regular past "-ed" (silent-e,
+    /// consonant-y, doubling), the irregular-verb table (both
+    /// directions), irregular noun plurals (both directions),
+    /// capitalization transfer independent of target-lemma casing,
+    /// base-form passthrough, and `None` for non-word input.
     const GOLDEN: &[(&str, &str, Option<&str>)] = &[
         // --- regular third-person-singular / plural "-s" ---
         ("leverages", "use", Some("uses")),

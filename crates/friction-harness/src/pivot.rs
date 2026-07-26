@@ -22,13 +22,13 @@
 //! the same table [`crate::closure`] needs for its "pack-derivable"
 //! allowance, so it earns its place twice over.
 //!
-//! This milestone only detects and reports licensed pivots; it never
+//! This crate only detects and reports licensed pivots; it never
 //! rewrites text (that is `friction-edit`'s job — its own
 //! `tests/engine_fixtures.rs`, back in this workspace's
 //! `friction-harness` crate, is where the real, byte-exact pivot
 //! rewrites are asserted). Per-(light-verb, nominalization) licensing (as
 //! opposed to "any of the four light verbs plus a licensed
-//! nominalization") stays out of scope this milestone; this module's
+//! nominalization") stays out of scope here; this module's
 //! actual gating logic is unchanged — only its licensed-pair data source
 //! moved to the pack.
 
@@ -66,7 +66,7 @@ pub struct LicensedPivot {
 }
 
 /// Faithful transcription of `ref_pivot.py::pivot()`'s *matching* half only
-/// (this milestone never rewrites text).
+/// (this crate never rewrites text).
 ///
 /// Walks `tagger.tag(sentence, 0)` directly — `friction_nlp::Tagger`
 /// tokenizes internally and has no "tag this pre-split word list" entry

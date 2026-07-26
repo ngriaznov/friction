@@ -1,41 +1,26 @@
 //! Structural, mined-phrase, and sentence-opener "signal" metrics.
 //!
-//! These are the new-metric candidates the train-split error-analysis
-//! brief argued for: none of the other three metric families
-//! ([`crate::rhythm`], [`crate::lexical`], [`crate::symmetry`]) look at
-//! document *structure* (headings, lists, bold spans) or at discriminative
-//! *n-gram* register mined directly from the train corpus, and the brief's
-//! qualitative read of train documents found those to be this corpus's
-//! most visually obvious llm/human tell.
+//! New-metric candidates the train-split error-analysis brief argued for:
+//! the other families ([`crate::rhythm`], [`crate::lexical`],
+//! [`crate::symmetry`]) don't look at document *structure* or
+//! discriminative *n-gram* register mined from the train corpus — a
+//! qualitative read found those the most visually obvious llm/human tell.
 //!
-//! Every public function here is a pure function of a
-//! [`friction_core::Document`]: given the same document it returns the
-//! same numbers, on any machine, on any run. None of them need a `Tagger`
-//! — every signal in this module is either block-structural (headings,
-//! list items) or shallow lexical (n-gram/unigram matching over sentence
-//! text), so, like [`crate::lexical`], these walk `document.prose()` and
-//! `document.blocks()` directly rather than tagging anything.
+//! Every public function is a pure function of a
+//! [`friction_core::Document`]; none need a `Tagger`.
 //!
 //! # Tokenization
 //!
-//! [`word_tokens`] is a direct duplicate of [`crate::lexical`]'s own
-//! private tokenizer (maximal runs of alphabetic characters, folding an
-//! interior apostrophe — ASCII or the Unicode right single quotation mark
-//! `’` — into the word, lowercased). It is duplicated rather than shared
-//! deliberately: each metric-family module in this crate is a
-//! self-contained set of pure functions over `Document` (see this crate's
-//! module layout), and the mined-phrase metrics below specifically need
-//! apostrophe-aware word tokens (`"here's"` must tokenize to one word to
-//! match the mined pack's `here's` entry) — the same rule
-//! [`crate::lexical`] already uses for its own contraction matching, for
-//! the same reason.
+//! [`word_tokens`] duplicates [`crate::lexical`]'s private tokenizer: the
+//! mined-phrase metrics need apostrophe-aware tokens so `"here's"`
+//! tokenizes to one word, matching the pack's entries — the same rule
+//! [`crate::lexical`] uses for contraction matching.
 //!
 //! # Degenerate cases
 //!
-//! No function in this module ever returns `NaN` or `inf`: every "per
-//! 1000 tokens" density is `0.0` for a document with zero word tokens, and
-//! both sentence-opener metrics are `0.0` for a document with fewer than
-//! the observations they need (see each function's own docs).
+//! No function here returns `NaN` or `inf`: densities are `0.0` for zero
+//! word tokens; sentence-opener metrics are `0.0` for too few
+//! observations (see each function's docs).
 
 use std::collections::BTreeMap;
 use std::sync::LazyLock;
@@ -47,12 +32,10 @@ use serde::Deserialize;
 // Shared tokenization
 // ---------------------------------------------------------------------
 
-/// Splits `text` into lowercase word tokens: maximal runs of alphabetic
-/// characters, treating an interior apostrophe (ASCII `'` or the Unicode
-/// right single quotation mark `’`, surrounded by alphabetic characters on
-/// both sides) as part of the word. See the module docs' "Tokenization"
-/// section for why this duplicates [`crate::lexical`]'s own tokenizer
-/// rather than importing it.
+/// Splits `text` into lowercase word tokens: maximal alphabetic runs,
+/// treating an interior apostrophe (ASCII `'` or `’`, between alphabetic
+/// characters) as part of the word. See the module docs' "Tokenization"
+/// section for why this duplicates [`crate::lexical`]'s tokenizer.
 fn word_tokens(text: &str) -> Vec<String> {
     let chars: Vec<char> = text.chars().collect();
     let mut tokens = Vec::new();
@@ -75,13 +58,10 @@ fn word_tokens(text: &str) -> Vec<String> {
     tokens
 }
 
-/// Counts how many times the consecutive-token sequence `phrase` occurs in
-/// `tokens` (every window of `phrase.len()` tokens that matches `phrase`
-/// element-wise, exactly — both sides already lowercase). Mirrors
-/// [`crate::lexical`]'s own `count_phrase_occurrences`, over an owned
-/// `String` phrase rather than a `&str` slice, since the mined phrases are
-/// parsed from a TOML pack at run time rather than written as `&'static
-/// str` literals.
+/// Counts consecutive-token window matches of `phrase` in `tokens` (exact
+/// match, both sides already lowercase). Mirrors [`crate::lexical`]'s
+/// `count_phrase_occurrences`, but over an owned `String` — mined phrases
+/// parse from TOML at run time, not `&'static str` literals.
 fn count_phrase_occurrences(tokens: &[String], phrase: &[String]) -> usize {
     if phrase.is_empty() || tokens.len() < phrase.len() {
         return 0;
@@ -92,8 +72,7 @@ fn count_phrase_occurrences(tokens: &[String], phrase: &[String]) -> usize {
         .count()
 }
 
-/// Total word-token count across every sentence in `document`, in source
-/// order (walking `document.prose()` then each unit's `sentences`) — the
+/// Total word-token count across every sentence in `document` — the
 /// shared denominator for every "per 1000 tokens" density in this module.
 fn total_word_tokens(document: &Document) -> u64 {
     document
@@ -122,26 +101,24 @@ fn density_per_1000_tokens(document: &Document, occurrences: u64) -> f64 {
 // Mined-phrase densities
 // ---------------------------------------------------------------------
 
-/// The embedded `mined-ngrams-v1` pack source, pulled in at compile time
-/// from `friction-packs`' own pack directory — see that crate's
-/// `packs/mined-ngrams-v1.toml` for the full curation rationale and
-/// provenance. Embedding the raw TOML text (rather than depending on the
-/// `friction-packs` crate) keeps this metric family's only coupling to
-/// that pack a build-time file read, not a crate dependency edge.
+/// Embedded `mined-ngrams-v1` pack source, pulled in at compile time —
+/// see `friction-packs/packs/mined-ngrams-v1.toml` for curation rationale.
+/// Embedding raw TOML (vs. depending on `friction-packs`) keeps this
+/// family's only coupling to that pack a build-time file read, not a
+/// crate dependency.
 const MINED_PACK_SOURCE: &str = include_str!("../../friction-packs/packs/mined-ngrams-v1.toml");
 
-/// One curated n-gram entry from the mined pack. Only `ngram` is used
-/// here; `z` and `category` (also present in the pack's TOML) are left
-/// unparsed rather than declared as unused struct fields.
+/// One curated n-gram entry from the mined pack. Only `ngram` is used;
+/// `z` and `category` are left unparsed rather than declared unused.
 #[derive(Debug, Deserialize)]
 struct MinedEntry {
     ngram: String,
 }
 
-/// The mined pack's shape, as relevant to this module: two ordered lists
-/// of curated n-grams. The pack's `[pack]` metadata table is present in
-/// the TOML but not modeled here — `toml`'s default (non-`deny_unknown_fields`)
-/// deserialization simply ignores table keys a struct doesn't declare.
+/// The mined pack's shape, as relevant here: two ordered lists of
+/// n-grams. The `[pack]` metadata table is in the TOML but not modeled —
+/// `toml`'s default (non-`deny_unknown_fields`) deserialization ignores
+/// undeclared keys.
 #[derive(Debug, Deserialize)]
 struct MinedPack {
     llm_favored: Vec<MinedEntry>,
@@ -151,19 +128,17 @@ struct MinedPack {
 /// The embedded pack, parsed once and reused for the life of the process.
 ///
 /// # Panics
-/// Panics if the embedded `mined-ngrams-v1.toml` fails to parse — that
-/// would mean this crate shipped with a malformed pack file, a bug in this
-/// crate's own embedded data (covered by this module's
-/// `mined_pack_parses` test), not a condition any caller can recover from
-/// by retrying.
+/// Panics if the embedded `mined-ngrams-v1.toml` fails to parse — a
+/// malformed pack shipped with this crate (see `mined_pack_parses`), not
+/// something a caller can fix by retrying.
 static MINED_PACK: LazyLock<MinedPack> = LazyLock::new(|| {
     toml::from_str(MINED_PACK_SOURCE)
         .expect("embedded mined-ngrams-v1.toml must parse: see this module's tests")
 });
 
-/// Each of [`MINED_PACK`]'s llm-favored entries, pre-tokenized once via
-/// [`word_tokens`] so every document's phrase matching only tokenizes its
-/// own sentence text, not the pack's phrase list, on every call.
+/// [`MINED_PACK`]'s llm-favored entries, pre-tokenized once via
+/// [`word_tokens`] so matching only tokenizes each document's sentence
+/// text, not the phrase list, per call.
 static LLM_FAVORED_PHRASES: LazyLock<Vec<Vec<String>>> = LazyLock::new(|| {
     MINED_PACK
         .llm_favored
@@ -172,7 +147,7 @@ static LLM_FAVORED_PHRASES: LazyLock<Vec<Vec<String>>> = LazyLock::new(|| {
         .collect()
 });
 
-/// Each of [`MINED_PACK`]'s human-favored entries, pre-tokenized; see
+/// [`MINED_PACK`]'s human-favored entries, pre-tokenized; see
 /// [`LLM_FAVORED_PHRASES`].
 static HUMAN_FAVORED_PHRASES: LazyLock<Vec<Vec<String>>> = LazyLock::new(|| {
     MINED_PACK
@@ -182,10 +157,9 @@ static HUMAN_FAVORED_PHRASES: LazyLock<Vec<Vec<String>>> = LazyLock::new(|| {
         .collect()
 });
 
-/// Total occurrences of every phrase in `phrases` across `document`, one
-/// sentence at a time (a phrase match never crosses a sentence boundary,
-/// the same rule [`crate::lexical::contraction_ratio`] uses for its own
-/// expanded-form matching), scaled to a rate per 1000 word tokens.
+/// Total occurrences of every phrase in `phrases` in `document`, per
+/// sentence (matches never cross a sentence boundary, per
+/// [`crate::lexical::contraction_ratio`]), scaled per 1000 word tokens.
 fn phrase_rate(document: &Document, phrases: &[Vec<String>]) -> f64 {
     let mut matches = 0u64;
     for unit in document.prose() {
@@ -202,20 +176,19 @@ fn phrase_rate(document: &Document, phrases: &[Vec<String>]) -> f64 {
     density_per_1000_tokens(document, matches)
 }
 
-/// Rate of curated llm-favored mined n-grams, per 1000 word tokens.
+/// Rate of llm-favored n-grams, per 1000 word tokens.
 ///
-/// The n-grams come from `crates/friction-packs/packs/mined-ngrams-v1.
-/// toml`'s `llm_favored` list, matched case-insensitively (word tokens are
-/// lowercased) at word boundaries — phrase matching is over already-split
-/// word tokens, so a phrase never matches a substring of a longer word.
+/// From `crates/friction-packs/packs/mined-ngrams-v1.toml`'s
+/// `llm_favored` list, matched case-insensitively at word boundaries — a
+/// phrase never matches inside a longer word.
 #[must_use]
 pub fn llm_favored_phrase_rate(document: &Document) -> f64 {
     phrase_rate(document, &LLM_FAVORED_PHRASES)
 }
 
-/// Rate of curated human-favored mined n-grams (the same pack's
-/// `human_favored` list), per 1000 word tokens. See
-/// [`llm_favored_phrase_rate`] for the matching rule.
+/// Rate of human-favored n-grams (the pack's `human_favored` list), per
+/// 1000 word tokens. See [`llm_favored_phrase_rate`] for the matching
+/// rule.
 #[must_use]
 pub fn human_favored_phrase_rate(document: &Document) -> f64 {
     phrase_rate(document, &HUMAN_FAVORED_PHRASES)
@@ -230,7 +203,7 @@ const fn is_heading(block: &Block) -> bool {
     matches!(block.kind, BlockKind::Heading { .. })
 }
 
-/// `true` if `block` is a single list item within a markdown list.
+/// `true` if `block` is a single list item.
 const fn is_list_item(block: &Block) -> bool {
     matches!(block.kind, BlockKind::ListItem)
 }
@@ -246,35 +219,30 @@ fn block_kind_density(document: &Document, predicate: fn(&Block) -> bool) -> f64
     density_per_1000_tokens(document, count)
 }
 
-/// Heading-block density: the count of [`friction_core::BlockKind::Heading`]
-/// blocks (any level) in `document`, per 1000 word tokens.
+/// Heading-block density: [`friction_core::BlockKind::Heading`] blocks
+/// (any level) in `document`, per 1000 word tokens.
 #[must_use]
 pub fn heading_density(document: &Document) -> f64 {
     block_kind_density(document, is_heading)
 }
 
-/// List-item-block density: the count of
-/// [`friction_core::BlockKind::ListItem`] blocks in `document` — every
-/// item of every list, top-level or nested — per 1000 word tokens.
+/// List-item-block density: [`friction_core::BlockKind::ListItem`] blocks
+/// in `document` — every list item, top-level or nested — per 1000 word
+/// tokens.
 #[must_use]
 pub fn list_item_density(document: &Document) -> f64 {
     block_kind_density(document, is_list_item)
 }
 
-/// Counts bold/strong-emphasis spans in `text` by counting delimiter
-/// occurrences and halving: every `**...**` or `__...__` span contributes
-/// exactly two delimiter occurrences (one opening, one closing).
+/// Counts bold/strong-emphasis spans in `text` by counting delimiters
+/// and halving — each span contributes two delimiter occurrences.
 ///
-/// This is a documented approximation, not a structural parse: `friction-
-/// parse`'s prose extraction deliberately *bridges* emphasis/strong
-/// delimiter bytes into a sentence's literal text rather than stripping
-/// them (see `friction-parse::extract`'s module docs), so a bold span's
-/// `**`/`__` markup survives in the text this function scans — but this
-/// function does not distinguish `**bold**` from a stray, unpaired `**`
-/// (e.g. one delimiter split across two sentences by segmentation), so an
-/// odd total delimiter count silently drops its last (unpaired) occurrence
-/// via integer division rather than over- or under-counting by a whole
-/// span.
+/// An approximation, not a structural parse: `friction-parse` deliberately
+/// *bridges* emphasis delimiter bytes into sentence text rather than
+/// stripping them, so this can't distinguish `**bold**` from a stray
+/// unpaired `**` (e.g. split across sentences by segmentation) — an odd
+/// count drops its last occurrence via integer division rather than
+/// mis-counting a whole span.
 fn count_strong_delimiter_spans(text: &str) -> usize {
     let double_star = text.matches("**").count();
     let double_underscore = text.matches("__").count();
@@ -302,15 +270,14 @@ pub fn bold_span_density(document: &Document) -> f64 {
 // ---------------------------------------------------------------------
 
 /// The leading unigram of `text`: its first [`word_tokens`] entry
-/// (lowercased), or `None` if `text` has no alphabetic word at all (e.g. a
-/// sentence that is pure punctuation).
+/// (lowercase), or `None` if `text` has no alphabetic word — e.g. pure
+/// punctuation.
 fn leading_unigram(text: &str) -> Option<String> {
     word_tokens(text).into_iter().next()
 }
 
-/// The leading unigram of every sentence in `document`, in source order
-/// (walking `document.prose()` then each unit's `sentences`) — one entry
-/// per sentence, `None` where [`leading_unigram`] found no word.
+/// The leading unigram of every sentence in `document`, in source order —
+/// one entry per sentence, `None` where [`leading_unigram`] found no word.
 fn sentence_leading_unigrams(document: &Document) -> Vec<Option<String>> {
     document
         .prose()
@@ -325,15 +292,13 @@ fn sentence_leading_unigrams(document: &Document) -> Vec<Option<String>> {
         .collect()
 }
 
-/// Fraction of `document`'s sentences (every sentence but the first) whose
-/// leading unigram (see [`leading_unigram`]) equals the immediately
-/// preceding sentence's.
+/// Fraction of `document`'s sentences (all but the first) whose leading
+/// unigram (see [`leading_unigram`]) equals the preceding one's.
 ///
-/// The denominator is always `sentence_count - 1` regardless of whether
-/// either sentence in a pair has a detectable opener; a pair where either
-/// side lacks one simply cannot match (there is nothing to repeat), so it
-/// counts against the rate rather than being excluded from it. Returns
-/// `0.0` for a document with fewer than two sentences.
+/// Denominator is always `sentence_count - 1` regardless of whether either
+/// side of a pair has a detectable opener — a pair missing one can't
+/// match, so it counts against the rate rather than being excluded.
+/// `0.0` for fewer than two sentences.
 #[must_use]
 pub fn sentence_opener_repeat_rate(document: &Document) -> f64 {
     let openers = sentence_leading_unigrams(document);
@@ -352,14 +317,12 @@ pub fn sentence_opener_repeat_rate(document: &Document) -> f64 {
 }
 
 /// The most common sentence-leading unigram's share of all detected
-/// sentence openers in `document`.
+/// openers in `document`.
 ///
-/// Among every sentence that has a detectable leading unigram (see
-/// [`leading_unigram`]), this is the largest per-word count divided by
-/// that total. Sentences with no detectable opener are excluded from both
-/// the tally and its denominator — they contribute no "which word opens
-/// most often" signal either way. Returns `0.0` if no sentence in
-/// `document` has a detectable opener.
+/// Among sentences with a detectable leading unigram (see
+/// [`leading_unigram`]), this is the largest per-word count over that
+/// total. Sentences with no detectable opener are excluded from both
+/// tally and denominator. `0.0` if none has a detectable opener.
 #[must_use]
 pub fn top_opener_concentration(document: &Document) -> f64 {
     let openers: Vec<String> = sentence_leading_unigrams(document)
@@ -380,10 +343,9 @@ pub fn top_opener_concentration(document: &Document) -> f64 {
 }
 
 #[cfg(test)]
-// Every fixture below is a hand-computed exact value (see each test's doc
-// comment), so `==` rather than an epsilon is correct wherever the
-// arithmetic terminates exactly; a few densities divide into a repeating
-// fraction and use an epsilon instead, noted at the call site.
+// Every fixture below is a hand-computed exact value, so `==` is correct
+// where the arithmetic terminates exactly; a few densities repeat and use
+// an epsilon instead, noted at the call site.
 #[allow(clippy::float_cmp, clippy::single_range_in_vec_init)]
 mod tests {
     use std::ops::Range;
@@ -395,8 +357,8 @@ mod tests {
     const EPSILON: f64 = 1e-9;
 
     /// Builds a single-block, single-paragraph, single-sentence document
-    /// spanning the whole of `source` — entirely through `friction-core`'s
-    /// own constructors, independent of `friction-parse`/`friction-nlp`.
+    /// spanning `source` — through `friction-core`'s own constructors,
+    /// independent of `friction-parse`/`friction-nlp`.
     fn doc_single_sentence(source: &str) -> Document {
         let block = Block::new(BlockKind::Paragraph, 0..source.len());
         let sentence = Sentence::new(0..source.len(), Vec::new());
@@ -405,8 +367,8 @@ mod tests {
     }
 
     /// Builds a single-block, single-paragraph document out of pre-cut
-    /// sentence ranges within `source` — mirrors `crate::lexical`'s own
-    /// test helper of the same shape.
+    /// sentence ranges in `source` — mirrors `crate::lexical`'s own test
+    /// helper.
     fn doc_from_sentences(source: &str, sentence_ranges: &[Range<usize>]) -> Document {
         let sentences = sentence_ranges
             .iter()
@@ -422,10 +384,10 @@ mod tests {
     // Mined pack itself
     // -------------------------------------------------------------
 
-    /// The embedded pack parses, and both curated lists are non-empty —
-    /// this is the same guarantee `MINED_PACK`'s own `LazyLock::expect`
-    /// makes at first use, exercised eagerly here so a malformed pack
-    /// fails a test rather than only a later, unrelated call.
+    /// The embedded pack parses, and both lists are non-empty — the same
+    /// guarantee `MINED_PACK`'s `LazyLock::expect` makes at first use,
+    /// exercised eagerly so a malformed pack fails a test, not a later
+    /// unrelated call.
     #[test]
     fn mined_pack_parses() {
         assert!(!MINED_PACK.llm_favored.is_empty());
@@ -437,11 +399,9 @@ mod tests {
     // -------------------------------------------------------------
 
     /// "Your plan is good." tokenizes to `[your, plan, is, good]` (4
-    /// tokens). `"your"` is the pack's top llm-favored unigram; `"good"`
-    /// is a human-favored unigram; neither list contains any bigram/
-    /// trigram formed by this sentence's other adjacent tokens. One match
-    /// each, over 4 tokens: rate `= 1 * 1000 / 4 = 250.0` exactly, for
-    /// both metrics.
+    /// tokens): `"your"` is the top llm-favored unigram, `"good"` a
+    /// human-favored one, and no bigram/trigram matches. One match each:
+    /// `1 * 1000 / 4 = 250.0`, both metrics.
     #[test]
     fn phrase_rates_hand_computed() {
         let doc = doc_single_sentence("Your plan is good.");
@@ -449,8 +409,8 @@ mod tests {
         assert_eq!(human_favored_phrase_rate(&doc), 250.0);
     }
 
-    /// A document with no word tokens at all has both rates `0.0`, not
-    /// `NaN` from a zero-over-zero division.
+    /// A document with no word tokens has both rates `0.0`, not `NaN`
+    /// from a zero-over-zero division.
     #[test]
     fn phrase_rates_zero_tokens_is_zero() {
         let doc = Document::new("", Vec::new(), Vec::new()).expect("empty document is valid");
@@ -463,9 +423,9 @@ mod tests {
     // -------------------------------------------------------------
 
     /// One heading block ("Overview") plus one paragraph ("Body text here
-    /// now.", 4 word tokens: body, text, here, now); no list items, no
-    /// bold spans. `heading_density = 1 * 1000 / 4 = 250.0` exactly;
-    /// `list_item_density` and `bold_span_density` are both `0.0`.
+    /// now.", 4 tokens: body, text, here, now). `heading_density = 1 *
+    /// 1000 / 4 = 250.0`; `list_item_density`/`bold_span_density` are
+    /// `0.0`.
     #[test]
     fn heading_density_hand_computed() {
         let heading = "Overview";
@@ -496,9 +456,8 @@ mod tests {
     }
 
     /// Two list items ("Configure the server", "Restart the service"; 3
-    /// word tokens each, 6 total) under one list block. `list_item_density
-    /// = 2 * 1000 / 6 = 333.333...` (repeating, epsilon comparison);
-    /// `heading_density` is `0.0`.
+    /// tokens each, 6 total). `list_item_density = 2 * 1000 / 6 =
+    /// 333.333...` (repeating, epsilon); `heading_density` is `0.0`.
     #[test]
     fn list_item_density_hand_computed() {
         let item1 = "Configure the server";
@@ -545,15 +504,15 @@ mod tests {
     // -------------------------------------------------------------
 
     /// "The **bold** word appears here." has one `**...**` span (two `**`
-    /// delimiter occurrences, halved) over 5 word tokens (the, bold, word,
-    /// appears, here). `1 * 1000 / 5 = 200.0` exactly.
+    /// occurrences, halved) over 5 tokens (the, bold, word, appears,
+    /// here). `1 * 1000 / 5 = 200.0`.
     #[test]
     fn bold_span_density_hand_computed() {
         let doc = doc_single_sentence("The **bold** word appears here.");
         assert_eq!(bold_span_density(&doc), 200.0);
     }
 
-    /// A document with no bold markup at all has density `0.0`.
+    /// A document with no bold markup has density `0.0`.
     #[test]
     fn bold_span_density_zero_for_no_bold() {
         let doc = doc_single_sentence("Nothing bold in here at all.");
@@ -565,11 +524,10 @@ mod tests {
     // -------------------------------------------------------------
 
     /// Three sentences: "Overall it works." (opener "overall"), "Overall
-    /// it scales." (opener "overall", matches the previous sentence),
-    /// "Fine so far." (opener "fine", does not match). 1 matching
-    /// consecutive pair out of 2: `sentence_opener_repeat_rate = 0.5`
-    /// exactly. Opener counts: overall = 2, fine = 1, over 3 total
-    /// openers: `top_opener_concentration = 2/3`.
+    /// it scales." (opener "overall", matches previous), "Fine so far."
+    /// (opener "fine", no match). 1 matching pair of 2:
+    /// `sentence_opener_repeat_rate = 0.5`. Opener counts: overall = 2,
+    /// fine = 1, of 3 total: `top_opener_concentration = 2/3`.
     #[test]
     fn opener_metrics_hand_computed() {
         let s1 = "Overall it works.";
@@ -589,11 +547,10 @@ mod tests {
     }
 
     /// A sentence with no detectable leading unigram (pure punctuation)
-    /// neither matches nor is counted as an opener: "..." (no opener),
-    /// "Yes it works." (opener "yes"). The one consecutive pair has a
-    /// `None` on one side, so it cannot match: `sentence_opener_repeat_rate
-    /// = 0.0`. Only one sentence has a detectable opener at all, so
-    /// `top_opener_concentration = 1 / 1 = 1.0`.
+    /// neither matches nor counts as an opener: "..." (no opener), "Yes it
+    /// works." (opener "yes"). The pair has `None` on one side, so it
+    /// can't match: `sentence_opener_repeat_rate = 0.0`. Only one sentence
+    /// has a detectable opener: `top_opener_concentration = 1 / 1 = 1.0`.
     #[test]
     fn opener_metrics_handle_sentence_with_no_leading_word() {
         let s1 = "...";
@@ -610,9 +567,9 @@ mod tests {
     }
 
     /// A document with fewer than two sentences has
-    /// `sentence_opener_repeat_rate` `0.0` (no consecutive pair exists),
-    /// and `top_opener_concentration` `0.0` for zero sentences or `1.0`
-    /// for exactly one sentence with a detectable opener — never `NaN`.
+    /// `sentence_opener_repeat_rate` `0.0` (no pair exists), and
+    /// `top_opener_concentration` `0.0` for zero sentences or `1.0` for
+    /// one sentence with a detectable opener — never `NaN`.
     #[test]
     fn opener_metrics_degenerate_cases() {
         let empty = Document::new("", Vec::new(), Vec::new()).expect("empty document is valid");

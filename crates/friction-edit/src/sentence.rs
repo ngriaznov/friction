@@ -1,8 +1,6 @@
-//! Per-sentence orchestrator.
-//!
-//! The four operations, in ALGORITHMS.md §4's fixed order — ritual,
-//! paired substitution, derivational pivot (loop, max 2), gated span
-//! deletion — followed by a final recapitalization pass.
+//! Per-sentence orchestrator: the four operations, in fixed order —
+//! ritual, paired substitution, derivational pivot (loop, max 2), gated
+//! span deletion — followed by a final recapitalization pass.
 
 use std::collections::{BTreeMap, BTreeSet};
 use std::ops::Range;
@@ -27,23 +25,16 @@ const RULE_RECAPITALIZE: RuleId = RuleId::new("edit.recapitalize");
 /// looking past any inline markup in between.
 ///
 /// A substitution replaces matched text with a fixed lowercase form, so
-/// whether to restore a capital depends on where the match landed.
-/// Checking offset zero alone missed both positions that occur in real
-/// Markdown, each measured on a corpus document: `"* **Leverage
-/// Monitoring Tools Effectively:**"` produced `"* **use Monitoring
-/// Tools..."` because the bullet and emphasis markers pushed the match
-/// off zero, and `"**...patterns.** Utilize tools"` produced `"** use
-/// tools"` because the sentence-ending period sat behind a closing `**`.
+/// restoring a capital depends on where the match landed. Offset zero
+/// alone missed real cases: `"* **Leverage Monitoring Tools
+/// Effectively:**"` produced `"* **use Monitoring Tools..."` (markers
+/// push the match off zero), and `"**...patterns.** Utilize tools"`
+/// produced `"** use tools"` (the period sits behind a closing `**`).
 ///
-/// So the scan walks back over whitespace and inline-markup characters
-/// and asks what the first real character is. Nothing (start of line) or
-/// sentence-terminal punctuation both mean the replacement is opening
-/// something and needs its capital; a letter or digit means it is
-/// genuinely mid-sentence and must stay lowercase.
-///
-/// Deliberately not keyed on the segmenter's sentence boundaries: it does
-/// not treat a bolded list-item lead-in as a sentence, and that is
-/// precisely the position where this goes wrong.
+/// Fix: walk back over whitespace/markup to the first real character.
+/// Line start or terminal punctuation means open (needs a capital); a
+/// letter or digit means mid-sentence. Not keyed on the segmenter's
+/// boundaries, which miss a bolded list-item lead-in.
 fn opens_line_or_sentence(text: &str, start: usize) -> bool {
     let Some(prefix) = text.get(..start) else {
         return false;
@@ -59,81 +50,71 @@ fn opens_line_or_sentence(text: &str, start: usize) -> bool {
 /// The result of running the four-operation pipeline over one sentence.
 #[derive(Debug, Default)]
 pub struct SentenceOutcome {
-    /// Accepted edits, as byte-honest patches against the document's
-    /// original source.
+    /// Accepted edits, as byte-honest patches against the original
+    /// source.
     pub patches: Vec<Patch>,
     /// Gate-held candidates, Suggest-tier diagnostics only.
     pub held: Vec<Finding>,
-    /// `true` if this sentence was deleted whole by the ritual operation
-    /// (in which case none of the other three operations ran).
+    /// `true` if ritual deletion removed this sentence whole (skipping
+    /// the other three operations).
     pub whole_sentence_deleted: bool,
 }
 
 /// A sentence's position within its prose unit.
 ///
-/// Its own byte range, plus enough of its neighbors' ranges to compute a
-/// whole-sentence ritual deletion's adjacent-separator consumption and
-/// discourse-binding check. Bundled into one type so [`edit_sentence`]
-/// takes a reasonable number of parameters.
+/// Its own byte range, plus enough of its neighbours' ranges for a
+/// whole-sentence ritual deletion's separator consumption and
+/// discourse-binding check. Bundled to keep [`edit_sentence`]'s
+/// parameter count reasonable.
 #[derive(Debug, Clone)]
 pub struct SentencePosition {
     /// This sentence's own byte range into `source`.
     pub range: Range<usize>,
-    /// The previous sentence's own end offset within the same prose unit,
+    /// The previous sentence's end offset within the same prose unit,
     /// if any.
     pub prev_end: Option<usize>,
-    /// The next sentence's own range within the same prose unit, if any.
+    /// The next sentence's own range within the same prose unit, if
+    /// any.
     pub next_range: Option<Range<usize>>,
-    /// `false` if this sentence is not actually a fresh sentence but the
-    /// leading fragment of a prose unit that was split off its
-    /// predecessor purely by an intervening excluded construct (inline
-    /// code, a link/image boundary, raw HTML, a footnote reference, a
-    /// task-list marker, or a non-adjacent structural gap like a
-    /// block-quote continuation marker) with no sentence-terminal
-    /// punctuation between them — i.e. the segmenter had no way to see
-    /// that this "sentence" is really still mid-sentence. Recapitalizing
-    /// such a fragment's first letter would rewrite real prose the same
-    /// way capitalizing a genuine sentence-initial word does not. Always
-    /// `true` for a sentence that isn't first in its prose unit — only a
-    /// unit's own first sentence can be a continuation.
+    /// `false` if this sentence is really the leading fragment of a
+    /// prose unit split off its predecessor by an excluded construct
+    /// (inline code, a link/image, raw HTML, a footnote reference, a
+    /// task-list marker, or a block-quote continuation) with no
+    /// sentence-terminal punctuation between them — the segmenter can't
+    /// tell it's still mid-sentence, and capitalizing it would rewrite
+    /// real prose. Always `true` past a unit's first sentence.
     pub is_sentence_start: bool,
-    /// `true` if this sentence is the entire prose content of an item in
-    /// an ordered (numbered) list — deleting it whole would leave a bare
-    /// item marker and break the counted enumeration, so a whole-sentence
-    /// ritual deletion is held instead.
+    /// `true` if this sentence is an ordered list item's entire prose
+    /// content — deleting it whole would break the item's enumeration,
+    /// so ritual deletion is held instead.
     pub sole_content_of_ordered_list_item: bool,
 }
 
-/// The packs and tools every stage of [`edit_sentence`] shares — bundled
-/// so the function's own parameter count stays reasonable.
+/// The packs and tools every stage of [`edit_sentence`] shares —
+/// bundled to keep its parameter count reasonable.
 pub struct EditContext<'a> {
     pub inventory: &'a InventoryPack,
     pub attestation: &'a AttestationPack,
     pub tagger: &'a dyn Tagger,
     /// Document-local casing evidence for this pass's untouched source
-    /// text — see [`DocumentCasing`].
+    /// text (see [`DocumentCasing`]).
     pub casing: &'a DocumentCasing,
 }
 
 /// Document-local evidence that a word's lowercase spelling is the
-/// author's deliberate choice rather than a missing capital.
+/// author's deliberate choice, not a missing capital — collected from
+/// every in-scope sentence's untouched text before any edit.
 ///
-/// Collected from every in-scope prose sentence of the current pass's
-/// untouched text, before any sentence is edited.
-///
-/// The recapitalization guard consults it for a sentence whose *own
-/// original* lowercase opener survived that sentence's edits: seeing the
-/// same word lowercase mid-sentence elsewhere, or opening more than one
-/// sentence in lowercase, marks the casing as deliberate (a product name
-/// like `mimalloc`), so the opener is held rather than capitalized. An
-/// opener a leading deletion newly exposed never consults this — every
-/// ordinary word occurs lowercase mid-sentence somewhere, and such an
-/// opener carries no authorial sentence-start casing intent at all.
+/// The recapitalization guard consults it for a sentence whose own
+/// original lowercase opener survived editing: recurring lowercase
+/// mid-sentence, or opening ≥2 sentences lowercase, marks it deliberate
+/// (e.g. `mimalloc`) and holds the opener. A deletion-exposed opener
+/// skips this check — every ordinary word occurs lowercase somewhere,
+/// so it carries no authorial intent.
 #[derive(Debug, Default)]
 pub struct DocumentCasing {
-    /// Words seen with a lowercase first letter anywhere other than at a
-    /// genuine sentence start (including every word of a mid-sentence
-    /// continuation fragment).
+    /// Words seen with a lowercase first letter anywhere but a genuine
+    /// sentence start (including a continuation fragment's every word).
     mid_sentence_lowercase: BTreeSet<Box<str>>,
     /// How many genuine sentence starts each lowercase-initial word
     /// opens.
@@ -141,10 +122,10 @@ pub struct DocumentCasing {
 }
 
 impl DocumentCasing {
-    /// Records one sentence's word tokens. `is_sentence_start` is the
-    /// same flag [`SentencePosition`] carries: `false` marks a
-    /// continuation fragment, whose every word — the first included — is
-    /// really mid-sentence text.
+    /// Records one sentence's word tokens. `is_sentence_start` mirrors
+    /// [`SentencePosition`]'s flag: `false` marks a continuation
+    /// fragment whose every word, including the first, is really
+    /// mid-sentence.
     pub fn record_sentence(&mut self, text: &str, is_sentence_start: bool) {
         let mut at_sentence_start = is_sentence_start;
         for token in tokenize_str(text, 0) {
@@ -166,9 +147,9 @@ impl DocumentCasing {
     }
 
     /// `true` if the document treats `word`'s lowercase spelling as
-    /// deliberate: it also occurs lowercase mid-sentence, opens at least
-    /// one *other* sentence in lowercase, or is shaped like an identifier
-    /// (contains a digit, `_`, or `-`).
+    /// deliberate: it recurs lowercase mid-sentence, opens ≥1 *other*
+    /// sentence lowercase, or looks like an identifier (digit, `_`,
+    /// `-`).
     fn deliberately_lowercase(&self, word: &str) -> bool {
         word.chars()
             .any(|c| c.is_ascii_digit() || c == '_' || c == '-')
@@ -180,12 +161,10 @@ impl DocumentCasing {
     }
 }
 
-/// Per-sentence state computed once from the untouched original text and
-/// threaded through every stage: the clause-completeness baseline every
-/// gate's "enforced only when the original had one" clause checks
-/// against, and the original's own finite-verb surface words (the
-/// paired-substitution clause gate's tagger-weakness fallback; see
-/// [`gates::original_finite_verb_words`]'s own docs).
+/// Per-sentence state from the untouched original text: the
+/// clause-completeness baseline gates check against, and finite-verb
+/// words (paired-substitution's tagger-weakness fallback; see
+/// [`gates::original_finite_verb_words`]).
 struct OriginalState {
     clause_ok: bool,
     verb_words: BTreeSet<Box<str>>,
@@ -220,12 +199,8 @@ pub fn edit_sentence(
     run_substitution(&mut splicer, &mut held, &sentence_range, ctx, &original);
     run_pivot(&mut splicer, &mut held, &sentence_range, ctx, pivot_budget);
     run_deletion(&mut splicer, &mut held, &sentence_range, ctx, &original);
-    // Only a genuine sentence start should ever have its leading letter
-    // capitalized — a fragment that merely follows an excluded construct
-    // (inline code, a link, ...) with no sentence-terminal punctuation
-    // before it is not a sentence start, and recapitalizing it would
-    // rewrite real prose (see `SentencePosition::is_sentence_start`'s own
-    // docs).
+    // Only a genuine sentence start gets its leading letter capitalized
+    // — see `SentencePosition::is_sentence_start`.
     if position.is_sentence_start {
         recapitalize(&mut splicer, ctx.casing);
     }
@@ -237,24 +212,20 @@ pub fn edit_sentence(
     }
 }
 
-/// Operation 1 (ritual deletion). Returns `Some` (a whole-sentence
-/// deletion) if a ritual frame matched and no hold applies, `None` if the
-/// sentence should proceed to the other three operations (pushing a
-/// Suggest-tier hold onto `held` when a frame matched but could not be
-/// acted on).
+/// Operation 1 (ritual deletion). Returns `Some` (whole-sentence
+/// deletion) if a ritual frame matched with no hold, `None` otherwise —
+/// pushing a Suggest-tier hold when a frame matched but couldn't be
+/// acted on.
 ///
-/// Unconditional on an actionable match, mirroring `fix_sentence`'s own
-/// ritual step exactly: `for pat in RITUAL: if pat.search(s): return "",
-/// [...]` — no discourse-binding check on the following sentence. (A
-/// block-level ritual — a whole preview paragraph, gated on its content
-/// being covered by adjacent structure — is a distinct case this function
-/// does not implement at all; it is not a broader license to hold an
-/// ordinary sentence-level ritual match.) Two holds do apply:
-/// - a frame matching only inside a double-quoted span is a mention of a
-///   ritual phrase, not a use of one ([`gates::in_quoted_span`]);
-/// - a sentence that is the entire content of a numbered list item is
-///   never deleted whole — that would leave a bare item marker and break
-///   the counted enumeration.
+/// Unconditional on an actionable match, mirroring `fix_sentence`'s
+/// ritual step: no discourse-binding check on the following sentence. (A
+/// block-level ritual — a whole preview paragraph gated on
+/// adjacent-structure coverage — is separate and unimplemented here, not
+/// license to hold an ordinary sentence-level match.) Two holds apply:
+/// - a frame matching only inside a double-quoted span is a mention, not
+///   a use, of a ritual phrase ([`gates::in_quoted_span`]);
+/// - a sentence that is a numbered list item's entire content is never
+///   deleted whole — that would leave a bare item marker.
 fn try_ritual_deletion(
     source: &str,
     position: &SentencePosition,
@@ -317,8 +288,8 @@ fn try_ritual_deletion(
     })
 }
 
-/// Operation 3 (paired substitution): applies every pack pattern that
-/// matches the current working text, in pack order, gating each on
+/// Operation 3 (paired substitution): applies every matching pack
+/// pattern, in pack order, gated by
 /// [`gates::substitution_clause_gate`].
 fn run_substitution(
     splicer: &mut SentenceSplicer<'_>,
@@ -385,9 +356,9 @@ fn run_substitution(
     }
 }
 
-/// Operation 4 (derivational pivot, loop, max 2): scans the current
-/// working text left to right for a licensed light-verb construction,
-/// applying at most 2 across this sentence, gated by `pivot_budget`.
+/// Operation 4 (derivational pivot, loop, max 2): scans left to right
+/// for a licensed light-verb construction, applying up to 2, gated by
+/// `pivot_budget`.
 fn run_pivot(
     splicer: &mut SentenceSplicer<'_>,
     held: &mut Vec<Finding>,
@@ -453,8 +424,8 @@ fn run_pivot(
     }
 }
 
-/// Operation 2 (gated span deletion): tries every deletion-span pattern,
-/// in pack order, against the current (post substitution/pivot) working
+/// Operation 2 (gated span deletion): tries every deletion-span
+/// pattern, in pack order, against the post substitution/pivot working
 /// text.
 fn run_deletion(
     splicer: &mut SentenceSplicer<'_>,
@@ -502,21 +473,16 @@ fn run_deletion(
     }
 }
 
-/// Final step: if a deletion exposed a lowercase-initial opener, splice a
-/// one-char uppercase substitution at that position.
+/// Final step: if a deletion exposed a lowercase-initial opener, splice a one-char uppercase substitution there.
 ///
-/// Three guards keep this from rewriting prose the engine has no business
-/// touching:
-/// - a sentence with no accepted edits is left exactly as written — a
+/// Three guards against rewriting prose the engine shouldn't touch:
+/// - no accepted edits leaves the sentence as written — a
 ///   recapitalization-only patch would "fix" the author's own casing;
-/// - replacement text at position 0 is never touched (the substitution
-///   stage already capitalizes its own replacements when needed);
-/// - a lowercase opener the author wrote at sentence start (the
-///   sentence's original first word, untouched by this sentence's own
-///   edits) is held when the document's own casing evidence marks it
-///   deliberate — see [`DocumentCasing`]. An opener newly exposed by a
-///   leading deletion carries no such intent and is capitalized
-///   unconditionally.
+/// - position 0 is never touched (substitution already capitalizes its
+///   own replacements when needed);
+/// - a lowercase opener the author wrote at sentence start is held when
+///   [`DocumentCasing`] marks it deliberate; one a leading deletion
+///   newly exposed carries no such intent and is always capitalized.
 fn recapitalize(splicer: &mut SentenceSplicer<'_>, casing: &DocumentCasing) {
     if !splicer.edited() {
         return;

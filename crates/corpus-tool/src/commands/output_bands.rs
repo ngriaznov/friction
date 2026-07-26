@@ -20,7 +20,7 @@ use clap::Args as ClapArgs;
 use crate::corpus_layout::relpath;
 use crate::manifest::{self, Class, ManifestRecord, Split};
 
-/// The 9 literal replacement strings this milestone's substitution pairs
+/// The 9 literal replacement strings the substitution pairs
 /// introduce (`use`/`uses` are two separate entries — see
 /// `inventory-v1.toml`'s own header comment for the 8 named replacement
 /// pairs this covers).
@@ -50,7 +50,7 @@ pub struct Args {
     /// Path to write the markdown report to.
     #[arg(long, default_value = "corpus/OUTPUT_BANDS.md")]
     pub report: PathBuf,
-    /// Which frames to measure. Defaults to the 9 milestone-named frames
+    /// Which frames to measure. Defaults to all 9 named frames
     /// when empty.
     #[arg(long = "frame")]
     pub frames: Vec<String>,
