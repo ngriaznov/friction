@@ -5,6 +5,21 @@ documentation — the ritual closers, filler spans, hedge phrases, and light-ver
 constructions that make text read as machine-written — without touching the
 information.
 
+**English technical documentation only.** Both constraints are real, not
+aspirational, and neither is checked at runtime:
+
+- **English.** Every shipped artifact is English-trained — the tagger, the
+  dependency parser, the sentence segmenter, and every phrase in the tell
+  inventory. There is no language detection and no other language pack. On
+  non-English prose friction is inert rather than wrong (measured: zero edits on
+  German, Spanish, Dutch, Italian and Portuguese), but it will repair English
+  sentences embedded in another language. See the limits below.
+- **Technical documentation.** Reference docs, READMEs, design notes,
+  postmortems, migration guides. The inventory was mined from that kind of
+  writing, and the register pass is calibrated against it specifically. It is
+  not a general-purpose editor and not for prose whose voice is the point —
+  fiction, marketing, personal writing.
+
 friction never invents content. Every content word it emits is already present in
 the input or derived from one through a static table ("performs validation of" →
 "validates"). It may introduce function words, but only from a fixed set declared
@@ -395,7 +410,33 @@ unindexed family will largely pass the statistical channel untouched (the
 literal inventory still applies). Growing coverage means growing the data — see
 below — not cleverer search.
 
-Two limits worth knowing before you rely on it.
+Three limits worth knowing before you rely on it.
+
+**It is English-only, and there is no language detection.** The tagger, the
+dependency parser, the segmentation rules and every phrase in the inventory are
+English; given another language, friction tags it as English anyway.
+
+What that means in practice, measured rather than assumed. On German, Spanish,
+Dutch, Italian and Portuguese paragraphs it is **completely inert** — zero
+patches, output byte-identical. The tells it looks for are English phrases and
+English dependency structures, and neither is there to find, so nothing fires.
+That is the safe failure, and it is the one you get.
+
+It does, however, edit **English sentences embedded in another language**:
+
+```bash
+$ echo 'Ce document décrit le setup. It is important to note that we utilize the cache.' \
+    | friction fix - 2>/dev/null
+Ce document décrit le setup. The cache is used.
+```
+
+The French is untouched and the English sentence is repaired correctly. Whether
+that is what you want in a mixed-language document is your call — friction has
+no way to ask.
+
+Supporting another language is not a code change: it needs its own tagger,
+parser, segmentation rules and mined inventory. The engine is language-agnostic;
+all of the knowledge is in the data.
 
 Register rephrasing is scoped to **technical documentation**, and that scope is
 narrower than it sounds. The band was measured on reference documentation.
