@@ -61,11 +61,11 @@ pub(crate) fn prose_word_count(
     Ok(count)
 }
 
-/// Runs the four-operation pipeline over every prose sentence in
+/// Runs the five-operation pipeline over every prose sentence in
 /// `source`, bounded to [`MAX_PASSES`] passes, then runs the register
 /// pass ([`crate::register::run_register`]) once over the converged text.
 ///
-/// Register runs only after convergence: the four operations are
+/// Register runs only after convergence: the five operations are
 /// subtractive and shift the prose word count that every per-1000-word
 /// register rate depends on, so homing against a still-moving
 /// denominator would chase a moving target. Running last homes the

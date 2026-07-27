@@ -1,7 +1,7 @@
 //! `friction` command-line interface.
 //!
 //! Provides `friction check` (detect-only: metrics, envelope bands, and
-//! fix-time detection spans), `friction fix` (runs the four-operation
+//! fix-time detection spans), `friction fix` (runs the five-operation
 //! repair engine and writes the fixed text out), and `friction explain`
 //! (runs the same repair engine but reports what fired and what was held,
 //! per pass, instead of the fixed text).
@@ -32,7 +32,7 @@ struct Cli {
 enum Command {
     /// Parses, measures, and runs fix-time detection, applying no fixes.
     Check(check::CheckArgs),
-    /// Runs the four-operation repair engine and writes the fixed text
+    /// Runs the five-operation repair engine and writes the fixed text
     /// out.
     Fix(fix::FixArgs),
     /// Runs the repair engine and reports what fired and what was held,

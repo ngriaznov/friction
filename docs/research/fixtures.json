@@ -35,6 +35,13 @@
       "input": "Run the scanner from the project root. Results stream in as they are found, and nothing is deleted without confirmation.",
       "output": "Run the scanner from the project root. Results stream in as they are found, and nothing is deleted without confirmation.",
       "notes": "byte-identical passthrough required"
+    },
+    {
+      "id": "frame_dejust_provenance_question",
+      "input": "A few architecture questions: is provenance just frontmatter metadata, or does every derived graph edge, rewrite, and supersession retain immutable lineage back to the exact source chunks and authoring client?",
+      "output": "A few architecture questions: is provenance frontmatter metadata, or does every derived graph edge, rewrite, and supersession retain immutable lineage back to the exact source chunks and authoring client?",
+      "notes": "frame.dejust; marker sits strictly between the auxiliary and the coordinating 'or', so 'just ' is deleted and the disjunctive question survives",
+      "provenance": "docs/research/SYNTHESIS.md §1"
     }
   ],
 
@@ -109,6 +116,12 @@
       "input": "This bloat matters because most DAWs scan all these plugins on startup, leading to slower load times.",
       "bad_output": "The web bloat h a daws that we scan and all plugins and use startup time leading our much slower or load of times.",
       "gate": "open synthesis banned entirely"
+    },
+    {
+      "id": "dejust_guard_just_as",
+      "input": "Is it just as fast, or slower?",
+      "bad_output": "Is it as fast, or slower?",
+      "gate": "marker guard token ('just as' is the comparison sense, not the dismissive particle; frame.dejust must decline it)"
     }
   ],
 

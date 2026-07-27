@@ -249,3 +249,27 @@ fn reject_fixture_word_salad_synthesis() {
     // closure catches it immediately.
     assert_bad_outputs_flagged(fixture, &[is_closure_violated]);
 }
+
+/// `dejust_guard_just_as` is not in [`gate_for_fixture_id`]'s table — none
+/// of that table's [`Gate`] variants describe a marker guard, and this
+/// fixture's bad output ("Is it as fast, or slower?") is not caught by
+/// closure OR score either: deleting a word never violates closure, and
+/// this crate's generic tell-span counter has no signal for the
+/// contrast-frame channel at all (see the accept-fixture sibling's own
+/// comment on `frame_dejust_provenance_question`). That is exactly why
+/// this fixture exists — "just as fast" is the comparison sense, not the
+/// dismissive particle, and only a real semantic guard inside
+/// `friction-edit`'s own `frame.dejust` gate can tell the two apart. The
+/// real engine's behavior (no edit at all) is pinned directly in
+/// `tests/engine_fixtures.rs`; this test only pins the fixture's own
+/// documented shape.
+#[test]
+fn reject_fixture_dejust_guard_just_as() {
+    let fixture = find_reject("dejust_guard_just_as");
+    assert_eq!(fixture.bad_outputs(), vec!["Is it as fast, or slower?"]);
+    assert!(
+        fixture.gate.contains("marker guard"),
+        "fixture gate description: {}",
+        fixture.gate
+    );
+}

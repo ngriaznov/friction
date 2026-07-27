@@ -9,7 +9,7 @@
 //! input/output pair makes a strict tell-span decrease and a strictly
 //! better score arithmetically impossible; see that test's own comment.
 
-use friction_harness::closure::ClosureVerdict;
+use friction_harness::closure::{ClosureVerdict, check_closure};
 use friction_harness::fixtures::{AcceptFixture, FIXTURES};
 use friction_harness::score::{Verdict, shared_scorer};
 use friction_harness::verify::check_accept_pair;
@@ -108,4 +108,29 @@ fn accept_fixture_near_noop_clean_text_is_zero_tell_identity() {
         Verdict::Tied,
         "identical text must score identically to itself"
     );
+}
+
+/// `frame_dejust_provenance_question` exercises the new frame-gated
+/// `just`-deletion operation (`frame.dejust`), which this crate's generic
+/// `count_tell_spans`/`score` machinery has no signal for: `tellspan`'s
+/// own module docs name its four families (ritual/substitution/deletion/
+/// pivot), sourced from `friction_packs::INVENTORY` and
+/// `crate::pivot::match_pivot` — the new contrast-frame template channel
+/// (`friction_match::frame`) lives entirely in `friction-match`, not in
+/// that inventory, so this fixture's own tell count would read 0 on both
+/// sides and the standard [`assert_accept_pair_improves`] check would be
+/// vacuous (mirroring `near_noop_clean_text`'s own bespoke test above,
+/// for the same reason: the generic checks don't fit every fixture).
+/// Closure is still the right general invariant to check here — a marker
+/// deletion introduces no new token either way — and the real engine's
+/// own byte-exact output is asserted directly in
+/// `tests/engine_fixtures.rs`, this workspace's dedicated real-engine
+/// layer.
+#[test]
+fn accept_fixture_frame_dejust_provenance_question() {
+    let fixture = find_accept("frame_dejust_provenance_question");
+    let input = fixture.input.as_deref().expect("fixture has an input");
+    let output = fixture.output.as_deref().expect("fixture has an output");
+    let closure = check_closure(input, output, shared_scorer().tagger());
+    assert_eq!(closure, ClosureVerdict::Holds, "closure must hold");
 }

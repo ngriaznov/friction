@@ -23,9 +23,9 @@ clap = { workspace = true }
 # `serde` feature: this crate's `--format json` output serializes
 # `MetricVector` (see src/check.rs) directly.
 friction-core = { path = "../friction-core", features = ["serde"] }
-# The four-operation repair engine `fix`/`explain` run.
+# The five-operation repair engine `fix`/`explain` run.
 friction-edit = { path = "../friction-edit" }
-# Fix-time detection (DMS/literal/LVC spans) `check` reports.
+# Fix-time detection (DMS/literal/LVC/frame spans) `check` reports.
 friction-match = { path = "../friction-match" }
 friction-metrics = { path = "../friction-metrics" }
 friction-nlp = { path = "../friction-nlp" }

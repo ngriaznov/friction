@@ -29,6 +29,9 @@ pub enum Channel {
     Literal,
     /// Licensed light-verb constructions.
     Lvc,
+    /// A deterministic contrast-frame template match ([`crate::frame`]):
+    /// `"frame.contrast.question"` or `"frame.contrast.correction"`.
+    Frame,
 }
 
 /// A [`MatchSpan`]'s score.

@@ -1,6 +1,8 @@
-//! Per-sentence orchestrator: the four operations, in fixed order —
-//! ritual, paired substitution, derivational pivot (loop, max 2), gated
-//! span deletion — followed by a final recapitalization pass.
+//! Per-sentence orchestrator for the five operations.
+//!
+//! Fixed order: ritual, paired substitution, derivational pivot (loop,
+//! max 2), gated span deletion, frame-gated `just`-deletion — followed
+//! by a final recapitalization pass.
 
 use std::collections::{BTreeMap, BTreeSet};
 use std::ops::Range;
@@ -19,7 +21,15 @@ const RULE_RITUAL: RuleId = RuleId::new("ritual.delete");
 const RULE_SUB: RuleId = RuleId::new("sub.apply");
 const RULE_PIVOT: RuleId = RuleId::new("pivot.lvc");
 const RULE_SPAN: RuleId = RuleId::new("span.delete");
+const RULE_FRAME_DEJUST: RuleId = RuleId::new("frame.dejust");
 const RULE_RECAPITALIZE: RuleId = RuleId::new("edit.recapitalize");
+
+/// Marker words [`run_frame_dejust`] may delete — a strict subset of
+/// [`friction_match::frame::DISMISSIVE_MARKERS`]: `"only"` often carries
+/// real quantity meaning ("is it only one replica, or…") and is
+/// deliberately excluded here even though the detection channel treats it
+/// as a valid frame marker.
+const DEJUST_MARKERS: [&str; 3] = ["just", "merely", "simply"];
 
 /// `true` if a replacement at `start` would open a line or a sentence,
 /// looking past any inline markup in between.
@@ -47,7 +57,7 @@ fn opens_line_or_sentence(text: &str, start: usize) -> bool {
         .is_none_or(|c| matches!(c, '.' | '!' | '?' | ':' | ';'))
 }
 
-/// The result of running the four-operation pipeline over one sentence.
+/// The result of running the five-operation pipeline over one sentence.
 #[derive(Debug, Default)]
 pub struct SentenceOutcome {
     /// Accepted edits, as byte-honest patches against the original
@@ -170,7 +180,7 @@ struct OriginalState {
     verb_words: BTreeSet<Box<str>>,
 }
 
-/// Runs the four-operation pipeline over one sentence.
+/// Runs the five-operation pipeline over one sentence.
 #[must_use]
 pub fn edit_sentence(
     source: &str,
@@ -199,6 +209,7 @@ pub fn edit_sentence(
     run_substitution(&mut splicer, &mut held, &sentence_range, ctx, &original);
     run_pivot(&mut splicer, &mut held, &sentence_range, ctx, pivot_budget);
     run_deletion(&mut splicer, &mut held, &sentence_range, ctx, &original);
+    run_frame_dejust(&mut splicer, &mut held, &sentence_range, pivot_budget);
     // Only a genuine sentence start gets its leading letter capitalized
     // — see `SentencePosition::is_sentence_start`.
     if position.is_sentence_start {
@@ -470,6 +481,79 @@ fn run_deletion(
                 ));
             }
         }
+    }
+}
+
+/// Operation 5 (frame-gated `just`-deletion): inside a detected
+/// `frame.contrast.question` span, deletes the licensing marker plus one
+/// adjacent space when it is `just`/`merely`/`simply` — never `only` (see
+/// [`DEJUST_MARKERS`]). Defangs the rhetorical dismissive framing while
+/// preserving the genuine disjunctive question (SYNTHESIS.md §1).
+///
+/// Detection is [`friction_match::frame::find_contrast_question`], the
+/// same function [`friction_match::Channel::Frame`] spans are built from
+/// — this operation never re-implements the template. Runs on the working
+/// text (post substitution/pivot/deletion), so a match is only found here
+/// if the marker survived every earlier operation; after the marker is
+/// deleted, the template has no marker left to match, so a later pass
+/// over this same sentence never re-fires (idempotent by construction,
+/// not by a separate check).
+///
+/// Shares [`PivotBudget`] with operation 4 — the one near-no-op budget
+/// this pipeline has — rather than a second, uncalibrated counter of its
+/// own.
+fn run_frame_dejust(
+    splicer: &mut SentenceSplicer<'_>,
+    held: &mut Vec<Finding>,
+    sentence_range: &Range<usize>,
+    pivot_budget: &mut PivotBudget,
+) {
+    let working = splicer.working_text();
+    let tokens = tokenize_str(&working, 0);
+    let Some(question) = friction_match::frame::find_contrast_question(&tokens) else {
+        return;
+    };
+    if !DEJUST_MARKERS.contains(&question.marker.as_ref()) {
+        return;
+    }
+    if gates::in_quoted_span(&working, &question.marker_range) {
+        held.push(Finding::new(
+            RULE_FRAME_DEJUST,
+            sentence_range.clone(),
+            "frame.dejust held: matched inside quotation",
+            Tier::Suggest,
+        ));
+        return;
+    }
+    if !pivot_budget.try_take() {
+        held.push(Finding::new(
+            RULE_FRAME_DEJUST,
+            sentence_range.clone(),
+            "frame.dejust held: near-no-op budget exhausted",
+            Tier::Suggest,
+        ));
+        return;
+    }
+
+    let delete_range = extend_over_one_adjacent_space(&working, question.marker_range);
+    splicer.apply(delete_range, "", RULE_FRAME_DEJUST, Tier::Fix);
+}
+
+/// Widens `range` by exactly one adjacent whitespace byte: the trailing
+/// space if there is one, else the leading space — the marker always sits
+/// strictly between two words in a licensed [`friction_match::frame::ContrastQuestion`]
+/// match (between the auxiliary and the coordinating `or`), so exactly
+/// one side has a space to consume. Mirrors the literal channel's own
+/// `\bsimply\s+` trailing-whitespace convention (`friction_match::literal`),
+/// generalized to also cover the marker's non-final position inside the
+/// clause.
+fn extend_over_one_adjacent_space(text: &str, range: Range<usize>) -> Range<usize> {
+    if text[range.end..].starts_with(' ') {
+        range.start..(range.end + 1)
+    } else if text[..range.start].ends_with(' ') {
+        (range.start - 1)..range.end
+    } else {
+        range
     }
 }
 

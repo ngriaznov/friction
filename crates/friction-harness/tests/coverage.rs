@@ -17,6 +17,7 @@ const EXPECTED_ACCEPT_IDS: &[&str] = &[
     "pivot_constructed_cases",
     "pivot_real_corpus",
     "near_noop_clean_text",
+    "frame_dejust_provenance_question",
 ];
 
 const EXPECTED_REJECT_IDS: &[&str] = &[
@@ -32,6 +33,7 @@ const EXPECTED_REJECT_IDS: &[&str] = &[
     "bridge_content_insertion",
     "bridge_inert_insertion",
     "word_salad_synthesis",
+    "dejust_guard_just_as",
 ];
 
 const EXPECTED_RANK_IDS: &[&str] = &["chatspeak_vs_human", "dumb_human_vs_conservative"];

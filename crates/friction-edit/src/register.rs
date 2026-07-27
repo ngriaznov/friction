@@ -1,6 +1,6 @@
 //! The register pass.
 //!
-//! After the four-operation passes converge, home four register features — nominalization,
+//! After the five-operation passes converge, home four register features — nominalization,
 //! agentless passive, em dash, semicolon — toward their human rate band by selecting and
 //! applying [`friction_register::transduce`] candidates. The first two are Biber constructions;
 //! the last two aren't Biber's, but the same band-and-transducer machinery applies to them
@@ -225,7 +225,7 @@ pub fn measure_semicolon_rate(
 
 /// Runs the register pass once over `source`.
 ///
-/// `source` is expected to already be the four-operation pipeline's converged output; register
+/// `source` is expected to already be the five-operation pipeline's converged output; register
 /// never interleaves with those passes.
 ///
 /// # Errors

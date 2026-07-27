@@ -1,8 +1,8 @@
-//! Fix-time detection: three independent channels (differential matching
-//! statistics, a literal tell inventory, and licensed light-verb
-//! constructions) over a document's prose, reporting byte-honest
-//! [`MatchSpan`]s. This crate never rewrites text — see [`MatchEngine`]'s
-//! own docs.
+//! Fix-time detection: four independent channels (differential matching
+//! statistics, a literal tell inventory, licensed light-verb
+//! constructions, and deterministic contrast-frame templates) over a
+//! document's prose, reporting byte-honest [`MatchSpan`]s. This crate
+//! never rewrites text — see [`MatchEngine`]'s own docs.
 //!
 //! # Span honesty by construction, not by translation
 //!
@@ -56,6 +56,7 @@
 
 mod dms;
 mod error;
+pub mod frame;
 mod literal;
 mod lvc;
 pub mod span;
@@ -116,7 +117,7 @@ impl<'a> MatchEngine<'a> {
         })
     }
 
-    /// Scans `document`, running all three channels over the same
+    /// Scans `document`, running all four channels over the same
     /// prose-only, in-scope unit set ([`token::prose_scope`]), and
     /// merges their spans deterministically ([`span::merge_spans`]).
     ///
@@ -144,11 +145,14 @@ impl<'a> MatchEngine<'a> {
         let lexicon = self.inventory.lvc_lexicon();
         let lvc_spans = lvc::scan_units(&units, document.source(), self.tagger, lexicon);
 
+        let frame_spans = frame::scan_units(&units);
+
         let spans = span::merge_spans(vec![
             dms_spans,
             literal_ac_spans,
             literal_fallback_spans,
             lvc_spans,
+            frame_spans,
         ]);
 
         Ok(DocumentReport {

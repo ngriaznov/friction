@@ -41,6 +41,11 @@ const fn channel_description(channel: Channel) -> &'static str {
              of\") that the pack allows deriving back to its underlying \
              verb (e.g. \"validates\")."
         }
+        Channel::Frame => {
+            "A deterministic contrast-frame template: a dismissive-foil \
+             interrogative (\"is X just A, or B?\") or a declarative \
+             epanorthosis (\"not just X — it's Y\")."
+        }
     }
 }
 

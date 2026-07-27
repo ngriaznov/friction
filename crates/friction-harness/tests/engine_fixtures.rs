@@ -241,6 +241,15 @@ fn accept_pivot_real_corpus() {
     assert_engine_exact("pivot_real_corpus");
 }
 
+/// `frame.dejust`'s canonical case, byte-exact: the marker plus its
+/// trailing space is gone, the rest of the sentence (including the
+/// colon-introduced lead-in and the disjunctive question) survives
+/// unchanged.
+#[test]
+fn accept_frame_dejust_provenance_question() {
+    assert_engine_exact("frame_dejust_provenance_question");
+}
+
 #[test]
 fn accept_near_noop_clean_text_is_byte_identical() {
     let (input, expected) = accept("near_noop_clean_text");
@@ -369,4 +378,14 @@ fn reject_bridge_inert_insertion_good_output() {
 #[test]
 fn reject_word_salad_synthesis() {
     assert_engine_identity("word_salad_synthesis");
+}
+
+/// The real, load-bearing assertion behind `dejust_guard_just_as`: "just
+/// as fast" is the comparison sense, guarded out of
+/// `find_contrast_question`'s marker search, so `frame.dejust` never
+/// fires and the whole document — not just the marker — comes back
+/// untouched.
+#[test]
+fn reject_dejust_guard_just_as() {
+    assert_engine_identity("dejust_guard_just_as");
 }

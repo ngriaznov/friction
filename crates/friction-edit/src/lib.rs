@@ -1,8 +1,8 @@
-//! The friction v4 repair engine: four operations (ritual deletion, paired
-//! substitution, derivational pivot, gated span deletion) applied per
-//! sentence, in fixed order, gated by the curated inventory pack and the
-//! corpus-attested seam-bigram/skeleton tables — never by a metric or
-//! genre envelope.
+//! The friction v4 repair engine: five operations (ritual deletion, paired
+//! substitution, derivational pivot, gated span deletion, frame-gated
+//! `just`-deletion) applied per sentence, in fixed order, gated by the
+//! curated inventory pack and the corpus-attested seam-bigram/skeleton
+//! tables — never by a metric or genre envelope.
 //!
 //! [`Engine`] is the top-level entry point: loads the embedded tagger,
 //! segmenter, inventory pack, and attestation pack once; `fix_document`

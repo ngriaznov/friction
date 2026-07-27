@@ -30,7 +30,7 @@ byte-deterministic.
 
 ## What it does
 
-Five operations edit text. Nothing else does.
+Six operations edit text. Nothing else does.
 
 1. **Ritual deletion** — sentences matching ritual frames are removed whole:
    *"If you have any questions or require further assistance, please reach out
@@ -47,7 +47,16 @@ Five operations edit text. Nothing else does.
    root verb, inheriting tense and agreement: *"the agent performs validation of
    the config file"* → *"the agent validates the config file"*, *"we made the
    decision to switch"* → *"we decided to switch"*.
-5. **Register rephrasing** — the only operation that can *raise* a construction
+5. **Frame-gated `just`-deletion** — inside a detected dismissive-foil question
+   (*"is X just A, or B?"*), the marker is deleted, never the question itself:
+   *"is provenance just frontmatter metadata, or does every derived graph edge
+   retain immutable lineage?"* → *"is provenance frontmatter metadata, or does
+   every derived graph edge retain immutable lineage?"*. Fires only for
+   `just`/`merely`/`simply` — never `only`, which often carries real quantity
+   meaning — and only when the marker sits strictly between the question's
+   auxiliary and its coordinating `or`, so a genuine either-or question is
+   never touched.
+6. **Register rephrasing** — the only operation that can *raise* a construction
    rather than remove one. Language models under-produce the agentless passive
    relative to human technical writing, consistently and across every model
    measured, and no amount of deleting fixes an under-use. So a clause with a
@@ -95,11 +104,16 @@ the inspection was for. Neither is caught by a grammar check — both are
 meaning changes that read fine. The guards that refuse them are in the source
 with the sentence that motivated each one.
 
-Detection (what finds the candidates) runs four channels. Three are span-level:
-a mined literal inventory, a shallow tag-pattern scan for light-verb
-constructions, and a differential matching-statistics profile computed against
+Detection (what finds the candidates) runs five channels. Four are span-level: a
+mined literal inventory, a shallow tag-pattern scan for light-verb
+constructions, a differential matching-statistics profile computed against
 per-generator-family suffix-automaton indexes — which also powers the
-document-level report in `friction check`. The fourth is document-level: a
+document-level report in `friction check` — and a deterministic contrast-frame
+template scan: `frame.contrast.question` (the dismissive-foil interrogative
+above) and `frame.contrast.correction` (declarative epanorthosis, *"not just
+X — it's Y"*), both detect-only in `check` and, for `fix`, reported in the
+paraphrase list alongside DMS candidates whenever no gated edit applies (an
+`only`-marked question, or any correction span). The fifth is document-level: a
 count of register-marking constructions over a dependency parse, compared
 against the human band. It answers a question the others cannot, because a
 construction that is *missing* has no span to detect.
@@ -307,11 +321,13 @@ detector surfaced that no operation claimed at all.
 
 The `paraphrase:` line counts a third, unrelated thing: after fixing, `fix`
 also scans its own output with the DMS statistical channel against every
-generator family the embedded index covers, and reports how many spans it
-flagged. It never touches them — there is no licensed rewrite for a DMS tell,
-only a fixed set of literal edits, so a flagged span is left exactly as
-written for a human to paraphrase. `--suggest` lists each one on stderr:
-location, generator family, score, and the flagged snippet.
+generator family the embedded index covers, and with the contrast-frame
+template scan, and reports how many spans either flagged. It never touches
+them — there is no licensed rewrite for a DMS tell or for an `only`-marked
+question or a declarative correction frame, only a fixed set of literal
+edits, so a flagged span is left exactly as written for a human to
+paraphrase. `--suggest` lists each one on stderr: location, generator family
+(or frame id), score, and the flagged snippet.
 
 Clean text passes through byte-identical:
 
@@ -468,7 +484,7 @@ friction noticed and chose not to touch.
 
 ### Filtering to the operations you trust
 
-There is no flag to disable an individual operation. If you only want the four
+There is no flag to disable an individual operation. If you only want the five
 closed operations and not register rephrasing, read the edits from `explain
 --format json`, drop the `register.*` rules, and apply the rest yourself —
 the ranges are byte-exact against your input, so that is a mechanical splice.
@@ -560,6 +576,12 @@ detection frame, or introduces an unattested content word, fails the build):
 - `register-v1.toml` — the per-feature bands register homes toward, as the 10th
   and 90th percentiles of the per-document rate across 58 human documentation
   files. The band, not its centre, is the target.
+
+The contrast-frame templates (`frame.contrast.question`,
+`frame.contrast.correction`) are the one detection channel that is not
+pack data: both are a fixed, closed-vocabulary lexical frame (eight
+auxiliaries, four markers, a handful of connectives) compiled directly into
+`friction-match`, with no corpus-mined pattern to version.
 
 They are produced by `corpus-tool` (`mine-inventory`, `mine-paired`, `index`,
 `attest`) from the repository's document corpus — machine text from six local

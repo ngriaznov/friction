@@ -1,6 +1,6 @@
 //! `friction check`: parse + metrics + fix-time detection (DMS, literal
-//! tell inventory, licensed light-verb constructions), with no fixes
-//! applied.
+//! tell inventory, licensed light-verb constructions, contrast-frame
+//! templates), with no fixes applied.
 //!
 //! Prints a per-metric table (value, envelope band, in/out), a per-family
 //! DMS summary, and every detected span, in `--format text` (a plain
@@ -216,6 +216,7 @@ const fn channel_str(channel: Channel) -> &'static str {
         Channel::Dms => "dms",
         Channel::Literal => "literal",
         Channel::Lvc => "lvc",
+        Channel::Frame => "frame",
     }
 }
 

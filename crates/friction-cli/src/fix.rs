@@ -1,10 +1,11 @@
-//! `friction fix`: runs the four-operation repair engine and writes the
+//! `friction fix`: runs the five-operation repair engine and writes the
 //! fixed text to stdout (or back to the input file with `--in-place`).
 //!
-//! No `--genre`/`--pack`: the engine's four operations (ritual deletion,
-//! paired substitution, derivational pivot, gated span deletion) are
-//! gated by the curated inventory/attestation packs and the clause
-//! chunker only, never by a metric or genre envelope.
+//! No `--genre`/`--pack`: the engine's five operations (ritual deletion,
+//! paired substitution, derivational pivot, gated span deletion, frame-
+//! gated `just`-deletion) are gated by the curated inventory/attestation
+//! packs and the clause chunker only, never by a metric or genre
+//! envelope.
 //!
 //! A summary (passes run, patches applied per operation, how many
 //! `Suggest`-tier candidates remain held, how many DMS paraphrase spans
@@ -18,20 +19,27 @@
 //! a declared target family and reporting only one would be an arbitrary
 //! choice.
 //!
-//! # DMS surfaces paraphrase candidates, never edits
+//! # DMS and contrast frames surface paraphrase candidates, never edits
 //!
 //! After fixing, the FIXED output is scanned with the DMS channel
 //! (`friction_match::dms_spans_for_family`) against every family
-//! [`friction_packs::ModelFamily::ALL`] defines, and the per-family spans
-//! are unioned into one report (see [`union_paraphrase_spans`]). These are
-//! detection-only: the closed-operation engine above has no licensed
-//! rewrite for a DMS tell (no fixed substitution string, no attested
-//! derivation), so a flagged span is left for a human to paraphrase. DMS
-//! stays banned as an edit judge — `friction-edit`'s own crate docs say
-//! every gate is the curated inventory pack and the corpus-attested seam-
-//! bigram/skeleton tables, never a metric or genre envelope, and this
-//! module does not change that: `friction_edit::Engine` is never given the
-//! DMS pack, only `friction_match` is, purely for reporting.
+//! [`friction_packs::ModelFamily::ALL`] defines, and separately with the
+//! contrast-frame template channel (`friction_match::frame::scan_units`)
+//! — the same detector [`friction_match::Channel::Frame`] spans in
+//! `friction check` come from. Every span from both is unioned into one
+//! report (see [`union_paraphrase_spans`]). These are detection-only: the
+//! closed-operation engine above has no licensed rewrite for a DMS tell
+//! (no fixed substitution string, no attested derivation) and only ever
+//! acts on a `frame.contrast.question` span whose marker is
+//! `just`/`merely`/`simply` (`frame.dejust`) — a `frame.contrast.question`
+//! span whose marker is `only`, and every `frame.contrast.correction`
+//! span, has no licensed edit either, so both are left for a human to
+//! paraphrase alongside DMS's. DMS stays banned as an edit judge —
+//! `friction-edit`'s own crate docs say every gate is the curated
+//! inventory pack and the corpus-attested seam-bigram/skeleton tables,
+//! never a metric or genre envelope, and this module does not change
+//! that: `friction_edit::Engine` is never given the DMS pack, only
+//! `friction_match` is, purely for reporting.
 
 use std::collections::BTreeMap;
 use std::ops::Range;
@@ -292,9 +300,10 @@ fn print_suggestions(output: &str, path_label: &str, suggestions: &[Finding]) {
 
 /// Scans `output` — the FIXED text `fix` is about to print — for DMS
 /// paraphrase candidates against every family the embedded DMS pack
-/// defines, unioning the per-family spans into one report (see
-/// [`union_paraphrase_spans`]). Only prose blocks are scanned, the same
-/// scoping every detection channel already uses
+/// defines, plus contrast-frame template spans
+/// (`friction_match::frame::scan_units`), unioning everything into one
+/// report (see [`union_paraphrase_spans`]). Only prose blocks are
+/// scanned, the same scoping every detection channel already uses
 /// (`friction_match::token::prose_scope`).
 ///
 /// # Errors
@@ -314,6 +323,7 @@ fn scan_paraphrase_spans(output: &str) -> Result<Vec<ParaphraseSpan>, CliError> 
             spans.extend(family_spans);
         }
     }
+    spans.extend(friction_match::frame::scan_units(&units));
 
     Ok(union_paraphrase_spans(spans))
 }
@@ -329,19 +339,23 @@ const fn dms_score(span: &MatchSpan) -> i64 {
     }
 }
 
-/// Unions DMS spans flagged across every generator family down to one
-/// entry per flagged byte region: fix's paraphrase report is per region,
-/// not per family, so two families flagging overlapping words report
+/// Unions DMS spans flagged across every generator family, plus the
+/// contrast-frame template spans, down to one entry per flagged byte
+/// region: fix's paraphrase report is per region, not per source, so a
+/// DMS family and a frame template flagging overlapping words report
 /// once. Sorts by `(start, end, frame_id)` first — mirroring
 /// `friction_match::span::merge_spans`'s own tie-break discipline — then
 /// folds each span into the running region whenever its start falls at or
 /// before that region's end (overlapping or exactly adjacent), keeping
-/// whichever family scored higher. An exact tie keeps the
-/// alphabetically-earliest `frame_id` (the one already carried by the
-/// running region, since ties are resolved by not overwriting), so the
-/// result never depends on scan order. Because starts only grow across
-/// the sorted input, the merged spans come out already sorted the same
-/// way — no second sort is needed.
+/// whichever span scored higher ([`dms_score`]'s `0` fallback for a
+/// `MatchScore::Present` frame span means an overlapping DMS span always
+/// wins the label on a genuine tie, never the reverse — an arbitrary but
+/// deterministic tie-break, not a claim that DMS is the "better" find).
+/// An exact tie keeps the alphabetically-earliest `frame_id` (the one
+/// already carried by the running region, since ties are resolved by not
+/// overwriting), so the result never depends on scan order. Because
+/// starts only grow across the sorted input, the merged spans come out
+/// already sorted the same way — no second sort is needed.
 fn union_paraphrase_spans(mut spans: Vec<MatchSpan>) -> Vec<ParaphraseSpan> {
     spans.sort_by(|a, b| {
         a.range
