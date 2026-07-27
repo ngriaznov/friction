@@ -23,8 +23,11 @@
 //! span is reported (`friction check`'s spans, `friction fix`'s
 //! paraphrase report), never rewritten.
 
+use std::ops::Range;
+
 use friction_nlp::{TaggedToken, Tagger};
 use friction_packs::{JargonAttestPack, JargonPack};
+use rayon::prelude::*;
 
 use crate::span::{Channel, MatchScore, MatchSpan};
 use crate::token::ScopedUnit;
@@ -172,6 +175,16 @@ fn is_link_label(unit: &ScopedUnit<'_>, document_text: &str) -> bool {
 /// `attest`'s web-scale filter (SYNTHESIS.md §4) both suppress a
 /// would-be flag — see [`jargon_span_at`]'s own docs. Link-label units
 /// are skipped whole ([`is_link_label`]).
+///
+/// The per-sentence tag-and-scan is this channel's dominant cost (the one
+/// channel needing a tagger — see this module's own docs) and every
+/// sentence's work is independent of every other's, so it runs over a
+/// flattened, order-preserving list of sentence ranges with a rayon
+/// `par_iter`. Collecting the indexed parallel iterator into a
+/// `Vec<Vec<MatchSpan>>` before flattening keeps the result in the exact
+/// document order the sequential version produced, regardless of thread
+/// count — the same discipline `friction_edit::register`'s sentence-
+/// context build uses.
 #[must_use]
 pub fn scan_units(
     units: &[ScopedUnit<'_>],
@@ -180,22 +193,32 @@ pub fn scan_units(
     pack: &JargonPack,
     attest: &JargonAttestPack,
 ) -> Vec<MatchSpan> {
-    let mut spans = Vec::new();
-    for unit in units {
-        if is_link_label(unit, document_text) {
-            continue;
-        }
-        for sentence in &unit.sentences {
-            let sentence_text = &document_text[sentence.clone()];
-            let tokens = tagger.tag(sentence_text, sentence.start);
-            for head_idx in 0..tokens.len() {
-                if let Some(span) = jargon_span_at(&tokens, document_text, head_idx, pack, attest) {
-                    spans.push(span);
-                }
-            }
-        }
-    }
-    spans
+    let sentences: Vec<Range<usize>> = units
+        .iter()
+        .filter(|unit| !is_link_label(unit, document_text))
+        .flat_map(|unit| unit.sentences.iter().cloned())
+        .collect();
+    let per_sentence: Vec<Vec<MatchSpan>> = sentences
+        .par_iter()
+        .map(|sentence| sentence_jargon_spans(sentence, document_text, tagger, pack, attest))
+        .collect();
+    per_sentence.into_iter().flatten().collect()
+}
+
+/// One sentence's `jargon.metaphor` spans, in head-index order — the
+/// per-sentence unit of work [`scan_units`]'s `par_iter` runs.
+fn sentence_jargon_spans(
+    sentence: &Range<usize>,
+    document_text: &str,
+    tagger: &dyn Tagger,
+    pack: &JargonPack,
+    attest: &JargonAttestPack,
+) -> Vec<MatchSpan> {
+    let sentence_text = &document_text[sentence.clone()];
+    let tokens = tagger.tag(sentence_text, sentence.start);
+    (0..tokens.len())
+        .filter_map(|head_idx| jargon_span_at(&tokens, document_text, head_idx, pack, attest))
+        .collect()
 }
 
 #[cfg(test)]

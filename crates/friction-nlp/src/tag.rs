@@ -22,7 +22,14 @@ use friction_core::{Token, TokenKind};
 ///
 /// Implementations must be deterministic: identical `text` and
 /// `base_offset` always produce identical output, on any machine or run.
-pub trait Tagger {
+///
+/// `Send + Sync`: callers tag independent sentences concurrently (rayon
+/// per-sentence parallelism in `friction-edit`'s register pass and
+/// `friction-match`'s per-channel scans) through a single shared `&dyn
+/// Tagger`. [`crate::PerceptronTagger`] satisfies this trivially — every
+/// per-call scratch buffer is owned by the `tag` call itself, never
+/// `self`, so `&self` is safe to share across threads.
+pub trait Tagger: Send + Sync {
     /// Tags every token found in `text`, each offset by `base_offset`.
     fn tag(&self, text: &str, base_offset: usize) -> Vec<TaggedToken>;
 }

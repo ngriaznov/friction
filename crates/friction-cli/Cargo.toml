@@ -34,6 +34,7 @@ friction-parse = { path = "../friction-parse" }
 serde = { workspace = true }
 serde_json = { workspace = true }
 thiserror = { workspace = true }
+rayon = { workspace = true }
 
 # `check`'s text-mode findings are rendered as labeled-span diagnostics
 # with miette's fancy renderer (see src/diagnostics.rs); not yet covered

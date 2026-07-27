@@ -57,6 +57,7 @@ use friction_core::{Finding, RuleId};
 use friction_edit::EditReport;
 use friction_match::{MatchScore, MatchSpan};
 use friction_packs::ModelFamily;
+use rayon::prelude::*;
 use serde::Serialize;
 
 use crate::common::{CliError, Format, LineIndex, display_path, read_input, write_in_place};
@@ -320,6 +321,16 @@ fn print_suggestions(output: &str, path_label: &str, suggestions: &[Finding]) {
 /// `friction_nlp::PerceptronTagger` — one embedded-weight load per `fix`
 /// invocation instead of two.
 ///
+/// The three sources — every family's DMS walk, the contrast-frame scan,
+/// and the (tagger-driven, itself internally parallel — see
+/// `friction_match::jargon::scan_units`) jargon scan — read only `units`/
+/// `document` and never each other's output, so they run as three
+/// concurrent `rayon::join` tasks (the DMS walk is itself a `par_iter`
+/// over [`ModelFamily::ALL`], five more independent tasks). Deterministic
+/// regardless of run order or thread count: [`union_paraphrase_spans`]
+/// sorts by `(start, end, frame_id)` before merging, so which task
+/// finishes first never affects the returned bytes.
+///
 /// # Errors
 /// Returns [`CliError::Parse`] if `output` fails to parse as markdown —
 /// not expected, since `output` is text `fix_document` has already parsed
@@ -332,24 +343,47 @@ fn scan_paraphrase_spans(
     let segmenter = friction_nlp::SrxSegmenter::new();
     let units = friction_match::token::prose_scope(&document, &segmenter);
 
-    let mut spans = Vec::new();
-    for family in ModelFamily::ALL {
-        if let Some(family_spans) =
-            friction_match::dms_spans_for_family(&units, &friction_packs::DMS.pack, family)
-        {
-            spans.extend(family_spans);
-        }
-    }
-    spans.extend(friction_match::frame::scan_units(&units));
-    spans.extend(friction_match::jargon::scan_units(
-        &units,
-        document.source(),
-        tagger,
-        &friction_packs::JARGON.pack,
-        &friction_packs::JARGON_ATTEST,
-    ));
+    let (dms_spans, (frame_spans, jargon_spans)) = rayon::join(
+        || dms_spans_for_every_family(&units),
+        || {
+            rayon::join(
+                || friction_match::frame::scan_units(&units),
+                || {
+                    friction_match::jargon::scan_units(
+                        &units,
+                        document.source(),
+                        tagger,
+                        &friction_packs::JARGON.pack,
+                        &friction_packs::JARGON_ATTEST,
+                    )
+                },
+            )
+        },
+    );
+
+    let mut spans = dms_spans;
+    spans.extend(frame_spans);
+    spans.extend(jargon_spans);
 
     Ok(union_paraphrase_spans(spans))
+}
+
+/// Runs [`friction_match::dms_spans_for_family`] for every family
+/// [`ModelFamily::ALL`] defines, concurrently (each family's walk touches
+/// only its own automaton, never another's), collecting an
+/// [`ModelFamily::ALL`]-ordered `Vec<Vec<MatchSpan>>` before flattening —
+/// keeps assembly order fixed and thread-count-independent, matching
+/// [`register`](friction_edit::register)'s own ordered-collect discipline,
+/// even though [`union_paraphrase_spans`]'s later sort would tolerate
+/// either order.
+fn dms_spans_for_every_family(units: &[friction_match::token::ScopedUnit<'_>]) -> Vec<MatchSpan> {
+    let per_family: Vec<Vec<MatchSpan>> = ModelFamily::ALL
+        .par_iter()
+        .filter_map(|&family| {
+            friction_match::dms_spans_for_family(units, &friction_packs::DMS.pack, family)
+        })
+        .collect();
+    per_family.into_iter().flatten().collect()
 }
 
 /// A [`MatchSpan`]'s DMS differential score. Always

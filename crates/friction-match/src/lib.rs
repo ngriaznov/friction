@@ -130,6 +130,19 @@ impl<'a> MatchEngine<'a> {
     /// prose-only, in-scope unit set ([`token::prose_scope`]), and
     /// merges their spans deterministically ([`span::merge_spans`]).
     ///
+    /// The six span-producing walks below (DMS, the literal automaton, its
+    /// regex fallback, LVC, frame, jargon) and the document-level DMS
+    /// report each read only `units`/`document` and this engine's own
+    /// packs — never each other's output — so they run as seven
+    /// concurrent `rayon::scope` tasks (the DMS report is itself a
+    /// `par_iter` over every family, in [`dms::document_report`]).
+    /// [`span::merge_spans`] sorts its input before returning, so the
+    /// tasks' completion order never affects the returned bytes; the
+    /// seven local variables are still assembled into `merge_spans`' `Vec`
+    /// argument (and `DocumentReport`) in the same fixed order the prior
+    /// sequential version used, so nothing here depends on that
+    /// insensitivity to stay byte-identical across thread counts.
+    ///
     /// # Errors
     /// [`MatchError::Core`] if a prose range fails to slice — not
     /// expected for any `Document` produced by `friction_parse::parse`,
@@ -143,26 +156,52 @@ impl<'a> MatchEngine<'a> {
             .expect("MatchEngine::new already validated target_family has a stream");
         let human_sam = self.dms.human_sam();
         let vocab = self.dms.vocab();
-
-        let dms_spans = dms::scan_units(&units, target_sam, self.target_family, human_sam, vocab);
-        let dms_report = dms::document_report(&units, self.dms, self.target_family, vocab);
-
-        let literal_ac_spans = self.automaton.scan_units(&units);
-        let literal_fallback_spans =
-            literal::regex_fallback_spans(self.inventory, &self.automaton, &units);
-
         let lexicon = self.inventory.lvc_lexicon();
-        let lvc_spans = lvc::scan_units(&units, document.source(), self.tagger, lexicon);
 
-        let frame_spans = frame::scan_units(&units);
+        let mut dms_spans = Vec::new();
+        let mut dms_report = None;
+        let mut literal_ac_spans = Vec::new();
+        let mut literal_fallback_spans = Vec::new();
+        let mut lvc_spans = Vec::new();
+        let mut frame_spans = Vec::new();
+        let mut jargon_spans = Vec::new();
 
-        let jargon_spans = jargon::scan_units(
-            &units,
-            document.source(),
-            self.tagger,
-            self.jargon,
-            self.jargon_attest,
-        );
+        rayon::scope(|s| {
+            s.spawn(|_| {
+                dms_spans =
+                    dms::scan_units(&units, target_sam, self.target_family, human_sam, vocab);
+            });
+            s.spawn(|_| {
+                dms_report = Some(dms::document_report(
+                    &units,
+                    self.dms,
+                    self.target_family,
+                    vocab,
+                ));
+            });
+            s.spawn(|_| {
+                literal_ac_spans = self.automaton.scan_units(&units);
+            });
+            s.spawn(|_| {
+                literal_fallback_spans =
+                    literal::regex_fallback_spans(self.inventory, &self.automaton, &units);
+            });
+            s.spawn(|_| {
+                lvc_spans = lvc::scan_units(&units, document.source(), self.tagger, lexicon);
+            });
+            s.spawn(|_| {
+                frame_spans = frame::scan_units(&units);
+            });
+            s.spawn(|_| {
+                jargon_spans = jargon::scan_units(
+                    &units,
+                    document.source(),
+                    self.tagger,
+                    self.jargon,
+                    self.jargon_attest,
+                );
+            });
+        });
 
         let spans = span::merge_spans(vec![
             dms_spans,
@@ -175,7 +214,7 @@ impl<'a> MatchEngine<'a> {
 
         Ok(DocumentReport {
             spans,
-            dms: dms_report,
+            dms: dms_report.expect("every rayon::scope task, including the DMS report one, has run by the time scope() returns"),
         })
     }
 }

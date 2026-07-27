@@ -45,6 +45,14 @@ aho-corasick = "1"
 # the full byte output of `check`/`fix`/`explain` over a fixed corpus
 # selection to on-disk `.snap` files.
 insta = "1"
+# Work-stealing data parallelism for the embarrassingly-parallel
+# per-sentence NLP work (tagging, parsing, per-family/per-channel scans) —
+# `friction-edit`'s register pass, `friction-cli`'s `fix`/`check`. Ordered
+# `par_iter().collect()`/`join`/`scope` only, never an unordered
+# `for_each`: every parallel site is required to produce byte-identical
+# output regardless of thread count (see `friction-edit`'s own
+# `rayon_determinism` test). Pinned to the `1.12` line; bump deliberately.
+rayon = "1.12"
 
 [workspace.lints.rust]
 unsafe_code = "deny"

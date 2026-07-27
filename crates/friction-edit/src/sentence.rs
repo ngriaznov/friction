@@ -4,7 +4,7 @@
 //! max 2), gated span deletion, frame-gated `just`-deletion — followed
 //! by a final recapitalization pass.
 
-use std::collections::{BTreeMap, BTreeSet};
+use std::collections::{BTreeMap, BTreeSet, HashMap};
 use std::ops::Range;
 
 use friction_core::{Finding, Patch, RuleId, Tier};
@@ -175,29 +175,83 @@ impl DocumentCasing {
 /// clause-completeness baseline gates check against, and finite-verb
 /// words (paired-substitution's tagger-weakness fallback; see
 /// [`gates::original_finite_verb_words`]).
-struct OriginalState {
+///
+/// A pure function of `(tagger, original_text)` — nothing else
+/// [`edit_sentence`] threads in (`ctx.inventory`/`ctx.attestation`,
+/// `ctx.casing`, `pivot_budget`) feeds into computing it. That purity is
+/// exactly what makes [`OriginalStateCache`] safe: two calls with the
+/// same tagger and byte-identical `original_text` always recompute the
+/// identical value, whatever pass or sentence position either call came
+/// from.
+#[derive(Clone)]
+pub(crate) struct OriginalState {
     clause_ok: bool,
     verb_words: BTreeSet<Box<str>>,
 }
 
+/// Caches [`OriginalState`] by a sentence's exact original text, reused
+/// across [`crate::document::edit_document`]'s bounded passes within one
+/// call so pass 2 doesn't retag a sentence pass 1 already tagged
+/// byte-identically.
+///
+/// Deliberately narrow: this caches only the untouched-original-sentence
+/// tag/clause/verb-word computation above, never a sentence's final
+/// patches. The five operations' actual decisions also depend on
+/// `pivot_budget`, shared and mutated left-to-right across every
+/// sentence in a pass (see [`crate::nearnoop::PivotBudget`]'s own docs)
+/// — a sentence that produced zero patches in pass 1 can still see a
+/// different `pivot_budget` value reach it in pass 2, if earlier
+/// sentences behaved differently there, so skipping a sentence's full
+/// pipeline based on its pass-1 outcome would risk silently reusing a
+/// stale decision. Caching only this pure, budget-independent piece
+/// keeps the two-pass loop exactly as behaviorally neutral as before,
+/// just without the redundant retag.
+///
+/// Built once per [`crate::document::edit_document`] call, never reused
+/// across documents or invocations — an [`edit_sentence`] caller owns the
+/// instance and passes it in by `&mut`.
+pub(crate) type OriginalStateCache = HashMap<Box<str>, OriginalState>;
+
+/// `original_text`'s [`OriginalState`], from `cache` if a prior pass
+/// already computed it for this exact sentence text, freshly tagged and
+/// inserted otherwise.
+fn original_state(
+    original_text: &str,
+    tagger: &dyn Tagger,
+    cache: &mut OriginalStateCache,
+) -> OriginalState {
+    if let Some(cached) = cache.get(original_text) {
+        return cached.clone();
+    }
+    let original_tags = tag(tagger, original_text);
+    let computed = OriginalState {
+        clause_ok: clause_ok(&original_tags, original_text),
+        verb_words: gates::original_finite_verb_words(&original_tags, original_text),
+    };
+    cache.insert(Box::from(original_text), computed.clone());
+    computed
+}
+
 /// Runs the five-operation pipeline over one sentence.
+///
+/// `pub(crate)`: only `crate::document::edit_document` calls this —
+/// tightened from `pub` when [`OriginalStateCache`] (`pub(crate)`, since
+/// [`OriginalState`] carries no reason to be part of this crate's public
+/// surface) joined its parameter list.
 #[must_use]
-pub fn edit_sentence(
+pub(crate) fn edit_sentence(
     source: &str,
     position: &SentencePosition,
     ctx: &EditContext<'_>,
     pivot_budget: &mut PivotBudget,
+    original_cache: &mut OriginalStateCache,
 ) -> SentenceOutcome {
     let sentence_range = position.range.clone();
     let original_text = &source[sentence_range.clone()];
     if original_text.trim().is_empty() {
         return SentenceOutcome::default();
     }
-    let original_tags = tag(ctx.tagger, original_text);
-    let original = OriginalState {
-        clause_ok: clause_ok(&original_tags, original_text),
-        verb_words: gates::original_finite_verb_words(&original_tags, original_text),
-    };
+    let original = original_state(original_text, ctx.tagger, original_cache);
 
     let mut held: Vec<Finding> = Vec::new();
     if let Some(outcome) = try_ritual_deletion(source, position, ctx, &mut held) {

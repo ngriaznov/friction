@@ -18,6 +18,7 @@ friction-match = { path = "../friction-match" }
 friction-packs = { path = "../friction-packs" }
 friction-register = { path = "../friction-register" }
 thiserror = { workspace = true }
+rayon = { workspace = true }
 
 [dev-dependencies]
 corpus-tool = { path = "../corpus-tool" }

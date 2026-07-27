@@ -25,7 +25,13 @@ use friction_core::{CoreError, Document, ProseUnit, Sentence};
 /// Implementations must be deterministic: identical `text` and
 /// `base_offset` always produce identical output, on any machine, on any
 /// run.
-pub trait Segmenter {
+///
+/// `Send + Sync`, for the same reason as [`crate::Tagger`]/[`crate::DepParser`]:
+/// a `&dyn Segmenter` is one field of `friction_match::MatchEngine`, whose
+/// own `scan` runs its detection channels concurrently across a shared
+/// `&self`. [`crate::SrxSegmenter`] is a stateless unit struct, so this
+/// holds trivially.
+pub trait Segmenter: Send + Sync {
     /// Segments `text` into sentence byte ranges, each offset by
     /// `base_offset`.
     fn segment(&self, text: &str, base_offset: usize) -> Vec<Range<usize>>;

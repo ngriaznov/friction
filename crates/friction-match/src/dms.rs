@@ -14,6 +14,7 @@
 //! through excluded content.
 
 use friction_packs::{DmsIndex, ModelFamily, Sam, Vocab};
+use rayon::prelude::*;
 
 use crate::span::{Channel, DmsFamilyReport, DmsReport, MatchScore, MatchSpan};
 use crate::token::ScopedUnit;
@@ -144,58 +145,76 @@ pub fn scan_units(
 /// Document-level report: for every family `index` defines, flattens
 /// every in-scope unit's independently-walked matching-statistics arrays
 /// and reports `mean(mM) - mean(mH)`.
+///
+/// Every family's walk reads only its own automaton (plus the shared,
+/// read-only human automaton and vocab) and writes nothing any other
+/// family's walk reads, so this runs [`ModelFamily::ALL`] as a rayon
+/// `par_iter`. `filter_map` over that indexed, fixed-size array,
+/// collected straight into `families`, keeps the result in
+/// [`ModelFamily::ALL`] order regardless of which family's walk finishes
+/// first or how many threads ran — the `DmsReport::families` field's own
+/// documented ordering contract.
 pub fn document_report(
     units: &[ScopedUnit<'_>],
     index: &DmsIndex,
     target_family: ModelFamily,
     vocab: &Vocab,
 ) -> DmsReport {
-    let mut families = Vec::new();
-
-    for family in ModelFamily::ALL {
-        let Some(sam) = index.family_sam(family) else {
-            continue;
-        };
-
-        let mut machine_sum: u64 = 0;
-        let mut human_sum: u64 = 0;
-        let mut token_count: usize = 0;
-
-        for unit in units {
-            if unit.tokens.is_empty() {
-                continue;
-            }
-            let query = query_ids(unit, vocab);
-            let mm = sam.matching_stats(&query);
-            let mh = index.human_sam().matching_stats(&query);
-            machine_sum += mm.iter().map(|&v| u64::from(v)).sum::<u64>();
-            human_sum += mh.iter().map(|&v| u64::from(v)).sum::<u64>();
-            token_count += query.len();
-        }
-
-        #[allow(clippy::cast_precision_loss)]
-        let (mean_machine, mean_human) = if token_count == 0 {
-            (0.0, 0.0)
-        } else {
-            (
-                machine_sum as f64 / token_count as f64,
-                human_sum as f64 / token_count as f64,
-            )
-        };
-
-        families.push(DmsFamilyReport {
-            family,
-            mean_machine,
-            mean_human,
-            differential: mean_machine - mean_human,
-            token_count,
-        });
-    }
+    let families = ModelFamily::ALL
+        .par_iter()
+        .filter_map(|&family| family_report(units, index, family, vocab))
+        .collect();
 
     DmsReport {
         target_family,
         families,
     }
+}
+
+/// One family's [`DmsFamilyReport`], `None` if `index` has no stream for
+/// `family` — the per-family unit of work [`document_report`]'s
+/// `par_iter` runs.
+fn family_report(
+    units: &[ScopedUnit<'_>],
+    index: &DmsIndex,
+    family: ModelFamily,
+    vocab: &Vocab,
+) -> Option<DmsFamilyReport> {
+    let sam = index.family_sam(family)?;
+
+    let mut machine_sum: u64 = 0;
+    let mut human_sum: u64 = 0;
+    let mut token_count: usize = 0;
+
+    for unit in units {
+        if unit.tokens.is_empty() {
+            continue;
+        }
+        let query = query_ids(unit, vocab);
+        let mm = sam.matching_stats(&query);
+        let mh = index.human_sam().matching_stats(&query);
+        machine_sum += mm.iter().map(|&v| u64::from(v)).sum::<u64>();
+        human_sum += mh.iter().map(|&v| u64::from(v)).sum::<u64>();
+        token_count += query.len();
+    }
+
+    #[allow(clippy::cast_precision_loss)]
+    let (mean_machine, mean_human) = if token_count == 0 {
+        (0.0, 0.0)
+    } else {
+        (
+            machine_sum as f64 / token_count as f64,
+            human_sum as f64 / token_count as f64,
+        )
+    };
+
+    Some(DmsFamilyReport {
+        family,
+        mean_machine,
+        mean_human,
+        differential: mean_machine - mean_human,
+        token_count,
+    })
 }
 
 #[cfg(test)]

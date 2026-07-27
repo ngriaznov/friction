@@ -91,6 +91,11 @@ pub fn edit_document(
 
     let mut current = source.to_string();
     let mut report = EditReport::default();
+    // Reused across every pass in this call (never across documents or
+    // invocations — see `sentence::OriginalStateCache`'s own docs): most
+    // sentences are byte-identical between pass 1 and pass 2, so this
+    // spares a second tag call for each one pass 2 would otherwise redo.
+    let mut original_cache = crate::sentence::OriginalStateCache::default();
 
     for _ in 0..MAX_PASSES {
         let document = friction_parse::parse(current.as_str())?;
@@ -161,7 +166,13 @@ pub fn edit_document(
             casing: &casing,
         };
         for position in &positions {
-            let outcome = edit_sentence(current.as_str(), position, &ctx, &mut pivot_budget);
+            let outcome = edit_sentence(
+                current.as_str(),
+                position,
+                &ctx,
+                &mut pivot_budget,
+                &mut original_cache,
+            );
             candidates.extend(outcome.patches);
             held.extend(outcome.held);
         }

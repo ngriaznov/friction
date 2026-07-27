@@ -329,7 +329,13 @@ pub enum DepParseError {
 ///
 /// See the module docs for the input contract and the confidence contract
 /// every [`DepEdge`] carries.
-pub trait DepParser {
+///
+/// `Send + Sync`, for the same reason as [`crate::Tagger`]: callers parse
+/// independent sentences concurrently through a single shared `&dyn
+/// DepParser` (`friction-edit`'s register pass builds every sentence's
+/// context with a rayon `par_iter`). [`crate::PerceptronParser`]'s own
+/// scratch state is always call-local, never `self`.
+pub trait DepParser: Send + Sync {
     /// Parses one sentence's dependency structure.
     ///
     /// `source` is the original document text `tokens`' spans address;
