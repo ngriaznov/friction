@@ -18,7 +18,7 @@
 use std::ops::Range;
 
 use friction_core::span::{contains_range, slice};
-use friction_core::{Block, BlockKind, Document, ProseUnit, TokenKind};
+use friction_core::{Block, BlockKind, Document, TokenKind};
 use friction_nlp::{TaggedToken, Tagger};
 
 // ---------------------------------------------------------------------
@@ -375,44 +375,69 @@ fn innermost_list_item(
     None
 }
 
-/// The direct child [`BlockKind::ListItem`] blocks of the list at
-/// `list_index`, in source order. Items belonging to a sublist nested
-/// inside one of these items are not included — `CommonMark`'s grammar
-/// makes a list item a direct child of exactly one list, so `parents[i] ==
-/// Some(list_index)` alone is sufficient to select `list_index`'s own
-/// items.
-fn list_items(list_index: usize, blocks: &[Block], parents: &[Option<usize>]) -> Vec<usize> {
-    blocks
-        .iter()
-        .enumerate()
-        .filter(|&(i, block)| block.kind == BlockKind::ListItem && parents[i] == Some(list_index))
-        .map(|(i, _)| i)
-        .collect()
+/// The direct child [`BlockKind::ListItem`] blocks of every list block,
+/// indexed by list block index, in source order. Items belonging to a
+/// sublist nested inside one of these items are not included —
+/// `CommonMark`'s grammar makes a list item a direct child of exactly one
+/// list, so `parents[i]` alone is sufficient to attribute it.
+///
+/// One `O(blocks)` pass, computed once for the whole document: this used
+/// to be a fresh `O(blocks)` `filter` re-run per list
+/// (`list_index`-parameterized), which made [`bullet_parallelism`]
+/// `O(lists * blocks)` over a document — quadratic-ish on a document with
+/// many lists, since both grow with document size.
+fn list_children(blocks: &[Block], parents: &[Option<usize>]) -> Vec<Vec<usize>> {
+    let mut children = vec![Vec::new(); blocks.len()];
+    for (i, block) in blocks.iter().enumerate() {
+        if block.kind == BlockKind::ListItem
+            && let Some(parent) = parents[i]
+        {
+            children[parent].push(i);
+        }
+    }
+    children
 }
 
-/// The earliest [`ProseUnit`] directly owned by the list item at
-/// `item_index` — i.e. whose [`innermost_list_item`] is exactly
-/// `item_index`, not a nested sublist's item. `document.prose()` is
-/// already in source order, so the first match is the item's own leading
-/// text (its first paragraph, for a loose item; its own inline text, for a
-/// tight one).
-fn leading_prose<'d>(
-    item_index: usize,
-    document: &'d Document,
+/// The earliest [`ProseUnit`] directly owned by each list item, indexed by
+/// item block index — i.e. the first `document.prose()` entry whose
+/// [`innermost_list_item`] is that item, not a nested sublist's item
+/// (`document.prose()` is already in source order, so the first match is
+/// the item's own leading text: its first paragraph for a loose item, its
+/// own inline text for a tight one). `None` for an item with no directly-
+/// owned prose at all.
+///
+/// One `O(prose units * nesting depth)` pass, computed once for the whole
+/// document: this used to be `document.prose().iter().find(..)`, RE-
+/// SCANNING FROM THE START of `document.prose()` for every single list
+/// item — `O(prose units)` per item, `O(items * prose units)` over the
+/// document. Measured on a 10 MB, ~1400-item corpus document, this one
+/// function (via [`item_stem_class`]/[`list_parallelism_score`]) was
+/// [`bullet_parallelism`]'s (and so `friction check`'s) single largest
+/// cost: 4.6s of an 11.2s total run, 96x slower than the 1 MB fixture's
+/// 48ms for 10x the document — the dominant super-linear component on the
+/// `check` side.
+fn leading_prose_by_item(
+    document: &Document,
     blocks: &[Block],
     parents: &[Option<usize>],
-) -> Option<&'d ProseUnit> {
-    document
-        .prose()
-        .iter()
-        .find(|unit| innermost_list_item(unit.block, blocks, parents) == Some(item_index))
+) -> Vec<Option<usize>> {
+    let mut earliest: Vec<Option<usize>> = vec![None; blocks.len()];
+    for (unit_index, unit) in document.prose().iter().enumerate() {
+        if let Some(item) = innermost_list_item(unit.block, blocks, parents)
+            && earliest[item].is_none()
+        {
+            earliest[item] = Some(unit_index);
+        }
+    }
+    earliest
 }
 
 /// The [`BroadClass`] of a list item's first token — its "stem" — for the
-/// item at `item_index`: the item's leading prose text (see
-/// [`leading_prose`]) is tagged with `tagger`, and the class of the first
-/// tagged token whose lexical kind is [`TokenKind::Word`] (skipping any
-/// leading punctuation, e.g. a bolded lead-in's `**`) is returned.
+/// item at `item_index`: the item's leading prose text (looked up in
+/// `leading_prose_by_item`, see [`leading_prose_by_item`]'s own docs) is
+/// tagged with `tagger`, and the class of the first tagged token whose
+/// lexical kind is [`TokenKind::Word`] (skipping any leading punctuation,
+/// e.g. a bolded lead-in's `**`) is returned.
 ///
 /// `None` if the item has no directly-owned prose at all, or that prose
 /// tags to no word token — an item lacking a detectable stem, which
@@ -421,11 +446,10 @@ fn leading_prose<'d>(
 fn item_stem_class(
     item_index: usize,
     document: &Document,
-    blocks: &[Block],
-    parents: &[Option<usize>],
+    leading_prose_by_item: &[Option<usize>],
     tagger: &dyn Tagger,
 ) -> Option<BroadClass> {
-    let unit = leading_prose(item_index, document, blocks, parents)?;
+    let unit = &document.prose()[leading_prose_by_item[item_index]?];
     let text = document
         .text(&unit.range)
         .expect("ProseUnit ranges are already validated by Document::new");
@@ -487,25 +511,31 @@ impl StemClassCounts {
 }
 
 /// The parallelism score for one list: the fraction of its direct items
-/// (see [`list_items`]) whose stem shares the [`BroadClass`] most common
-/// among that list's items — `1.0` when every item's stem is the same
-/// class (fully parallel), lower as the list mixes classes. `None` for a
-/// list with no direct items (not expected from `friction-parse`'s
-/// output, but handled rather than dividing by zero).
+/// (`list_children[list_index]`, see [`list_children`]) whose stem shares
+/// the [`BroadClass`] most common among that list's items — `1.0` when
+/// every item's stem is the same class (fully parallel), lower as the
+/// list mixes classes. `None` for a list with no direct items (not
+/// expected from `friction-parse`'s output, but handled rather than
+/// dividing by zero).
 fn list_parallelism_score(
     list_index: usize,
     document: &Document,
-    blocks: &[Block],
-    parents: &[Option<usize>],
+    list_children: &[Vec<usize>],
+    leading_prose_by_item: &[Option<usize>],
     tagger: &dyn Tagger,
 ) -> Option<f64> {
-    let items = list_items(list_index, blocks, parents);
+    let items = &list_children[list_index];
     if items.is_empty() {
         return None;
     }
     let mut counts = StemClassCounts::default();
-    for &item in &items {
-        counts.record(item_stem_class(item, document, blocks, parents, tagger));
+    for &item in items {
+        counts.record(item_stem_class(
+            item,
+            document,
+            leading_prose_by_item,
+            tagger,
+        ));
     }
     #[allow(clippy::cast_precision_loss)]
     let score = counts.largest() as f64 / items.len() as f64;
@@ -522,13 +552,21 @@ fn list_parallelism_score(
 pub fn bullet_parallelism(document: &Document, tagger: &dyn Tagger) -> f64 {
     let blocks = document.blocks();
     let parents = block_parents(blocks);
+    let list_children = list_children(blocks, &parents);
+    let leading_prose_by_item = leading_prose_by_item(document, blocks, &parents);
     let mut total = 0.0;
     let mut count = 0usize;
     for (index, block) in blocks.iter().enumerate() {
         if !matches!(block.kind, BlockKind::List { .. }) {
             continue;
         }
-        if let Some(score) = list_parallelism_score(index, document, blocks, &parents, tagger) {
+        if let Some(score) = list_parallelism_score(
+            index,
+            document,
+            &list_children,
+            &leading_prose_by_item,
+            tagger,
+        ) {
             total += score;
             count += 1;
         }
@@ -544,7 +582,7 @@ pub fn bullet_parallelism(document: &Document, tagger: &dyn Tagger) -> f64 {
 
 #[cfg(test)]
 mod tests {
-    use friction_core::{Sentence, Token, TokenKind as CoreTokenKind};
+    use friction_core::{ProseUnit, Sentence, Token, TokenKind as CoreTokenKind};
     use friction_nlp::PosTag;
 
     use super::*;

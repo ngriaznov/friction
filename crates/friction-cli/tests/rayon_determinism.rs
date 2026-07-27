@@ -121,6 +121,8 @@ fn fix_is_byte_identical_across_thread_counts() {
 fn check_is_byte_identical_across_thread_counts() {
     assert_identical_across_thread_counts_and_reruns(
         "check",
-        &["check", "--format", "json", "--genre", "blog", "--family", "qwen"],
+        &[
+            "check", "--format", "json", "--genre", "blog", "--family", "qwen",
+        ],
     );
 }

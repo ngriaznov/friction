@@ -14,6 +14,7 @@ mod check;
 mod common;
 mod diagnostics;
 mod explain;
+mod fast_source;
 mod fix;
 mod sarif;
 mod table;

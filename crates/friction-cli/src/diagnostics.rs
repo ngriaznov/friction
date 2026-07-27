@@ -26,6 +26,8 @@ use miette::{
     Diagnostic, GraphicalReportHandler, GraphicalTheme, LabeledSpan, NamedSource, SourceCode,
 };
 
+use crate::fast_source::LineIndexedSource;
+
 /// Whether `check`'s text-mode diagnostics should be colorized: only when
 /// stdout is an actual terminal and neither `--no-color` nor `NO_COLOR`
 /// asked for plain text. See the module docs for the full rationale.
@@ -51,12 +53,13 @@ struct FindingDiagnostic {
     start: usize,
     len: usize,
     /// Shared, not owned: `render_spans` builds one of these for the
-    /// whole document and hands every diagnostic a clone of it, rather
-    /// than copying the source per span. Measured on a 1.8 MB, 3000-span
-    /// document this is not faster — `miette`'s own per-diagnostic scan
-    /// dominates by a wide margin — it just stops the renderer allocating
-    /// and dropping a full copy of the document on every iteration.
-    src: NamedSource<Arc<str>>,
+    /// whole document and hands every diagnostic a clone of it (an `Arc`
+    /// bump, not a copy — [`LineIndexedSource`] sits behind the `Arc` so
+    /// cloning it per span never re-copies the source or its line-start
+    /// index). [`LineIndexedSource`] (not a plain `Arc<str>`) is what
+    /// keeps each `render_report` call cheap regardless of document size
+    /// — see its own module docs.
+    src: NamedSource<Arc<LineIndexedSource>>,
 }
 
 impl fmt::Debug for FindingDiagnostic {
@@ -136,7 +139,10 @@ pub fn render_spans(source: &str, path_label: &str, spans: &[MatchSpan], color: 
         GraphicalTheme::unicode_nocolor()
     };
     let handler = GraphicalReportHandler::new_themed(theme).with_width(200);
-    let named = NamedSource::new(path_label, Arc::<str>::from(source));
+    let named = NamedSource::new(
+        path_label,
+        Arc::new(LineIndexedSource::new(Arc::<str>::from(source))),
+    );
     let mut out = String::new();
     for span in spans {
         let message = format!("{:?} tell: {}", span.channel, span.frame_id);

@@ -111,6 +111,17 @@ pub fn edit_document(
         let mut positions: Vec<SentencePosition> = Vec::new();
         let mut casing = DocumentCasing::default();
         let prose_units = with_sentences.prose();
+        // Precomputed once per pass, each in one O(units)/O(blocks) walk,
+        // so the per-unit loop below never rescans either: `sole_item_content`
+        // used to re-`filter`+`count` the WHOLE `prose_units` slice for
+        // every unit just to ask "does my block own exactly one prose
+        // unit", and `in_ordered_list_item` used to re-scan the WHOLE
+        // `blocks` slice for every candidate list item just to find its
+        // tightest enclosing list — both `O(units)`-per-unit, i.e.
+        // `O(units^2)` (`O(blocks^2)` for the latter) over the pass as a
+        // whole. See `units_per_block`/`ordered_list_items`'s own docs.
+        let units_per_block = units_per_block(with_sentences.blocks().len(), prose_units);
+        let ordered_list_item = ordered_list_items(with_sentences.blocks());
         for (unit_index, unit) in prose_units.iter().enumerate() {
             // Prose-blocks-only (gate 7): `friction_parse::parse` also
             // extracts prose from headings/table cells, so this engine
@@ -139,12 +150,8 @@ pub fn edit_document(
             // the item's only prose unit and only sentence, and its
             // tightest enclosing list block is ordered.
             let sole_item_content = sentences.len() == 1
-                && prose_units
-                    .iter()
-                    .filter(|other| other.block == unit.block)
-                    .count()
-                    == 1
-                && in_ordered_list_item(with_sentences.blocks(), unit.block);
+                && units_per_block[unit.block] == 1
+                && ordered_list_item[unit.block];
             for (i, sentence) in sentences.iter().enumerate() {
                 let position = SentencePosition {
                     range: sentence.range.clone(),
@@ -203,28 +210,58 @@ pub fn edit_document(
     Ok((current, report))
 }
 
-/// `true` if `blocks[block_index]` is a list item whose tightest
-/// enclosing list block is ordered (numbered).
+/// How many `prose_units` belong to each block index, `0..blocks_len`.
 ///
-/// Blocks carry no parent links, so the enclosing list is found by
-/// range containment: among `List` blocks containing the item's range,
-/// the one starting latest is innermost.
-fn in_ordered_list_item(blocks: &[friction_core::Block], block_index: usize) -> bool {
-    let Some(item) = blocks.get(block_index) else {
-        return false;
-    };
-    if !matches!(item.kind, friction_core::BlockKind::ListItem) {
-        return false;
+/// One `O(units)` pass, computed once per pass rather than once per unit:
+/// the per-unit loop in [`edit_document`] used to ask "does my own block
+/// own exactly one prose unit" by re-`filter`+`count`-ing the WHOLE
+/// `prose_units` slice for every single unit (`O(units)` per unit,
+/// `O(units^2)` over the pass) — a real cost on large documents, where
+/// `positions`-building dominated `friction fix`'s run time. This answers
+/// the same question by index lookup instead.
+fn units_per_block(blocks_len: usize, prose_units: &[friction_core::ProseUnit]) -> Vec<usize> {
+    let mut counts = vec![0usize; blocks_len];
+    for unit in prose_units {
+        counts[unit.block] += 1;
     }
-    blocks
-        .iter()
-        .filter(|b| b.range.start <= item.range.start && item.range.end <= b.range.end)
-        .filter_map(|b| match b.kind {
-            friction_core::BlockKind::List { ordered, .. } => Some((b.range.start, ordered)),
-            _ => None,
-        })
-        .max_by_key(|(start, _)| *start)
-        .is_some_and(|(_, ordered)| ordered)
+    counts
+}
+
+/// For every block index, `true` if that block is a list item whose
+/// tightest enclosing list block is ordered (numbered).
+///
+/// One `O(blocks)` pre-order walk (a stack of currently-open `List`
+/// ancestors — blocks are pre-order, non-overlapping siblings by
+/// `friction-parse`'s own documented invariant, so the top of the stack
+/// after popping every block that no longer contains the current one is
+/// exactly its tightest enclosing list), computed once per pass instead
+/// of a fresh `O(blocks)` range-containment scan per candidate list item
+/// (`O(blocks)` per item, `O(blocks^2)` over the pass on a
+/// list-item-dense document).
+fn ordered_list_items(blocks: &[friction_core::Block]) -> Vec<bool> {
+    let mut ordered = vec![false; blocks.len()];
+    let mut open_lists: Vec<usize> = Vec::new();
+    for (index, block) in blocks.iter().enumerate() {
+        while let Some(&top) = open_lists.last() {
+            if friction_core::span::contains_range(&blocks[top].range, &block.range) {
+                break;
+            }
+            open_lists.pop();
+        }
+        if matches!(block.kind, friction_core::BlockKind::ListItem)
+            && let Some(&top) = open_lists.last()
+            && let friction_core::BlockKind::List {
+                ordered: list_ordered,
+                ..
+            } = blocks[top].kind
+        {
+            ordered[index] = list_ordered;
+        }
+        if matches!(block.kind, friction_core::BlockKind::List { .. }) {
+            open_lists.push(index);
+        }
+    }
+    ordered
 }
 
 /// `true` if `text`, trimmed of trailing whitespace and closing
