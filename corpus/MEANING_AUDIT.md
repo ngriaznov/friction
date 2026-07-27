@@ -1,5 +1,12 @@
 # Meaning-preservation audit
 
+> **Note, added later.** The `crates/friction-rules/...` paths cited in the
+> "Fix applied" entries below belong to a crate since retired; its detection
+> families were replaced wholesale by the closed-operation engine in
+> `friction-edit`. The entries are left as written — they record what was
+> actually changed at the time of the audit, and the audited verdicts are the
+> point of the page.
+
 Deterministic sample: every `corpus/manifest.jsonl` entry with `class = "llm"`,
 `split = "train"`, and `id` starting with a hex character in `0`-`7`, sorted
 lexicographically by `id`, first 50 taken. This range covers half the hex
