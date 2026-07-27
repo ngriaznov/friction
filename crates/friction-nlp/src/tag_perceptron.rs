@@ -247,7 +247,6 @@ fn sort_classes_with_index_map(file_classes: &[Box<str>]) -> (Vec<Box<str>>, Vec
 /// `classes` list [`sort_classes_with_index_map`] returns — never by
 /// whatever order the on-disk file happened to use.
 struct WeightTable {
-    num_classes: usize,
     by_feature: HashMap<Box<str>, Vec<f32>>,
 }
 
@@ -271,26 +270,22 @@ impl WeightTable {
             }
             by_feature.insert(feature, dense);
         }
-        Self {
-            num_classes,
-            by_feature,
-        }
+        Self { by_feature }
     }
 
-    /// Sums each feature's dense per-class weight vector, in `features`'
-    /// own fixed order — the determinism-critical step: summation order
-    /// is identical across runs because iteration order is fixed by the
-    /// caller-supplied `Vec`, never by hash-map iteration.
-    fn score(&self, features: &[Box<str>]) -> Vec<f32> {
-        let mut scores = vec![0f32; self.num_classes];
-        for feature in features {
-            if let Some(dense) = self.by_feature.get(feature) {
-                for (slot, weight) in scores.iter_mut().zip(dense.iter()) {
-                    *slot += weight;
-                }
+    /// Adds `feature`'s dense per-class weight vector (if any) into
+    /// `scores` — [`Backend::accumulate`]'s single-feature step, driven
+    /// once per feature straight out of [`build_features`]'s reused
+    /// scratch buffer (no owned `Vec<Box<str>>` of features is built on
+    /// this path). Summation order — and so the resulting scores — is
+    /// identical across runs since it's fixed by the caller's fixed
+    /// feature-template order, never by hash-map iteration.
+    fn accumulate_one(&self, feature: &str, scores: &mut [f32]) {
+        if let Some(dense) = self.by_feature.get(feature) {
+            for (slot, weight) in scores.iter_mut().zip(dense.iter()) {
+                *slot += weight;
             }
         }
-        scores
     }
 }
 
@@ -359,20 +354,32 @@ impl<'a> TaggerView<'a> {
             .expect("build_view_payload only ever pushes valid UTF-8 keys into the pool")
     }
 
-    /// Sums every matched feature's sparse per-class weight row —
-    /// mirrors [`WeightTable::score`]'s fixed-order summation, just
+    /// Adds `feature`'s sparse per-class weight row (if any) into
+    /// `scores` — reads directly from the payload's bytes, no owned key
+    /// required, so [`Backend::accumulate`] can drive this with a
+    /// borrowed feature straight out of a reused scratch buffer.
+    fn accumulate_one(&self, feature: &[u8], scores: &mut [f32]) {
+        if let Some(row_offset) = self.features.get(feature) {
+            for chunk in crate::weights_bin::sparse_row(self.values, row_offset).chunks_exact(6) {
+                let (class_index, weight) = crate::weights_bin::decode_sparse_entry(chunk);
+                scores[usize::from(class_index)] += weight;
+            }
+        }
+    }
+
+    /// Sums every matched feature's sparse per-class weight row over a
+    /// caller-supplied feature list — mirrors
+    /// [`WeightTable::accumulate_one`]'s fixed-order summation, just
     /// reading each row's nonzero entries from the payload instead of a
-    /// pre-built dense `Vec`.
+    /// pre-built dense `Vec`. Only this module's own full-vocabulary
+    /// parity tests drive the view this way; [`PerceptronTagger::tag_word`]'s
+    /// hot loop instead calls [`Self::accumulate_one`] directly from
+    /// [`build_features`]'s callback.
+    #[cfg(test)]
     fn score(&self, features: &[Box<str>]) -> Vec<f32> {
         let mut scores = vec![0f32; self.num_classes];
         for feature in features {
-            if let Some(row_offset) = self.features.get(feature.as_bytes()) {
-                for chunk in crate::weights_bin::sparse_row(self.values, row_offset).chunks_exact(6)
-                {
-                    let (class_index, weight) = crate::weights_bin::decode_sparse_entry(chunk);
-                    scores[usize::from(class_index)] += weight;
-                }
-            }
+            self.accumulate_one(feature.as_bytes(), &mut scores);
         }
         scores
     }
@@ -477,9 +484,16 @@ trait Backend {
     /// the owned backend's own map entry is cloned either way, so there's
     /// no allocation-free path to give up by not returning a borrow).
     fn tagdict_lookup(&self, word: &str) -> Option<Box<str>>;
-    /// Sums every matched feature's per-class weights, in `features`' own
-    /// fixed order.
-    fn score(&self, features: &[Box<str>]) -> Vec<f32>;
+    /// Adds one feature's per-class weight contribution into `scores` —
+    /// the zero-allocation scoring step [`PerceptronTagger::tag_word`]'s
+    /// hot loop drives once per feature straight out of
+    /// [`build_features`]'s reused scratch buffer, so no owned
+    /// `Vec<Box<str>>` of features is ever built there. `scores` must
+    /// already be sized to [`Self::num_classes`].
+    fn accumulate(&self, feature: &str, scores: &mut [f32]);
+    /// The number of classes `scores` must be sized to before any
+    /// [`Self::accumulate`] call.
+    fn num_classes(&self) -> usize;
     /// The tag string for the sorted class list's `index`th entry.
     fn class_at(&self, index: usize) -> Box<str>;
 }
@@ -510,8 +524,12 @@ impl Backend for OwnedBackend {
         self.tagdict.get(word).cloned()
     }
 
-    fn score(&self, features: &[Box<str>]) -> Vec<f32> {
-        self.weights.score(features)
+    fn accumulate(&self, feature: &str, scores: &mut [f32]) {
+        self.weights.accumulate_one(feature, scores);
+    }
+
+    fn num_classes(&self) -> usize {
+        self.classes.len()
     }
 
     fn class_at(&self, index: usize) -> Box<str> {
@@ -530,8 +548,12 @@ impl Backend for ViewBackend {
         self.view.tagdict_get(word).map(Box::from)
     }
 
-    fn score(&self, features: &[Box<str>]) -> Vec<f32> {
-        self.view.score(features)
+    fn accumulate(&self, feature: &str, scores: &mut [f32]) {
+        self.view.accumulate_one(feature.as_bytes(), scores);
+    }
+
+    fn num_classes(&self) -> usize {
+        self.view.num_classes
     }
 
     fn class_at(&self, index: usize) -> Box<str> {
@@ -684,11 +706,21 @@ fn context_word(surfaces: &[Box<str>], idx: isize) -> &str {
     &surfaces[idx]
 }
 
-/// Builds token `i`'s fixed-order, 14-entry feature list: bias; current
-/// word; current word's 3-char suffix; current word's first character;
-/// previous tag; tag two back; previous-tag×tag-two-back; previous-tag×
-/// current-word; previous word; previous word's 3-char suffix; word two
-/// back; next word; next word's 3-char suffix; word two forward.
+/// Builds token `i`'s fixed-order, 14-entry feature list, invoking `emit`
+/// once per feature: bias; current word; current word's 3-char suffix;
+/// current word's first character; previous tag; tag two back;
+/// previous-tag×tag-two-back; previous-tag×current-word; previous word;
+/// previous word's 3-char suffix; word two back; next word; next word's
+/// 3-char suffix; word two forward. This function is the single source of
+/// truth for the template catalogue.
+///
+/// Every non-literal feature is formatted into `buf` (cleared right
+/// before) rather than a fresh `String`, so `emit` only ever sees one
+/// live borrow at a time — callers that drive this once per token with
+/// the *same* `buf` across a whole `tag()` call get zero-allocation
+/// feature construction after `buf` stabilizes at its high-water mark;
+/// [`extract_features`] below is the owned, allocating wrapper training
+/// and tests use instead.
 ///
 /// `surfaces` is every token's lowercased surface text for the whole
 /// `tag()` call (punctuation included — it legitimately participates in
@@ -700,13 +732,17 @@ fn context_word(surfaces: &[Box<str>], idx: isize) -> &str {
 /// lowercased `surfaces` entry, matching `context[i-1]`/`context[i+1]`
 /// exactly. `prev1_tag`/`prev2_tag` are the tags already assigned to
 /// tokens `i-1`/`i-2` (or a start-of-sequence sentinel).
-fn extract_features(
+fn build_features(
     surfaces: &[Box<str>],
     raw_current: &str,
     i: usize,
     prev1_tag: &str,
     prev2_tag: &str,
-) -> Vec<Box<str>> {
+    buf: &mut String,
+    mut emit: impl FnMut(&str),
+) {
+    use std::fmt::Write as _;
+
     // Every real token stream is far smaller than `isize::MAX`, so this
     // conversion never wraps.
     #[allow(clippy::cast_possible_wrap)]
@@ -728,22 +764,59 @@ fn extract_features(
 
     let word_two_forward = normalize_word_identity(context_word(surfaces, i + 2));
 
-    vec![
-        Box::from("bias"),
-        Box::from(format!("word={cur_word}")),
-        Box::from(format!("suffix={cur_suffix}")),
-        Box::from(format!("pref1={cur_pref1}")),
-        Box::from(format!("i-1 tag={prev1_tag}")),
-        Box::from(format!("i-2 tag={prev2_tag}")),
-        Box::from(format!("i-1 tag+i-2 tag={prev1_tag},{prev2_tag}")),
-        Box::from(format!("i-1 tag+word={prev1_tag},{cur_word}")),
-        Box::from(format!("i-1 word={prev_word}")),
-        Box::from(format!("i-1 suffix={prev_suffix}")),
-        Box::from(format!("i-2 word={word_two_back}")),
-        Box::from(format!("i+1 word={next_word}")),
-        Box::from(format!("i+1 suffix={next_suffix}")),
-        Box::from(format!("i+2 word={word_two_forward}")),
-    ]
+    macro_rules! feat {
+        ($($arg:tt)*) => {{
+            buf.clear();
+            write!(buf, $($arg)*).expect("writing to a String never fails");
+            emit(buf.as_str());
+        }};
+    }
+
+    emit("bias");
+    feat!("word={cur_word}");
+    feat!("suffix={cur_suffix}");
+    feat!("pref1={cur_pref1}");
+    feat!("i-1 tag={prev1_tag}");
+    feat!("i-2 tag={prev2_tag}");
+    feat!("i-1 tag+i-2 tag={prev1_tag},{prev2_tag}");
+    feat!("i-1 tag+word={prev1_tag},{cur_word}");
+    feat!("i-1 word={prev_word}");
+    feat!("i-1 suffix={prev_suffix}");
+    feat!("i-2 word={word_two_back}");
+    feat!("i+1 word={next_word}");
+    feat!("i+1 suffix={next_suffix}");
+    feat!("i+2 word={word_two_forward}");
+}
+
+/// Owned, allocating wrapper over [`build_features`]: collects every
+/// feature into a freshly boxed `Vec<Box<str>>`, one heap allocation per
+/// non-literal feature — used by training (which needs owned keys to
+/// update a `BTreeMap`-backed weight table across many sentences) and by
+/// this module's own tests. [`PerceptronTagger::tag_word`]'s hot loop does
+/// not call this: it drives [`build_features`] directly with a reused
+/// scratch buffer and an immediate per-feature scoring callback, so no
+/// `Box<str>` or intermediate `String` is ever allocated per feature
+/// there.
+#[cfg(any(test, feature = "train-tooling"))]
+fn extract_features(
+    surfaces: &[Box<str>],
+    raw_current: &str,
+    i: usize,
+    prev1_tag: &str,
+    prev2_tag: &str,
+) -> Vec<Box<str>> {
+    let mut feats = Vec::with_capacity(14);
+    let mut buf = String::with_capacity(32);
+    build_features(
+        surfaces,
+        raw_current,
+        i,
+        prev1_tag,
+        prev2_tag,
+        &mut buf,
+        |s| feats.push(Box::from(s)),
+    );
+    feats
 }
 
 /// One scanned token: its byte range and coarse kind, before tagging.
@@ -969,7 +1042,13 @@ impl PerceptronTagger {
     /// Tags one [`TokenKind::Word`] token at `i`: a tagdict hit short-
     /// circuits the model; otherwise scores every class and returns the
     /// argmax. `raw` is the token's original-case surface text, used only
-    /// for its suffix/first-character features — see [`extract_features`].
+    /// for its suffix/first-character features — see [`build_features`].
+    ///
+    /// `scratch` bundles the two buffers the caller's `tag()` loop owns
+    /// and reuses across every [`TokenKind::Word`] token in the same
+    /// call — see [`TagScratch`]'s own docs. Together they mean tagging a
+    /// token never allocates a `Box<str>`, an intermediate `String`, or a
+    /// fresh scores `Vec` after the first one or two tokens.
     fn tag_word(
         &self,
         surfaces: &[Box<str>],
@@ -977,13 +1056,39 @@ impl PerceptronTagger {
         i: usize,
         prev1: &str,
         prev2: &str,
+        scratch: &mut TagScratch,
     ) -> Box<str> {
         if let Some(tag) = self.backend.tagdict_lookup(&surfaces[i]) {
             return tag;
         }
-        let features = extract_features(surfaces, raw, i, prev1, prev2);
-        let scores = self.backend.score(&features);
-        self.backend.class_at(argmax(&scores))
+        let TagScratch { buf, scores } = scratch;
+        scores.clear();
+        scores.resize(self.backend.num_classes(), 0.0);
+        build_features(surfaces, raw, i, prev1, prev2, buf, |feature| {
+            self.backend.accumulate(feature, scores);
+        });
+        self.backend.class_at(argmax(scores))
+    }
+}
+
+/// The two scratch buffers [`PerceptronTagger::tag_word`] reuses across
+/// every [`TokenKind::Word`] token in one `tag()` call: `buf` is
+/// [`build_features`]'s per-feature formatting buffer (cleared and
+/// rewritten per feature, so after the first token or two it never
+/// reallocates); `scores` is the current token's per-class weight sums
+/// (cleared and resized per call, which reuses its existing allocation
+/// once it reaches [`Backend::num_classes`]).
+struct TagScratch {
+    buf: String,
+    scores: Vec<f32>,
+}
+
+impl TagScratch {
+    fn new() -> Self {
+        Self {
+            buf: String::with_capacity(32),
+            scores: Vec::new(),
+        }
     }
 }
 
@@ -1002,13 +1107,19 @@ impl Tagger for PerceptronTagger {
         let mut prev1: Box<str> = Box::from(START_TAG_1);
         let mut prev2: Box<str> = Box::from(START_TAG_2);
         let mut out = Vec::with_capacity(scanned.len());
+        // Reused across every `TokenKind::Word` token below — see
+        // `TagScratch`'s own docs for why this eliminates per-token
+        // allocation after the first token or two.
+        let mut scratch = TagScratch::new();
 
         for (i, scan_token) in scanned.iter().enumerate() {
             let surface = &text[scan_token.range.clone()];
             let assigned: Box<str> = match scan_token.kind {
                 TokenKind::Number => Box::from("CD"),
                 TokenKind::Punctuation => Box::from(punctuation_tag(surface)),
-                TokenKind::Word => self.tag_word(&surfaces, surface, i, &prev1, &prev2),
+                TokenKind::Word => {
+                    self.tag_word(&surfaces, surface, i, &prev1, &prev2, &mut scratch)
+                }
                 // `tokenize` never emits `Whitespace`; any other/future
                 // `TokenKind` (this enum is `#[non_exhaustive]`) falls back
                 // here rather than panicking.

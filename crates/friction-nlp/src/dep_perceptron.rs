@@ -284,22 +284,32 @@ fn children_of(config: &Configuration, head: usize) -> (Option<usize>, Option<us
     (left, right)
 }
 
-/// Appends `{prefix}.t=` and `{prefix}.rel=` features for `child`'s tag
-/// and its arc relation (the label attaching it to its own head) —
-/// [`NONE`] for both if `child` is absent.
+/// Emits `{prefix}.t=` and `{prefix}.rel=` features for `child`'s tag and
+/// its arc relation (the label attaching it to its own head) — [`NONE`]
+/// for both if `child` is absent. Each feature is written into `buf`
+/// (cleared first) and handed to `emit` as a borrow — see [`build_features`]
+/// for why a shared, reused buffer replaces a `format!` allocation per
+/// feature.
 fn push_child_features(
-    feats: &mut Vec<Box<str>>,
+    buf: &mut String,
+    emit: &mut impl FnMut(&str),
     prefix: &str,
     config: &Configuration,
     tags: &[Box<str>],
     child: Option<usize>,
 ) {
+    use std::fmt::Write as _;
+
     let (tag, relation) = child.map_or((NONE, NONE), |index| {
         let relation = config.arc(index).map_or(NONE, |(_, rel)| rel.as_str());
         (tags[index].as_ref(), relation)
     });
-    feats.push(Box::from(format!("{prefix}.t={tag}")));
-    feats.push(Box::from(format!("{prefix}.rel={relation}")));
+    buf.clear();
+    write!(buf, "{prefix}.t={tag}").expect("writing to a String never fails");
+    emit(buf.as_str());
+    buf.clear();
+    write!(buf, "{prefix}.rel={relation}").expect("writing to a String never fails");
+    emit(buf.as_str());
 }
 
 /// `diff` (buffer-minus-stack distance, always positive — the buffer only
@@ -317,18 +327,31 @@ const fn bucket_distance(diff: usize) -> &'static str {
     }
 }
 
-/// Builds one configuration's fixed, 30-entry feature list — see the
-/// module docs for the template catalogue; this function is its single
-/// source of truth.
+/// Builds one configuration's fixed, 30-entry feature list, invoking
+/// `emit` once per feature in the fixed order the module docs describe —
+/// this function is the single source of truth for the template
+/// catalogue.
+///
+/// Every feature is formatted into `buf` (cleared right before) rather
+/// than a fresh `String`, so `emit` only ever sees one live borrow at a
+/// time. Callers that drive this once per parse step with the *same*
+/// `buf` across the whole sentence (as [`DepParser::parse`]'s scoring
+/// loop does) get zero-allocation feature construction after `buf`
+/// stabilizes at its high-water mark; [`extract_features`] below is the
+/// owned, allocating wrapper training and tests use instead.
 ///
 /// `words`/`tags` are the whole sentence's lowercased text and tags,
 /// indexed by token — the same slices across one sentence's decode, since
 /// only `config` changes step to step.
-fn extract_features(
+fn build_features(
     words: &[Box<str>],
     tags: &[Box<str>],
     config: &Configuration,
-) -> Vec<Box<str>> {
+    buf: &mut String,
+    mut emit: impl FnMut(&str),
+) {
+    use std::fmt::Write as _;
+
     let stack = config.stack();
     let s0 = stack.last().copied();
     let s1 = if stack.len() >= 2 {
@@ -347,63 +370,77 @@ fn extract_features(
     let b1v = at(words, tags, b1);
     let b2v = at(words, tags, b2);
 
-    let mut feats = Vec::with_capacity(30);
+    macro_rules! feat {
+        ($($arg:tt)*) => {{
+            buf.clear();
+            write!(buf, $($arg)*).expect("writing to a String never fails");
+            emit(buf.as_str());
+        }};
+    }
 
     // Unigrams.
-    feats.push(Box::from(format!("s0.w={}", s0v.w)));
-    feats.push(Box::from(format!("s0.t={}", s0v.t)));
-    feats.push(Box::from(format!("s0.wt={}|{}", s0v.w, s0v.t)));
-    feats.push(Box::from(format!("s1.w={}", s1v.w)));
-    feats.push(Box::from(format!("s1.t={}", s1v.t)));
-    feats.push(Box::from(format!("s1.wt={}|{}", s1v.w, s1v.t)));
-    feats.push(Box::from(format!("b0.w={}", b0v.w)));
-    feats.push(Box::from(format!("b0.t={}", b0v.t)));
-    feats.push(Box::from(format!("b0.wt={}|{}", b0v.w, b0v.t)));
-    feats.push(Box::from(format!("b1.w={}", b1v.w)));
-    feats.push(Box::from(format!("b1.t={}", b1v.t)));
-    feats.push(Box::from(format!("b1.wt={}|{}", b1v.w, b1v.t)));
-    feats.push(Box::from(format!("b2.t={}", b2v.t)));
+    feat!("s0.w={}", s0v.w);
+    feat!("s0.t={}", s0v.t);
+    feat!("s0.wt={}|{}", s0v.w, s0v.t);
+    feat!("s1.w={}", s1v.w);
+    feat!("s1.t={}", s1v.t);
+    feat!("s1.wt={}|{}", s1v.w, s1v.t);
+    feat!("b0.w={}", b0v.w);
+    feat!("b0.t={}", b0v.t);
+    feat!("b0.wt={}|{}", b0v.w, b0v.t);
+    feat!("b1.w={}", b1v.w);
+    feat!("b1.t={}", b1v.t);
+    feat!("b1.wt={}|{}", b1v.w, b1v.t);
+    feat!("b2.t={}", b2v.t);
 
     // Pairs.
-    feats.push(Box::from(format!(
-        "s0b0.wtwt={}|{}|{}|{}",
-        s0v.w, s0v.t, b0v.w, b0v.t
-    )));
-    feats.push(Box::from(format!("s0b0.wtw={}|{}|{}", s0v.w, s0v.t, b0v.w)));
-    feats.push(Box::from(format!("s0b0.wwt={}|{}|{}", s0v.w, b0v.w, b0v.t)));
-    feats.push(Box::from(format!("s0b0.wtt={}|{}|{}", s0v.w, s0v.t, b0v.t)));
-    feats.push(Box::from(format!("s0b0.twt={}|{}|{}", s0v.t, b0v.w, b0v.t)));
-    feats.push(Box::from(format!("s0b0.ww={}|{}", s0v.w, b0v.w)));
-    feats.push(Box::from(format!("s0b0.tt={}|{}", s0v.t, b0v.t)));
-    feats.push(Box::from(format!("b0b1.tt={}|{}", b0v.t, b1v.t)));
+    feat!("s0b0.wtwt={}|{}|{}|{}", s0v.w, s0v.t, b0v.w, b0v.t);
+    feat!("s0b0.wtw={}|{}|{}", s0v.w, s0v.t, b0v.w);
+    feat!("s0b0.wwt={}|{}|{}", s0v.w, b0v.w, b0v.t);
+    feat!("s0b0.wtt={}|{}|{}", s0v.w, s0v.t, b0v.t);
+    feat!("s0b0.twt={}|{}|{}", s0v.t, b0v.w, b0v.t);
+    feat!("s0b0.ww={}|{}", s0v.w, b0v.w);
+    feat!("s0b0.tt={}|{}", s0v.t, b0v.t);
+    feat!("b0b1.tt={}|{}", b0v.t, b1v.t);
 
     // Triples.
-    feats.push(Box::from(format!(
-        "s0b0b1.ttt={}|{}|{}",
-        s0v.t, b0v.t, b1v.t
-    )));
-    feats.push(Box::from(format!(
-        "s1s0b0.ttt={}|{}|{}",
-        s1v.t, s0v.t, b0v.t
-    )));
+    feat!("s0b0b1.ttt={}|{}|{}", s0v.t, b0v.t, b1v.t);
+    feat!("s1s0b0.ttt={}|{}|{}", s1v.t, s0v.t, b0v.t);
 
     // Children.
     let (s0_left, s0_right) = s0.map_or((None, None), |head| children_of(config, head));
-    push_child_features(&mut feats, "s0.lc", config, tags, s0_left);
-    push_child_features(&mut feats, "s0.rc", config, tags, s0_right);
+    push_child_features(buf, &mut emit, "s0.lc", config, tags, s0_left);
+    push_child_features(buf, &mut emit, "s0.rc", config, tags, s0_right);
     let b0_left = b0.and_then(|head| children_of(config, head).0);
-    push_child_features(&mut feats, "b0.lc", config, tags, b0_left);
+    push_child_features(buf, &mut emit, "b0.lc", config, tags, b0_left);
 
     // Distance.
     let dist_bucket = match (s0, b0) {
         (Some(si), Some(bi)) => bucket_distance(bi - si),
         _ => NONE,
     };
-    feats.push(Box::from(format!(
-        "dist.s0t.b0t={}|{}|{}",
-        dist_bucket, s0v.t, b0v.t
-    )));
+    feat!("dist.s0t.b0t={}|{}|{}", dist_bucket, s0v.t, b0v.t);
+}
 
+/// Owned, allocating wrapper over [`build_features`]: collects every
+/// feature into a freshly boxed `Vec<Box<str>>`, one heap allocation per
+/// feature (30 per call) — used by training (which needs owned keys to
+/// update a `BTreeMap`-backed weight table across many sentences) and by
+/// this module's own tests. [`DepParser::parse`]'s hot loop does not call
+/// this: it drives [`build_features`] directly with a reused scratch
+/// buffer and an immediate per-feature scoring callback, so no `Box<str>`
+/// or intermediate `String` is ever allocated per feature there. Gated
+/// like [`relation_index`]/[`action_index`] above: nothing in a normal,
+/// non-training build calls this anymore.
+#[cfg(any(test, feature = "train-tooling"))]
+fn extract_features(
+    words: &[Box<str>],
+    tags: &[Box<str>],
+    config: &Configuration,
+) -> Vec<Box<str>> {
+    let mut feats = Vec::with_capacity(30);
+    let mut buf = String::with_capacity(64);
+    build_features(words, tags, config, &mut buf, |s| feats.push(Box::from(s)));
     feats
 }
 
@@ -466,21 +503,20 @@ impl WeightTable {
         Self { by_feature }
     }
 
-    /// Sums each feature's dense per-action weight array, in `features`'
-    /// own fixed order — summation order (and so the resulting scores) is
-    /// identical across runs since it's fixed by the caller's slice, never
-    /// by hash-map iteration (mirrors [`crate::tag_perceptron`]'s
-    /// `WeightTable::score`).
-    fn score(&self, features: &[Box<str>]) -> [f32; NUM_ACTIONS] {
-        let mut scores = [0f32; NUM_ACTIONS];
-        for feature in features {
-            if let Some(dense) = self.by_feature.get(feature) {
-                for (slot, weight) in scores.iter_mut().zip(dense.iter()) {
-                    *slot += weight;
-                }
+    /// Adds `feature`'s dense per-action weight array (if any) into
+    /// `scores` — [`Backend::accumulate`]'s single-feature step, called
+    /// once per feature straight out of [`build_features`]'s reused
+    /// scratch buffer (no owned `Vec<Box<str>>` of features ever built on
+    /// this path). Summation order — and so the resulting scores — is
+    /// identical across runs since it's fixed by the caller's fixed
+    /// feature-template order, never by hash-map iteration (mirrors
+    /// [`crate::tag_perceptron`]'s own `WeightTable::score`).
+    fn accumulate_one(&self, feature: &str, scores: &mut [f32; NUM_ACTIONS]) {
+        if let Some(dense) = self.by_feature.get(feature) {
+            for (slot, weight) in scores.iter_mut().zip(dense.iter()) {
+                *slot += weight;
             }
         }
-        scores
     }
 }
 
@@ -522,20 +558,32 @@ impl<'a> ParserView<'a> {
         Ok(Self { features, values })
     }
 
-    /// Sums every matched feature's sparse per-action weight row —
-    /// mirrors [`WeightTable::score`]'s fixed-order summation, just
-    /// reading each row's nonzero entries from the payload instead of a
-    /// pre-built dense array.
+    /// Adds `feature`'s sparse per-action weight row (if any) into
+    /// `scores` — reads directly from the payload's bytes, no owned key
+    /// required, so [`Backend::accumulate`] can drive this with a
+    /// borrowed feature straight out of a reused scratch buffer.
+    fn accumulate_one(&self, feature: &[u8], scores: &mut [f32; NUM_ACTIONS]) {
+        if let Some(row_offset) = self.features.get(feature) {
+            for chunk in crate::weights_bin::sparse_row(self.values, row_offset).chunks_exact(6) {
+                let (action_index, weight) = crate::weights_bin::decode_sparse_entry(chunk);
+                scores[usize::from(action_index)] += weight;
+            }
+        }
+    }
+
+    /// Sums every matched feature's sparse per-action weight row over a
+    /// caller-supplied feature list — mirrors [`WeightTable::accumulate_one`]'s
+    /// fixed-order summation, just reading each row's nonzero entries from
+    /// the payload instead of a pre-built dense array. Only this module's
+    /// own full-vocabulary parity tests drive the view this way (a list of
+    /// already-owned features); [`PerceptronParser::parse`]'s hot loop
+    /// instead calls [`Self::accumulate_one`] directly from
+    /// [`build_features`]'s callback.
+    #[cfg(test)]
     fn score(&self, features: &[Box<str>]) -> [f32; NUM_ACTIONS] {
         let mut scores = [0f32; NUM_ACTIONS];
         for feature in features {
-            if let Some(row_offset) = self.features.get(feature.as_bytes()) {
-                for chunk in crate::weights_bin::sparse_row(self.values, row_offset).chunks_exact(6)
-                {
-                    let (action_index, weight) = crate::weights_bin::decode_sparse_entry(chunk);
-                    scores[usize::from(action_index)] += weight;
-                }
-            }
+            self.accumulate_one(feature.as_bytes(), &mut scores);
         }
         scores
     }
@@ -583,9 +631,13 @@ fn build_view_payload(file: WeightFile) -> Vec<u8> {
 /// [`PerceptronParser::new`]'s zero-copy [`ViewBackend`] and
 /// [`PerceptronParser::from_json_gz`]'s owned [`OwnedBackend`]. Only one
 /// method: unlike the tagger, a parser step's output is already a plain
-/// action index (no class string, no tagdict bypass to resolve).
+/// action index (no class string, no tagdict bypass to resolve). Takes
+/// one feature at a time (rather than a collected slice) so
+/// [`DepParser::parse`]'s hot loop can drive it straight from
+/// [`build_features`]'s per-feature callback — no owned `Vec<Box<str>>`
+/// of features is ever built on that path.
 trait Backend {
-    fn score(&self, features: &[Box<str>]) -> [f32; NUM_ACTIONS];
+    fn accumulate(&self, feature: &str, scores: &mut [f32; NUM_ACTIONS]);
 }
 
 /// [`Backend`] over an in-memory, `HashMap`-based [`WeightTable`] — built
@@ -595,8 +647,8 @@ struct OwnedBackend {
 }
 
 impl Backend for OwnedBackend {
-    fn score(&self, features: &[Box<str>]) -> [f32; NUM_ACTIONS] {
-        self.weights.score(features)
+    fn accumulate(&self, feature: &str, scores: &mut [f32; NUM_ACTIONS]) {
+        self.weights.accumulate_one(feature, scores);
     }
 }
 
@@ -607,8 +659,8 @@ struct ViewBackend {
 }
 
 impl Backend for ViewBackend {
-    fn score(&self, features: &[Box<str>]) -> [f32; NUM_ACTIONS] {
-        self.view.score(features)
+    fn accumulate(&self, feature: &str, scores: &mut [f32; NUM_ACTIONS]) {
+        self.view.accumulate_one(feature.as_bytes(), scores);
     }
 }
 
@@ -771,9 +823,19 @@ impl DepParser for PerceptronParser {
             .collect();
 
         let mut config = Configuration::new(tokens.len());
+        // Reused across every step of this sentence: `build_features`
+        // clears and rewrites it per feature, so after the first step or
+        // two grows it to its high-water mark, the rest of the sentence
+        // formats features with zero further allocation. Fused with
+        // scoring below (`backend.accumulate` per feature) instead of
+        // collecting an owned `Vec<Box<str>>` and scoring it afterward —
+        // see `build_features`'s and `Backend::accumulate`'s docs.
+        let mut buf = String::with_capacity(64);
         while !config.is_terminal() {
-            let features = extract_features(&words, &tags, &config);
-            let scores = self.backend.score(&features);
+            let mut scores = [0f32; NUM_ACTIONS];
+            build_features(&words, &tags, &config, &mut buf, |feature| {
+                self.backend.accumulate(feature, &mut scores);
+            });
             match best_allowed_action(&scores, &config) {
                 Some(index) => config.apply(action_at(index)),
                 // Unreachable while `!config.is_terminal()` (see
