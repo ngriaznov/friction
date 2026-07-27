@@ -19,6 +19,53 @@ LanguageTool/nlprule data, and nothing here is downloaded at build time.
 This file records exactly where the training signal came from, how it was
 produced, and how to reproduce the artifact byte-for-byte.
 
+## Derived binary artifacts (`.bin`)
+
+`parser_en.json.gz` and `perceptron_en.json.gz` remain the audited
+interchange artifacts this file's provenance sections describe — nothing
+below changes what they are or how they're reproduced. `parser_en.bin`
+and `perceptron_en.bin` are **derived** artifacts, committed alongside
+them: a `postcard`-encoded (compact binary `serde` format) re-encoding of
+the exact same `WeightFile` data, prefixed with a small header (an 8-byte
+magic distinct per artifact, a format version, and the sha256 of the
+`json.gz` each was derived from). `PerceptronTagger::new`/
+`PerceptronParser::new` load the `.bin` at normal startup — postcard
+parses directly off a byte slice, with none of `serde_json`'s text
+scanning or gzip's decompression pass, so this cuts `friction fix`'s
+per-invocation weight-loading time substantially (measured: the combined
+tagger+parser load dropped from roughly 223ms to roughly 67ms). The
+relationship mirrors `friction-packs/packs/jargon-attest-v1.bin`'s own
+derived-from-pinned-text-sources shape: the checked-in `.bin` is a build
+output of an audited source, not itself hand-authored or a second source
+of truth.
+
+The header's sha256 is checked against a compile-time constant of the
+currently embedded `json.gz` at every `new()` call — this is what makes a
+`.bin` regenerated from a stale or hand-edited `json.gz` (or simply
+forgotten after a retrain) fail loudly at process init, rather than
+silently drifting from the audited source. A `from_json_gz` constructor
+on both `PerceptronTagger` and `PerceptronParser` keeps the JSON-loading
+path available (used by the converter below and by each module's own
+parity test, which asserts the two loading paths produce bit-identical
+`WeightFile`s and identical tagging/parsing output over a fixed sentence
+battery).
+
+**Regenerate both `.bin` files** after retraining either artifact (or
+whenever `cargo test` reports a stale-artifact or sha256-mismatch
+failure):
+
+```sh
+cargo run -p corpus-tool -- weights-pack
+```
+
+This reads both `json.gz` files, computes each one's sha256, and writes
+`parser_en.bin`/`perceptron_en.bin` next to them (see `corpus-tool
+weights-pack --help` for the input/output path flags, defaulted to this
+directory). Deterministic: running it twice over the same `json.gz` bytes
+produces bit-identical `.bin` bytes (pinned by `friction-nlp`'s own
+`pack_perceptron_*_bin_is_deterministic` tests and `corpus-tool`'s
+`packing_the_same_json_gz_twice_is_byte_identical`).
+
 **This section describes the second generation of this gold file and
 artifact** (spaCy-drafted, 11x the token volume, a closed punctuation
 tagset). The first generation (nlprule-drafted, hand-curated, ~20K tokens)

@@ -165,7 +165,7 @@ fn run_inner(args: &FixArgs) -> Result<ExitCode, CliError> {
     }
 
     let remaining_held = final_pass_held(&report);
-    let paraphrase_spans = scan_paraphrase_spans(&output)?;
+    let paraphrase_spans = scan_paraphrase_spans(&output, engine.tagger())?;
     print_summary(
         args.format,
         &report,
@@ -313,23 +313,23 @@ fn print_suggestions(output: &str, path_label: &str, suggestions: &[Finding]) {
 /// scanned, the same scoping every detection channel already uses
 /// (`friction_match::token::prose_scope`).
 ///
-/// Builds its own tagger (jargon detection needs part-of-speech tags —
-/// see `friction_match::jargon`'s own module docs) rather than threading
-/// one in from `run_inner`'s already-built `friction_edit::Engine`, whose
-/// tagger field is private to that crate; a fresh
-/// `friction_nlp::PerceptronTagger` is cheap to load (an embedded, gzip-
-/// compressed weight artifact), the same cost `crate::common::Engine`
-/// already pays for `check`/`explain`.
+/// Reuses `run_inner`'s already-built `friction_edit::Engine`'s tagger
+/// (jargon detection needs part-of-speech tags — see
+/// `friction_match::jargon`'s own module docs) via
+/// [`friction_edit::Engine::tagger`] rather than constructing a second
+/// `friction_nlp::PerceptronTagger` — one embedded-weight load per `fix`
+/// invocation instead of two.
 ///
 /// # Errors
 /// Returns [`CliError::Parse`] if `output` fails to parse as markdown —
 /// not expected, since `output` is text `fix_document` has already parsed
-/// successfully once. Returns [`CliError::Tagger`] if the embedded
-/// English tagger model fails to load.
-fn scan_paraphrase_spans(output: &str) -> Result<Vec<ParaphraseSpan>, CliError> {
+/// successfully once.
+fn scan_paraphrase_spans(
+    output: &str,
+    tagger: &dyn friction_nlp::Tagger,
+) -> Result<Vec<ParaphraseSpan>, CliError> {
     let document = friction_parse::parse(output)?;
     let segmenter = friction_nlp::SrxSegmenter::new();
-    let tagger = friction_nlp::PerceptronTagger::new()?;
     let units = friction_match::token::prose_scope(&document, &segmenter);
 
     let mut spans = Vec::new();
@@ -344,7 +344,7 @@ fn scan_paraphrase_spans(output: &str) -> Result<Vec<ParaphraseSpan>, CliError> 
     spans.extend(friction_match::jargon::scan_units(
         &units,
         document.source(),
-        &tagger,
+        tagger,
         &friction_packs::JARGON.pack,
         &friction_packs::JARGON_ATTEST,
     ));

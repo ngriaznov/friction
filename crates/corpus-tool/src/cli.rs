@@ -91,6 +91,10 @@ enum Command {
     /// Wikipedia-title and OpenAlex-topic compound keys, for
     /// `friction-match`'s `jargon.metaphor` channel.
     JargonAttest(commands::jargon_attest::Args),
+    /// Builds the derived `.bin` weight artifacts
+    /// (`friction_nlp::PerceptronTagger`/`PerceptronParser` load at
+    /// runtime) from the vendored, audited `json.gz` weight artifacts.
+    WeightsPack(commands::weights_pack::Args),
 }
 
 /// Parses process arguments and runs the selected subcommand.
@@ -145,5 +149,6 @@ pub fn run() -> anyhow::Result<()> {
         Command::Attest(args) => commands::attest::run(&args),
         Command::RegisterBands(args) => commands::register_bands::run(&args),
         Command::JargonAttest(args) => commands::jargon_attest::run(&args),
+        Command::WeightsPack(args) => commands::weights_pack::run(&args),
     }
 }

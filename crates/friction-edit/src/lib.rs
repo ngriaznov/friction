@@ -90,6 +90,18 @@ impl Engine {
     pub fn word_count(&self, source: &str) -> Result<usize, EditError> {
         document::prose_word_count(source, &self.segmenter)
     }
+
+    /// This engine's embedded tagger, as a trait object.
+    ///
+    /// Lets a caller that already holds an [`Engine`] (`friction fix`'s
+    /// paraphrase scan, which needs part-of-speech tags for its jargon
+    /// channel — see `friction-cli`'s `fix` module) reuse this engine's
+    /// already-loaded tagger instead of constructing a second
+    /// `friction_nlp::PerceptronTagger` of its own.
+    #[must_use]
+    pub fn tagger(&self) -> &dyn friction_nlp::Tagger {
+        &self.tagger
+    }
 }
 
 #[cfg(test)]

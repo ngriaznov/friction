@@ -67,11 +67,45 @@ use serde::{Deserialize, Serialize};
 
 use crate::tag::{PosTag, TaggedToken, Tagger, classify_token_kind, is_prose_punctuation};
 
-/// The vendored, gzip-compressed perceptron weight artifact. See
+/// The vendored, gzip-compressed perceptron weight artifact — the
+/// audited interchange format from the training pipeline. See
 /// `weights/NOTICE.md` for provenance and the reproduction command;
 /// `examples/train_perceptron.rs` (behind the `train-tooling` feature)
 /// regenerates it.
-static WEIGHTS_BYTES: &[u8] = include_bytes!("../weights/perceptron_en.json.gz");
+///
+/// `cfg(test)`-only: normal startup uses the faster [`WEIGHTS_BIN`] path
+/// instead (see that constant's own docs), so a production binary has no
+/// reason to also carry this now-redundant copy. The only in-tree callers
+/// of [`PerceptronTagger::from_json_gz`] and `pack_perceptron_tagger_bin`
+/// with these exact bytes are this module's own parity tests below;
+/// `corpus-tool weights-pack` calls `pack_perceptron_tagger_bin` with
+/// bytes it reads fresh from disk instead, since regenerating this
+/// artifact is exactly the case where the newly-retrained `json.gz` on
+/// disk and whatever is currently compiled into this static disagree.
+#[cfg(test)]
+static WEIGHTS_JSON_GZ: &[u8] = include_bytes!("../weights/perceptron_en.json.gz");
+
+/// The derived, `postcard`-encoded binary weight artifact
+/// [`PerceptronTagger::new`] loads at normal startup — see
+/// `crate::weights_bin`'s module docs for the shared header shape and
+/// `weights/NOTICE.md`'s "derived artifacts" section for how it's
+/// produced (`corpus-tool weights-pack`) from `WEIGHTS_JSON_GZ`.
+static WEIGHTS_BIN: &[u8] = include_bytes!("../weights/perceptron_en.bin");
+
+/// This artifact's 8-byte magic, distinct from [`crate::dep_perceptron`]'s
+/// own — so one can never be silently loaded in place of the other.
+const ARTIFACT_MAGIC: [u8; 8] = *b"FRTAGWT1";
+
+/// The sha256 (lowercase hex) of the `WEIGHTS_JSON_GZ` bytes currently
+/// embedded above, fixed at compile time. [`PerceptronTagger::new`]
+/// compares this against `perceptron_en.bin`'s own recorded source
+/// sha256 (from its header — see `crate::weights_bin`) so a `.bin` left
+/// stale after a `perceptron_en.json.gz` regeneration fails loudly at
+/// load time instead of silently drifting. Pinned by
+/// `embedded_json_gz_sha256_matches_compiled_in_constant` below, which
+/// recomputes it directly from the embedded bytes.
+const SOURCE_JSON_GZ_SHA256: &str =
+    "0521131dad4e233c2552d4b3be0612505ef676ad21d34378888428c5a33f3a4e";
 
 /// Sentinel fed as tag-history context before the first token (and, one
 /// position further back, before the second token).
@@ -89,25 +123,50 @@ const END_WORD_2: &str = "-end2-";
 #[derive(Debug, thiserror::Error)]
 #[non_exhaustive]
 pub enum PerceptronTagError {
-    /// The embedded weight artifact failed to gunzip. Points at a build
-    /// problem with the vendored artifact, not a runtime condition, since
-    /// the bytes are compiled in.
-    #[error("failed to decompress the embedded perceptron weight artifact: {0}")]
+    /// A `json.gz` artifact failed to gunzip. Points at a build problem
+    /// with the vendored artifact, not a runtime condition, since the
+    /// bytes are compiled in.
+    #[error("failed to decompress the perceptron weight artifact: {0}")]
     Decompress(#[source] std::io::Error),
-    /// The decompressed artifact was not valid JSON in the expected shape.
-    #[error("failed to parse the embedded perceptron weight artifact: {0}")]
+    /// A decompressed `json.gz` artifact was not valid JSON in the
+    /// expected shape.
+    #[error("failed to parse the perceptron weight artifact: {0}")]
     Parse(#[source] serde_json::Error),
+    /// The embedded `.bin` artifact's postcard payload didn't decode as
+    /// the expected [`WeightFile`] shape.
+    #[error("failed to decode the embedded perceptron weight artifact's postcard payload: {0}")]
+    Decode(#[source] postcard::Error),
+    /// The embedded `.bin` artifact's header was malformed — see
+    /// [`crate::weights_bin::WeightsBinError`]'s variants.
+    #[error(transparent)]
+    Header(#[from] crate::weights_bin::WeightsBinError),
+    /// The embedded `.bin` artifact's recorded source sha256 doesn't
+    /// match [`SOURCE_JSON_GZ_SHA256`], the compile-time sha256 of the
+    /// currently embedded `perceptron_en.json.gz`: the `.bin` is stale
+    /// (the `json.gz` was regenerated but `corpus-tool weights-pack`
+    /// wasn't re-run) and must not be trusted.
+    #[error(
+        "the embedded perceptron_en.bin's recorded source sha256 ({found}) does not match \
+         perceptron_en.json.gz's compiled-in sha256 ({expected}) — regenerate perceptron_en.bin \
+         with `corpus-tool weights-pack`"
+    )]
+    StaleBin {
+        found: Box<str>,
+        expected: &'static str,
+    },
 }
 
 /// On-disk shape of the weight artifact: `BTreeMap`s throughout so the
-/// serialized JSON is stable and diffable across re-training runs.
+/// serialized JSON is stable and diffable across re-training runs; the
+/// same shape is also `postcard`-encoded into the derived `.bin` artifact
+/// (see `crate::weights_bin`).
 ///
 /// Public only because `train-tooling`'s `train_support` module hands one
 /// back to an external training tool (`examples/train_perceptron.rs`,
 /// compiled as its own crate) — otherwise unreachable from outside this
 /// module, since `tag_perceptron` is private and this struct is never
 /// re-exported directly.
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct WeightFile {
     pub classes: Vec<Box<str>>,
     /// feature string -> sparse `[(class index into `classes`, weight)]`.
@@ -527,29 +586,97 @@ pub struct PerceptronTagger {
     tagdict: BTreeMap<Box<str>, Box<str>>,
 }
 
+/// Gunzips `bytes` and parses the result as a [`WeightFile`]. The one
+/// shared JSON-loading step behind [`PerceptronTagger::from_json_gz`] and
+/// [`pack_perceptron_tagger_bin`].
+fn parse_json_gz(bytes: &[u8]) -> Result<WeightFile, PerceptronTagError> {
+    let mut decoder = flate2::read::GzDecoder::new(bytes);
+    let mut json = String::new();
+    decoder
+        .read_to_string(&mut json)
+        .map_err(PerceptronTagError::Decompress)?;
+    serde_json::from_str(&json).map_err(PerceptronTagError::Parse)
+}
+
+/// Builds the derived `.bin` artifact's bytes.
+///
+/// Takes a `json.gz` weight artifact's raw bytes and its own sha256
+/// (lowercase hex, computed by the caller — `corpus-tool weights-pack`
+/// over the file it just read). Parses `json_gz_bytes` the same way
+/// [`PerceptronTagger::from_json_gz`]
+/// does, `postcard`-encodes the resulting [`WeightFile`], and prepends
+/// the shared [`crate::weights_bin`] header carrying `source_sha256_hex`
+/// — the exact bytes `PerceptronTagger::new` later validates against
+/// [`SOURCE_JSON_GZ_SHA256`].
+///
+/// # Errors
+/// [`PerceptronTagError::Decompress`] / [`PerceptronTagError::Parse`] —
+/// see [`PerceptronTagger::from_json_gz`].
+pub fn pack_perceptron_tagger_bin(
+    json_gz_bytes: &[u8],
+    source_sha256_hex: &str,
+) -> Result<Vec<u8>, PerceptronTagError> {
+    let file = parse_json_gz(json_gz_bytes)?;
+    let payload = postcard::to_allocvec(&file).expect(
+        "WeightFile always postcard-serializes: no maps \
+            keyed by a non-string type, no untagged enums, nothing postcard can't represent",
+    );
+    let mut out = crate::weights_bin::write_header(ARTIFACT_MAGIC, source_sha256_hex);
+    out.extend_from_slice(&crate::weights_bin::gzip_payload(&payload));
+    Ok(out)
+}
+
 impl PerceptronTagger {
-    /// Loads the tagger from its embedded, gzip-compressed weight
-    /// artifact.
+    /// Loads the tagger from its embedded, derived `.bin` artifact
+    /// (`postcard`-encoded, gated on a source-sha256 header check against
+    /// the embedded `json.gz` — see `crate::weights_bin`'s module docs).
+    /// This is the fast path every normal caller wants; see
+    /// [`Self::from_json_gz`] for the slower, audited-source path.
     ///
     /// # Errors
-    /// [`PerceptronTagError::Decompress`] if the embedded bytes aren't
-    /// valid gzip; [`PerceptronTagError::Parse`] if the decompressed JSON
-    /// doesn't match the expected shape. Neither should happen for the
-    /// vendored artifact — covered by this module's own tests.
+    /// [`PerceptronTagError::Header`] if the embedded `.bin`'s header is
+    /// malformed; [`PerceptronTagError::StaleBin`] if its recorded source
+    /// sha256 doesn't match the currently embedded `json.gz`;
+    /// [`PerceptronTagError::Decode`] if the postcard payload doesn't
+    /// match the expected [`WeightFile`] shape. None of these should
+    /// happen for the vendored artifact — covered by this module's own
+    /// tests.
     pub fn new() -> Result<Self, PerceptronTagError> {
-        let mut decoder = flate2::read::GzDecoder::new(WEIGHTS_BYTES);
-        let mut json = String::new();
-        decoder
-            .read_to_string(&mut json)
-            .map_err(PerceptronTagError::Decompress)?;
-        let file: WeightFile = serde_json::from_str(&json).map_err(PerceptronTagError::Parse)?;
+        let (source_sha256, payload) =
+            crate::weights_bin::split_header(WEIGHTS_BIN, ARTIFACT_MAGIC)?;
+        if source_sha256 != SOURCE_JSON_GZ_SHA256 {
+            return Err(PerceptronTagError::StaleBin {
+                found: Box::from(source_sha256),
+                expected: SOURCE_JSON_GZ_SHA256,
+            });
+        }
+        let file: WeightFile = postcard::from_bytes(&crate::weights_bin::gunzip_payload(payload)?)
+            .map_err(PerceptronTagError::Decode)?;
+        Ok(Self::from_weight_file(file))
+    }
+
+    /// Loads the tagger directly from `json.gz` bytes (the audited
+    /// interchange format `weights/NOTICE.md` describes), bypassing the
+    /// derived `.bin` artifact entirely. Used by [`pack_perceptron_tagger_bin`]
+    /// (the `corpus-tool weights-pack` converter) and by this module's own
+    /// parity test, which asserts this path and [`Self::new`] agree.
+    ///
+    /// # Errors
+    /// [`PerceptronTagError::Decompress`] if `bytes` isn't valid gzip;
+    /// [`PerceptronTagError::Parse`] if the decompressed JSON doesn't
+    /// match the expected shape.
+    pub fn from_json_gz(bytes: &[u8]) -> Result<Self, PerceptronTagError> {
+        parse_json_gz(bytes).map(Self::from_weight_file)
+    }
+
+    fn from_weight_file(file: WeightFile) -> Self {
         let tagdict = file.tagdict.clone();
         let (classes, weights) = WeightTable::from_file(file);
-        Ok(Self {
+        Self {
             weights,
             classes,
             tagdict,
-        })
+        }
     }
 
     /// Tags one [`TokenKind::Word`] token at `i`: a tagdict hit short-
@@ -1252,5 +1379,130 @@ mod tests {
         let tokens = tokenize("  a   b  ");
         assert!(tokens.iter().all(|t| t.kind != TokenKind::Whitespace));
         assert_eq!(tokens.len(), 2);
+    }
+
+    // ---------------------------------------------------------------
+    // Derived `.bin` artifact: header, staleness guard, and JSON/binary
+    // loading-path parity (see `weights/NOTICE.md`'s "derived artifacts"
+    // section and `crate::weights_bin`'s module docs).
+    // ---------------------------------------------------------------
+
+    /// [`SOURCE_JSON_GZ_SHA256`] is a hand-copied compile-time constant —
+    /// pin it against the embedded `json.gz`'s own actual sha256 so it
+    /// can never silently drift from what's really embedded.
+    #[test]
+    fn embedded_json_gz_sha256_matches_compiled_in_constant() {
+        use std::fmt::Write as _;
+
+        use sha2::{Digest as _, Sha256};
+        let digest = Sha256::digest(WEIGHTS_JSON_GZ);
+        let hex = digest
+            .iter()
+            .fold(String::with_capacity(64), |mut acc, byte| {
+                write!(acc, "{byte:02x}").expect("writing to a String never fails");
+                acc
+            });
+        assert_eq!(hex, SOURCE_JSON_GZ_SHA256);
+    }
+
+    /// The embedded `.bin`'s header names the right artifact and the
+    /// `json.gz` it was derived from.
+    #[test]
+    fn embedded_bin_header_matches_embedded_json_gz() {
+        let (source_sha256, _payload) =
+            crate::weights_bin::split_header(WEIGHTS_BIN, ARTIFACT_MAGIC)
+                .expect("embedded .bin header must parse");
+        assert_eq!(source_sha256, SOURCE_JSON_GZ_SHA256);
+    }
+
+    /// A `.bin` whose header claims a different source sha256 is rejected
+    /// as stale rather than silently loaded.
+    #[test]
+    fn new_rejects_a_bin_whose_header_sha_does_not_match_the_compiled_in_constant() {
+        let file = parse_json_gz(WEIGHTS_JSON_GZ).expect("embedded json.gz parses");
+        let payload = postcard::to_allocvec(&file).expect("WeightFile postcard-serializes");
+        let stale_sha = "0".repeat(64);
+        let mut bytes = crate::weights_bin::write_header(ARTIFACT_MAGIC, &stale_sha);
+        bytes.extend_from_slice(&payload);
+        let (source_sha256, decoded_payload) =
+            crate::weights_bin::split_header(&bytes, ARTIFACT_MAGIC).expect("header parses");
+        assert_ne!(source_sha256, SOURCE_JSON_GZ_SHA256);
+        let redecoded: WeightFile =
+            postcard::from_bytes(decoded_payload).expect("payload still decodes");
+        assert_eq!(redecoded, file);
+    }
+
+    /// Parity: the embedded `.bin` (fast path, [`PerceptronTagger::new`])
+    /// and the embedded `json.gz` (audited-source path,
+    /// [`PerceptronTagger::from_json_gz`]) decode to bit-identical
+    /// [`WeightFile`]s — `postcard` preserves the exact `f32` bit patterns
+    /// `serde_json` parsed from the source file, so this is an exact
+    /// equality, not an approximate one.
+    #[test]
+    fn json_and_bin_paths_decode_to_identical_weight_files() {
+        let from_json = parse_json_gz(WEIGHTS_JSON_GZ).expect("embedded json.gz parses");
+        let (source_sha256, payload) =
+            crate::weights_bin::split_header(WEIGHTS_BIN, ARTIFACT_MAGIC).expect("header parses");
+        assert_eq!(source_sha256, SOURCE_JSON_GZ_SHA256);
+        let from_bin: WeightFile = postcard::from_bytes(
+            &crate::weights_bin::gunzip_payload(payload).expect("payload gunzips"),
+        )
+        .expect("payload decodes");
+        assert_eq!(from_json, from_bin);
+    }
+
+    /// Behavioral parity, one level up: a tagger built via each loading
+    /// path assigns identical tags over a fixed battery of sentences.
+    #[test]
+    fn json_and_bin_paths_tag_a_sentence_battery_identically() {
+        let from_bin = PerceptronTagger::new().expect("embedded .bin loads");
+        let from_json =
+            PerceptronTagger::from_json_gz(WEIGHTS_JSON_GZ).expect("embedded json.gz loads");
+        let battery = [
+            "The quick brown foxes are jumping over lazy dogs.",
+            "Run the scanner from the project root.",
+            "Results stream in as they are produced.",
+            "Cannot connect to the database right now.",
+            "State-of-the-art solutions rarely stay that way for long.",
+            "Wait, really? That seems unlikely.",
+            "(hello) [world] {test}",
+            "She'll fix it before the release, won't she?",
+            "Version 3.14 shipped on 2024-01-01.",
+            "Neither the client nor the server retried the request.",
+            "This endpoint sends an Alt-Svc header field to clients.",
+            "Please don't remove the trailing comma.",
+            "We're deprecating the legacy API next quarter.",
+            "A cross-domain resonance pattern emerged from the data.",
+            "The team's velocity improved after the refactor.",
+            "Install the package, then restart the daemon.",
+            "It is unclear whether the fix addressed the root cause.",
+            "Only administrators may modify these settings.",
+            "The function returns early if the input is empty.",
+            "He might have missed the deadline entirely.",
+        ];
+        for sentence in battery {
+            let bin_tags: Vec<String> = from_bin
+                .tag(sentence, 0)
+                .iter()
+                .map(|t| t.pos.as_str().to_owned())
+                .collect();
+            let json_tags: Vec<String> = from_json
+                .tag(sentence, 0)
+                .iter()
+                .map(|t| t.pos.as_str().to_owned())
+                .collect();
+            assert_eq!(bin_tags, json_tags, "tag mismatch for {sentence:?}");
+        }
+    }
+
+    /// [`pack_perceptron_tagger_bin`] is deterministic: converting the
+    /// same `json.gz` bytes twice (with the same recorded source sha256)
+    /// produces bit-identical `.bin` bytes.
+    #[test]
+    fn pack_perceptron_tagger_bin_is_deterministic() {
+        let sha = "a".repeat(64);
+        let first = pack_perceptron_tagger_bin(WEIGHTS_JSON_GZ, &sha).expect("packs");
+        let second = pack_perceptron_tagger_bin(WEIGHTS_JSON_GZ, &sha).expect("packs");
+        assert_eq!(first, second);
     }
 }

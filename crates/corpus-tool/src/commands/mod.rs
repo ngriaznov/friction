@@ -32,3 +32,4 @@ pub mod separate_holdout;
 pub mod split;
 pub mod stats;
 pub mod validate;
+pub mod weights_pack;

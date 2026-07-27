@@ -38,6 +38,15 @@ srx = { version = "0.1.4", features = ["from_xml"] }
 flate2 = "1"
 serde = { workspace = true }
 serde_json = { workspace = true }
+# Encodes/decodes the derived `.bin` weight artifacts (`weights_bin`
+# module): a compact binary `serde` format, much faster to parse than
+# `serde_json` (no text scanning, no `HashMap`/`String` allocation per
+# key) since it reads straight through a byte slice. `default-features =
+# false` + `alloc` drops `heapless`/`heapless-cas` (this crate always has
+# `std`'s allocator, has no embedded-target reason to prefer a fixed-
+# capacity buffer) and needs no `postcard-derive`, `crc`, or `defmt` —
+# `to_allocvec`/`from_bytes` are both available under plain `alloc`.
+postcard = { version = "1", default-features = false, features = ["alloc"] }
 
 [[example]]
 name = "train_perceptron"
