@@ -1,4 +1,4 @@
-//! Real cases for the three rewrite transducers, each with an asserted
+//! Real cases for the four rewrite transducers, each with an asserted
 //! output string — not smoke tests.
 //!
 //! Every parse is built by hand, not run through the shipped tagger/parser,
@@ -11,7 +11,7 @@ use friction_core::{Token, TokenKind};
 use friction_nlp::{Confidence, DepEdge, DepRelation, PosTag, SentenceParse, TaggedToken};
 use friction_register::transduce::{
     Candidate, CandidateKind, candidates, past, past_participle, t4_activize_to_passive,
-    t5_nominalization, t6_em_dash, third_sg,
+    t5_nominalization, t6_em_dash, t7_semicolon, third_sg,
 };
 
 /// One token's dependency-tree shape and tags, spelled out by hand.
@@ -1142,4 +1142,233 @@ fn t6_paired_parenthetical_with_internal_commas_uses_parentheses() {
     let mut expected_delta = BTreeMap::new();
     expected_delta.insert("em_dash", -2);
     assert_eq!(found[0].delta, expected_delta);
+}
+
+// ---------------------------------------------------------------------
+// T7: semicolon-splice reduction.
+// ---------------------------------------------------------------------
+
+// 23. A semicolon joining two independent clauses (both sides carry a
+// finite verb and their own subject) splits into two sentences,
+// recapitalizing the new sentence's first word — the one rewrite shape
+// this module has.
+#[test]
+fn t7_fires_when_both_sides_are_independent_clauses() {
+    let shapes = [
+        g(Some(1), DepRelation::Nsubj, "It", "PRP", "it"),
+        g(None, DepRelation::Root, "runs", "VBZ", "run"),
+        g(Some(1), DepRelation::Prep, "on", "IN", "on"),
+        g(Some(5), DepRelation::Det, "the", "DT", "the"),
+        g(Some(5), DepRelation::Amod, "internal", "JJ", "internal"),
+        g(Some(2), DepRelation::Pobj, "network", "NN", "network"),
+        g(Some(1), DepRelation::Punct, ";", ":", ";"),
+        g(Some(8), DepRelation::Nsubj, "it", "PRP", "it"),
+        g(Some(1), DepRelation::Other, "is", "VBZ", "be"),
+        g(Some(8), DepRelation::Other, "never", "RB", "never"),
+        g(Some(8), DepRelation::Other, "reached", "VBN", "reach"),
+        g(Some(10), DepRelation::Prep, "by", "IN", "by"),
+        g(Some(13), DepRelation::Other, "end", "NN", "end"),
+        g(Some(11), DepRelation::Pobj, "users", "NNS", "user"),
+        g(Some(1), DepRelation::Punct, ".", ".", "."),
+    ];
+    let (source, tokens, parse) = build_glued(&shapes);
+
+    let found = t7_semicolon(&source, &tokens, &parse);
+    assert_eq!(found.len(), 1);
+    assert_eq!(found[0].kind, CandidateKind::Semicolon);
+    assert_eq!(&*found[0].replacement, ". It");
+    assert!(!found[0].replacement.contains(';'));
+
+    let mut expected_delta = BTreeMap::new();
+    expected_delta.insert("semicolon", -1);
+    assert_eq!(found[0].delta, expected_delta);
+
+    let mut fixed = source;
+    fixed.replace_range(found[0].range.clone(), &found[0].replacement);
+    assert_eq!(
+        fixed,
+        "It runs on the internal network. It is never reached by end users."
+    );
+}
+
+// 24. An elliptical right side (no finite clause of its own) declines —
+// a decline, not a comma or any other substitute.
+#[test]
+fn t7_declines_when_the_right_side_is_elliptical() {
+    let shapes = [
+        g(Some(1), DepRelation::Nsubj, "It", "PRP", "it"),
+        g(None, DepRelation::Root, "works", "VBZ", "work"),
+        g(Some(1), DepRelation::Prep, "at", "IN", "at"),
+        g(Some(4), DepRelation::Det, "the", "DT", "the"),
+        g(Some(2), DepRelation::Pobj, "edge", "NN", "edge"),
+        g(Some(1), DepRelation::Punct, ";", ":", ";"),
+        g(Some(7), DepRelation::Other, "not", "RB", "not"),
+        g(
+            Some(1),
+            DepRelation::Other,
+            "implemented",
+            "VBN",
+            "implement",
+        ),
+        g(Some(7), DepRelation::Prep, "in", "IN", "in"),
+        g(Some(10), DepRelation::Det, "this", "DT", "this"),
+        g(Some(8), DepRelation::Pobj, "iteration", "NN", "iteration"),
+        g(Some(1), DepRelation::Punct, ".", ".", "."),
+    ];
+    let (source, tokens, parse) = build_glued(&shapes);
+    assert!(t7_semicolon(&source, &tokens, &parse).is_empty());
+}
+
+// 25. A serial "super-comma" list — two semicolons, one segment (the
+// last) verbless — produces no candidate for either semicolon: with a
+// verbless segment present, there is no principled way to tell which
+// semicolon (if any) is a genuine clause boundary rather than a list
+// separator, so this declines the whole sentence.
+#[test]
+fn t7_declines_every_semicolon_in_a_serial_list_with_a_verbless_segment() {
+    let shapes = [
+        g(Some(1), DepRelation::Det, "The", "DT", "the"),
+        g(Some(2), DepRelation::Nsubj, "office", "NN", "office"),
+        g(None, DepRelation::Root, "handles", "VBZ", "handle"),
+        g(Some(2), DepRelation::Dobj, "onboarding", "NN", "onboarding"),
+        g(Some(2), DepRelation::Punct, ";", ":", ";"),
+        g(Some(6), DepRelation::Det, "the", "DT", "the"),
+        g(Some(7), DepRelation::Nsubj, "site", "NN", "site"),
+        g(Some(2), DepRelation::Other, "handles", "VBZ", "handle"),
+        g(Some(7), DepRelation::Dobj, "billing", "NN", "billing"),
+        g(Some(2), DepRelation::Punct, ";", ":", ";"),
+        g(Some(2), DepRelation::Cc, "and", "CC", "and"),
+        g(Some(13), DepRelation::Det, "the", "DT", "the"),
+        g(Some(13), DepRelation::Amod, "remote", "JJ", "remote"),
+        g(Some(2), DepRelation::Other, "team", "NN", "team"),
+        g(Some(2), DepRelation::Punct, ".", ".", "."),
+    ];
+    let (source, tokens, parse) = build_glued(&shapes);
+    assert!(t7_semicolon(&source, &tokens, &parse).is_empty());
+}
+
+// 26. Once every segment carries its own finite clause, a two-semicolon
+// sentence yields two independent candidates — the counterpart to test
+// 25, which shares its two-semicolon shape but declines because one
+// segment lacks a verb.
+#[test]
+fn t7_fires_independently_on_each_semicolon_when_every_segment_is_finite() {
+    let shapes = [
+        g(Some(1), DepRelation::Nsubj, "It", "PRP", "it"),
+        g(None, DepRelation::Root, "reads", "VBZ", "read"),
+        g(Some(3), DepRelation::Det, "the", "DT", "the"),
+        g(Some(1), DepRelation::Dobj, "queue", "NN", "queue"),
+        g(Some(1), DepRelation::Punct, ";", ":", ";"),
+        g(Some(6), DepRelation::Nsubj, "it", "PRP", "it"),
+        g(Some(1), DepRelation::Other, "commits", "VBZ", "commit"),
+        g(Some(6), DepRelation::Dobj, "offsets", "NNS", "offset"),
+        g(Some(1), DepRelation::Punct, ";", ":", ";"),
+        g(Some(10), DepRelation::Nsubj, "it", "PRP", "it"),
+        g(Some(1), DepRelation::Other, "acks", "VBZ", "ack"),
+        g(Some(13), DepRelation::Det, "the", "DT", "the"),
+        g(Some(10), DepRelation::Dobj, "batch", "NN", "batch"),
+        g(Some(1), DepRelation::Punct, ".", ".", "."),
+    ];
+    let (source, tokens, parse) = build_glued(&shapes);
+
+    let found = t7_semicolon(&source, &tokens, &parse);
+    assert_eq!(found.len(), 2);
+    assert!(found.iter().all(|c| c.kind == CandidateKind::Semicolon));
+    assert!(found.iter().all(|c| &*c.replacement == ". It"));
+
+    let mut fixed = source;
+    // Apply both, later range first, so the earlier byte range stays valid.
+    let mut sorted = found;
+    sorted.sort_by_key(|c| std::cmp::Reverse(c.range.start));
+    for candidate in &sorted {
+        fixed.replace_range(candidate.range.clone(), &candidate.replacement);
+    }
+    assert_eq!(
+        fixed,
+        "It reads the queue. It commits offsets. It acks the batch."
+    );
+}
+
+// 27. The word right after the semicolon starts with a digit, which
+// can't be recapitalized — declines outright, unlike T6's case (c),
+// which has a semicolon fallback available. There is no fallback for a
+// semicolon: the source already has one.
+#[test]
+fn t7_declines_when_the_following_word_cannot_be_capitalized() {
+    let shapes = [
+        g(Some(1), DepRelation::Det, "The", "DT", "the"),
+        g(Some(2), DepRelation::Nsubj, "queue", "NN", "queue"),
+        g(None, DepRelation::Root, "holds", "VBZ", "hold"),
+        g(Some(2), DepRelation::Dobj, "items", "NNS", "item"),
+        g(Some(2), DepRelation::Punct, ";", ":", ";"),
+        g(Some(6), DepRelation::Other, "3", "CD", "3"),
+        g(Some(7), DepRelation::Nsubj, "workers", "NNS", "worker"),
+        g(Some(2), DepRelation::Other, "drain", "VBP", "drain"),
+        g(Some(7), DepRelation::Dobj, "it", "PRP", "it"),
+        g(Some(7), DepRelation::Other, "fast", "RB", "fast"),
+        g(Some(2), DepRelation::Punct, ".", ".", "."),
+    ];
+    let (source, tokens, parse) = build_glued(&shapes);
+    assert!(t7_semicolon(&source, &tokens, &parse).is_empty());
+}
+
+// 28. A semicolon immediately followed by a backtick-flanked span never
+// produces a candidate, even when every other condition holds — the
+// inline-code guard takes priority.
+#[test]
+fn t7_declines_when_the_span_would_cross_an_inline_code_boundary() {
+    let shapes = [
+        g(Some(1), DepRelation::Nsubj, "It", "PRP", "it"),
+        g(None, DepRelation::Root, "reads", "VBZ", "read"),
+        g(Some(3), DepRelation::Det, "the", "DT", "the"),
+        g(Some(1), DepRelation::Dobj, "flag", "NN", "flag"),
+        g(Some(1), DepRelation::Punct, ";", ":", ";"),
+        g(Some(6), DepRelation::Nsubj, "`debug`", "NN", "debug"),
+        g(Some(1), DepRelation::Other, "enables", "VBZ", "enable"),
+        g(Some(6), DepRelation::Amod, "verbose", "JJ", "verbose"),
+        g(Some(6), DepRelation::Dobj, "output", "NN", "output"),
+        g(Some(1), DepRelation::Punct, ".", ".", "."),
+    ];
+    let (source, tokens, parse) = build_glued(&shapes);
+    assert!(source.contains('`'));
+    assert!(t7_semicolon(&source, &tokens, &parse).is_empty());
+}
+
+// 29. Only the ASCII semicolon (U+003B) counts: a Greek question mark
+// (U+037E), a visual lookalike in most fonts, never fires.
+#[test]
+fn t7_never_fires_on_a_greek_question_mark() {
+    let shapes = [
+        g(Some(1), DepRelation::Nsubj, "It", "PRP", "it"),
+        g(None, DepRelation::Root, "works", "VBZ", "work"),
+        g(Some(1), DepRelation::Punct, "\u{37e}", ".", "\u{37e}"),
+    ];
+    let (source, tokens, parse) = build_glued(&shapes);
+    assert!(source.contains('\u{37e}'));
+    assert!(t7_semicolon(&source, &tokens, &parse).is_empty());
+}
+
+// 30. `t7_semicolon` is folded into `candidates()` alongside T4/T5/T6.
+#[test]
+fn candidates_includes_t7_semicolon_output() {
+    let shapes = [
+        g(Some(1), DepRelation::Nsubj, "It", "PRP", "it"),
+        g(None, DepRelation::Root, "runs", "VBZ", "run"),
+        g(Some(1), DepRelation::Prep, "on", "IN", "on"),
+        g(Some(5), DepRelation::Det, "the", "DT", "the"),
+        g(Some(5), DepRelation::Amod, "internal", "JJ", "internal"),
+        g(Some(2), DepRelation::Pobj, "network", "NN", "network"),
+        g(Some(1), DepRelation::Punct, ";", ":", ";"),
+        g(Some(8), DepRelation::Nsubj, "it", "PRP", "it"),
+        g(Some(1), DepRelation::Other, "is", "VBZ", "be"),
+        g(Some(8), DepRelation::Other, "never", "RB", "never"),
+        g(Some(8), DepRelation::Other, "reached", "VBN", "reach"),
+        g(Some(10), DepRelation::Prep, "by", "IN", "by"),
+        g(Some(13), DepRelation::Other, "end", "NN", "end"),
+        g(Some(11), DepRelation::Pobj, "users", "NNS", "user"),
+        g(Some(1), DepRelation::Punct, ".", ".", "."),
+    ];
+    let (source, tokens, parse) = build_glued(&shapes);
+    let found = candidates(&source, &tokens, &parse);
+    assert!(found.iter().any(|c| c.kind == CandidateKind::Semicolon));
 }

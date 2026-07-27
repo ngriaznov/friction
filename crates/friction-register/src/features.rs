@@ -29,11 +29,12 @@ use friction_nlp::{DepEdge, DepRelation, SentenceParse, TaggedToken};
 /// detects in one sentence.
 ///
 /// A struct with one field per feature, not a `HashMap<&str, usize>`:
-/// seventeen of these eighteen fields are `biber.py`'s per-sentence dict
+/// seventeen of these nineteen fields are `biber.py`'s per-sentence dict
 /// minus the two rate-based outputs (a caller's business), and a typo in
 /// a map key would fail to compile instead of silently reading a missing
-/// feature. [`Self::em_dashes`] is the exception -- not a Biber category
-/// at all, added later for its own band (see [`em_dashes`]'s own docs).
+/// feature. [`Self::em_dashes`] and [`Self::semicolons`] are the
+/// exceptions -- not Biber categories at all, each added later for its
+/// own band (see [`em_dashes`]'s and [`semicolons`]'s own docs).
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
 pub struct RegisterCounts {
     /// A non-finite `VBG` clause, not a progressive. See [`present_participials`].
@@ -72,6 +73,8 @@ pub struct RegisterCounts {
     pub demon_sent_initial: usize,
     /// An em dash (U+2014). See [`em_dashes`].
     pub em_dashes: usize,
+    /// An ASCII semicolon (U+003B). See [`semicolons`].
+    pub semicolons: usize,
 }
 
 impl RegisterCounts {
@@ -103,6 +106,7 @@ impl RegisterCounts {
             first_person: first_person_pronouns(text, tokens).len(),
             demon_sent_initial: sentence_initial_demonstratives(text, tokens).len(),
             em_dashes: em_dashes(text).len(),
+            semicolons: semicolons(text).len(),
         }
     }
 }
@@ -685,5 +689,69 @@ mod em_dash_tests {
     #[test]
     fn em_dashes_is_zero_for_ordinary_text() {
         assert_eq!(em_dashes("The build finished without incident.").len(), 0);
+    }
+}
+
+/// An ASCII semicolon (U+003B).
+///
+/// Strictly that character, never U+037E (the Greek question mark, a
+/// visual lookalike in most fonts but a distinct code point) -- unlike
+/// [`em_dashes`], there's no equivalent-surrogate character this feature
+/// must also stay blind to, since nothing else renders as a semicolon.
+///
+/// A semicolon inside a decoded HTML character reference (`&amp;` ->
+/// `&`) never reaches this function at all: `friction_parse::extract`
+/// runs Markdown text through `pulldown-cmark`, which resolves every
+/// *recognized* named/numeric reference to its literal character before
+/// this crate ever sees the text, so the reference's own `;` byte is
+/// gone along with the rest of the escape. An unrecognized reference
+/// (`&notareal;`) is left as literal source text, semicolon included --
+/// correctly counted here, since at that point it's just a semicolon a
+/// human reader would also see.
+///
+/// Returns byte offsets, not token indices, for the same reason
+/// [`em_dashes`] does: a semicolon glued to adjacent punctuation
+/// tokenizes as one multi-character token, and counting by character
+/// avoids under-counting an occurrence that's present in the text but
+/// not its own token.
+#[must_use]
+pub fn semicolons(text: &str) -> Vec<usize> {
+    text.char_indices()
+        .filter_map(|(index, c)| (c == ';').then_some(index))
+        .collect()
+}
+
+#[cfg(test)]
+mod semicolon_tests {
+    use super::semicolons;
+
+    /// Counts every occurrence, including a run of two.
+    #[test]
+    fn semicolons_counts_every_occurrence() {
+        let text = "A holds items; B drains them;; C waits.";
+        assert_eq!(semicolons(text).len(), 3);
+    }
+
+    /// A Greek question mark (U+037E) -- a visual lookalike in most
+    /// fonts -- never counts; only the ASCII code point does.
+    #[test]
+    fn semicolons_ignores_greek_question_mark() {
+        assert_eq!(semicolons("Is this a question\u{37e}").len(), 0);
+    }
+
+    /// Nonzero is the common case in human technical prose, unlike
+    /// `em_dashes` -- this feature's band is genuinely nonzero (see
+    /// `register-v1.toml`'s `[features.semicolon]`).
+    #[test]
+    fn semicolons_counts_ordinary_prose_usage() {
+        assert_eq!(
+            semicolons("The service retries once; the caller sees no error.").len(),
+            1
+        );
+    }
+
+    #[test]
+    fn semicolons_is_zero_for_text_with_none() {
+        assert_eq!(semicolons("The build finished without incident.").len(), 0);
     }
 }

@@ -60,7 +60,14 @@ Five operations edit text. Nothing else does.
    already license — *"the queue holds items — 3 workers drain it"* → *"the
    queue holds items; 3 workers drain it"*, *"reached over the network — it is
    never called directly"* → *"reached over the network. It is never called
-   directly"*.
+   directly"*. A fourth homes toward a band that is genuinely nonzero, not to
+   zero: the semicolon, which Claude-family output also uses well past the
+   human rate, is split into a sentence break only when it joins two
+   independent clauses — *"the job reads from the queue; it commits offsets
+   only after the batch is durably written"* → *"the job reads from the
+   queue. It commits offsets only after the batch is durably written"*. A
+   semicolon that is part of a serial list, or that has no independent clause
+   on either side, is left alone; so is one inside the human range.
 
    It fires only while the document sits outside a band measured from human
    documents, and stops at the band's edge rather than its centre — every

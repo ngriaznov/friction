@@ -1,6 +1,6 @@
-# register-v1 pack: per-1000-prose-word human rate bands for the three
+# register-v1 pack: per-1000-prose-word human rate bands for the four
 # register features friction-register's transducers home toward
-# (nominalization, agentless_passive, em_dash).
+# (nominalization, agentless_passive, em_dash, semicolon).
 #
 # Measured from class:human, split:train, genre:docs (58 documents, the
 # same train-split docs population envelope-v2 records under
@@ -14,7 +14,7 @@
 # registered as a genuinely different register from `docs` in the same
 # train-split measurement pass envelope-v2 draws from, and pooling the two
 # would blur both. This mirrors envelope-v2's own per-genre banding, one
-# level narrower (three hand-picked features instead of the full metric
+# level narrower (four hand-picked features instead of the full metric
 # vector).
 #
 # `em_dash` was measured with `corpus-tool register-bands`, through the
@@ -30,6 +30,23 @@
 # from human docs-genre technical writing, so this band drives the
 # register pass to remove every em dash it can license a rewrite for,
 # rather than merely reduce their rate toward some nonzero target.
+#
+# `semicolon` was measured the same way, over the same 58-document
+# population, through `friction-edit::register::measure_semicolon_rate`.
+# Unlike em_dash, this population is not near-degenerate: 29 of the 58
+# documents contain zero semicolons, but the other 29 do not, and the
+# distribution's upper half is spread widely enough that the 90th
+# percentile lands on a genuinely nonzero rate, 3.6563 per 1000 prose
+# words (max observed: 9.0909). The 10th percentile and the median both
+# still land on a zero-rate document -- coincidentally the same shape as
+# em_dash's low/median bounds -- but `high` is not zero, so this band is
+# not degenerate the way em_dash's is. That shape is the point: human
+# technical prose legitimately uses semicolons, so `register.semicolon`
+# only fires on a document whose rate sits *above* 3.6563 (a measured
+# Claude-family tell: a real Claude README ran 6.4 per 1000 prose words),
+# and it stops as soon as the rate re-enters [0.0, 3.6563] -- never
+# driving a document's semicolon rate toward zero the way `em_dash` does,
+# and leaving a document already inside the band byte-identical.
 
 [pack]
 version = "register-v1"
@@ -51,4 +68,9 @@ median = 11.7342
 [features.em_dash]
 low = 0.0
 high = 0.0
+median = 0.0
+
+[features.semicolon]
+low = 0.0
+high = 3.6563
 median = 0.0

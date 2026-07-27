@@ -1,10 +1,10 @@
 //! The register pass.
 //!
-//! After the four-operation passes converge, home three register features — nominalization,
-//! agentless passive, em dash — toward their human rate band by selecting and applying
-//! [`friction_register::transduce`] candidates. The first two are Biber constructions; the third
-//! isn't Biber's, but the same band-and-transducer machinery applies to it unchanged (see
-//! `register-v1.toml`'s `[features.em_dash]`).
+//! After the four-operation passes converge, home four register features — nominalization,
+//! agentless passive, em dash, semicolon — toward their human rate band by selecting and
+//! applying [`friction_register::transduce`] candidates. The first two are Biber constructions;
+//! the last two aren't Biber's, but the same band-and-transducer machinery applies to them
+//! unchanged (see `register-v1.toml`'s `[features.em_dash]`/`[features.semicolon]`).
 //!
 //! # Termination is the band, not the median
 //!
@@ -59,12 +59,14 @@ use crate::gates::in_quoted_span;
 const RULE_PASSIVIZE: RuleId = RuleId::new("register.passivize");
 const RULE_UNPACK: RuleId = RuleId::new("register.unpack");
 const RULE_EM_DASH: RuleId = RuleId::new("register.em_dash");
+const RULE_SEMICOLON: RuleId = RuleId::new("register.semicolon");
 
 const fn rule_for(kind: CandidateKind) -> RuleId {
     match kind {
         CandidateKind::ActivizeToPassive => RULE_PASSIVIZE,
         CandidateKind::NominalizationUnpack => RULE_UNPACK,
         CandidateKind::EmDash => RULE_EM_DASH,
+        CandidateKind::Semicolon => RULE_SEMICOLON,
     }
 }
 
@@ -108,8 +110,8 @@ enum Direction {
     /// this way (agentless passive).
     Increase,
     /// Above `high`: [`CandidateKind::NominalizationUnpack`]
-    /// (nominalization) and [`CandidateKind::EmDash`] (em dash) both
-    /// move this way.
+    /// (nominalization), [`CandidateKind::EmDash`] (em dash), and
+    /// [`CandidateKind::Semicolon`] (semicolon) all move this way.
     Decrease,
 }
 
@@ -152,21 +154,30 @@ fn build_sentence_contexts(
 }
 
 /// The document-wide `(total_words, nominalization_count,
-/// agentless_passive_count, em_dash_count)` totals over `sentences`.
-fn count_features(sentences: &[SentenceCtx], source: &str) -> (i64, i64, i64, i64) {
+/// agentless_passive_count, em_dash_count, semicolon_count)` totals over
+/// `sentences`.
+fn count_features(sentences: &[SentenceCtx], source: &str) -> (i64, i64, i64, i64, i64) {
     let mut total_words: i64 = 0;
     let mut count_nominalization: i64 = 0;
     let mut count_agentless_passive: i64 = 0;
     let mut count_em_dash: i64 = 0;
+    let mut count_semicolon: i64 = 0;
     for ctx in sentences {
         let text = &source[ctx.range.clone()];
         let counts = RegisterCounts::count(text, &ctx.tokens, &ctx.parse);
         count_nominalization += i64::try_from(counts.nominalization).unwrap_or(i64::MAX);
         count_agentless_passive += i64::try_from(counts.agentless_passive).unwrap_or(i64::MAX);
         count_em_dash += i64::try_from(counts.em_dashes).unwrap_or(i64::MAX);
+        count_semicolon += i64::try_from(counts.semicolons).unwrap_or(i64::MAX);
         total_words += word_count(text);
     }
-    (total_words, count_nominalization, count_agentless_passive, count_em_dash)
+    (
+        total_words,
+        count_nominalization,
+        count_agentless_passive,
+        count_em_dash,
+        count_semicolon,
+    )
 }
 
 /// The document-wide em-dash rate (per 1000 prose words), computed
@@ -189,8 +200,27 @@ pub fn measure_em_dash_rate(
     let document = friction_parse::parse(source)?;
     let units = prose_scope(&document, segmenter);
     let sentences = build_sentence_contexts(source, &units, tagger, parser);
-    let (total_words, _, _, count_em_dash) = count_features(&sentences, source);
+    let (total_words, _, _, count_em_dash, _) = count_features(&sentences, source);
     Ok(rate(count_em_dash, total_words))
+}
+
+/// The document-wide semicolon rate (per 1000 prose words), computed
+/// through the same path [`measure_em_dash_rate`] does, for the same
+/// band-measurement contract.
+///
+/// # Errors
+/// Returns [`EditError`] if `source` fails to parse or segment.
+pub fn measure_semicolon_rate(
+    source: &str,
+    tagger: &dyn Tagger,
+    parser: &dyn DepParser,
+    segmenter: &dyn Segmenter,
+) -> Result<f64, EditError> {
+    let document = friction_parse::parse(source)?;
+    let units = prose_scope(&document, segmenter);
+    let sentences = build_sentence_contexts(source, &units, tagger, parser);
+    let (total_words, _, _, _, count_semicolon) = count_features(&sentences, source);
+    Ok(rate(count_semicolon, total_words))
 }
 
 /// Runs the register pass once over `source`.
@@ -210,82 +240,54 @@ pub fn run_register(
     let document = friction_parse::parse(source)?;
     let units = prose_scope(&document, segmenter);
     let sentences = build_sentence_contexts(source, &units, tagger, parser);
-    let (mut total_words, count_nominalization, count_agentless_passive, count_em_dash) =
-        count_features(&sentences, source);
+    let (
+        mut total_words,
+        count_nominalization,
+        count_agentless_passive,
+        count_em_dash,
+        count_semicolon,
+    ) = count_features(&sentences, source);
 
     let mut held: Vec<Finding> = Vec::new();
     if total_words == 0 {
         return Ok((source.to_string(), empty_pass()));
     }
 
-    let nominalization_band = register_pack.band("nominalization");
-    let agentless_band = register_pack.band("agentless_passive");
-    let em_dash_band = register_pack.band("em_dash");
-
-    // `Some(band)` *is* "this feature needs work", so the value that
-    // decided that also carries the band a later step needs. A separate
-    // `bool` alongside the `Option` would leave two values that must
-    // agree, and reading the band back out would mean asserting they
-    // do.
-    let agentless_fix =
-        agentless_band.filter(|band| rate(count_agentless_passive, total_words) < band.low);
-    let nominalization_fix =
-        nominalization_band.filter(|band| rate(count_nominalization, total_words) > band.high);
-    let em_dash_fix = em_dash_band.filter(|band| rate(count_em_dash, total_words) > band.high);
-
-    let mut pool: Vec<PositionedCandidate> = Vec::new();
-    collect_needed_candidates(
-        &sentences,
-        source,
-        agentless_fix.is_some(),
-        nominalization_fix.is_some(),
-        em_dash_fix.is_some(),
-        &mut pool,
-        &mut held,
+    let features = feature_plan(
+        register_pack,
+        total_words,
+        count_agentless_passive,
+        count_nominalization,
+        count_em_dash,
+        count_semicolon,
     );
+
+    let needed: Vec<CandidateKind> = features
+        .iter()
+        .filter(|(_, fix, ..)| fix.is_some())
+        .map(|&(.., kind)| kind)
+        .collect();
+    let mut pool: Vec<PositionedCandidate> = Vec::new();
+    collect_needed_candidates(&sentences, source, &needed, &mut pool, &mut held);
 
     let mut accepted: Vec<PositionedCandidate> = Vec::new();
 
-    if let Some(band) = agentless_fix {
-        let (_, new_words) = select_and_apply(
-            &mut pool,
-            &sentences,
-            "agentless_passive",
-            band,
-            Direction::Increase,
-            count_agentless_passive,
-            total_words,
-            &mut accepted,
-        );
-        total_words = new_words;
+    for (feature, fix, direction, count, _) in features {
+        if let Some(band) = fix {
+            let (_, new_words) = select_and_apply(
+                &mut pool,
+                &sentences,
+                feature,
+                band,
+                direction,
+                count,
+                total_words,
+                &mut accepted,
+            );
+            total_words = new_words;
+        }
     }
-
-    if let Some(band) = nominalization_fix {
-        let (_, new_words) = select_and_apply(
-            &mut pool,
-            &sentences,
-            "nominalization",
-            band,
-            Direction::Decrease,
-            count_nominalization,
-            total_words,
-            &mut accepted,
-        );
-        total_words = new_words;
-    }
-
-    if let Some(band) = em_dash_fix {
-        let _ = select_and_apply(
-            &mut pool,
-            &sentences,
-            "em_dash",
-            band,
-            Direction::Decrease,
-            count_em_dash,
-            total_words,
-            &mut accepted,
-        );
-    }
+    let _ = total_words;
 
     let patches: Vec<Patch> = accepted
         .iter()
@@ -317,29 +319,83 @@ fn empty_pass() -> crate::document::PassReport {
     crate::document::PassReport::default()
 }
 
+/// One row per register feature, in application order: name, the band
+/// when (and only when) the document's rate sits outside it, the
+/// direction the rate must move, the starting count, and the candidate
+/// kind that moves it.
+///
+/// `Some(band)` *is* "this feature needs work", so the value that
+/// decided that also carries the band a later step needs. A separate
+/// `bool` alongside the `Option` would leave two values that must
+/// agree, and reading the band back out would mean asserting they do.
+fn feature_plan(
+    register_pack: &RegisterPack,
+    total_words: i64,
+    count_agentless_passive: i64,
+    count_nominalization: i64,
+    count_em_dash: i64,
+    count_semicolon: i64,
+) -> [(
+    &'static str,
+    Option<RegisterBand>,
+    Direction,
+    i64,
+    CandidateKind,
+); 4] {
+    [
+        (
+            "agentless_passive",
+            register_pack
+                .band("agentless_passive")
+                .filter(|band| rate(count_agentless_passive, total_words) < band.low),
+            Direction::Increase,
+            count_agentless_passive,
+            CandidateKind::ActivizeToPassive,
+        ),
+        (
+            "nominalization",
+            register_pack
+                .band("nominalization")
+                .filter(|band| rate(count_nominalization, total_words) > band.high),
+            Direction::Decrease,
+            count_nominalization,
+            CandidateKind::NominalizationUnpack,
+        ),
+        (
+            "em_dash",
+            register_pack
+                .band("em_dash")
+                .filter(|band| rate(count_em_dash, total_words) > band.high),
+            Direction::Decrease,
+            count_em_dash,
+            CandidateKind::EmDash,
+        ),
+        (
+            "semicolon",
+            register_pack
+                .band("semicolon")
+                .filter(|band| rate(count_semicolon, total_words) > band.high),
+            Direction::Decrease,
+            count_semicolon,
+            CandidateKind::Semicolon,
+        ),
+    ]
+}
+
 /// Runs [`collect_candidates`] for exactly the features that need fixing
 /// -- split out of [`run_register`] itself only to keep that function's
-/// own line count down; the three `bool`s are each `<feature>_fix.is_some()`
-/// from the caller, kept as plain booleans here since this helper never
-/// needs the band itself, only whether one exists.
-#[allow(clippy::fn_params_excessive_bools)]
+/// own line count down; `needed` is the kinds whose feature sits outside
+/// its band, in application order — this helper never needs the bands
+/// themselves, only which kinds to gather.
 fn collect_needed_candidates(
     sentences: &[SentenceCtx],
     source: &str,
-    agentless_fix: bool,
-    nominalization_fix: bool,
-    em_dash_fix: bool,
+    needed: &[CandidateKind],
     pool: &mut Vec<PositionedCandidate>,
     held: &mut Vec<Finding>,
 ) {
-    if agentless_fix {
-        collect_candidates(sentences, source, CandidateKind::ActivizeToPassive, pool, held);
-    }
-    if nominalization_fix {
-        collect_candidates(sentences, source, CandidateKind::NominalizationUnpack, pool, held);
-    }
-    if em_dash_fix {
-        collect_candidates(sentences, source, CandidateKind::EmDash, pool, held);
+    for &kind in needed {
+        collect_candidates(sentences, source, kind, pool, held);
     }
 }
 
@@ -397,6 +453,7 @@ fn collect_candidates(
                 transduce::t5_nominalization(text, &ctx.tokens, &ctx.parse)
             }
             CandidateKind::EmDash => transduce::t6_em_dash(text, &ctx.tokens, &ctx.parse),
+            CandidateKind::Semicolon => transduce::t7_semicolon(text, &ctx.tokens, &ctx.parse),
         };
 
         for candidate in candidates {
@@ -502,13 +559,13 @@ fn closure_violation(
                 }
             }
         }
-        CandidateKind::EmDash => {
-            // No derived words: every T6 replacement is punctuation
-            // (",", ". ", "; ") plus, at most, a word already present
-            // in `original_span_text` (case (a)'s interpolated middle,
-            // case (c)'s recapitalized or unchanged following word) --
-            // there is no inflection table to consult, unlike the other
-            // two kinds.
+        CandidateKind::EmDash | CandidateKind::Semicolon => {
+            // No derived words: every T6/T7 replacement is punctuation
+            // (",", ". ", "; ", ": ") plus, at most, a word already
+            // present in `original_span_text` (T6's interpolated middle,
+            // either kind's recapitalized or unchanged following word)
+            // -- there is no inflection table to consult, unlike the
+            // other two kinds.
         }
     }
 

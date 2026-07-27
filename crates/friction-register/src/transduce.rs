@@ -1,5 +1,5 @@
 //! Rewrite transducers ported from a Python register-rewriting
-//! prototype, plus one native addition.
+//! prototype, plus two native additions.
 //!
 //! Each proposes a candidate edit predicting an exact per-feature count
 //! delta, with a confidence and the byte range it would replace. Five
@@ -11,11 +11,15 @@
 //! firing wrongly half the time is worse than not firing, so they stay
 //! unported.
 //!
-//! [`t6_em_dash`] has no prototype predecessor: em dashes never came up
-//! in the research phase's Biber-feature work, only later as the
-//! strongest single-character tell separating Claude-family output from
-//! human technical prose (see `register-v1.toml`'s `[features.em_dash]`
-//! and `docs/research/FRONTIER_MODELS.md`).
+//! [`t6_em_dash`]/[`t7_semicolon`] have no prototype predecessor: neither
+//! em dashes nor semicolon splices came up in the research phase's
+//! Biber-feature work, only later as measured Claude-family tells (see
+//! `register-v1.toml`'s `[features.em_dash]`/`[features.semicolon]` and
+//! `docs/research/FRONTIER_MODELS.md`). [`t7_semicolon`] reuses
+//! [`independent_clause_follows`], T6's own subtree-anchored
+//! independent-clause check, unchanged — the two features license the
+//! same rewrite shape on the same evidence, just for different
+//! punctuation.
 //!
 //! Functions here only propose candidates; none mutate `source`, choose
 //! between overlaps, or apply anything — a caller's decision.
@@ -82,6 +86,8 @@ pub enum CandidateKind {
     NominalizationUnpack,
     /// Produced by [`t6_em_dash`].
     EmDash,
+    /// Produced by [`t7_semicolon`].
+    Semicolon,
 }
 
 // ---------------------------------------------------------------------
@@ -777,6 +783,7 @@ pub fn candidates(source: &str, tokens: &[TaggedToken], parse: &SentenceParse) -
     let mut out = t4_activize_to_passive(source, tokens, parse);
     out.extend(t5_nominalization(source, tokens, parse));
     out.extend(t6_em_dash(source, tokens, parse));
+    out.extend(t7_semicolon(source, tokens, parse));
     out.sort_by_key(|candidate| (candidate.range.start, candidate.range.end));
     out
 }
@@ -1065,6 +1072,155 @@ pub fn t6_em_dash(source: &str, tokens: &[TaggedToken], parse: &SentenceParse) -
         }
         _ => Vec::new(),
     }
+}
+
+// ---------------------------------------------------------------------
+// T7: semicolon-splice reduction.
+// ---------------------------------------------------------------------
+
+/// Every semicolon token index in `tokens`, in source order: a token
+/// whose surface is exactly one ASCII `;` (U+003B).
+///
+/// Never U+037E (the Greek question mark, a visual lookalike in most
+/// fonts) — an exact surface match is definitionally scoped to that one
+/// code point, the same convention [`em_dash_tokens`] uses for U+2014
+/// against its own lookalike, U+2013.
+fn semicolon_tokens(source: &str, tokens: &[TaggedToken]) -> Vec<usize> {
+    (0..tokens.len())
+        .filter(|&index| token_text(source, tokens, index) == ";")
+        .collect()
+}
+
+/// The token-index bounds of every segment `semis` splits the sentence
+/// into: before the first semicolon, between each consecutive pair, and
+/// after the last — `semis.len() + 1` half-open ranges, each excluding
+/// the semicolon tokens themselves, covering every remaining token
+/// exactly once.
+fn semicolon_segments(semis: &[usize], token_count: usize) -> Vec<Range<usize>> {
+    let mut starts = Vec::with_capacity(semis.len() + 1);
+    let mut ends = Vec::with_capacity(semis.len() + 1);
+    starts.push(0);
+    for &semi in semis {
+        ends.push(semi);
+        starts.push(semi + 1);
+    }
+    ends.push(token_count);
+    starts.into_iter().zip(ends).map(|(s, e)| s..e).collect()
+}
+
+/// One semicolon's own candidate: a semicolon joining two independent
+/// clauses becomes a sentence break (`". "`), the following word
+/// recapitalized.
+///
+/// Declines if `semi` opens or closes the sentence (nothing to anchor
+/// the rewrite to), the span crosses inline code, the clause right
+/// after it isn't a genuine independent clause
+/// ([`independent_clause_follows`], reused unchanged from T6), or the
+/// following word can't be recapitalized. That last case has no
+/// fallback, unlike T6's case (c): a semicolon substituting for an
+/// unrecapitalizable word there falls back to the semicolon *because*
+/// the source had a dash, a strictly worse-tell character, to trade
+/// away. Here the source already has the semicolon — there is nothing
+/// to substitute it for, so this declines outright rather than leave a
+/// sentence starting on a lowercase letter or introduce a second
+/// semicolon/comma with no license.
+fn semicolon_candidate(
+    source: &str,
+    tokens: &[TaggedToken],
+    parse: &SentenceParse,
+    semi: usize,
+) -> Option<Candidate> {
+    if semi == 0 || semi + 1 >= tokens.len() {
+        return None;
+    }
+    if !independent_clause_follows(tokens, parse, semi + 1) {
+        return None;
+    }
+
+    let range = tokens[semi - 1].token.range.end..tokens[semi + 1].token.range.end;
+    if spans_inline_code(&source[range.clone()]) {
+        return None;
+    }
+
+    let next_word = token_text(source, tokens, semi + 1);
+    let first_char = next_word.chars().next()?;
+    if !first_char.is_alphabetic() {
+        return None; // no sensible fallback for a semicolon; see this function's own docs.
+    }
+    let replacement = if first_char.is_uppercase() {
+        // Already capitalized (a proper noun): recapitalizing is a
+        // no-op, so the trivial case just needs the period.
+        format!(". {next_word}")
+    } else {
+        format!(". {}", recapitalize(next_word))
+    };
+
+    let mut delta = BTreeMap::new();
+    delta.insert("semicolon", -1);
+    Some(Candidate {
+        kind: CandidateKind::Semicolon,
+        range,
+        replacement: replacement.into_boxed_str(),
+        delta,
+        confidence: 0.8,
+    })
+}
+
+/// Semicolon-splice reduction (T7).
+///
+/// Homes the `semicolon` feature toward its human band — genuinely
+/// nonzero, unlike T6's em-dash band (see `register-v1.toml`'s
+/// `[features.semicolon]`) — by turning a semicolon that joins two
+/// independent clauses into a sentence break.
+///
+/// One rewrite shape only, unlike T6's four: a semicolon splicing two
+/// independent clauses is the one construction this module can act on
+/// with confidence. Every other established use — a serial-comma list's
+/// own separator, an elliptical continuation with no clause of its own —
+/// is left alone; declining rather than guessing at those is this
+/// function's entire job.
+///
+/// # Serial-semicolon protection
+///
+/// Splits the sentence into segments at every semicolon (see
+/// [`semicolon_segments`]). If any segment lacks a finite verb of its
+/// own, the whole sentence produces no candidate at all: with a
+/// verbless segment present, either the sentence has one semicolon and
+/// an elliptical side, or two-or-more and at least one is a "super-comma"
+/// list separator ("the A, which Bs; the C, which Ds; and the E") rather
+/// than a clause boundary — and there is no principled way to tell,
+/// from a verbless segment alone, which semicolon (if any) is the
+/// genuine clause boundary. Splitting a super-comma list at any point
+/// destroys it, so this declines every semicolon in the sentence rather
+/// than risk picking the wrong one.
+///
+/// Only once every segment carries its own finite clause is each
+/// semicolon evaluated — and independently licensed or declined — on
+/// its own merits via [`semicolon_candidate`].
+///
+/// `parse` is required, mirroring [`t6_em_dash`]: a sentence whose parse
+/// failed never reaches any transducer at all
+/// (`friction-edit::register::build_sentence_contexts` drops it
+/// upstream).
+#[must_use]
+pub fn t7_semicolon(source: &str, tokens: &[TaggedToken], parse: &SentenceParse) -> Vec<Candidate> {
+    let semis = semicolon_tokens(source, tokens);
+    if semis.is_empty() {
+        return Vec::new();
+    }
+
+    let segments = semicolon_segments(&semis, tokens.len());
+    if segments
+        .iter()
+        .any(|segment| !has_finite_verb(&tokens[segment.clone()]))
+    {
+        return Vec::new(); // a verbless segment: see this function's own docs.
+    }
+
+    semis
+        .iter()
+        .filter_map(|&semi| semicolon_candidate(source, tokens, parse, semi))
+        .collect()
 }
 
 // ---------------------------------------------------------------------

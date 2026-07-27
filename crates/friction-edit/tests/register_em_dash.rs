@@ -91,7 +91,9 @@ fn a_document_with_zero_em_dashes_is_untouched() {
                  found, and nothing is deleted without confirmation.";
     assert_eq!(count_em_dashes(input), 0);
 
-    let (out, report) = engine.fix_document(input).expect("fix_document must succeed");
+    let (out, report) = engine
+        .fix_document(input)
+        .expect("fix_document must succeed");
     assert_eq!(out, input);
     for pass in &report.passes {
         assert!(
