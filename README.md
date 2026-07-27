@@ -112,7 +112,10 @@ document-level report in `friction check` — and a deterministic contrast-frame
 template scan: `frame.contrast.question` (the dismissive-foil interrogative
 above) and `frame.contrast.correction` (declarative epanorthosis, *"not just
 X — it's Y"*), both detect-only in `check` and, for `fix`, reported in the
-paraphrase list alongside DMS candidates whenever no gated edit applies (an
+paraphrase list alongside DMS (differential matching statistics — friction's
+own name for its corpus-differential detection channel, built on the
+matching-statistics literature; see `docs/research/ALGORITHMS.md` §1)
+candidates whenever no gated edit applies (an
 `only`-marked question, or any correction span). The fifth is document-level: a
 count of register-marking constructions over a dependency parse, compared
 against the human band. It answers a question the others cannot, because a
