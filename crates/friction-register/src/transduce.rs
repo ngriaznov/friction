@@ -1299,6 +1299,17 @@ pub fn t7_semicolon(source: &str, tokens: &[TaggedToken], parse: &SentenceParse)
         return Vec::new();
     }
 
+    // An introducing colon before the first semicolon marks a
+    // colon-introduced enumeration ("runs in four stages: A lets X; B
+    // covers Y; ..."), where semicolons are the construction's correct
+    // coordinate separators even when every item carries its own finite
+    // clause. Splitting any of them breaks the enumeration's symmetry —
+    // measured on real prose: the band-edge stop once promoted exactly
+    // one item to a sentence and left its siblings semicolon-joined.
+    if (0..semis[0]).any(|i| token_text(source, tokens, i) == ":") {
+        return Vec::new();
+    }
+
     let segments = semicolon_segments(&semis, tokens.len());
     if segments
         .iter()

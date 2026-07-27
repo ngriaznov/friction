@@ -152,13 +152,26 @@ fn jargon_span_at(
     })
 }
 
+/// `true` if `unit`'s range is bracket-delimited in the raw source — a
+/// markdown link (or image) label. A label names its target the way a
+/// heading names its section: the same product concept a document guards
+/// by capitalization in prose ("Inference Fabric") routinely appears
+/// lowercase as a label ("[inference fabric](docs/...)"), and flagging
+/// only the label form would be naming-context noise, not detection.
+/// Measured on a real README (mnestra) before this guard existed.
+fn is_link_label(unit: &ScopedUnit<'_>, document_text: &str) -> bool {
+    document_text[..unit.unit.range.start].ends_with('[')
+        && document_text[unit.unit.range.end..].starts_with(']')
+}
+
 /// Tags every sentence in `units` and reports every `jargon.metaphor`
 /// compound found, in source order.
 ///
 /// Per-sentence, real absolute byte offsets via `tagger.tag(text,
 /// sentence.start)`. `pack`'s hand-curated `attested_exceptions` and
 /// `attest`'s web-scale filter (SYNTHESIS.md §4) both suppress a
-/// would-be flag — see [`jargon_span_at`]'s own docs.
+/// would-be flag — see [`jargon_span_at`]'s own docs. Link-label units
+/// are skipped whole ([`is_link_label`]).
 #[must_use]
 pub fn scan_units(
     units: &[ScopedUnit<'_>],
@@ -169,6 +182,9 @@ pub fn scan_units(
 ) -> Vec<MatchSpan> {
     let mut spans = Vec::new();
     for unit in units {
+        if is_link_label(unit, document_text) {
+            continue;
+        }
         for sentence in &unit.sentences {
             let sentence_text = &document_text[sentence.clone()];
             let tokens = tagger.tag(sentence_text, sentence.start);
@@ -397,5 +413,16 @@ mod tests {
     fn negative_standalone_resonance_has_no_modifier() {
         let source = "Resonance is measurable across the whole network.";
         assert!(spans_for(source).is_empty());
+    }
+
+    #[test]
+    fn link_label_units_are_skipped_but_the_same_compound_in_prose_flags() {
+        let source = "See the [semantic soup](docs/tags.md) page for background. \
+                      The semantic soup of tags confuses every reviewer.";
+        let spans = spans_for_markdown(source);
+        assert_eq!(spans.len(), 1, "{spans:?}");
+        assert_eq!(&source[spans[0].range.clone()], "semantic soup");
+        // The flagged occurrence is the prose one, after the link.
+        assert!(spans[0].range.start > source.find("page").expect("prose marker present"));
     }
 }

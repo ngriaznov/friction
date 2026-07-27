@@ -1460,3 +1460,28 @@ fn t6_uses_a_colon_before_a_comma_bearing_fragment() {
     assert_eq!(found.len(), 1);
     assert_eq!(&*found[0].replacement, ": ");
 }
+
+// 26. A colon-introduced enumeration keeps its semicolons even when every
+// item carries its own finite clause — the semicolons are the
+// construction's correct separators, and splitting any of them breaks
+// the enumeration's symmetry.
+#[test]
+fn t7_declines_every_semicolon_in_a_colon_introduced_enumeration() {
+    let shapes = [
+        g(Some(1), DepRelation::Nsubj, "It", "PRP", "it"),
+        g(None, DepRelation::Root, "runs", "VBZ", "run"),
+        g(Some(1), DepRelation::Prep, "in", "IN", "in"),
+        g(Some(2), DepRelation::Pobj, "stages", "NNS", "stage"),
+        g(Some(1), DepRelation::Punct, ":", ":", ":"),
+        g(Some(6), DepRelation::Nsubj, "Intro", "NNP", "intro"),
+        g(Some(1), DepRelation::Other, "teaches", "VBZ", "teach"),
+        g(Some(6), DepRelation::Dobj, "basics", "NNS", "basic"),
+        g(Some(1), DepRelation::Punct, ";", ";", ";"),
+        g(Some(10), DepRelation::Nsubj, "Core", "NNP", "core"),
+        g(Some(1), DepRelation::Other, "covers", "VBZ", "cover"),
+        g(Some(10), DepRelation::Dobj, "years", "NNS", "year"),
+        g(Some(1), DepRelation::Punct, ".", ".", "."),
+    ];
+    let (source, tokens, parse) = build_glued(&shapes);
+    assert!(t7_semicolon(&source, &tokens, &parse).is_empty());
+}
