@@ -236,7 +236,12 @@ mod tests {
     #[test]
     fn embedded_register_v1_parses_and_covers_all_four_features() {
         let pack = &crate::registry::REGISTER.pack;
-        for feature in ["nominalization", "agentless_passive", "em_dash", "semicolon"] {
+        for feature in [
+            "nominalization",
+            "agentless_passive",
+            "em_dash",
+            "semicolon",
+        ] {
             assert!(
                 pack.band(feature).is_some(),
                 "expected a band for feature {feature:?}"
