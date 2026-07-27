@@ -10,3 +10,5 @@ pass 1: 4 operation(s) fired
 pass 2: 0 operation(s) fired — converged
 pass 3: 1 operation(s) fired
   register.passivize       1715..1731  -> "changes are made"
+  1 held:
+    register.unpack        0..0  KEPT (nominalization: 33 instance(s) remain and the document is still above the human band (58.82 > 50.56 per 1000 words) — none has a licensed rewrite, so each needs a human hand)
