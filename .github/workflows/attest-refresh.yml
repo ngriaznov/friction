@@ -1,0 +1,119 @@
+# Monthly attestation-data refresh: re-derive the jargon-attest pack from
+# fresh source dumps and cut a patch release only when the data actually
+# changed.
+#
+# Fail-closed by construction: an implausible topic count, a key count
+# outside ±20% of the committed pack's, or any workspace test failure
+# stops the run before anything is committed. A run with no data drift
+# ends green with no commit and no release.
+#
+# The push below is made with the workflow's own token, which never fires
+# push-triggered workflows — so the release pipeline is invoked
+# explicitly as the last step rather than relying on the push event.
+name: Attest refresh
+
+on:
+  schedule:
+    # 3rd of each month, off the dump-generation window.
+    - cron: "17 6 3 * *"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  actions: write
+
+jobs:
+  refresh:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+
+      - name: Download sources
+        run: |
+          curl -fsSL --retry 3 -o /tmp/enwiki-titles.gz \
+            "https://dumps.wikimedia.org/enwiki/latest/enwiki-latest-all-titles-in-ns0.gz"
+          gunzip -t /tmp/enwiki-titles.gz
+          sha256sum /tmp/enwiki-titles.gz | cut -d' ' -f1 > /tmp/dump.sha
+          gunzip -k /tmp/enwiki-titles.gz
+          python3 - <<'PY'
+          import json, time, urllib.request
+          topics, cursor = [], "*"
+          while cursor:
+              url = f"https://api.openalex.org/topics?per-page=200&cursor={cursor}&select=display_name"
+              with urllib.request.urlopen(url, timeout=60) as r:
+                  data = json.load(r)
+              topics.extend(t["display_name"] for t in data["results"])
+              cursor = data["meta"].get("next_cursor")
+              if not data["results"]:
+                  break
+              time.sleep(0.2)
+          assert len(topics) > 3000, f"implausible OpenAlex topic count: {len(topics)}"
+          with open("/tmp/openalex-topics.txt", "w") as f:
+              f.write("\n".join(topics))
+          print(f"{len(topics)} topics")
+          PY
+
+      - name: Rebuild filter
+        run: |
+          cargo run --release -p corpus-tool -- jargon-attest \
+            --titles /tmp/enwiki-titles --titles-are-raw \
+            --openalex /tmp/openalex-topics.txt \
+            --source-dump-sha256 "$(cat /tmp/dump.sha)"
+
+      - name: Key-count sanity band
+        run: |
+          old=$(git show HEAD:crates/friction-packs/packs/jargon-attest-v1.toml | grep -m1 '^key_count' | grep -o '[0-9]*')
+          new=$(grep -m1 '^key_count' crates/friction-packs/packs/jargon-attest-v1.toml | grep -o '[0-9]*')
+          echo "key_count: $old -> $new"
+          python3 -c "import sys; o, n = int('$old'), int('$new'); sys.exit(0 if 0.8 * o <= n <= 1.2 * o else 1)"
+
+      - name: Detect drift
+        id: drift
+        run: |
+          if git diff --quiet crates/friction-packs/packs/jargon-attest-v1.bin; then
+            echo "changed=false" >> "$GITHUB_OUTPUT"
+            echo "no data drift; nothing to release"
+          else
+            echo "changed=true" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Test with the new pack embedded
+        if: steps.drift.outputs.changed == 'true'
+        run: cargo test --workspace
+
+      - name: Bump patch version
+        if: steps.drift.outputs.changed == 'true'
+        run: |
+          python3 - <<'PY'
+          import pathlib, re
+          cargo = pathlib.Path("crates/friction-cli/Cargo.toml")
+          text = cargo.read_text()
+          major, minor, patch = map(int, re.search(r'^version = "(\d+)\.(\d+)\.(\d+)"', text, re.M).groups())
+          old, new = f"{major}.{minor}.{patch}", f"{major}.{minor}.{patch + 1}"
+          cargo.write_text(text.replace(f'version = "{old}"', f'version = "{new}"', 1))
+          pkg = pathlib.Path("npm/friction-cli/package.json")
+          pkg.write_text(pkg.read_text().replace(f'"{old}"', f'"{new}"'))
+          readme = pathlib.Path("README.md")
+          readme.write_text(readme.read_text().replace(f'"friction-cli": "{old}"', f'"friction-cli": "{new}"'))
+          print(f"{old} -> {new}")
+          PY
+          cargo build -p friction-cli
+
+      - name: Commit and push
+        if: steps.drift.outputs.changed == 'true'
+        run: |
+          git config user.name "ngriaznov"
+          git config user.email "17167893+ngriaznov@users.noreply.github.com"
+          version=$(grep -m1 '^version' crates/friction-cli/Cargo.toml | cut -d'"' -f2)
+          git add -A
+          git commit -m "Refresh attestation data; release ${version}" \
+            -m "Unattended monthly rebuild of jargon-attest-v1 from fresh source dumps. Provenance (dump sha256, key counts) is in the pack sidecar."
+          git push
+
+      - name: Trigger release
+        if: steps.drift.outputs.changed == 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh workflow run release.yml --ref main

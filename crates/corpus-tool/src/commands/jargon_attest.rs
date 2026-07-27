@@ -58,12 +58,20 @@ pub struct Args {
     #[arg(long)]
     pub openalex: PathBuf,
     /// The sha256 of the raw Wikipedia titles dump `--titles` was
-    /// pre-filtered from (`enwiki-latest-all-titles-in-ns0.gz`), for the
+    /// derived from (`enwiki-latest-all-titles-in-ns0.gz`), for the
     /// sidecar's provenance record. This command does not (re-)download
     /// or read that dump itself — hex digest supplied by the caller, who
     /// computed it once against the actual dump file.
     #[arg(long)]
     pub source_dump_sha256: String,
+    /// Treat `--titles` as the FULL decompressed dump rather than a
+    /// pre-filtered corpus: apply the concept-shape extraction (2-4
+    /// underscore-separated segments, first `[A-Za-z][a-z]*`, rest
+    /// `[a-z-]+`) to every line before normalization. This is the same
+    /// rule the shipped v1 pack's input was produced with; codified here
+    /// so an unattended refresh needs no external filtering step.
+    #[arg(long)]
+    pub titles_are_raw: bool,
     /// Path to write the built filter to.
     #[arg(
         long,
@@ -113,7 +121,7 @@ pub fn run(args: &Args) -> anyhow::Result<()> {
     let openalex_sha256 = sha256_hex(&openalex_bytes);
 
     let mut keys: BTreeSet<String> = BTreeSet::new();
-    let titles_stats = fold_wikipedia_titles(&titles_text, &mut keys);
+    let titles_stats = fold_wikipedia_titles(&titles_text, &mut keys, args.titles_are_raw);
     let openalex_stats = fold_openalex_topics(&openalex_text, &mut keys);
 
     let built = friction_packs::jargon_attest::build_pack_bytes(&keys)?;
@@ -156,10 +164,38 @@ pub fn run(args: &Args) -> anyhow::Result<()> {
     Ok(())
 }
 
+/// `true` if a raw dump line is a concept-shaped title: 2-4
+/// underscore-separated segments, the first `[A-Za-z][a-z]*` (no hyphen,
+/// no interior capital), every later one `[a-z-]+`. Interior capitals
+/// mark proper-noun titles (`New_York_City`), which are names, not
+/// vocabulary — the concept slice is exactly the titles whose non-first
+/// words are all lowercase.
+fn is_concept_shaped(title: &str) -> bool {
+    let mut segments = title.split('_');
+    let first_ok = segments.next().is_some_and(|first| {
+        let mut chars = first.chars();
+        chars.next().is_some_and(|c| c.is_ascii_alphabetic())
+            && chars.all(|c| c.is_ascii_lowercase())
+    });
+    if !first_ok {
+        return false;
+    }
+    let mut rest = 0usize;
+    for segment in segments {
+        rest += 1;
+        if segment.is_empty() || !segment.chars().all(|c| c.is_ascii_lowercase() || c == '-') {
+            return false;
+        }
+    }
+    (1..=3).contains(&rest)
+}
+
 /// Folds every qualifying line of `text` (raw Wikipedia titles) into
 /// `keys`, applying the lowercase-initial-line drop (see module docs)
-/// before normalization, then the shared 2-4-word range after it.
-fn fold_wikipedia_titles(text: &str, keys: &mut BTreeSet<String>) -> SourceStats {
+/// before normalization, then the shared 2-4-word range after it. With
+/// `raw`, the concept-shape extraction runs first — the caller handed
+/// over the full dump, not a pre-filtered corpus.
+fn fold_wikipedia_titles(text: &str, keys: &mut BTreeSet<String>, raw: bool) -> SourceStats {
     let mut lines_read = 0usize;
     let mut keys_kept = 0usize;
     for line in text.lines() {
@@ -168,6 +204,9 @@ fn fold_wikipedia_titles(text: &str, keys: &mut BTreeSet<String>) -> SourceStats
             continue;
         }
         lines_read += 1;
+        if raw && !is_concept_shaped(line) {
+            continue;
+        }
         if line.starts_with(|c: char| c.is_ascii_lowercase()) {
             // Not a legitimate MediaWiki title (see module docs) —
             // e.g. the raw dump's own `page_title` TSV header.
@@ -309,7 +348,7 @@ mod tests {
     #[test]
     fn fold_wikipedia_titles_drops_lowercase_initial_header_artifact() {
         let mut keys = BTreeSet::new();
-        let stats = fold_wikipedia_titles("page_title\nData_fabric\nA\n", &mut keys);
+        let stats = fold_wikipedia_titles("page_title\nData_fabric\nA\n", &mut keys, false);
         assert_eq!(stats.lines_read, 3);
         // "page_title" dropped (lowercase-initial); "A" dropped (1 word
         // after normalization, below the 2-word floor).
@@ -323,7 +362,7 @@ mod tests {
         let mut keys = BTreeSet::new();
         // 2 underscore segments, but "Cross-domain" internally hyphenates
         // to 2 words -> 3 words total after normalization: still in range.
-        fold_wikipedia_titles("Cross-domain_resonance\n", &mut keys);
+        fold_wikipedia_titles("Cross-domain_resonance\n", &mut keys, false);
         assert!(keys.contains("cross domain resonance"));
     }
 
@@ -359,5 +398,31 @@ mod tests {
         assert!(text.contains("CC0"));
         assert!(text.contains("cafef00d"));
         assert!(toml::from_str::<toml::Value>(&text).is_ok(), "{text}");
+    }
+}
+
+#[cfg(test)]
+mod concept_shape_tests {
+    use super::is_concept_shaped;
+
+    // The v1 pack's input corpus was produced with exactly this rule
+    // (as a shell filter); these pin the codified version to it.
+    #[test]
+    fn concept_shape_keeps_lowercase_tail_titles() {
+        assert!(is_concept_shaped("Data_fabric"));
+        assert!(is_concept_shaped("Inverted_index"));
+        assert!(is_concept_shaped("Anti_de-facto_rule"));
+        assert!(is_concept_shaped("page_title")); // header-shaped; the later lowercase-initial drop owns it
+    }
+
+    #[test]
+    fn concept_shape_drops_names_singles_and_artifacts() {
+        assert!(!is_concept_shaped("New_York_City")); // interior capitals: a name
+        assert!(!is_concept_shaped("Hello")); // single word
+        assert!(!is_concept_shaped("A_b_c_d_e")); // five words
+        assert!(!is_concept_shaped("Anti-pattern_design")); // hyphen in first segment
+        assert!(!is_concept_shaped("Data__fabric")); // empty segment
+        assert!(!is_concept_shaped("Data_fabric_(computing)")); // punctuation
+        assert!(!is_concept_shaped("Übermensch_theory")); // non-ASCII initial
     }
 }
