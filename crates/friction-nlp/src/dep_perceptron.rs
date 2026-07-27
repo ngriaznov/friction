@@ -66,6 +66,48 @@
 //! [`best_allowed_action`] breaks ties toward the lowest action index,
 //! and feature order is fixed, so summation — and the resulting scores —
 //! is identical every run.
+//!
+//! # Two loading paths, one inference surface
+//!
+//! Like [`crate::tag_perceptron::PerceptronTagger`], [`PerceptronParser::new`]
+//! (fast, embedded `.bin`) and [`PerceptronParser::from_json_gz`] (slow,
+//! audited-source) build different internal representations — a zero-copy
+//! [`ViewBackend`] versus a `HashMap`-based [`OwnedBackend`] — behind the
+//! shared [`Backend`] trait, so [`DepParser::parse`]'s per-step scoring
+//! loop is written once regardless of which backend loaded.
+//!
+//! # The embedded `.bin`'s version-2 payload: a serialized hash table
+//!
+//! [`PerceptronParser::new`] loads `parser_en.bin` (embedded as
+//! [`WEIGHTS_BIN`]) with zero per-key construction — see
+//! `crate::weights_bin`'s module docs for the general scheme and
+//! [`crate::tag_perceptron`]'s own module docs for the sibling artifact
+//! that motivated it. This module's payload (the bytes after
+//! `crate::weights_bin`'s shared header), built by [`build_view_payload`]
+//! and read back by [`ParserView::from_payload`], is simpler than the
+//! tagger's — no classes or tagdict, just one feature table:
+//!
+//! - `stride: u32` — always [`NUM_ACTIONS`] (42), recorded and checked at
+//!   load time as a cheap sanity check that a payload really is this
+//!   artifact's shape
+//! - `features_capacity: u32`, then the features hash table's slots as a
+//!   length-prefixed section (feature string -> a
+//!   [`crate::weights_bin::sparse_row`] byte offset into the values
+//!   section)
+//! - the features values section: every feature's sparse `(action_index:
+//!   u16, weight: f32)` row (see [`crate::weights_bin::build_sparse_row`])
+//!   — sparse, not one dense `f32` per action, since the average feature
+//!   only carries a handful of nonzero action weights (measured: ~2.8 of
+//!   42) and a dense row would multiply artifact size roughly 15x for no
+//!   benefit
+//! - the string pool: every feature string, in the fixed order it was
+//!   pushed during packing (`WeightFile.features`'s own ascending
+//!   `BTreeMap` order)
+//!
+//! Determinism: [`build_view_payload`] feeds the table builder entries in
+//! that same fixed ascending order, so packing the same `WeightFile`
+//! twice produces bit-identical bytes — pinned by
+//! `pack_perceptron_parser_bin_is_deterministic` below.
 
 use std::collections::HashMap;
 use std::io::Read as _;
@@ -94,8 +136,9 @@ use crate::tag::TaggedToken;
 #[cfg(test)]
 static WEIGHTS_JSON_GZ: &[u8] = include_bytes!("../weights/parser_en.json.gz");
 
-/// The derived, `postcard`-encoded binary weight artifact
-/// [`PerceptronParser::new`] loads at normal startup — see
+/// The derived binary weight artifact [`PerceptronParser::new`] loads at
+/// normal startup: a version-2 serialized hash-table view (this module's
+/// own docs describe the exact byte layout), embedded raw — see
 /// `crate::weights_bin`'s module docs for the shared header shape and
 /// `weights/NOTICE.md`'s "derived artifacts" section for how it's
 /// produced (`corpus-tool weights-pack`) from `WEIGHTS_JSON_GZ`.
@@ -441,6 +484,134 @@ impl WeightTable {
     }
 }
 
+/// A zero-copy view over a version-2 parser payload's embedded bytes —
+/// see this module's own docs for the exact byte layout
+/// [`build_view_payload`] writes and [`Self::from_payload`] reads back.
+/// Borrows directly from the `'static` embedded artifact ([`WEIGHTS_BIN`]);
+/// building one does no per-key work at all.
+struct ParserView<'a> {
+    features: crate::weights_bin::HashView<'a>,
+    values: &'a [u8],
+}
+
+impl<'a> ParserView<'a> {
+    /// Parses `payload` (the bytes [`crate::weights_bin::split_header`]
+    /// returned) into a view.
+    ///
+    /// # Errors
+    /// [`crate::weights_bin::WeightsBinError::MalformedPayload`] if any
+    /// section is missing or truncated, if an embedded hash table's slot
+    /// buffer doesn't match its own recorded capacity, or if the
+    /// recorded stride doesn't match this build's [`NUM_ACTIONS`].
+    fn from_payload(payload: &'a [u8]) -> Result<Self, crate::weights_bin::WeightsBinError> {
+        use crate::weights_bin::{Cursor, HashView};
+
+        let mut cursor = Cursor::new(payload);
+        let stride = cursor.read_u32()? as usize;
+        if stride != NUM_ACTIONS {
+            return Err(crate::weights_bin::WeightsBinError::MalformedPayload(
+                "payload's recorded stride does not match this build's NUM_ACTIONS",
+            ));
+        }
+        let features_capacity = cursor.read_u32()?;
+        let features_slots = cursor.read_section()?;
+        let values = cursor.read_section()?;
+        let pool = cursor.read_section()?;
+
+        let features = HashView::new(features_capacity, features_slots, pool)?;
+        Ok(Self { features, values })
+    }
+
+    /// Sums every matched feature's sparse per-action weight row —
+    /// mirrors [`WeightTable::score`]'s fixed-order summation, just
+    /// reading each row's nonzero entries from the payload instead of a
+    /// pre-built dense array.
+    fn score(&self, features: &[Box<str>]) -> [f32; NUM_ACTIONS] {
+        let mut scores = [0f32; NUM_ACTIONS];
+        for feature in features {
+            if let Some(row_offset) = self.features.get(feature.as_bytes()) {
+                for chunk in crate::weights_bin::sparse_row(self.values, row_offset).chunks_exact(6)
+                {
+                    let (action_index, weight) = crate::weights_bin::decode_sparse_entry(chunk);
+                    scores[usize::from(action_index)] += weight;
+                }
+            }
+        }
+        scores
+    }
+}
+
+/// Builds a version-2 parser payload's bytes (everything after
+/// `crate::weights_bin`'s shared header) from `file` — this module's own
+/// docs describe the exact byte layout. The inverse of
+/// [`ParserView::from_payload`].
+///
+/// Feeds the feature table builder entries in `file.features`'s own
+/// ascending-key `BTreeMap` order, so calling this twice on an equal
+/// `WeightFile` produces bit-identical bytes (pinned by
+/// `pack_perceptron_parser_bin_is_deterministic` below).
+fn build_view_payload(file: WeightFile) -> Vec<u8> {
+    let WeightFile { features } = file;
+    let mut pool = Vec::new();
+    let mut values = Vec::new();
+    let mut feature_entries: Vec<(&str, u32, u32, u32)> = Vec::with_capacity(features.len());
+    for (feature, sparse) in &features {
+        let translated: Vec<(u16, f32)> = sparse
+            .iter()
+            .map(|&(action_index, weight)| (u16::from(action_index), weight))
+            .collect();
+        let row_offset = crate::weights_bin::build_sparse_row(&mut values, &translated);
+        let (key_off, key_len) = crate::weights_bin::push_key(&mut pool, feature);
+        feature_entries.push((feature.as_ref(), key_off, key_len, row_offset));
+    }
+    let (features_capacity, features_slots) =
+        crate::weights_bin::build_open_table(&feature_entries);
+
+    let mut out = Vec::new();
+    crate::weights_bin::write_u32(
+        &mut out,
+        u32::try_from(NUM_ACTIONS).expect("NUM_ACTIONS fits u32"),
+    );
+    crate::weights_bin::write_u32(&mut out, features_capacity);
+    crate::weights_bin::write_section(&mut out, &features_slots);
+    crate::weights_bin::write_section(&mut out, &values);
+    crate::weights_bin::write_section(&mut out, &pool);
+    out
+}
+
+/// Shared inference surface both loading paths implement identically:
+/// [`PerceptronParser::new`]'s zero-copy [`ViewBackend`] and
+/// [`PerceptronParser::from_json_gz`]'s owned [`OwnedBackend`]. Only one
+/// method: unlike the tagger, a parser step's output is already a plain
+/// action index (no class string, no tagdict bypass to resolve).
+trait Backend {
+    fn score(&self, features: &[Box<str>]) -> [f32; NUM_ACTIONS];
+}
+
+/// [`Backend`] over an in-memory, `HashMap`-based [`WeightTable`] — built
+/// by [`PerceptronParser::from_json_gz`], the slower audited-source path.
+struct OwnedBackend {
+    weights: WeightTable,
+}
+
+impl Backend for OwnedBackend {
+    fn score(&self, features: &[Box<str>]) -> [f32; NUM_ACTIONS] {
+        self.weights.score(features)
+    }
+}
+
+/// [`Backend`] over a zero-copy [`ParserView`] — built by
+/// [`PerceptronParser::new`], the fast path every normal caller wants.
+struct ViewBackend {
+    view: ParserView<'static>,
+}
+
+impl Backend for ViewBackend {
+    fn score(&self, features: &[Box<str>]) -> [f32; NUM_ACTIONS] {
+        self.view.score(features)
+    }
+}
+
 /// Errors constructing a [`PerceptronParser`].
 #[derive(Debug, thiserror::Error)]
 #[non_exhaustive]
@@ -452,12 +623,6 @@ pub enum PerceptronParseError {
     /// expected shape.
     #[error("failed to parse the dependency-parser weight artifact: {0}")]
     Parse(#[source] serde_json::Error),
-    /// The embedded `.bin` artifact's postcard payload didn't decode as
-    /// the expected [`WeightFile`] shape.
-    #[error(
-        "failed to decode the embedded dependency-parser weight artifact's postcard payload: {0}"
-    )]
-    Decode(#[source] postcard::Error),
     /// The embedded `.bin` artifact's header was malformed — see
     /// [`crate::weights_bin::WeightsBinError`]'s variants.
     #[error(transparent)]
@@ -495,11 +660,13 @@ fn parse_json_gz(bytes: &[u8]) -> Result<WeightFile, PerceptronParseError> {
 /// Takes a `json.gz` weight artifact's raw bytes and its own sha256
 /// (lowercase hex, computed by the caller — `corpus-tool weights-pack`
 /// over the file it just read). Parses `json_gz_bytes` the same way
-/// [`PerceptronParser::from_json_gz`]
-/// does, `postcard`-encodes the resulting [`WeightFile`], and prepends
-/// the shared [`crate::weights_bin`] header carrying `source_sha256_hex`
-/// — the exact bytes `PerceptronParser::new` later validates against
-/// [`SOURCE_JSON_GZ_SHA256`].
+/// [`PerceptronParser::from_json_gz`] does, builds the version-2 view
+/// payload via [`build_view_payload`], and prepends the shared
+/// [`crate::weights_bin`] header carrying `source_sha256_hex` — the exact
+/// bytes `PerceptronParser::new` later validates against
+/// [`SOURCE_JSON_GZ_SHA256`]. The payload is embedded raw (uncompressed):
+/// see [`crate::tag_perceptron::pack_perceptron_tagger_bin`]'s own docs
+/// for why (the same reasoning applies to both artifacts).
 ///
 /// # Errors
 /// [`PerceptronParseError::Decompress`] / [`PerceptronParseError::Parse`]
@@ -509,36 +676,37 @@ pub fn pack_perceptron_parser_bin(
     source_sha256_hex: &str,
 ) -> Result<Vec<u8>, PerceptronParseError> {
     let file = parse_json_gz(json_gz_bytes)?;
-    let payload = postcard::to_allocvec(&file).expect(
-        "WeightFile always postcard-serializes: no maps \
-            keyed by a non-string type, no untagged enums, nothing postcard can't represent",
-    );
+    let payload = build_view_payload(file);
     let mut out = crate::weights_bin::write_header(ARTIFACT_MAGIC, source_sha256_hex);
-    out.extend_from_slice(&crate::weights_bin::gzip_payload(&payload));
+    out.extend_from_slice(&payload);
     Ok(out)
 }
 
 /// A [`DepParser`] backed by a from-scratch-trained averaged structured
-/// perceptron. See the module docs for the action space, feature templates,
-/// training procedure, and determinism guarantees.
+/// perceptron.
+///
+/// See the module docs for the action space, feature templates, training
+/// procedure, determinism guarantees, and the two loading paths' shared
+/// [`Backend`] surface.
 pub struct PerceptronParser {
-    weights: WeightTable,
+    backend: Box<dyn Backend + Send + Sync>,
 }
 
 impl PerceptronParser {
-    /// Loads the parser from its embedded, derived `.bin` artifact
-    /// (`postcard`-encoded, gated on a source-sha256 header check against
-    /// the embedded `json.gz` — see `crate::weights_bin`'s module docs).
-    /// This is the fast path every normal caller wants; see
-    /// [`Self::from_json_gz`] for the slower, audited-source path.
+    /// Loads the parser from its embedded, derived `.bin` artifact — a
+    /// version-2 serialized hash-table view (see this module's docs for
+    /// the byte layout), gated on a source-sha256 header check against
+    /// the embedded `json.gz` (`crate::weights_bin`'s module docs). This
+    /// is the fast path every normal caller wants: [`ParserView::from_payload`]
+    /// only slices the embedded `'static` bytes, with no `HashMap` built
+    /// and no per-feature array allocated. See [`Self::from_json_gz`] for
+    /// the slower, audited-source path.
     ///
     /// # Errors
-    /// [`PerceptronParseError::Header`] if the embedded `.bin`'s header is
-    /// malformed; [`PerceptronParseError::StaleBin`] if its recorded
-    /// source sha256 doesn't match the currently embedded `json.gz`;
-    /// [`PerceptronParseError::Decode`] if the postcard payload doesn't
-    /// match the expected [`WeightFile`] shape. None of these should
-    /// happen for the vendored artifact.
+    /// [`PerceptronParseError::Header`] if the embedded `.bin`'s header or
+    /// payload is malformed; [`PerceptronParseError::StaleBin`] if its
+    /// recorded source sha256 doesn't match the currently embedded
+    /// `json.gz`. Neither should happen for the vendored artifact.
     pub fn new() -> Result<Self, PerceptronParseError> {
         let (source_sha256, payload) =
             crate::weights_bin::split_header(WEIGHTS_BIN, ARTIFACT_MAGIC)?;
@@ -548,10 +716,9 @@ impl PerceptronParser {
                 expected: SOURCE_JSON_GZ_SHA256,
             });
         }
-        let file: WeightFile = postcard::from_bytes(&crate::weights_bin::gunzip_payload(payload)?)
-            .map_err(PerceptronParseError::Decode)?;
+        let view = ParserView::from_payload(payload)?;
         Ok(Self {
-            weights: WeightTable::from_file(file),
+            backend: Box::new(ViewBackend { view }),
         })
     }
 
@@ -568,7 +735,9 @@ impl PerceptronParser {
     pub fn from_json_gz(bytes: &[u8]) -> Result<Self, PerceptronParseError> {
         let file = parse_json_gz(bytes)?;
         Ok(Self {
-            weights: WeightTable::from_file(file),
+            backend: Box::new(OwnedBackend {
+                weights: WeightTable::from_file(file),
+            }),
         })
     }
 
@@ -583,7 +752,9 @@ impl PerceptronParser {
     #[must_use]
     pub fn from_weight_file(file: WeightFile) -> Self {
         Self {
-            weights: WeightTable::from_file(file),
+            backend: Box::new(OwnedBackend {
+                weights: WeightTable::from_file(file),
+            }),
         }
     }
 }
@@ -602,7 +773,7 @@ impl DepParser for PerceptronParser {
         let mut config = Configuration::new(tokens.len());
         while !config.is_terminal() {
             let features = extract_features(&words, &tags, &config);
-            let scores = self.weights.score(&features);
+            let scores = self.backend.score(&features);
             match best_allowed_action(&scores, &config) {
                 Some(index) => config.apply(action_at(index)),
                 // Unreachable while `!config.is_terminal()` (see
@@ -898,11 +1069,12 @@ pub mod train_support {
     }
 
     /// Runs one sentence through greedy oracle-guided decoding with early
-    /// update — see the module docs' "Training" section. Stops the instant
-    /// `model`'s masked prediction disagrees with the oracle, having
-    /// already applied that step's update. Returns whether the model
-    /// matched the oracle all the way to a terminal configuration (no
-    /// update needed this epoch).
+    /// update — see the module docs' "Training" section.
+    ///
+    /// Stops the instant `model`'s masked prediction disagrees with the
+    /// oracle, having already applied that step's update. Returns whether
+    /// the model matched the oracle all the way to a terminal
+    /// configuration (no update needed this epoch).
     pub fn train_sentence(
         model: &mut AveragedPerceptron,
         words: &[Box<str>],
@@ -1025,7 +1197,7 @@ mod tests {
     }
 
     /// Loading the embedded weight artifact never panics — covers the
-    /// `.bin` header/postcard round trip, independent of model accuracy.
+    /// `.bin` header/view round trip, independent of model accuracy.
     #[test]
     fn embedded_weight_artifact_loads() {
         PerceptronParser::new().expect("embedded weights must load");
@@ -1068,39 +1240,62 @@ mod tests {
     /// A `.bin` whose header claims a different source sha256 is
     /// distinguishable from one whose header matches — the staleness
     /// check `PerceptronParser::new` runs is a plain string compare
-    /// against the compile-time constant, exercised directly here.
+    /// against the compile-time constant, exercised directly here. The
+    /// payload itself is still well-formed and loadable — staleness is
+    /// purely a header-metadata mismatch, never payload corruption.
     #[test]
     fn a_bin_with_a_different_recorded_sha_is_detected_as_stale() {
         let file = parse_json_gz(WEIGHTS_JSON_GZ).expect("embedded json.gz parses");
-        let payload = postcard::to_allocvec(&file).expect("WeightFile postcard-serializes");
+        let payload = build_view_payload(file);
         let stale_sha = "0".repeat(64);
         let mut bytes = crate::weights_bin::write_header(ARTIFACT_MAGIC, &stale_sha);
         bytes.extend_from_slice(&payload);
         let (source_sha256, decoded_payload) =
             crate::weights_bin::split_header(&bytes, ARTIFACT_MAGIC).expect("header parses");
         assert_ne!(source_sha256, SOURCE_JSON_GZ_SHA256);
-        let redecoded: WeightFile =
-            postcard::from_bytes(decoded_payload).expect("payload still decodes");
-        assert_eq!(redecoded, file);
+        ParserView::from_payload(decoded_payload).expect("payload still parses");
     }
 
-    /// Parity: the embedded `.bin` (fast path, [`PerceptronParser::new`])
-    /// and the embedded `json.gz` (audited-source path,
-    /// [`PerceptronParser::from_json_gz`]) decode to bit-identical
-    /// [`WeightFile`]s — `postcard` preserves the exact `f32` bit patterns
-    /// `serde_json` parsed from the source file, so this is an exact
-    /// equality, not an approximate one.
+    /// Full-vocabulary equivalence: every feature the embedded `json.gz`
+    /// describes agrees with what the embedded `.bin`'s zero-copy view
+    /// returns — not just a battery of sentences (below), the *entire*
+    /// vocabulary, so a rare feature no battery sentence happens to
+    /// trigger can't hide a translation bug. Also checks that keys
+    /// genuinely absent from the source file are reported absent by the
+    /// view, not aliased onto some other entry.
+    ///
+    /// Exact float equality is intentional: the view's `f32` weights are
+    /// read verbatim (via `from_le_bytes`) from the same bits
+    /// `serde_json` parsed from the source `json.gz`, so any bit
+    /// difference is a real translation bug, not float-precision noise.
     #[test]
-    fn json_and_bin_paths_decode_to_identical_weight_files() {
-        let from_json = parse_json_gz(WEIGHTS_JSON_GZ).expect("embedded json.gz parses");
+    #[allow(clippy::float_cmp)]
+    fn view_matches_the_json_weight_file_across_its_entire_vocabulary() {
+        let file = parse_json_gz(WEIGHTS_JSON_GZ).expect("embedded json.gz parses");
         let (source_sha256, payload) =
             crate::weights_bin::split_header(WEIGHTS_BIN, ARTIFACT_MAGIC).expect("header parses");
         assert_eq!(source_sha256, SOURCE_JSON_GZ_SHA256);
-        let from_bin: WeightFile = postcard::from_bytes(
-            &crate::weights_bin::gunzip_payload(payload).expect("payload gunzips"),
-        )
-        .expect("payload decodes");
-        assert_eq!(from_json, from_bin);
+        let view = ParserView::from_payload(payload).expect("payload parses");
+
+        for (feature, sparse) in &file.features {
+            let mut expected = [0f32; NUM_ACTIONS];
+            for &(action_index, weight) in sparse {
+                expected[usize::from(action_index)] = weight;
+            }
+            let scores = view.score(std::slice::from_ref(feature));
+            assert_eq!(scores, expected, "feature {feature:?}");
+        }
+
+        let absent_features = ["zzz-never-a-feature-zzz", "s0.w=zzzznonexistentzzz"];
+        for absent in absent_features {
+            assert!(
+                !file.features.contains_key(absent),
+                "test bug: {absent:?} is actually a real feature"
+            );
+            let owned = Box::from(absent);
+            let scores = view.score(std::slice::from_ref(&owned));
+            assert_eq!(scores, [0f32; NUM_ACTIONS], "absent feature {absent:?}");
+        }
     }
 
     /// Behavioral parity, one level up: a parser built via each loading

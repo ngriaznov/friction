@@ -57,6 +57,55 @@
 //! site already calls `tag()` per already-segmented sentence, so this is
 //! safe — but a caller must not pass an unsegmented paragraph expecting
 //! sentence-internal resets.
+//!
+//! # Two loading paths, one inference surface
+//!
+//! [`PerceptronTagger::new`] (the fast path, embedded `.bin`) and
+//! [`PerceptronTagger::from_json_gz`] (the slow, audited-source path) build
+//! different internal representations — [`ViewBackend`], a zero-copy view
+//! over the `'static` embedded bytes, versus [`OwnedBackend`], a
+//! `HashMap`-based table built the way this module always has — behind
+//! the shared [`Backend`] trait, so [`PerceptronTagger::tag_word`]'s
+//! tagdict/scoring/argmax logic is written once and both paths are
+//! provably running the identical algorithm (pinned by this module's own
+//! `json_and_bin_paths_tag_a_sentence_battery_identically` test).
+//!
+//! # The embedded `.bin`'s version-2 payload: a serialized hash table
+//!
+//! [`PerceptronTagger::new`] loads `perceptron_en.bin` (embedded as
+//! [`WEIGHTS_BIN`]) with zero per-key construction — no `HashMap` built,
+//! no feature string re-hashed, no per-feature `Vec` allocated. See
+//! `crate::weights_bin`'s module docs for why (version-1 payloads
+//! `postcard`-decoded straight into a `HashMap`; version 2 instead
+//! serializes the table itself). This module's payload (the bytes after
+//! `crate::weights_bin`'s shared header), built by [`build_view_payload`]
+//! and read back by [`TaggerView::from_payload`], is:
+//!
+//! - `num_classes: u32`
+//! - `features_capacity: u32`, then the features hash table's slots as a
+//!   length-prefixed section (feature string -> a [`crate::weights_bin::sparse_row`]
+//!   byte offset into the values section below)
+//! - the features values section: every feature's sparse `(class_index:
+//!   u16, weight: f32)` row, self-describing via a leading count (see
+//!   [`crate::weights_bin::build_sparse_row`]) — sparse, not one dense
+//!   `f32` per class, since the average feature only carries a handful of
+//!   nonzero class weights (measured: ~4 of 49 for this artifact) and a
+//!   dense row would multiply artifact size roughly by the class count
+//! - `tagdict_capacity: u32`, then the tagdict hash table's slots (word ->
+//!   the index of its bypass tag in the classes list below, not a
+//!   duplicated string)
+//! - the classes section: `num_classes` `(offset: u32, length: u32)` pairs
+//!   into the string pool, in sorted order (matching the row/argmax index
+//!   every score uses)
+//! - the string pool: every feature string, tagdict word, and class tag
+//!   string, concatenated in that order (feature keys, then tagdict
+//!   words, then class tags — each in the fixed order it was pushed
+//!   during packing)
+//!
+//! Determinism: [`build_view_payload`] feeds every table builder entries
+//! in `WeightFile`'s own `BTreeMap` order (already sorted ascending by
+//! key), so packing the same `WeightFile` twice produces bit-identical
+//! bytes — pinned by `pack_perceptron_tagger_bin_is_deterministic` below.
 
 use std::collections::{BTreeMap, HashMap};
 use std::io::Read as _;
@@ -85,8 +134,9 @@ use crate::tag::{PosTag, TaggedToken, Tagger, classify_token_kind, is_prose_punc
 #[cfg(test)]
 static WEIGHTS_JSON_GZ: &[u8] = include_bytes!("../weights/perceptron_en.json.gz");
 
-/// The derived, `postcard`-encoded binary weight artifact
-/// [`PerceptronTagger::new`] loads at normal startup — see
+/// The derived binary weight artifact [`PerceptronTagger::new`] loads at
+/// normal startup: a version-2 serialized hash-table view (this module's
+/// own docs describe the exact byte layout), embedded raw — see
 /// `crate::weights_bin`'s module docs for the shared header shape and
 /// `weights/NOTICE.md`'s "derived artifacts" section for how it's
 /// produced (`corpus-tool weights-pack`) from `WEIGHTS_JSON_GZ`.
@@ -132,10 +182,6 @@ pub enum PerceptronTagError {
     /// expected shape.
     #[error("failed to parse the perceptron weight artifact: {0}")]
     Parse(#[source] serde_json::Error),
-    /// The embedded `.bin` artifact's postcard payload didn't decode as
-    /// the expected [`WeightFile`] shape.
-    #[error("failed to decode the embedded perceptron weight artifact's postcard payload: {0}")]
-    Decode(#[source] postcard::Error),
     /// The embedded `.bin` artifact's header was malformed — see
     /// [`crate::weights_bin::WeightsBinError`]'s variants.
     #[error(transparent)]
@@ -157,9 +203,10 @@ pub enum PerceptronTagError {
 }
 
 /// On-disk shape of the weight artifact: `BTreeMap`s throughout so the
-/// serialized JSON is stable and diffable across re-training runs; the
-/// same shape is also `postcard`-encoded into the derived `.bin` artifact
-/// (see `crate::weights_bin`).
+/// serialized JSON is stable and diffable across re-training runs, and so
+/// [`OwnedBackend::from_file`]/[`build_view_payload`] can both feed their
+/// respective tables entries in the same deterministic ascending-key
+/// order.
 ///
 /// Public only because `train-tooling`'s `train_support` module hands one
 /// back to an external training tool (`examples/train_perceptron.rs`,
@@ -175,40 +222,45 @@ pub struct WeightFile {
     pub tagdict: BTreeMap<Box<str>, Box<str>>,
 }
 
+/// Sorts `file_classes` and returns `(sorted classes, index_map)`, where
+/// `index_map[i]` is `file_classes[i]`'s position in the sorted list —
+/// shared by [`OwnedBackend::from_file`] (dense, in-memory) and
+/// [`build_view_payload`] (sparse, on-disk) so both translate a
+/// [`WeightFile`]'s stored class indices the same way regardless of what
+/// order its own `classes` array happened to be written in.
+fn sort_classes_with_index_map(file_classes: &[Box<str>]) -> (Vec<Box<str>>, Vec<usize>) {
+    let mut classes = file_classes.to_vec();
+    classes.sort();
+    let index_map = file_classes
+        .iter()
+        .map(|class| {
+            classes
+                .binary_search(class)
+                .expect("every class in a weight file's `classes` list must appear in it")
+        })
+        .collect();
+    (classes, index_map)
+}
+
 /// Runtime weight table: one dense per-class weight vector per feature
-/// string, indexed by each class's position in [`PerceptronTagger`]'s own
-/// (freshly sorted, at load) `classes` list — never by whatever order the
-/// on-disk file happened to use.
+/// string, indexed by each class's position in the freshly sorted
+/// `classes` list [`sort_classes_with_index_map`] returns — never by
+/// whatever order the on-disk file happened to use.
 struct WeightTable {
     num_classes: usize,
     by_feature: HashMap<Box<str>, Vec<f32>>,
 }
 
 impl WeightTable {
-    /// Builds a `(sorted classes, WeightTable)` pair from a [`WeightFile`],
-    /// translating each stored class index through the freshly sorted
-    /// class list so the table is correct regardless of what order the
-    /// file's own `classes` array was written in.
-    fn from_file(file: WeightFile) -> (Vec<Box<str>>, Self) {
-        let WeightFile {
-            classes: file_classes,
-            features,
-            ..
-        } = file;
-
-        let mut classes = file_classes.clone();
-        classes.sort();
-
-        let index_map: Vec<usize> = file_classes
-            .iter()
-            .map(|class| {
-                classes
-                    .binary_search(class)
-                    .expect("every class in a weight file's `classes` list must appear in it")
-            })
-            .collect();
-
-        let num_classes = classes.len();
+    /// Builds a `WeightTable` from `features` (already keyed by the
+    /// file's own, pre-translation class indices) and `index_map`, the
+    /// translation [`sort_classes_with_index_map`] computed for the same
+    /// file.
+    fn from_features(
+        features: BTreeMap<Box<str>, Vec<(u16, f32)>>,
+        index_map: &[usize],
+        num_classes: usize,
+    ) -> Self {
         let mut by_feature = HashMap::with_capacity(features.len());
         for (feature, sparse) in features {
             let mut dense = vec![0f32; num_classes];
@@ -219,14 +271,10 @@ impl WeightTable {
             }
             by_feature.insert(feature, dense);
         }
-
-        (
-            classes,
-            Self {
-                num_classes,
-                by_feature,
-            },
-        )
+        Self {
+            num_classes,
+            by_feature,
+        }
     }
 
     /// Sums each feature's dense per-class weight vector, in `features`'
@@ -243,6 +291,251 @@ impl WeightTable {
             }
         }
         scores
+    }
+}
+
+/// A zero-copy view over a version-2 tagger payload's embedded bytes — see
+/// this module's own docs for the exact byte layout [`build_view_payload`]
+/// writes and [`Self::from_payload`] reads back. Every field borrows
+/// directly from the `'static` embedded artifact ([`WEIGHTS_BIN`]);
+/// building one does no per-key work at all.
+struct TaggerView<'a> {
+    num_classes: usize,
+    features: crate::weights_bin::HashView<'a>,
+    values: &'a [u8],
+    tagdict: crate::weights_bin::HashView<'a>,
+    /// `num_classes` `(offset: u32, length: u32)` pairs into `pool`, in
+    /// sorted class order.
+    classes_offsets: &'a [u8],
+    pool: &'a [u8],
+}
+
+impl<'a> TaggerView<'a> {
+    /// Parses `payload` (the bytes [`crate::weights_bin::split_header`]
+    /// returned) into a view.
+    ///
+    /// # Errors
+    /// [`crate::weights_bin::WeightsBinError::MalformedPayload`] if any
+    /// section is missing, truncated, or an embedded hash table's slot
+    /// buffer doesn't match its own recorded capacity.
+    fn from_payload(payload: &'a [u8]) -> Result<Self, crate::weights_bin::WeightsBinError> {
+        use crate::weights_bin::{Cursor, HashView};
+
+        let mut cursor = Cursor::new(payload);
+        let num_classes = cursor.read_u32()? as usize;
+        let features_capacity = cursor.read_u32()?;
+        let features_slots = cursor.read_section()?;
+        let values = cursor.read_section()?;
+        let tagdict_capacity = cursor.read_u32()?;
+        let tagdict_slots = cursor.read_section()?;
+        let classes_offsets = cursor.read_section()?;
+        let pool = cursor.read_section()?;
+
+        let features = HashView::new(features_capacity, features_slots, pool)?;
+        let tagdict = HashView::new(tagdict_capacity, tagdict_slots, pool)?;
+        if classes_offsets.len() != num_classes * 8 {
+            return Err(crate::weights_bin::WeightsBinError::MalformedPayload(
+                "classes section length doesn't match num_classes * 8",
+            ));
+        }
+
+        Ok(Self {
+            num_classes,
+            features,
+            values,
+            tagdict,
+            classes_offsets,
+            pool,
+        })
+    }
+
+    /// The sorted class list's `index`th tag string.
+    fn class_str(&self, index: usize) -> &'a str {
+        let start = index * 8;
+        let entry = &self.classes_offsets[start..start + 8];
+        let offset = u32::from_le_bytes(entry[0..4].try_into().expect("4-byte slice")) as usize;
+        let len = u32::from_le_bytes(entry[4..8].try_into().expect("4-byte slice")) as usize;
+        std::str::from_utf8(&self.pool[offset..offset + len])
+            .expect("build_view_payload only ever pushes valid UTF-8 keys into the pool")
+    }
+
+    /// Sums every matched feature's sparse per-class weight row —
+    /// mirrors [`WeightTable::score`]'s fixed-order summation, just
+    /// reading each row's nonzero entries from the payload instead of a
+    /// pre-built dense `Vec`.
+    fn score(&self, features: &[Box<str>]) -> Vec<f32> {
+        let mut scores = vec![0f32; self.num_classes];
+        for feature in features {
+            if let Some(row_offset) = self.features.get(feature.as_bytes()) {
+                for chunk in crate::weights_bin::sparse_row(self.values, row_offset).chunks_exact(6)
+                {
+                    let (class_index, weight) = crate::weights_bin::decode_sparse_entry(chunk);
+                    scores[usize::from(class_index)] += weight;
+                }
+            }
+        }
+        scores
+    }
+
+    /// `word`'s tagdict bypass tag, if any.
+    fn tagdict_get(&self, word: &str) -> Option<&'a str> {
+        self.tagdict
+            .get(word.as_bytes())
+            .map(|class_index| self.class_str(class_index as usize))
+    }
+}
+
+/// Builds a version-2 tagger payload's bytes (everything after
+/// `crate::weights_bin`'s shared header) from `file` — this module's own
+/// docs describe the exact byte layout. The inverse of
+/// [`TaggerView::from_payload`].
+///
+/// Every table is built from `file`'s own `BTreeMap`s in their natural
+/// ascending-key iteration order, so calling this twice on an equal
+/// `WeightFile` produces bit-identical bytes (pinned by
+/// `pack_perceptron_tagger_bin_is_deterministic` below).
+fn build_view_payload(file: WeightFile) -> Vec<u8> {
+    let WeightFile {
+        classes: file_classes,
+        features,
+        tagdict,
+    } = file;
+
+    let (classes, index_map) = sort_classes_with_index_map(&file_classes);
+    let mut pool = Vec::new();
+
+    // Features: feature string -> a sparse row of (sorted class index,
+    // weight) pairs, translated through `index_map` exactly like
+    // `WeightTable::from_features` translates them for the owned backend.
+    let mut values = Vec::new();
+    let mut feature_entries: Vec<(&str, u32, u32, u32)> = Vec::with_capacity(features.len());
+    for (feature, sparse) in &features {
+        let translated: Vec<(u16, f32)> = sparse
+            .iter()
+            .filter_map(|&(class_index, weight)| {
+                index_map
+                    .get(class_index as usize)
+                    .map(|&mapped| (u16::try_from(mapped).expect("num_classes fits u16"), weight))
+            })
+            .collect();
+        let row_offset = crate::weights_bin::build_sparse_row(&mut values, &translated);
+        let (key_off, key_len) = crate::weights_bin::push_key(&mut pool, feature);
+        feature_entries.push((feature.as_ref(), key_off, key_len, row_offset));
+    }
+    let (features_capacity, features_slots) =
+        crate::weights_bin::build_open_table(&feature_entries);
+
+    // Tagdict: word -> index of its bypass tag in the sorted classes list.
+    let mut tagdict_entries: Vec<(&str, u32, u32, u32)> = Vec::with_capacity(tagdict.len());
+    for (word, tag) in &tagdict {
+        let class_index = classes
+            .binary_search(tag)
+            .expect("every tagdict tag is one of the file's own registered classes");
+        let (key_off, key_len) = crate::weights_bin::push_key(&mut pool, word);
+        tagdict_entries.push((
+            word.as_ref(),
+            key_off,
+            key_len,
+            u32::try_from(class_index).expect("num_classes fits u32"),
+        ));
+    }
+    let (tagdict_capacity, tagdict_slots) = crate::weights_bin::build_open_table(&tagdict_entries);
+
+    // Classes: sorted tag strings, appended to the pool last.
+    let mut classes_offsets = Vec::with_capacity(classes.len() * 8);
+    for class in &classes {
+        let (offset, len) = crate::weights_bin::push_key(&mut pool, class);
+        classes_offsets.extend_from_slice(&offset.to_le_bytes());
+        classes_offsets.extend_from_slice(&len.to_le_bytes());
+    }
+
+    let mut out = Vec::new();
+    crate::weights_bin::write_u32(
+        &mut out,
+        u32::try_from(classes.len()).expect("num_classes fits u32"),
+    );
+    crate::weights_bin::write_u32(&mut out, features_capacity);
+    crate::weights_bin::write_section(&mut out, &features_slots);
+    crate::weights_bin::write_section(&mut out, &values);
+    crate::weights_bin::write_u32(&mut out, tagdict_capacity);
+    crate::weights_bin::write_section(&mut out, &tagdict_slots);
+    crate::weights_bin::write_section(&mut out, &classes_offsets);
+    crate::weights_bin::write_section(&mut out, &pool);
+    out
+}
+
+/// Shared inference surface both loading paths implement identically:
+/// [`PerceptronTagger::new`]'s zero-copy [`ViewBackend`] and
+/// [`PerceptronTagger::from_json_gz`]'s owned [`OwnedBackend`]. Everything
+/// [`PerceptronTagger::tag_word`] needs — the tagdict short-circuit,
+/// feature scoring, and resolving a winning class index back to its tag
+/// string — goes through here, so the per-token tagging algorithm is
+/// written exactly once and both backends are provably running the same
+/// one.
+trait Backend {
+    /// `word`'s tagdict bypass tag, if any (already an owned `Box<str>`:
+    /// the owned backend's own map entry is cloned either way, so there's
+    /// no allocation-free path to give up by not returning a borrow).
+    fn tagdict_lookup(&self, word: &str) -> Option<Box<str>>;
+    /// Sums every matched feature's per-class weights, in `features`' own
+    /// fixed order.
+    fn score(&self, features: &[Box<str>]) -> Vec<f32>;
+    /// The tag string for the sorted class list's `index`th entry.
+    fn class_at(&self, index: usize) -> Box<str>;
+}
+
+/// [`Backend`] over an in-memory, `HashMap`-based [`WeightTable`] — built
+/// by [`PerceptronTagger::from_json_gz`], the slower audited-source path.
+struct OwnedBackend {
+    weights: WeightTable,
+    classes: Vec<Box<str>>,
+    tagdict: BTreeMap<Box<str>, Box<str>>,
+}
+
+impl OwnedBackend {
+    fn from_file(file: WeightFile) -> Self {
+        let (classes, index_map) = sort_classes_with_index_map(&file.classes);
+        let num_classes = classes.len();
+        let weights = WeightTable::from_features(file.features, &index_map, num_classes);
+        Self {
+            weights,
+            classes,
+            tagdict: file.tagdict,
+        }
+    }
+}
+
+impl Backend for OwnedBackend {
+    fn tagdict_lookup(&self, word: &str) -> Option<Box<str>> {
+        self.tagdict.get(word).cloned()
+    }
+
+    fn score(&self, features: &[Box<str>]) -> Vec<f32> {
+        self.weights.score(features)
+    }
+
+    fn class_at(&self, index: usize) -> Box<str> {
+        self.classes[index].clone()
+    }
+}
+
+/// [`Backend`] over a zero-copy [`TaggerView`] — built by
+/// [`PerceptronTagger::new`], the fast path every normal caller wants.
+struct ViewBackend {
+    view: TaggerView<'static>,
+}
+
+impl Backend for ViewBackend {
+    fn tagdict_lookup(&self, word: &str) -> Option<Box<str>> {
+        self.view.tagdict_get(word).map(Box::from)
+    }
+
+    fn score(&self, features: &[Box<str>]) -> Vec<f32> {
+        self.view.score(features)
+    }
+
+    fn class_at(&self, index: usize) -> Box<str> {
+        Box::from(self.view.class_str(index))
     }
 }
 
@@ -574,16 +867,13 @@ fn tokenize(text: &str) -> Vec<ScannedToken> {
     tokens
 }
 
-/// A [`Tagger`] backed by a from-scratch-trained averaged perceptron. See
-/// the module docs for tokenization, non-word passthrough tags, and the
-/// per-call sentence-reset semantics.
+/// A [`Tagger`] backed by a from-scratch-trained averaged perceptron.
+///
+/// See the module docs for tokenization, non-word passthrough tags, the
+/// per-call sentence-reset semantics, and the two loading paths' shared
+/// [`Backend`] surface.
 pub struct PerceptronTagger {
-    weights: WeightTable,
-    /// Sorted once at load; fixes both scoring-array indices and tie-break
-    /// order (argmax scans this in order, so ties resolve to the
-    /// lexicographically earliest entry).
-    classes: Vec<Box<str>>,
-    tagdict: BTreeMap<Box<str>, Box<str>>,
+    backend: Box<dyn Backend + Send + Sync>,
 }
 
 /// Gunzips `bytes` and parses the result as a [`WeightFile`]. The one
@@ -603,11 +893,15 @@ fn parse_json_gz(bytes: &[u8]) -> Result<WeightFile, PerceptronTagError> {
 /// Takes a `json.gz` weight artifact's raw bytes and its own sha256
 /// (lowercase hex, computed by the caller — `corpus-tool weights-pack`
 /// over the file it just read). Parses `json_gz_bytes` the same way
-/// [`PerceptronTagger::from_json_gz`]
-/// does, `postcard`-encodes the resulting [`WeightFile`], and prepends
-/// the shared [`crate::weights_bin`] header carrying `source_sha256_hex`
-/// — the exact bytes `PerceptronTagger::new` later validates against
-/// [`SOURCE_JSON_GZ_SHA256`].
+/// [`PerceptronTagger::from_json_gz`] does, builds the version-2 view
+/// payload via [`build_view_payload`], and prepends the shared
+/// [`crate::weights_bin`] header carrying `source_sha256_hex` — the exact
+/// bytes `PerceptronTagger::new` later validates against
+/// [`SOURCE_JSON_GZ_SHA256`]. The payload is embedded raw (uncompressed):
+/// [`PerceptronTagger::new`] borrows straight from the embedded `'static`
+/// bytes, so there is nothing to decompress at load time — mirrors
+/// `friction_packs::jargon_attest`'s own embedded filter, the precedent
+/// this whole format follows.
 ///
 /// # Errors
 /// [`PerceptronTagError::Decompress`] / [`PerceptronTagError::Parse`] —
@@ -617,30 +911,29 @@ pub fn pack_perceptron_tagger_bin(
     source_sha256_hex: &str,
 ) -> Result<Vec<u8>, PerceptronTagError> {
     let file = parse_json_gz(json_gz_bytes)?;
-    let payload = postcard::to_allocvec(&file).expect(
-        "WeightFile always postcard-serializes: no maps \
-            keyed by a non-string type, no untagged enums, nothing postcard can't represent",
-    );
+    let payload = build_view_payload(file);
     let mut out = crate::weights_bin::write_header(ARTIFACT_MAGIC, source_sha256_hex);
-    out.extend_from_slice(&crate::weights_bin::gzip_payload(&payload));
+    out.extend_from_slice(&payload);
     Ok(out)
 }
 
 impl PerceptronTagger {
-    /// Loads the tagger from its embedded, derived `.bin` artifact
-    /// (`postcard`-encoded, gated on a source-sha256 header check against
-    /// the embedded `json.gz` — see `crate::weights_bin`'s module docs).
-    /// This is the fast path every normal caller wants; see
-    /// [`Self::from_json_gz`] for the slower, audited-source path.
+    /// Loads the tagger from its embedded, derived `.bin` artifact — a
+    /// version-2 serialized hash-table view (see this module's docs for
+    /// the byte layout), gated on a source-sha256 header check against
+    /// the embedded `json.gz` (`crate::weights_bin`'s module docs). This
+    /// is the fast path every normal caller wants: no `HashMap` is built,
+    /// no feature string is re-hashed, no per-feature `Vec` is allocated
+    /// — [`TaggerView::from_payload`] only slices the embedded `'static`
+    /// bytes. See [`Self::from_json_gz`] for the slower, audited-source
+    /// path.
     ///
     /// # Errors
-    /// [`PerceptronTagError::Header`] if the embedded `.bin`'s header is
-    /// malformed; [`PerceptronTagError::StaleBin`] if its recorded source
-    /// sha256 doesn't match the currently embedded `json.gz`;
-    /// [`PerceptronTagError::Decode`] if the postcard payload doesn't
-    /// match the expected [`WeightFile`] shape. None of these should
-    /// happen for the vendored artifact — covered by this module's own
-    /// tests.
+    /// [`PerceptronTagError::Header`] if the embedded `.bin`'s header or
+    /// payload is malformed; [`PerceptronTagError::StaleBin`] if its
+    /// recorded source sha256 doesn't match the currently embedded
+    /// `json.gz`. Neither should happen for the vendored artifact —
+    /// covered by this module's own tests.
     pub fn new() -> Result<Self, PerceptronTagError> {
         let (source_sha256, payload) =
             crate::weights_bin::split_header(WEIGHTS_BIN, ARTIFACT_MAGIC)?;
@@ -650,9 +943,10 @@ impl PerceptronTagger {
                 expected: SOURCE_JSON_GZ_SHA256,
             });
         }
-        let file: WeightFile = postcard::from_bytes(&crate::weights_bin::gunzip_payload(payload)?)
-            .map_err(PerceptronTagError::Decode)?;
-        Ok(Self::from_weight_file(file))
+        let view = TaggerView::from_payload(payload)?;
+        Ok(Self {
+            backend: Box::new(ViewBackend { view }),
+        })
     }
 
     /// Loads the tagger directly from `json.gz` bytes (the audited
@@ -666,17 +960,10 @@ impl PerceptronTagger {
     /// [`PerceptronTagError::Parse`] if the decompressed JSON doesn't
     /// match the expected shape.
     pub fn from_json_gz(bytes: &[u8]) -> Result<Self, PerceptronTagError> {
-        parse_json_gz(bytes).map(Self::from_weight_file)
-    }
-
-    fn from_weight_file(file: WeightFile) -> Self {
-        let tagdict = file.tagdict.clone();
-        let (classes, weights) = WeightTable::from_file(file);
-        Self {
-            weights,
-            classes,
-            tagdict,
-        }
+        let file = parse_json_gz(bytes)?;
+        Ok(Self {
+            backend: Box::new(OwnedBackend::from_file(file)),
+        })
     }
 
     /// Tags one [`TokenKind::Word`] token at `i`: a tagdict hit short-
@@ -691,12 +978,12 @@ impl PerceptronTagger {
         prev1: &str,
         prev2: &str,
     ) -> Box<str> {
-        if let Some(tag) = self.tagdict.get(surfaces[i].as_ref()) {
-            return tag.clone();
+        if let Some(tag) = self.backend.tagdict_lookup(&surfaces[i]) {
+            return tag;
         }
         let features = extract_features(surfaces, raw, i, prev1, prev2);
-        let scores = self.weights.score(&features);
-        self.classes[argmax(&scores)].clone()
+        let scores = self.backend.score(&features);
+        self.backend.class_at(argmax(&scores))
     }
 }
 
@@ -1416,39 +1703,80 @@ mod tests {
     }
 
     /// A `.bin` whose header claims a different source sha256 is rejected
-    /// as stale rather than silently loaded.
+    /// as stale rather than silently loaded — the payload itself is still
+    /// well-formed and loadable, so staleness is purely a header-metadata
+    /// mismatch, never payload corruption.
     #[test]
     fn new_rejects_a_bin_whose_header_sha_does_not_match_the_compiled_in_constant() {
         let file = parse_json_gz(WEIGHTS_JSON_GZ).expect("embedded json.gz parses");
-        let payload = postcard::to_allocvec(&file).expect("WeightFile postcard-serializes");
+        let payload = build_view_payload(file);
         let stale_sha = "0".repeat(64);
         let mut bytes = crate::weights_bin::write_header(ARTIFACT_MAGIC, &stale_sha);
         bytes.extend_from_slice(&payload);
         let (source_sha256, decoded_payload) =
             crate::weights_bin::split_header(&bytes, ARTIFACT_MAGIC).expect("header parses");
         assert_ne!(source_sha256, SOURCE_JSON_GZ_SHA256);
-        let redecoded: WeightFile =
-            postcard::from_bytes(decoded_payload).expect("payload still decodes");
-        assert_eq!(redecoded, file);
+        TaggerView::from_payload(decoded_payload).expect("payload still parses");
     }
 
-    /// Parity: the embedded `.bin` (fast path, [`PerceptronTagger::new`])
-    /// and the embedded `json.gz` (audited-source path,
-    /// [`PerceptronTagger::from_json_gz`]) decode to bit-identical
-    /// [`WeightFile`]s — `postcard` preserves the exact `f32` bit patterns
-    /// `serde_json` parsed from the source file, so this is an exact
-    /// equality, not an approximate one.
+    /// Full-vocabulary equivalence: every feature, tagdict entry, and
+    /// class the embedded `json.gz` describes agrees with what the
+    /// embedded `.bin`'s zero-copy view returns — not just a battery of
+    /// sentences (below), the *entire* vocabulary, so a rare feature no
+    /// battery sentence happens to trigger can't hide a translation bug.
+    /// Also checks that keys genuinely absent from the source file are
+    /// reported absent by the view, not aliased onto some other entry.
     #[test]
-    fn json_and_bin_paths_decode_to_identical_weight_files() {
-        let from_json = parse_json_gz(WEIGHTS_JSON_GZ).expect("embedded json.gz parses");
+    fn view_matches_the_json_weight_file_across_its_entire_vocabulary() {
+        let file = parse_json_gz(WEIGHTS_JSON_GZ).expect("embedded json.gz parses");
         let (source_sha256, payload) =
             crate::weights_bin::split_header(WEIGHTS_BIN, ARTIFACT_MAGIC).expect("header parses");
         assert_eq!(source_sha256, SOURCE_JSON_GZ_SHA256);
-        let from_bin: WeightFile = postcard::from_bytes(
-            &crate::weights_bin::gunzip_payload(payload).expect("payload gunzips"),
-        )
-        .expect("payload decodes");
-        assert_eq!(from_json, from_bin);
+        let view = TaggerView::from_payload(payload).expect("payload parses");
+
+        let (sorted_classes, index_map) = sort_classes_with_index_map(&file.classes);
+        assert_eq!(view.num_classes, sorted_classes.len());
+        for (index, class) in sorted_classes.iter().enumerate() {
+            assert_eq!(view.class_str(index), class.as_ref(), "class index {index}");
+        }
+
+        for (feature, sparse) in &file.features {
+            let mut expected = vec![0f32; sorted_classes.len()];
+            for &(class_index, weight) in sparse {
+                if let Some(&mapped) = index_map.get(class_index as usize) {
+                    expected[mapped] = weight;
+                }
+            }
+            let scores = view.score(std::slice::from_ref(feature));
+            assert_eq!(scores, expected, "feature {feature:?}");
+        }
+
+        for (word, tag) in &file.tagdict {
+            assert_eq!(
+                view.tagdict_get(word),
+                Some(tag.as_ref()),
+                "tagdict word {word:?}"
+            );
+        }
+
+        let absent_features = ["zzz-never-a-feature-zzz", "word=zzzznonexistentzzz"];
+        for absent in absent_features {
+            assert!(
+                !file.features.contains_key(absent),
+                "test bug: {absent:?} is actually a real feature"
+            );
+            let owned = Box::from(absent);
+            let scores = view.score(std::slice::from_ref(&owned));
+            assert_eq!(
+                scores,
+                vec![0f32; sorted_classes.len()],
+                "absent feature {absent:?}"
+            );
+        }
+
+        let absent_word = "zzznonexistentwordzzz";
+        assert!(!file.tagdict.contains_key(absent_word));
+        assert_eq!(view.tagdict_get(absent_word), None);
     }
 
     /// Behavioral parity, one level up: a tagger built via each loading

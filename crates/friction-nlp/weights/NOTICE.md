@@ -25,19 +25,45 @@ produced, and how to reproduce the artifact byte-for-byte.
 interchange artifacts this file's provenance sections describe — nothing
 below changes what they are or how they're reproduced. `parser_en.bin`
 and `perceptron_en.bin` are **derived** artifacts, committed alongside
-them: a `postcard`-encoded (compact binary `serde` format) re-encoding of
-the exact same `WeightFile` data, prefixed with a small header (an 8-byte
-magic distinct per artifact, a format version, and the sha256 of the
-`json.gz` each was derived from). `PerceptronTagger::new`/
-`PerceptronParser::new` load the `.bin` at normal startup — postcard
-parses directly off a byte slice, with none of `serde_json`'s text
-scanning or gzip's decompression pass, so this cuts `friction fix`'s
-per-invocation weight-loading time substantially (measured: the combined
-tagger+parser load dropped from roughly 223ms to roughly 67ms). The
-relationship mirrors `friction-packs/packs/jargon-attest-v1.bin`'s own
-derived-from-pinned-text-sources shape: the checked-in `.bin` is a build
-output of an audited source, not itself hand-authored or a second source
-of truth.
+them, built by `corpus-tool weights-pack` from those exact files.
+
+**Format version 2** (current): a serialized *hash table*, not a
+serialized `HashMap`. Version 1 (see git history) `postcard`-encoded the
+in-memory `WeightFile` and decoded it into a real `std::collections::HashMap`
+at every process start — hashing and heap-allocating every one of tens to
+hundreds of thousands of feature-string keys dominated `friction fix`'s
+startup cost far more than the postcard decode itself did. Version 2
+instead packs the hash table's own on-disk layout — a fixed-seed
+(`xxh64`), open-addressed, linearly-probed table over a contiguous string
+pool, plus a sparse per-feature `(class/action index, weight)` row region
+(most features carry only a handful of nonzero weights out of the full
+class/action space, so a dense row per feature was rejected as an
+artifact-size multiplier for no benefit) — embedded **raw, uncompressed**.
+`PerceptronTagger::new`/`PerceptronParser::new` load it as a zero-copy view
+straight over the `include_bytes!`'d static: no `HashMap` is built, no
+feature string is re-hashed, no per-feature array is allocated, and (being
+uncompressed) nothing is decompressed either. This mirrors
+`friction-packs/packs/jargon-attest-v1.bin`'s own embedded `BinaryFuse8`
+filter — bytes in, a view out, zero construction — which is itself the
+precedent this format follows. See `friction_nlp::weights_bin`'s module
+docs for the shared header/hash-table primitives and each of
+`tag_perceptron`/`dep_perceptron`'s own module docs for the exact per-
+artifact payload layout.
+
+Measured on this workspace's own machine (see this crate's `README`/task
+history for the full numbers): switching from version 1 to version 2 cut
+the combined tagger+parser *load* time from roughly 67ms to a small
+number of milliseconds — construction, not decoding, was the entire
+version-1 cost, and version 2 has none. The trade is committed artifact
+size: raw (uncompressed) storage of an open-addressed table at a ~0.7
+load factor is bigger than a gzip-compressed dense postcard dump, so the
+`.bin` pair grew from 7.06MB (version 1: `parser_en.bin` 5.81MB +
+`perceptron_en.bin` 1.24MB) to substantially more (version 2: see the
+sizes `corpus-tool weights-pack`'s own summary line prints after a
+regeneration) — raw was chosen over gzip because per-request decompression
+time for an artifact this size risked eating back the load-time win this
+format exists for; this trade-off is revisitable if the size delta proves
+too costly in practice.
 
 The header's sha256 is checked against a compile-time constant of the
 currently embedded `json.gz` at every `new()` call — this is what makes a
@@ -46,9 +72,10 @@ forgotten after a retrain) fail loudly at process init, rather than
 silently drifting from the audited source. A `from_json_gz` constructor
 on both `PerceptronTagger` and `PerceptronParser` keeps the JSON-loading
 path available (used by the converter below and by each module's own
-parity test, which asserts the two loading paths produce bit-identical
-`WeightFile`s and identical tagging/parsing output over a fixed sentence
-battery).
+parity tests: a fixed-sentence-battery behavioral parity check, plus a
+full-vocabulary equivalence check iterating every feature/tagdict/class
+entry the source `json.gz` describes against what the packed view
+returns, including a handful of keys known to be absent).
 
 **Regenerate both `.bin` files** after retraining either artifact (or
 whenever `cargo test` reports a stale-artifact or sha256-mismatch

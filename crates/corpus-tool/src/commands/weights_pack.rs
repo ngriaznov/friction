@@ -1,10 +1,13 @@
 //! `corpus-tool weights-pack` — builds derived weight artifacts.
 //!
-//! Produces the `postcard`-encoded `.bin` weight artifacts
-//! `friction_nlp::PerceptronTagger::new` and
-//! `friction_nlp::PerceptronParser::new` load at runtime (see
-//! `crates/friction-nlp/weights/NOTICE.md`'s "derived artifacts"
-//! section).
+//! Produces the `.bin` weight artifacts `friction_nlp::PerceptronTagger::new`
+//! and `friction_nlp::PerceptronParser::new` load at runtime: a version-2
+//! serialized open-addressed hash table, embedded raw and read back as a
+//! zero-copy view rather than deserialized into a `HashMap` (see
+//! `crates/friction-nlp/weights/NOTICE.md`'s "derived artifacts" section
+//! and `friction_nlp`'s own `weights_bin`/`tag_perceptron`/`dep_perceptron`
+//! module docs for the exact byte layout and why it replaced a
+//! `postcard`-encoded `HashMap` dump).
 //!
 //! Deterministic and fully offline: both inputs are the vendored
 //! `json.gz` weight artifacts already checked into `crates/friction-nlp/
@@ -13,7 +16,7 @@
 //! `friction_nlp::pack_perceptron_tagger_bin` /
 //! `pack_perceptron_parser_bin` — the same functions
 //! `friction-nlp`'s own `pack_perceptron_*_bin_is_deterministic` tests
-//! pin — which parse it, `postcard`-encode the result, and prepend the
+//! pin — which parse it, build the packed view payload, and prepend the
 //! shared header (`friction_nlp`'s private `weights_bin` module) carrying
 //! that sha256, so a stale `.bin` (source `json.gz` regenerated, this
 //! command not re-run) fails loudly at `friction_nlp` init instead of
@@ -105,8 +108,9 @@ mod tests {
     use super::*;
 
     /// Running `weights-pack` twice over the same `json.gz` inputs
-    /// produces bit-identical `.bin` bytes — `postcard` is deterministic
-    /// and so is the shared header (see `friction_nlp`'s own
+    /// produces bit-identical `.bin` bytes — the packed hash-table view is
+    /// deterministic (fixed seed, fixed probe order, sorted key feed
+    /// order) and so is the shared header (see `friction_nlp`'s own
     /// `pack_perceptron_*_bin_is_deterministic` unit tests for the
     /// underlying guarantee); this test pins it at this command's own
     /// read-hash-pack-write level, over the real vendored artifacts.
