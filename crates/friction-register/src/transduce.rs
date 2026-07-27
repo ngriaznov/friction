@@ -161,6 +161,80 @@ fn span_text<'src>(
     &source[tokens[first].token.range.start..tokens[last].token.range.end]
 }
 
+/// Subject-pronoun contractions: one token fusing a subject AND a finite
+/// auxiliary (`it's` = `it is`). The shipped tagger keeps these whole and
+/// tags them `PRP`, so a tag-based finite-verb scan is blind to the
+/// finite verb inside — measured on real prose: "None of it is wrong,
+/// exactly — it's machine register …" was comma-spliced because `it's`
+/// read as a bare pronoun. Case-folded, straight-apostrophe forms; match
+/// after folding U+2019.
+const SUBJECT_CONTRACTIONS: &[&str] = &[
+    "it's", "that's", "there's", "here's", "he's", "she's", "what's", "who's", "they're", "we're",
+    "you're", "i'm", "i've", "they've", "we've", "you've", "i'll", "he'll", "she'll", "it'll",
+    "we'll", "they'll", "you'll", "i'd", "he'd", "she'd", "it'd", "we'd", "they'd", "you'd",
+];
+
+/// Negated auxiliary contractions: a finite verb (plus its negation) in
+/// one token, no subject fused. Same tagger blindness as
+/// [`SUBJECT_CONTRACTIONS`] — `aren't` can surface untagged as a verb.
+const NEGATED_AUX_CONTRACTIONS: &[&str] = &[
+    "isn't",
+    "aren't",
+    "wasn't",
+    "weren't",
+    "don't",
+    "doesn't",
+    "didn't",
+    "won't",
+    "can't",
+    "couldn't",
+    "shouldn't",
+    "wouldn't",
+    "hasn't",
+    "haven't",
+    "hadn't",
+    "ain't",
+];
+
+/// Token `index`'s surface, case-folded with curly apostrophes
+/// straightened — the shape both contraction lists are written in.
+fn folded_token_text(source: &str, tokens: &[TaggedToken], index: usize) -> String {
+    token_text(source, tokens, index)
+        .to_lowercase()
+        .replace('\u{2019}', "'")
+}
+
+/// [`has_finite_verb`] plus contraction awareness: `true` if any token is
+/// tag-finite OR is a contraction that embeds a finite auxiliary. The
+/// widening is deliberately local to this module's transducers — the
+/// edit gates keep the strict tag-based check they were calibrated with.
+fn has_finite_verb_cx(source: &str, all: &[TaggedToken], range: Range<usize>) -> bool {
+    has_finite_verb(&all[range.clone()])
+        || range.into_iter().any(|i| {
+            let text = folded_token_text(source, all, i);
+            SUBJECT_CONTRACTIONS.contains(&text.as_str())
+                || NEGATED_AUX_CONTRACTIONS.contains(&text.as_str())
+        })
+}
+
+/// `true` if the tokens from `next` open an independent clause by any of
+/// three signals: a fused subject+finite contraction as the very first
+/// word (`— it's never called directly`), an imperative-initial bare
+/// verb (`— pull in the published module instead`), or the parse-anchored
+/// subject check ([`independent_clause_follows`]).
+fn opens_independent_clause(
+    source: &str,
+    tokens: &[TaggedToken],
+    parse: &SentenceParse,
+    next: usize,
+) -> bool {
+    let first_is_fused_clause = next < tokens.len()
+        && SUBJECT_CONTRACTIONS.contains(&folded_token_text(source, tokens, next).as_str());
+    first_is_fused_clause
+        || friction_nlp::is_imperative_initial(&tokens[next..])
+        || independent_clause_follows(tokens, parse, next)
+}
+
 /// Recapitalizes `text`'s first character, leaving the rest untouched.
 fn recapitalize(text: &str) -> String {
     let mut chars = text.chars();
@@ -878,8 +952,7 @@ fn paired_parenthetical_candidate(
     if first == 0 || second + 1 >= tokens.len() || second <= first + 1 {
         return None;
     }
-    let middle = &tokens[first + 1..second];
-    if has_finite_verb(middle) {
+    if has_finite_verb_cx(source, tokens, first + 1..second) {
         return None; // X carries its own clause; this isn't a parenthetical.
     }
 
@@ -938,18 +1011,30 @@ fn lead_in_candidate(source: &str, tokens: &[TaggedToken], dash: usize) -> Optio
 
 /// Case (b): a single em dash with no finite verb between it and the
 /// sentence's end — an appositive/elaboration fragment, not a second
-/// clause. Replaces the dash and its flanking spaces with `", "`.
+/// clause. Replaces the dash and its flanking spaces with `", "` — or
+/// with `": "` when the fragment carries commas of its own: a bare comma
+/// delimiter in front of a comma-bearing fragment flattens it into one
+/// long false list ("pushing React core forward, faster, simpler, and
+/// easier to work with" — measured on real prose), the same collision
+/// the paired case escapes with parentheses.
 fn fragment_candidate(source: &str, tokens: &[TaggedToken], dash: usize) -> Option<Candidate> {
     let range = tokens[dash - 1].token.range.end..tokens[dash + 1].token.range.start;
     if spans_inline_code(&source[range.clone()]) {
         return None;
     }
+    let fragment_text =
+        &source[tokens[dash + 1].token.range.start..tokens[tokens.len() - 1].token.range.end];
+    let replacement = if fragment_text.contains(',') {
+        ": "
+    } else {
+        ", "
+    };
     let mut delta = BTreeMap::new();
     delta.insert("em_dash", -1);
     Some(Candidate {
         kind: CandidateKind::EmDash,
         range,
-        replacement: Box::from(", "),
+        replacement: Box::from(replacement),
         delta,
         confidence: 0.85,
     })
@@ -1045,8 +1130,7 @@ pub fn t6_em_dash(source: &str, tokens: &[TaggedToken], parse: &SentenceParse) -
             if dash == 0 || dash + 1 >= tokens.len() {
                 return Vec::new(); // nothing on one side to anchor the rewrite.
             }
-            let after = &tokens[dash + 1..];
-            if !has_finite_verb(&tokens[..dash]) {
+            if !has_finite_verb_cx(source, tokens, 0..dash) {
                 // A verbless left side is a definition lead-in ("**Rate
                 // limiting** — the design calls for ..."), where the dash
                 // separates a term from its explanation. A comma there is
@@ -1058,12 +1142,18 @@ pub fn t6_em_dash(source: &str, tokens: &[TaggedToken], parse: &SentenceParse) -
                 lead_in_candidate(source, tokens, dash)
                     .into_iter()
                     .collect()
-            } else if !has_finite_verb(after) {
-                fragment_candidate(source, tokens, dash)
+            } else if opens_independent_clause(source, tokens, parse, dash + 1) {
+                // Checked BEFORE the fragment branch: a fused
+                // subject+finite contraction ("— it's machine register")
+                // and an imperative ("— pull in the published module")
+                // both read as verbless to the tag scan, and a comma
+                // against either is a splice. Measured on real prose,
+                // both shapes were produced by exactly that mistake.
+                independent_clause_candidate(source, tokens, dash)
                     .into_iter()
                     .collect()
-            } else if independent_clause_follows(tokens, parse, dash + 1) {
-                independent_clause_candidate(source, tokens, dash)
+            } else if !has_finite_verb_cx(source, tokens, dash + 1..tokens.len()) {
+                fragment_candidate(source, tokens, dash)
                     .into_iter()
                     .collect()
             } else {
@@ -1133,7 +1223,7 @@ fn semicolon_candidate(
     if semi == 0 || semi + 1 >= tokens.len() {
         return None;
     }
-    if !independent_clause_follows(tokens, parse, semi + 1) {
+    if !opens_independent_clause(source, tokens, parse, semi + 1) {
         return None;
     }
 
@@ -1212,7 +1302,7 @@ pub fn t7_semicolon(source: &str, tokens: &[TaggedToken], parse: &SentenceParse)
     let segments = semicolon_segments(&semis, tokens.len());
     if segments
         .iter()
-        .any(|segment| !has_finite_verb(&tokens[segment.clone()]))
+        .any(|segment| !has_finite_verb_cx(source, tokens, segment.clone()))
     {
         return Vec::new(); // a verbless segment: see this function's own docs.
     }

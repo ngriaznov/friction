@@ -1372,3 +1372,91 @@ fn candidates_includes_t7_semicolon_output() {
     let found = candidates(&source, &tokens, &parse);
     assert!(found.iter().any(|c| c.kind == CandidateKind::Semicolon));
 }
+
+// 23. A fused subject+finite contraction right after the dash is an
+// independent clause, not a fragment — the tagger tags "it's" PRP, and a
+// comma there is the measured splice from real prose.
+#[test]
+fn t6_treats_a_subject_contraction_after_the_dash_as_a_clause() {
+    let shapes = [
+        g(Some(3), DepRelation::Nsubj, "None", "NN", "none"),
+        g(Some(0), DepRelation::Prep, "of", "IN", "of"),
+        g(Some(1), DepRelation::Pobj, "it", "PRP", "it"),
+        g(None, DepRelation::Root, "is", "VBZ", "be"),
+        g(Some(3), DepRelation::Other, "wrong", "JJ", "wrong"),
+        g(Some(3), DepRelation::Punct, "\u{2014}", "HYPH", "\u{2014}"),
+        g(Some(8), DepRelation::Nsubj, "it's", "PRP", "it's"),
+        g(Some(8), DepRelation::Other, "machine", "NN", "machine"),
+        g(Some(3), DepRelation::Other, "register", "NN", "register"),
+        g(Some(3), DepRelation::Punct, ".", ".", "."),
+    ];
+    let (source, tokens, parse) = build_glued(&shapes);
+
+    let found = t6_em_dash(&source, &tokens, &parse);
+    assert_eq!(found.len(), 1);
+    assert!(
+        found[0].replacement.starts_with(". "),
+        "expected a sentence break, got {:?}",
+        found[0].replacement
+    );
+    assert!(found[0].replacement.contains("It's"));
+}
+
+// 24. An imperative right side ("— pull in the published module") is a
+// complete command: sentence break, never a comma splice.
+#[test]
+fn t6_treats_an_imperative_after_the_dash_as_a_clause() {
+    let shapes = [
+        g(Some(1), DepRelation::Nsubj, "packages", "NNS", "package"),
+        g(None, DepRelation::Root, "aren't", "VBP", "be"),
+        g(
+            Some(1),
+            DepRelation::Other,
+            "importable",
+            "JJ",
+            "importable",
+        ),
+        g(Some(1), DepRelation::Punct, "\u{2014}", "HYPH", "\u{2014}"),
+        g(Some(1), DepRelation::Other, "pull", "VB", "pull"),
+        g(Some(4), DepRelation::Prep, "in", "IN", "in"),
+        g(Some(7), DepRelation::Det, "the", "DT", "the"),
+        g(Some(5), DepRelation::Pobj, "module", "NN", "module"),
+        g(Some(1), DepRelation::Punct, ".", ".", "."),
+    ];
+    let (source, tokens, parse) = build_glued(&shapes);
+
+    let found = t6_em_dash(&source, &tokens, &parse);
+    assert_eq!(found.len(), 1);
+    assert!(
+        found[0].replacement.starts_with(". "),
+        "expected a sentence break, got {:?}",
+        found[0].replacement
+    );
+    assert!(found[0].replacement.contains("Pull"));
+}
+
+// 25. A comma-bearing fragment takes a colon, not a bare comma — a comma
+// delimiter would flatten it into one long false list (the measured
+// "forward, faster, simpler, and easier" mush).
+#[test]
+fn t6_uses_a_colon_before_a_comma_bearing_fragment() {
+    let shapes = [
+        g(Some(1), DepRelation::Nsubj, "This", "DT", "this"),
+        g(None, DepRelation::Root, "pushes", "VBZ", "push"),
+        g(Some(1), DepRelation::Dobj, "React", "NNP", "react"),
+        g(Some(1), DepRelation::Other, "forward", "RB", "forward"),
+        g(Some(1), DepRelation::Punct, "\u{2014}", "HYPH", "\u{2014}"),
+        g(Some(1), DepRelation::Other, "faster", "JJR", "fast"),
+        g(Some(5), DepRelation::Punct, ",", ",", ","),
+        g(Some(5), DepRelation::Other, "simpler", "JJR", "simple"),
+        g(Some(5), DepRelation::Punct, ",", ",", ","),
+        g(Some(5), DepRelation::Other, "and", "CC", "and"),
+        g(Some(5), DepRelation::Other, "easier", "JJR", "easy"),
+        g(Some(1), DepRelation::Punct, ".", ".", "."),
+    ];
+    let (source, tokens, parse) = build_glued(&shapes);
+
+    let found = t6_em_dash(&source, &tokens, &parse);
+    assert_eq!(found.len(), 1);
+    assert_eq!(&*found[0].replacement, ": ");
+}
