@@ -204,6 +204,7 @@ mod tests {
         );
         let report = EditReport {
             passes: vec![pass(vec![fired], vec![held])],
+            reusable_scan: None,
         };
         let rows = pass_rows(&report);
         assert_eq!(rows.len(), 1);
@@ -220,6 +221,7 @@ mod tests {
     fn pass_rows_handles_a_converged_zero_patch_pass() {
         let report = EditReport {
             passes: vec![pass(Vec::new(), Vec::new())],
+            reusable_scan: None,
         };
         let rows = pass_rows(&report);
         assert!(rows[0].fired.is_empty());

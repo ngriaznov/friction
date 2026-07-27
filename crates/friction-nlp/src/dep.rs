@@ -228,6 +228,15 @@ pub struct DepEdge {
 #[derive(Debug, Clone, PartialEq)]
 pub struct SentenceParse {
     edges: Vec<DepEdge>,
+    /// `children[head]` is every token index whose edge's `head` is
+    /// `Some(head)`, in token order — built once in [`Self::new`] so a
+    /// caller walking subtrees (`friction_register::transduce`'s
+    /// `subtree_indices`/`children_with_relation`) looks up a token's
+    /// children in `O(1)` instead of re-scanning every edge in the
+    /// sentence per node visited. A tree over `edges.len()` tokens has
+    /// exactly `edges.len()` parent-child links total, so this costs one
+    /// `O(tokens)` pass to build and `O(tokens)` total space.
+    children: Vec<Vec<usize>>,
 }
 
 impl SentenceParse {
@@ -257,7 +266,13 @@ impl SentenceParse {
                 }
             }
         }
-        Ok(Self { edges })
+        let mut children = vec![Vec::new(); edges.len()];
+        for edge in &edges {
+            if let Some(head) = edge.head {
+                children[head].push(edge.token);
+            }
+        }
+        Ok(Self { edges, children })
     }
 
     /// This parse's edges, one per sentence token, in token order.
@@ -270,6 +285,15 @@ impl SentenceParse {
     #[must_use]
     pub fn edge(&self, index: usize) -> Option<&DepEdge> {
         self.edges.get(index)
+    }
+
+    /// Every token index whose edge's `head` is exactly `index`, in token
+    /// order — `index`'s direct children, none of its deeper descendants.
+    /// Empty (not a panic) if `index` is out of bounds, matching
+    /// [`Self::edge`]'s own out-of-bounds-is-empty convention.
+    #[must_use]
+    pub fn children_of(&self, index: usize) -> &[usize] {
+        self.children.get(index).map_or(&[], Vec::as_slice)
     }
 
     /// The sentence's root edge (the token with no head), if the parse is

@@ -43,7 +43,7 @@ use std::collections::{BTreeMap, BTreeSet};
 use std::ops::Range;
 
 use friction_core::span::ranges_overlap;
-use friction_core::{Finding, Patch, RuleId, Tier};
+use friction_core::{Document, Finding, Patch, RuleId, Tier};
 use friction_match::token::{AnalysisTokenKind, prose_scope, tokenize_str};
 use friction_nlp::{DepParser, FINITE_VERB_TAGS, Segmenter, SentenceParse, TaggedToken, Tagger};
 use friction_packs::{RegisterBand, RegisterPack};
@@ -83,6 +83,60 @@ struct SentenceCtx {
     /// This sentence's dependency parse, indexed the same way as
     /// `tokens`.
     parse: SentenceParse,
+}
+
+/// One sentence's byte range and part-of-speech tags, exposed via
+/// [`ReusableScan`] for a caller that needs the same tags [`run_register`]
+/// already computed.
+///
+/// `friction fix`'s paraphrase scan (`friction-cli`'s `fix` module) would
+/// otherwise re-parse, re-scope, and re-tag the exact same bytes register
+/// just finished with. `tokens` keeps [`run_register`]'s own LOCAL-offset
+/// tagging convention
+/// (`tagger.tag(text, 0)`, relative to `range`, not absolute into the
+/// document) — this module's own candidate generation needs sentence-
+/// local coordinates throughout (`friction_register::transduce`'s
+/// functions all index against a per-sentence text slice), so keeping it
+/// here means zero blast radius to that machinery. A caller needing
+/// absolute offsets (the jargon channel's own convention — see
+/// `friction_match::tagging`'s module docs) shifts each token's range by
+/// `+ range.start`: an `O(tokens)` map, far cheaper than re-tagging.
+#[derive(Debug, Clone)]
+pub struct RegisterSentenceTags {
+    /// This sentence's byte range, absolute into the document source.
+    pub range: Range<usize>,
+    /// This sentence's tagged tokens, LOCAL offset (relative to `range`).
+    pub tokens: Vec<TaggedToken>,
+}
+
+/// Everything [`run_register`] already built for the text it received,
+/// reusable by a caller scanning that SAME text afterward.
+///
+/// See [`RegisterSentenceTags`]'s own docs for why. Valid ONLY together
+/// with a [`crate::document::PassReport`] whose
+/// `patches_applied` is `0`: any accepted patch shifts every later byte
+/// offset in the pass's OUTPUT text out from under this `document`/these
+/// `sentences`, which describe the text register RECEIVED, not (once a
+/// patch shifts it) the different text it returned. [`run_register`]
+/// enforces this itself — it only ever returns `Some` alongside a
+/// `patches_applied == 0` report — so a caller need only check for
+/// `Some`, never re-derive the condition.
+#[derive(Debug, Clone)]
+pub struct ReusableScan {
+    /// The parsed document register received (and, since it applied zero
+    /// patches, the exact document it returned too).
+    pub document: Document,
+    /// Every in-scope sentence's range and local-offset tags.
+    pub sentences: Vec<RegisterSentenceTags>,
+}
+
+impl From<SentenceCtx> for RegisterSentenceTags {
+    fn from(ctx: SentenceCtx) -> Self {
+        Self {
+            range: ctx.range,
+            tokens: ctx.tokens,
+        }
+    }
 }
 
 /// A transducer candidate in document-absolute coordinates, carrying
@@ -249,6 +303,11 @@ pub fn measure_semicolon_rate(
 /// `source` is expected to already be the five-operation pipeline's converged output; register
 /// never interleaves with those passes.
 ///
+/// The third element is [`ReusableScan`]'s reuse-or-rebuild handoff:
+/// `Some` exactly when the returned [`crate::document::PassReport`]'s
+/// `patches_applied` is `0` (this call's own document/sentences are then
+/// still valid for the text it returned), `None` otherwise.
+///
 /// # Errors
 /// Returns [`EditError`] if `source` fails to parse or segment.
 pub fn run_register(
@@ -257,7 +316,7 @@ pub fn run_register(
     tagger: &dyn Tagger,
     parser: &dyn DepParser,
     segmenter: &dyn Segmenter,
-) -> Result<(String, crate::document::PassReport), EditError> {
+) -> Result<(String, crate::document::PassReport, Option<ReusableScan>), EditError> {
     let document = friction_parse::parse(source)?;
     let units = prose_scope(&document, segmenter);
     let sentences = build_sentence_contexts(source, &units, tagger, parser);
@@ -271,7 +330,14 @@ pub fn run_register(
 
     let mut held: Vec<Finding> = Vec::new();
     if total_words == 0 {
-        return Ok((source.to_string(), empty_pass()));
+        let reusable = ReusableScan {
+            document,
+            sentences: sentences
+                .into_iter()
+                .map(RegisterSentenceTags::from)
+                .collect(),
+        };
+        return Ok((source.to_string(), empty_pass(), Some(reusable)));
     }
 
     let features = feature_plan(
@@ -345,6 +411,17 @@ pub fn run_register(
     let patches_applied = resolved.len();
     let next = apply(source, &resolved);
 
+    // Only valid to hand back when nothing shifted the byte layout this
+    // `document`/these `sentences` were built against — see
+    // `ReusableScan`'s own docs.
+    let reusable = (patches_applied == 0).then(|| ReusableScan {
+        document,
+        sentences: sentences
+            .into_iter()
+            .map(RegisterSentenceTags::from)
+            .collect(),
+    });
+
     Ok((
         next,
         crate::document::PassReport {
@@ -353,6 +430,7 @@ pub fn run_register(
             applied_patches: resolved,
             held,
         },
+        reusable,
     ))
 }
 

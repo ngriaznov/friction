@@ -3,48 +3,45 @@
 
 use std::collections::BTreeMap;
 
-use friction_nlp::Tagger;
 use friction_nlp::lvc::{CandidateOutcome, classify_candidate};
 
 use crate::span::{Channel, MatchScore, MatchSpan};
-use crate::token::ScopedUnit;
+use crate::tagging::TaggedSentence;
 
-/// Tags every sentence in `units` (per-sentence, real absolute byte
-/// offsets via `tagger.tag(text, sentence.start)`) and reports every
-/// licensed light-verb construction found — unlike
-/// `friction_harness::pivot::match_pivot`'s single-match-per-sentence
-/// contract, this reports every non-overlapping licensed match, since a
-/// detection channel has no reason to stop at the first one.
+/// Reports every licensed light-verb construction found across `tagged`
+/// — unlike `friction_harness::pivot::match_pivot`'s single-match-per-
+/// sentence contract, this reports every non-overlapping licensed match,
+/// since a detection channel has no reason to stop at the first one.
+///
+/// `tagged`'s sentences are tagged once, shared with [`crate::jargon`] —
+/// see [`crate::tagging`]'s own module docs; this channel no longer tags
+/// anything itself, and (unlike jargon) never skips a link-label
+/// sentence.
 #[must_use]
 pub fn scan_units(
-    units: &[ScopedUnit<'_>],
+    tagged: &[TaggedSentence],
     document_text: &str,
-    tagger: &dyn Tagger,
     lexicon: &BTreeMap<Box<str>, Box<str>>,
 ) -> Vec<MatchSpan> {
     let mut spans = Vec::new();
 
-    for unit in units {
-        for sentence in &unit.sentences {
-            let sentence_text = &document_text[sentence.clone()];
-            let tokens = tagger.tag(sentence_text, sentence.start);
-
-            let mut i = 0usize;
-            while i < tokens.len() {
-                match classify_candidate(&tokens, document_text, i, lexicon) {
-                    CandidateOutcome::Licensed(licensed) => {
-                        let frame_id: Box<str> =
-                            format!("lvc.{}", licensed.nominalization).into_boxed_str();
-                        spans.push(MatchSpan {
-                            range: licensed.range.clone(),
-                            channel: Channel::Lvc,
-                            frame_id,
-                            score: MatchScore::Present,
-                        });
-                        i = licensed.end_token_index;
-                    }
-                    _ => i += 1,
+    for sentence in tagged {
+        let tokens = &sentence.tokens;
+        let mut i = 0usize;
+        while i < tokens.len() {
+            match classify_candidate(tokens, document_text, i, lexicon) {
+                CandidateOutcome::Licensed(licensed) => {
+                    let frame_id: Box<str> =
+                        format!("lvc.{}", licensed.nominalization).into_boxed_str();
+                    spans.push(MatchSpan {
+                        range: licensed.range.clone(),
+                        channel: Channel::Lvc,
+                        frame_id,
+                        score: MatchScore::Present,
+                    });
+                    i = licensed.end_token_index;
                 }
+                _ => i += 1,
             }
         }
     }
@@ -94,8 +91,9 @@ mod tests {
         let document = scoped_document(source);
         let segmenter = SrxSegmenter::new();
         let units = crate::token::prose_scope(&document, &segmenter);
+        let tagged = crate::tagging::tag_units(&units, document.source(), tagger());
 
-        let spans = scan_units(&units, document.source(), tagger(), &lexicon());
+        let spans = scan_units(&tagged, document.source(), &lexicon());
         assert_eq!(spans.len(), 2);
         assert_eq!(&*spans[0].frame_id, "lvc.decision");
         assert_eq!(&*spans[1].frame_id, "lvc.comparison");
@@ -109,8 +107,9 @@ mod tests {
         let document = scoped_document(source);
         let segmenter = SrxSegmenter::new();
         let units = crate::token::prose_scope(&document, &segmenter);
+        let tagged = crate::tagging::tag_units(&units, document.source(), tagger());
 
-        let spans = scan_units(&units, document.source(), tagger(), &lexicon());
+        let spans = scan_units(&tagged, document.source(), &lexicon());
         assert!(spans.is_empty());
     }
 }

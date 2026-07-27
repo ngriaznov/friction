@@ -232,7 +232,256 @@ fn original_state(
     computed
 }
 
-/// Runs the five-operation pipeline over one sentence.
+/// [`edit_sentence`]'s cache key: everything its full-pipeline output
+/// actually depends on, besides `ctx` (fixed for the whole document) and
+/// `pivot_budget`'s exact value (folded into `budget_regime` below).
+///
+/// `prev_gap`/`next_gap` are the byte GAP to each neighbour, not the
+/// neighbour's own absolute position — `try_ritual_deletion` is the only
+/// stage reading `SentencePosition::prev_end`/`next_range` at all, and
+/// only to size a whole-sentence deletion's separator consumption, which
+/// depends on the gap, never on where in the document it happens to sit.
+/// A sentence whose own bytes are unchanged between pass 1 and pass 2 but
+/// whose neighbour gap shifted (rare — none of the five operations edit
+/// inter-sentence whitespace) simply misses the cache instead of reusing
+/// a wrong range.
+///
+/// `budget_regime` is [`PivotBudget::remaining`] clamped to `0..=3`: at
+/// most three [`PivotBudget::try_take`] calls ever happen inside one
+/// sentence (the pivot loop's own two, plus `frame_dejust`'s one), and
+/// once `remaining` covers however many of those this sentence will
+/// attempt, every additional unit of headroom is unobservable — a
+/// sentence that would attempt 2 takes behaves identically whether
+/// `remaining` was 3 or 3,000,000 at entry. Clamping lets a budget-rich
+/// document (the common case once near-no-op calibration exists) still
+/// hit cache broadly, instead of every distinct `remaining` value forcing
+/// a miss.
+#[derive(Clone, PartialEq, Eq, Hash)]
+pub(crate) struct GenerationKey {
+    text: Box<str>,
+    is_sentence_start: bool,
+    sole_content_of_ordered_list_item: bool,
+    prev_gap: Option<usize>,
+    next_gap: Option<usize>,
+    budget_regime: u32,
+}
+
+impl GenerationKey {
+    fn for_position(source: &str, position: &SentencePosition, pivot_budget: PivotBudget) -> Self {
+        let sentence_range = &position.range;
+        Self {
+            text: Box::from(&source[sentence_range.clone()]),
+            is_sentence_start: position.is_sentence_start,
+            sole_content_of_ordered_list_item: position.sole_content_of_ordered_list_item,
+            prev_gap: position.prev_end.map(|end| sentence_range.start - end),
+            next_gap: position
+                .next_range
+                .as_ref()
+                .map(|next| next.start - sentence_range.end),
+            budget_regime: pivot_budget.remaining().min(3),
+        }
+    }
+}
+
+/// One cached [`Patch`], in coordinates relative to its own sentence's
+/// start — rebased to the sentence's actual position on every use,
+/// including a cache hit from a different pass. Always `0..=len` (never
+/// negative, never past the sentence's own end): [`SentenceSplicer`]
+/// guarantees every one of these came from a `working_range` inside the
+/// single `Chunk::Original` it was seeded with.
+pub(crate) struct GeneratedPatch {
+    rel_start: usize,
+    rel_end: usize,
+    replacement: Box<str>,
+    rule: RuleId,
+    tier: Tier,
+}
+
+/// One cached held [`Finding`]. No range: every held finding this module
+/// produces carries `sentence_range` verbatim (never a narrower span —
+/// true of every `held.push(Finding::new(RULE_*, sentence_range.clone(),
+/// ..))` call below), so [`GeneratedOutcome::rebase`] rebuilds it from the
+/// CALLER's own current `sentence_range` directly, with nothing to shift.
+pub(crate) struct GeneratedHeld {
+    rule: RuleId,
+    message: Box<str>,
+    tier: Tier,
+}
+
+/// [`edit_sentence`]'s full-pipeline output, budget-application included,
+/// in a form indexed by [`GenerationKey`] and safe to replay against a
+/// different sentence position (a cache hit is byte-identical to a fresh
+/// [`generate_sentence`] call only because [`GenerationKey`] already pins
+/// every input that could change the outcome — see its own docs).
+pub(crate) enum GeneratedOutcome {
+    /// [`try_ritual_deletion`] fired: the sentence (plus, in general, part
+    /// of its surrounding gap) is deleted whole. `rel_start` can be
+    /// negative (consuming the gap before the sentence) and `rel_end` can
+    /// exceed the sentence's own length (consuming the gap after it) —
+    /// see `try_ritual_deletion`'s own `delete_range` computation. Never
+    /// touches `pivot_budget` (mirroring that function, which never
+    /// calls [`PivotBudget::try_take`]) and never holds anything (see
+    /// [`to_generated`]'s own docs).
+    RitualDeleted { rel_start: isize, rel_end: isize },
+    /// The five-stage pipeline ran to completion, whether or not it
+    /// produced any patches. `budget_takes` is exactly how many
+    /// [`PivotBudget::try_take`] calls the generating run made succeed —
+    /// replaying it against a live budget on a cache hit reproduces the
+    /// exact same left-to-right consumption a fresh call would have made,
+    /// so a later sentence sharing the same budget sees identical state
+    /// either way.
+    Pipeline {
+        patches: Vec<GeneratedPatch>,
+        held: Vec<GeneratedHeld>,
+        budget_takes: u32,
+    },
+}
+
+impl GeneratedOutcome {
+    /// Builds the cached form of `outcome`, which [`edit_sentence`] just
+    /// produced for a sentence at `sentence_range` after making exactly
+    /// `budget_takes` successful [`PivotBudget::try_take`] calls.
+    fn from_outcome(
+        outcome: &SentenceOutcome,
+        sentence_range: &Range<usize>,
+        budget_takes: u32,
+    ) -> Self {
+        if outcome.whole_sentence_deleted {
+            // `try_ritual_deletion` returns exactly one patch and an
+            // always-empty `held` (nothing is ever pushed to it before
+            // the early return — see that function's own docs).
+            let patch = &outcome.patches[0];
+            #[allow(clippy::cast_possible_wrap)]
+            return Self::RitualDeleted {
+                rel_start: patch.range.start as isize - sentence_range.start as isize,
+                rel_end: patch.range.end as isize - sentence_range.start as isize,
+            };
+        }
+        let patches = outcome
+            .patches
+            .iter()
+            .map(|patch| GeneratedPatch {
+                rel_start: patch.range.start - sentence_range.start,
+                rel_end: patch.range.end - sentence_range.start,
+                replacement: Box::from(patch.replacement.as_str()),
+                rule: patch.rule,
+                tier: patch.tier,
+            })
+            .collect();
+        let held = outcome
+            .held
+            .iter()
+            .map(|finding| GeneratedHeld {
+                rule: finding.rule,
+                message: Box::from(finding.message.as_str()),
+                tier: finding.tier,
+            })
+            .collect();
+        Self::Pipeline {
+            patches,
+            held,
+            budget_takes,
+        }
+    }
+
+    /// Rebuilds the [`SentenceOutcome`] this cached entry represents for
+    /// a call at `sentence_range`, consuming `pivot_budget` by exactly as
+    /// much as the generating call did.
+    fn rebase(
+        &self,
+        sentence_range: &Range<usize>,
+        pivot_budget: &mut PivotBudget,
+    ) -> SentenceOutcome {
+        match self {
+            Self::RitualDeleted { rel_start, rel_end } => {
+                #[allow(clippy::cast_possible_wrap, clippy::cast_sign_loss)]
+                let range = ((sentence_range.start as isize + rel_start) as usize)
+                    ..((sentence_range.start as isize + rel_end) as usize);
+                SentenceOutcome {
+                    patches: vec![Patch::new(range, "", RULE_RITUAL, Tier::Fix)],
+                    held: Vec::new(),
+                    whole_sentence_deleted: true,
+                }
+            }
+            Self::Pipeline {
+                patches,
+                held,
+                budget_takes,
+            } => {
+                for _ in 0..*budget_takes {
+                    // Always succeeds: `budget_takes` never exceeds the
+                    // `budget_regime` the lookup key was built from, and a
+                    // cache hit only happens when the live budget's own
+                    // clamped `remaining` matches that same regime.
+                    pivot_budget.try_take();
+                }
+                let patches = patches
+                    .iter()
+                    .map(|patch| {
+                        Patch::new(
+                            (sentence_range.start + patch.rel_start)
+                                ..(sentence_range.start + patch.rel_end),
+                            patch.replacement.to_string(),
+                            patch.rule,
+                            patch.tier,
+                        )
+                    })
+                    .collect();
+                let held = held
+                    .iter()
+                    .map(|finding| {
+                        Finding::new(
+                            finding.rule,
+                            sentence_range.clone(),
+                            finding.message.to_string(),
+                            finding.tier,
+                        )
+                    })
+                    .collect();
+                SentenceOutcome {
+                    patches,
+                    held,
+                    whole_sentence_deleted: false,
+                }
+            }
+        }
+    }
+}
+
+/// Caches [`GeneratedOutcome`] by [`GenerationKey`], reused across
+/// [`crate::document::edit_document`]'s bounded passes within one call —
+/// the pass-2 analogue of [`OriginalStateCache`], but covering the whole
+/// per-sentence pipeline's output (patches, held findings, and budget
+/// consumption) rather than just the untouched-original-text tag/clause
+/// computation. Built once per [`crate::document::edit_document`] call,
+/// never reused across documents or invocations.
+pub(crate) type GenerationCache = HashMap<GenerationKey, GeneratedOutcome>;
+
+/// Runs the five-operation pipeline over one sentence, memoizing
+/// everything but recapitalization — patches, held findings, and how much
+/// of `pivot_budget` it consumes — by [`GenerationKey`] in
+/// `generation_cache`, then applies recapitalization fresh every call.
+///
+/// Most sentences are byte-identical, in the same position, seeing the
+/// same budget headroom, between pass 1 and pass 2 (see
+/// [`crate::document::edit_document`]'s own docs on why pass 2 exists at
+/// all): [`GenerationKey`] pins every input [`generate_sentence`]'s
+/// output actually depends on, so a pass-2 hit replays pass 1's already-
+/// computed patches/held findings ([`GeneratedOutcome::rebase`]) instead
+/// of re-tagging and re-walking the five stages from scratch. A miss
+/// falls through to [`generate_sentence`] exactly as before, then caches
+/// its result for a later pass or sentence to reuse.
+///
+/// Recapitalization is the one stage [`GenerationKey`] deliberately does
+/// NOT cover: [`recapitalize`] reads `ctx.casing`
+/// ([`EditContext::casing`]), a WHOLE-DOCUMENT summary
+/// [`crate::document::edit_document`] rebuilds from scratch every pass —
+/// two byte-identical sentences, same flags, same budget regime, can
+/// still get different recapitalization outcomes across passes if some
+/// OTHER sentence's edits changed what the document treats as a
+/// deliberate lowercase opener. So it is never part of the cached value;
+/// [`apply_recapitalize`] runs it fresh against every call's own
+/// `ctx.casing`, cache hit or miss alike.
 ///
 /// `pub(crate)`: only `crate::document::edit_document` calls this —
 /// tightened from `pub` when [`OriginalStateCache`] (`pub(crate)`, since
@@ -245,12 +494,88 @@ pub(crate) fn edit_sentence(
     ctx: &EditContext<'_>,
     pivot_budget: &mut PivotBudget,
     original_cache: &mut OriginalStateCache,
+    generation_cache: &mut GenerationCache,
+) -> SentenceOutcome {
+    if source[position.range.clone()].trim().is_empty() {
+        return SentenceOutcome::default();
+    }
+
+    let key = GenerationKey::for_position(source, position, *pivot_budget);
+    let pre_recap = if let Some(cached) = generation_cache.get(&key) {
+        cached.rebase(&position.range, pivot_budget)
+    } else {
+        let budget_before = pivot_budget.remaining();
+        let outcome = generate_sentence(source, position, ctx, pivot_budget, original_cache);
+        let budget_takes = budget_before
+            .saturating_sub(pivot_budget.remaining())
+            .min(3);
+        generation_cache.insert(
+            key,
+            GeneratedOutcome::from_outcome(&outcome, &position.range, budget_takes),
+        );
+        outcome
+    };
+
+    // Ritual deletion never recapitalizes (see `try_ritual_deletion`'s own
+    // early return in `generate_sentence`), and only a genuine sentence
+    // start gets its leading letter capitalized — see
+    // `SentencePosition::is_sentence_start`.
+    if pre_recap.whole_sentence_deleted || !position.is_sentence_start {
+        return pre_recap;
+    }
+    apply_recapitalize(source, &position.range, pre_recap, ctx.casing)
+}
+
+/// Applies [`recapitalize`] fresh, against `casing`, on top of
+/// `pre_recap`'s already-decided (possibly cached) patches.
+///
+/// Reconstructs a real [`SentenceSplicer`] by replaying `pre_recap`'s
+/// patches — DISJOINT by construction (no operation re-matches text an
+/// earlier one introduced), so replaying them in DESCENDING
+/// (rightmost-first) original-position order is always valid (each
+/// replay target is still a single untouched `Chunk::Original` piece at
+/// the moment it's applied) and reconstructs the exact same chunk
+/// structure the original sequential run would have, regardless of what
+/// order they were really produced in — [`crate::document::resolve`]
+/// re-sorts every patch by position across the whole pass anyway, so
+/// replay order was never significant to begin with. Runs the real
+/// [`recapitalize`] on the reconstructed splicer (not a hand-rederived
+/// equivalent), so this can't drift from what a fresh, uncached
+/// [`generate_sentence`] call would have decided.
+fn apply_recapitalize(
+    source: &str,
+    sentence_range: &Range<usize>,
+    pre_recap: SentenceOutcome,
+    casing: &DocumentCasing,
+) -> SentenceOutcome {
+    let mut splicer = SentenceSplicer::new(source, sentence_range.clone());
+    let mut ordered = pre_recap.patches;
+    ordered.sort_by_key(|patch| std::cmp::Reverse(patch.range.start));
+    for patch in ordered {
+        let local =
+            (patch.range.start - sentence_range.start)..(patch.range.end - sentence_range.start);
+        splicer.apply(local, &patch.replacement, patch.rule, patch.tier);
+    }
+    recapitalize(&mut splicer, casing);
+    SentenceOutcome {
+        patches: splicer.finish(),
+        held: pre_recap.held,
+        whole_sentence_deleted: false,
+    }
+}
+
+/// The five-operation pipeline's actual computation for one sentence —
+/// [`edit_sentence`]'s cache-miss path, unchanged from before
+/// [`GenerationCache`] existed.
+fn generate_sentence(
+    source: &str,
+    position: &SentencePosition,
+    ctx: &EditContext<'_>,
+    pivot_budget: &mut PivotBudget,
+    original_cache: &mut OriginalStateCache,
 ) -> SentenceOutcome {
     let sentence_range = position.range.clone();
     let original_text = &source[sentence_range.clone()];
-    if original_text.trim().is_empty() {
-        return SentenceOutcome::default();
-    }
     let original = original_state(original_text, ctx.tagger, original_cache);
 
     let mut held: Vec<Finding> = Vec::new();
@@ -264,11 +589,10 @@ pub(crate) fn edit_sentence(
     run_pivot(&mut splicer, &mut held, &sentence_range, ctx, pivot_budget);
     run_deletion(&mut splicer, &mut held, &sentence_range, ctx, &original);
     run_frame_dejust(&mut splicer, &mut held, &sentence_range, pivot_budget);
-    // Only a genuine sentence start gets its leading letter capitalized
-    // — see `SentencePosition::is_sentence_start`.
-    if position.is_sentence_start {
-        recapitalize(&mut splicer, ctx.casing);
-    }
+    // Recapitalization is deliberately NOT run here — see
+    // `edit_sentence`'s own docs on why it's applied separately, after
+    // any [`GenerationCache`] lookup/insert, never as part of the cached
+    // value.
 
     SentenceOutcome {
         patches: splicer.finish(),

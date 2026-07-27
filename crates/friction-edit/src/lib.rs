@@ -24,6 +24,7 @@ pub mod splice;
 
 pub use document::{EditReport, PassReport, edit_document};
 pub use error::EditError;
+pub use register::{RegisterSentenceTags, ReusableScan};
 
 use friction_nlp::{PerceptronParser, PerceptronTagger, SrxSegmenter};
 use friction_packs::{AttestationPack, InventoryPack, RegisterPack};

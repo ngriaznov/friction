@@ -62,6 +62,7 @@ pub mod jargon;
 mod literal;
 mod lvc;
 pub mod span;
+pub mod tagging;
 pub mod token;
 
 pub use error::MatchError;
@@ -130,18 +131,23 @@ impl<'a> MatchEngine<'a> {
     /// prose-only, in-scope unit set ([`token::prose_scope`]), and
     /// merges their spans deterministically ([`span::merge_spans`]).
     ///
-    /// The six span-producing walks below (DMS, the literal automaton, its
-    /// regex fallback, LVC, frame, jargon) and the document-level DMS
-    /// report each read only `units`/`document` and this engine's own
-    /// packs — never each other's output — so they run as seven
-    /// concurrent `rayon::scope` tasks (the DMS report is itself a
-    /// `par_iter` over every family, in [`dms::document_report`]).
-    /// [`span::merge_spans`] sorts its input before returning, so the
-    /// tasks' completion order never affects the returned bytes; the
-    /// seven local variables are still assembled into `merge_spans`' `Vec`
-    /// argument (and `DocumentReport`) in the same fixed order the prior
-    /// sequential version used, so nothing here depends on that
-    /// insensitivity to stay byte-identical across thread counts.
+    /// DMS, the literal automaton, its regex fallback, frame, the
+    /// document-level DMS report, and the shared tagging step
+    /// ([`tagging::tag_units`]) each read only `units`/`document` and this
+    /// engine's own packs — never each other's output — so they run as
+    /// six concurrent `rayon::scope` tasks (the DMS report is itself a
+    /// `par_iter` over every family, in [`dms::document_report`]). LVC and
+    /// jargon both need the tagged sentences that step produces, so they
+    /// run afterward, as two concurrent `rayon::join` tasks over the same
+    /// borrowed [`tagging::TaggedSentence`] slice — one shared tag pass
+    /// instead of each channel tagging every sentence on its own (see
+    /// [`tagging`]'s own module docs). [`span::merge_spans`] sorts its
+    /// input before returning, so no task's completion order, in either
+    /// stage, ever affects the returned bytes; the six local variables are
+    /// still assembled into `merge_spans`' `Vec` argument (and
+    /// `DocumentReport`) in the same fixed order the prior sequential
+    /// version used, so nothing here depends on that insensitivity to stay
+    /// byte-identical across thread counts.
     ///
     /// # Errors
     /// [`MatchError::Core`] if a prose range fails to slice — not
@@ -162,9 +168,8 @@ impl<'a> MatchEngine<'a> {
         let mut dms_report = None;
         let mut literal_ac_spans = Vec::new();
         let mut literal_fallback_spans = Vec::new();
-        let mut lvc_spans = Vec::new();
         let mut frame_spans = Vec::new();
-        let mut jargon_spans = Vec::new();
+        let mut tagged = Vec::new();
 
         rayon::scope(|s| {
             s.spawn(|_| {
@@ -187,21 +192,17 @@ impl<'a> MatchEngine<'a> {
                     literal::regex_fallback_spans(self.inventory, &self.automaton, &units);
             });
             s.spawn(|_| {
-                lvc_spans = lvc::scan_units(&units, document.source(), self.tagger, lexicon);
-            });
-            s.spawn(|_| {
                 frame_spans = frame::scan_units(&units);
             });
             s.spawn(|_| {
-                jargon_spans = jargon::scan_units(
-                    &units,
-                    document.source(),
-                    self.tagger,
-                    self.jargon,
-                    self.jargon_attest,
-                );
+                tagged = tagging::tag_units(&units, document.source(), self.tagger);
             });
         });
+
+        let (lvc_spans, jargon_spans) = rayon::join(
+            || lvc::scan_units(&tagged, document.source(), lexicon),
+            || jargon::scan_units(&tagged, document.source(), self.jargon, self.jargon_attest),
+        );
 
         let spans = span::merge_spans(vec![
             dms_spans,

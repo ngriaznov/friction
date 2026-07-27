@@ -36,6 +36,12 @@ pub struct PassReport {
 pub struct EditReport {
     /// One entry per internal pass actually run.
     pub passes: Vec<PassReport>,
+    /// Reusable artifacts for the FINAL text this call returned — see
+    /// [`crate::register::ReusableScan`]'s own docs. `None` whenever the
+    /// register pass applied at least one patch (it returns `Some` only
+    /// when it applied zero), since a patch shifts every later byte
+    /// offset out from under them.
+    pub reusable_scan: Option<crate::register::ReusableScan>,
 }
 
 /// Total prose word-token count across `source`'s prose blocks, used to
@@ -96,6 +102,11 @@ pub fn edit_document(
     // sentences are byte-identical between pass 1 and pass 2, so this
     // spares a second tag call for each one pass 2 would otherwise redo.
     let mut original_cache = crate::sentence::OriginalStateCache::default();
+    // Same reuse story, one layer up: caches each sentence's WHOLE
+    // five-operation outcome (patches, held findings, budget consumption)
+    // rather than just the original-text tag/clause facts above — see
+    // `sentence::GenerationCache`'s own docs.
+    let mut generation_cache = crate::sentence::GenerationCache::default();
 
     for _ in 0..MAX_PASSES {
         let document = friction_parse::parse(current.as_str())?;
@@ -179,6 +190,7 @@ pub fn edit_document(
                 &ctx,
                 &mut pivot_budget,
                 &mut original_cache,
+                &mut generation_cache,
             );
             candidates.extend(outcome.patches);
             held.extend(outcome.held);
@@ -202,9 +214,10 @@ pub fn edit_document(
         }
     }
 
-    let (registered, register_pass) =
+    let (registered, register_pass, reusable_scan) =
         register::run_register(&current, register_pack, tagger, parser, segmenter)?;
     report.passes.push(register_pass);
+    report.reusable_scan = reusable_scan;
     current = registered;
 
     Ok((current, report))

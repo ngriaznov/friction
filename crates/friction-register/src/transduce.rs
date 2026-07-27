@@ -97,28 +97,37 @@ pub enum CandidateKind {
 
 /// Every edge in `parse` whose head is `head` and whose relation is
 /// `relation`, in token order.
+///
+/// Looks children up via [`SentenceParse::children_of`] (`O(head`'s own
+/// child count`)`) rather than scanning every edge in the sentence.
 fn children_with_relation(
     parse: &SentenceParse,
     head: usize,
     relation: DepRelation,
 ) -> impl Iterator<Item = &DepEdge> {
     parse
-        .edges()
+        .children_of(head)
         .iter()
-        .filter(move |edge| edge.head == Some(head) && edge.relation == relation)
+        .filter_map(move |&child| parse.edge(child))
+        .filter(move |edge| edge.relation == relation)
 }
 
 /// Every token index in `root`'s own subtree: `root` itself, plus every
 /// token reachable by repeatedly following `head` edges down from it.
+///
+/// Walks via [`SentenceParse::children_of`], an `O(1)` lookup per node,
+/// instead of re-scanning every edge in the sentence per frontier node —
+/// the previous shape made a candidate's subtree walk `O(tokens^2)`
+/// (`O(tokens)` frontier nodes, each rescanning all `O(tokens)` edges);
+/// this makes it `O(tokens)` total, since a tree's total parent-child
+/// links equal its token count.
 fn subtree_indices(parse: &SentenceParse, root: usize) -> Vec<usize> {
     let mut collected = vec![root];
     let mut frontier = vec![root];
     while let Some(current) = frontier.pop() {
-        for edge in parse.edges() {
-            if edge.head == Some(current) {
-                collected.push(edge.token);
-                frontier.push(edge.token);
-            }
+        for &child in parse.children_of(current) {
+            collected.push(child);
+            frontier.push(child);
         }
     }
     collected

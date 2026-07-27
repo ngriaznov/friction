@@ -142,27 +142,53 @@ pub fn scan_units(
     spans
 }
 
+/// One unit's data every family's walk in [`document_report`] shares:
+/// the vocab-mapped query and the human automaton's matching-stats curve
+/// against it. Neither depends on which machine family is being scored,
+/// so [`document_report`] computes both exactly once per unit, before
+/// fanning out over families, instead of every family's walk redoing an
+/// identical query/human-curve computation on its own.
+struct UnitContext {
+    query: Vec<Option<u32>>,
+    human_stats: Vec<u32>,
+}
+
 /// Document-level report: for every family `index` defines, flattens
 /// every in-scope unit's independently-walked matching-statistics arrays
 /// and reports `mean(mM) - mean(mH)`.
 ///
+/// Every unit's query and human-automaton curve is independent of every
+/// other unit's and of every family, so [`UnitContext`] is built with a
+/// rayon `par_iter` too, collected into an index-ordered `Vec` the same
+/// way the family fan-out below is.
+///
 /// Every family's walk reads only its own automaton (plus the shared,
-/// read-only human automaton and vocab) and writes nothing any other
-/// family's walk reads, so this runs [`ModelFamily::ALL`] as a rayon
-/// `par_iter`. `filter_map` over that indexed, fixed-size array,
-/// collected straight into `families`, keeps the result in
-/// [`ModelFamily::ALL`] order regardless of which family's walk finishes
-/// first or how many threads ran — the `DmsReport::families` field's own
-/// documented ordering contract.
+/// read-only per-unit contexts) and writes nothing any other family's
+/// walk reads, so this runs [`ModelFamily::ALL`] as a rayon `par_iter`.
+/// `filter_map` over that indexed, fixed-size array, collected straight
+/// into `families`, keeps the result in [`ModelFamily::ALL`] order
+/// regardless of which family's walk finishes first or how many threads
+/// ran — the `DmsReport::families` field's own documented ordering
+/// contract.
 pub fn document_report(
     units: &[ScopedUnit<'_>],
     index: &DmsIndex,
     target_family: ModelFamily,
     vocab: &Vocab,
 ) -> DmsReport {
+    let contexts: Vec<UnitContext> = units
+        .par_iter()
+        .filter(|unit| !unit.tokens.is_empty())
+        .map(|unit| {
+            let query = query_ids(unit, vocab);
+            let human_stats = index.human_sam().matching_stats(&query);
+            UnitContext { query, human_stats }
+        })
+        .collect();
+
     let families = ModelFamily::ALL
         .par_iter()
-        .filter_map(|&family| family_report(units, index, family, vocab))
+        .filter_map(|&family| family_report(&contexts, index, family))
         .collect();
 
     DmsReport {
@@ -175,10 +201,9 @@ pub fn document_report(
 /// `family` — the per-family unit of work [`document_report`]'s
 /// `par_iter` runs.
 fn family_report(
-    units: &[ScopedUnit<'_>],
+    contexts: &[UnitContext],
     index: &DmsIndex,
     family: ModelFamily,
-    vocab: &Vocab,
 ) -> Option<DmsFamilyReport> {
     let sam = index.family_sam(family)?;
 
@@ -186,16 +211,11 @@ fn family_report(
     let mut human_sum: u64 = 0;
     let mut token_count: usize = 0;
 
-    for unit in units {
-        if unit.tokens.is_empty() {
-            continue;
-        }
-        let query = query_ids(unit, vocab);
-        let mm = sam.matching_stats(&query);
-        let mh = index.human_sam().matching_stats(&query);
+    for ctx in contexts {
+        let mm = sam.matching_stats(&ctx.query);
         machine_sum += mm.iter().map(|&v| u64::from(v)).sum::<u64>();
-        human_sum += mh.iter().map(|&v| u64::from(v)).sum::<u64>();
-        token_count += query.len();
+        human_sum += ctx.human_stats.iter().map(|&v| u64::from(v)).sum::<u64>();
+        token_count += ctx.query.len();
     }
 
     #[allow(clippy::cast_precision_loss)]

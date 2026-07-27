@@ -166,7 +166,8 @@ fn run_inner(args: &FixArgs) -> Result<ExitCode, CliError> {
     }
 
     let remaining_held = final_pass_held(&report);
-    let paraphrase_spans = scan_paraphrase_spans(&output, engine.tagger())?;
+    let paraphrase_spans =
+        scan_paraphrase_spans(&output, engine.tagger(), report.reusable_scan.as_ref())?;
     print_summary(
         args.format,
         &report,
@@ -314,34 +315,113 @@ fn print_suggestions(output: &str, path_label: &str, suggestions: &[Finding]) {
 /// scanned, the same scoping every detection channel already uses
 /// (`friction_match::token::prose_scope`).
 ///
+/// `reusable` is `run_inner`'s own `report.reusable_scan`
+/// ([`friction_edit::EditReport::reusable_scan`]): when `Some`, the
+/// engine's register pass already parsed `output` and tagged its
+/// sentences (register applied zero patches this call, so its own input
+/// and `output` are the exact same bytes — see
+/// `friction_edit::ReusableScan`'s own docs), and this function reuses
+/// that parse and those tags instead of redoing either. When `None`
+/// (register applied at least one patch, so its own artifacts describe a
+/// different text than `output`), this falls back to parsing `output` and
+/// tagging its sentences fresh, exactly as before this reuse path
+/// existed.
+///
 /// Reuses `run_inner`'s already-built `friction_edit::Engine`'s tagger
 /// (jargon detection needs part-of-speech tags — see
 /// `friction_match::jargon`'s own module docs) via
 /// [`friction_edit::Engine::tagger`] rather than constructing a second
 /// `friction_nlp::PerceptronTagger` — one embedded-weight load per `fix`
-/// invocation instead of two.
+/// invocation instead of two. Only used on the fresh-tag fallback path;
+/// ignored (but still accepted, keeping this function's signature stable
+/// either way) on a reuse hit.
 ///
 /// The three sources — every family's DMS walk, the contrast-frame scan,
-/// and the (tagger-driven, itself internally parallel — see
-/// `friction_match::jargon::scan_units`) jargon scan — read only `units`/
-/// `document` and never each other's output, so they run as three
-/// concurrent `rayon::join` tasks (the DMS walk is itself a `par_iter`
-/// over [`ModelFamily::ALL`], five more independent tasks). Deterministic
+/// and the jargon scan (itself internally parallel — see
+/// `friction_match::jargon::scan_units`) — read only `units`/`document`
+/// and never each other's output, so they run as three concurrent
+/// `rayon::join` tasks (the DMS walk is itself a `par_iter` over
+/// [`ModelFamily::ALL`], five more independent tasks). Deterministic
 /// regardless of run order or thread count: [`union_paraphrase_spans`]
 /// sorts by `(start, end, frame_id)` before merging, so which task
 /// finishes first never affects the returned bytes.
 ///
+/// [`friction_match::tagging::TaggedSentence`]s built from `reusable`'s
+/// already-tagged sentences, `None` if there's nothing to reuse (no
+/// `reusable`) or reuse would be incomplete.
+///
+/// `register::SentenceCtx` (the source `reusable.sentences` came from)
+/// silently drops a sentence whose trimmed text is empty or whose
+/// dependency parse fails (`build_sentence_ctx`'s own docs — the latter
+/// "never expected" from the shipped parser, but not contractually
+/// impossible), so `reusable.sentences` can in principle be a strict
+/// SUBSET of `units`'s full flattened sentence list. Reusing that subset
+/// directly would silently under-scan the missing sentences relative to
+/// the fresh-tag path (a real behavior change, not just a slower one), so
+/// this checks the count first and returns `None` — falling back to a
+/// full, correct retag — on any mismatch, rather than ever reusing a
+/// partial set. An empty-trimmed sentence costs nothing either way (no
+/// tokens to scan), so in practice this only ever falls back on the
+/// "never expected" parse-failure case.
+///
+/// Every kept sentence's link-label status is looked up by exact range,
+/// not position, since `reusable.sentences`' order need not otherwise be
+/// assumed to align with `units`'s.
+fn reused_tags(
+    reusable: Option<&friction_edit::ReusableScan>,
+    units: &[friction_match::token::ScopedUnit<'_>],
+    document_text: &str,
+) -> Option<Vec<friction_match::tagging::TaggedSentence>> {
+    let scan = reusable?;
+    let scopes = friction_match::tagging::sentence_scopes(units, document_text);
+    if scan.sentences.len() != scopes.len() {
+        return None;
+    }
+    let link_labels: std::collections::BTreeMap<(usize, usize), bool> = scopes
+        .into_iter()
+        .map(|(range, in_link_label)| ((range.start, range.end), in_link_label))
+        .collect();
+    Some(
+        scan.sentences
+            .iter()
+            .map(|sentence| {
+                let in_link_label = link_labels
+                    .get(&(sentence.range.start, sentence.range.end))
+                    .copied()
+                    .unwrap_or(false);
+                friction_match::tagging::from_local_tags(
+                    sentence.range.clone(),
+                    &sentence.tokens,
+                    in_link_label,
+                )
+            })
+            .collect(),
+    )
+}
+
 /// # Errors
 /// Returns [`CliError::Parse`] if `output` fails to parse as markdown —
 /// not expected, since `output` is text `fix_document` has already parsed
-/// successfully once.
+/// successfully once. Never returns this error on the reuse path, since
+/// no parsing happens there.
 fn scan_paraphrase_spans(
     output: &str,
     tagger: &dyn friction_nlp::Tagger,
+    reusable: Option<&friction_edit::ReusableScan>,
 ) -> Result<Vec<ParaphraseSpan>, CliError> {
-    let document = friction_parse::parse(output)?;
     let segmenter = friction_nlp::SrxSegmenter::new();
-    let units = friction_match::token::prose_scope(&document, &segmenter);
+
+    // Deferred-init: exactly one of these two arms runs, and `document`
+    // borrows whichever one supplied the parse — the reused
+    // `scan.document` or a freshly parsed `owned_document`.
+    let owned_document;
+    let document: &friction_core::Document = if let Some(scan) = reusable {
+        &scan.document
+    } else {
+        owned_document = friction_parse::parse(output)?;
+        &owned_document
+    };
+    let units = friction_match::token::prose_scope(document, &segmenter);
 
     let (dms_spans, (frame_spans, jargon_spans)) = rayon::join(
         || dms_spans_for_every_family(&units),
@@ -349,10 +429,22 @@ fn scan_paraphrase_spans(
             rayon::join(
                 || friction_match::frame::scan_units(&units),
                 || {
+                    let tagged_sentences = reused_tags(reusable, &units, document.source())
+                        .unwrap_or_else(|| {
+                            // No `reusable`, or (never expected —
+                            // `build_sentence_ctx`'s own docs — but
+                            // checked, not assumed) register dropped a
+                            // sentence: tag every sentence once, through
+                            // the same shared-tag entry point
+                            // `friction_match::MatchEngine::scan` uses
+                            // for its own LVC/jargon channels — see
+                            // `friction_match::tagging`'s own module
+                            // docs.
+                            friction_match::tagging::tag_units(&units, document.source(), tagger)
+                        });
                     friction_match::jargon::scan_units(
-                        &units,
+                        &tagged_sentences,
                         document.source(),
-                        tagger,
                         &friction_packs::JARGON.pack,
                         &friction_packs::JARGON_ATTEST,
                     )
@@ -548,6 +640,7 @@ mod tests {
         let last = Finding::new(RuleId::new("pivot.lvc"), 1..2, "last", Tier::Suggest);
         let report = EditReport {
             passes: vec![pass(vec![earlier]), pass(vec![last.clone()])],
+            reusable_scan: None,
         };
         let remaining = final_pass_held(&report);
         assert_eq!(remaining, vec![last]);
@@ -558,7 +651,10 @@ mod tests {
     /// rather than panicking.
     #[test]
     fn final_pass_held_handles_no_passes() {
-        let report = EditReport { passes: Vec::new() };
+        let report = EditReport {
+            passes: Vec::new(),
+            reusable_scan: None,
+        };
         assert!(final_pass_held(&report).is_empty());
     }
 
@@ -575,6 +671,7 @@ mod tests {
         ];
         let report = EditReport {
             passes: vec![p1, p2],
+            reusable_scan: None,
         };
         let mut totals: BTreeMap<RuleId, usize> = BTreeMap::new();
         for pass in &report.passes {
