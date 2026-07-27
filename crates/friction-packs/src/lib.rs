@@ -73,6 +73,17 @@
 //! attested-exceptions allowlist of established compounds never flagged.
 //! Detection-only — see that module's own doc comment.
 //!
+//! # Jargon attestation pack
+//!
+//! [`jargon_attest`] parses the web-scale compound attestation pack
+//! (`packs/jargon-attest-v1.bin` + its `.toml` sidecar, embedded and
+//! exposed pre-parsed as [`JARGON_ATTEST`]) into a [`JargonAttestPack`]: a
+//! `BinaryFuse8` filter over ~2M normalized Wikipedia-title/OpenAlex-topic
+//! compound keys, replacing the bottleneck of a hand-curated exception
+//! list with a real attestation oracle. See that module's own doc
+//! comment for the normalization/hash sharing discipline and the
+//! determinism guarantee `corpus-tool jargon-attest` relies on.
+//!
 //! # Determinism
 //!
 //! Every pack parses into sorted or declaration-ordered collections, so
@@ -87,6 +98,7 @@ mod dms;
 mod envelope;
 mod inventory;
 mod jargon;
+pub mod jargon_attest;
 mod register;
 mod registry;
 mod validate;
@@ -100,8 +112,11 @@ pub use inventory::{
     PreviewFrame, RepairKind, RitualFrame, SubstitutionPair,
 };
 pub use jargon::{AttestedException, JargonPack, Lexeme, LexemeSource};
+pub use jargon_attest::{BuiltPack, JargonAttestPack, build_pack_bytes, normalize_compound};
 pub use register::{RegisterBand, RegisterPack};
-pub use registry::{ATTESTATION, DMS, INVENTORY, JARGON, LoadedPack, REGISTER, load_dms_pack};
+pub use registry::{
+    ATTESTATION, DMS, INVENTORY, JARGON, JARGON_ATTEST, LoadedPack, REGISTER, load_dms_pack,
+};
 pub use validate::{
     ClosureViolation, DisjointnessViolation, FrequencyHygieneReason, FrequencyHygieneViolation,
     Violation, check_closure, check_disjointness, check_frequency_hygiene, validate,

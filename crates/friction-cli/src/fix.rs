@@ -346,6 +346,7 @@ fn scan_paraphrase_spans(output: &str) -> Result<Vec<ParaphraseSpan>, CliError> 
         document.source(),
         &tagger,
         &friction_packs::JARGON.pack,
+        &friction_packs::JARGON_ATTEST,
     ));
 
     Ok(union_paraphrase_spans(spans))

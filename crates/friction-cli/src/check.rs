@@ -131,6 +131,7 @@ fn run_inner(args: &CheckArgs) -> Result<ExitCode, CliError> {
         &friction_packs::INVENTORY.pack,
         &friction_packs::DMS.pack,
         &friction_packs::JARGON.pack,
+        &friction_packs::JARGON_ATTEST,
         family,
         &engine.tagger,
         &engine.segmenter,

@@ -234,6 +234,53 @@ pub enum PackError {
         /// The entry's own key (`lexeme` or `compound`).
         entry: String,
     },
+
+    /// `xorf::BinaryFuse8::try_from` exhausted its bounded retry loop
+    /// (see [`crate::jargon_attest::build_pack_bytes`]) — in measured
+    /// practice this needs a pathological key set (near-total hash
+    /// collision), not simply a large one.
+    #[error("jargon-attest-v1: BinaryFuse8 construction failed: {message}")]
+    JargonAttestConstructionFailed {
+        /// `xorf`'s own error message.
+        message: String,
+    },
+
+    /// A `jargon-attest-v1` `.bin` is shorter than its fixed header (magic
+    /// + key count + filter descriptor) — see [`crate::jargon_attest::JargonAttestPack::load`].
+    #[error("jargon-attest-v1: pack is {len} byte(s), shorter than the {min}-byte header")]
+    JargonAttestTruncated {
+        /// The pack's actual byte length.
+        len: usize,
+        /// The minimum required byte length.
+        min: usize,
+    },
+
+    /// A `jargon-attest-v1` `.bin` doesn't start with the expected magic
+    /// bytes — see [`crate::jargon_attest::JargonAttestPack::load`].
+    #[error("jargon-attest-v1: pack does not start with the expected magic bytes")]
+    JargonAttestBadMagic,
+
+    /// A `jargon-attest-v1` sidecar's `[pack].version` isn't exactly
+    /// `"jargon-attest-v1"`.
+    #[error("jargon-attest-v1: sidecar [pack].version is {found:?}, expected \"jargon-attest-v1\"")]
+    JargonAttestVersionMismatch {
+        /// The sidecar's actual `version` value.
+        found: String,
+    },
+
+    /// A `jargon-attest-v1` sidecar's `[pack].key_count` doesn't match the
+    /// key count embedded in the `.bin`'s own header — the two files
+    /// describe different builds.
+    #[error(
+        "jargon-attest-v1: sidecar [pack].key_count={sidecar} does not match the {embedded} \
+         key(s) embedded in the .bin header"
+    )]
+    JargonAttestKeyCountMismatch {
+        /// The sidecar's recorded key count.
+        sidecar: u64,
+        /// The `.bin` header's own recorded key count.
+        embedded: u64,
+    },
 }
 
 impl From<toml::de::Error> for PackError {

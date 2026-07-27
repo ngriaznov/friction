@@ -87,6 +87,10 @@ enum Command {
     /// 10th/50th/90th percentile, for `register-v1.toml`'s
     /// `[features.em_dash]`.
     RegisterBands(commands::register_bands::Args),
+    /// Builds `jargon-attest-v1`: a `BinaryFuse8` filter over normalized
+    /// Wikipedia-title and OpenAlex-topic compound keys, for
+    /// `friction-match`'s `jargon.metaphor` channel.
+    JargonAttest(commands::jargon_attest::Args),
 }
 
 /// Parses process arguments and runs the selected subcommand.
@@ -140,5 +144,6 @@ pub fn run() -> anyhow::Result<()> {
         Command::OutputBands(args) => commands::output_bands::run(&args),
         Command::Attest(args) => commands::attest::run(&args),
         Command::RegisterBands(args) => commands::register_bands::run(&args),
+        Command::JargonAttest(args) => commands::jargon_attest::run(&args),
     }
 }

@@ -17,6 +17,7 @@ pub mod generate_paired;
 pub mod holdout_check;
 pub mod index;
 pub mod ingest;
+pub mod jargon_attest;
 pub mod mine;
 pub mod mine_inventory;
 pub mod mine_paired;

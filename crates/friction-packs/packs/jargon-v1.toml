@@ -146,53 +146,39 @@ source = "external"
 notes = "Documented LLM metaphor vocabulary (antislop/Wikipedia signs-of-AI-writing lists, docs/research/FRONTIER_MODELS.md §3.4); near-zero in both corpus classes."
 
 # --------------------------------------------------------------------
-# Attested exceptions: exact compounds never flagged.
+# Attested exceptions: exact compounds never flagged regardless of the
+# filter below.
+#
+# As of the jargon-attest-v1 filter (friction_packs::JargonAttestPack, a
+# BinaryFuse8 over ~2M normalized Wikipedia-title/OpenAlex-topic compound
+# keys — see that pack's own sidecar and SYNTHESIS.md §4), THE FILTER is
+# this channel's attestation oracle, not this list. Every entry formerly
+# here that the filter itself already attests as a real Wikipedia title —
+# "data fabric", "resonance frequency", "resonant frequency", "wave
+# resonance", "oil well", "water well", "primordial soup", "color
+# harmony" — has been pruned: keeping a redundant hand-curated entry next
+# to a table that already covers it is a maintenance liability, not
+# defense in depth. What remains below is only what the filter MISSES
+# (checked against the raw jargon-attest-v1 input data, not merely
+# asserted) and that still has a defensible technical-context reason.
+#
+# Two entries were removed outright rather than pruned-as-redundant:
+# "tile mosaic" (a camera color-filter pattern) and "hot soup" (food
+# safety) were both literal-usage false positives from a full-corpus
+# precision sweep, but both were found in genuinely out-of-scope prose
+# (a cooking post, a camera-hardware post) — friction targets technical
+# documentation, and carving out literal senses for out-of-scope genres
+# is the wrong mechanism (it would grow this list without bound as more
+# non-technical false positives surface). Flagging "tile mosaic"/"hot
+# soup" in that kind of document is now ACCEPTED behavior, not excepted:
+# a full-corpus human sweep re-flagging those one or two documents is
+# expected and correct, not a regression.
 # --------------------------------------------------------------------
 
 [[attested_exceptions]]
-compound = "data fabric"
-notes = "Established industry term (a data-integration architecture pattern), not a metaphor coinage."
-
-[[attested_exceptions]]
 compound = "service fabric"
-notes = "Product-adjacent, established (Azure Service Fabric and the general distributed-systems sense predate LLM prose)."
-
-[[attested_exceptions]]
-compound = "resonance frequency"
-notes = "Physics: the frequency at which a system oscillates with maximum amplitude."
-
-[[attested_exceptions]]
-compound = "resonant frequency"
-notes = "Physics: adjectival form of resonance frequency."
-
-[[attested_exceptions]]
-compound = "wave resonance"
-notes = "Physics: resonance between coupled waves."
-
-[[attested_exceptions]]
-compound = "oil well"
-notes = "Literal well (a drilled shaft), not the metaphor sense."
-
-[[attested_exceptions]]
-compound = "water well"
-notes = "Literal well (a drilled or dug shaft), not the metaphor sense."
+notes = "Product-adjacent, established (Azure Service Fabric and the general distributed-systems sense predate LLM prose). Not a jargon-attest-v1 filter hit (not a Wikipedia title, not an OpenAlex topic) — kept here because it's a real, defensible technical term the filter's two sources happen to miss."
 
 [[attested_exceptions]]
 compound = "test well"
-notes = "Literal well (an exploratory drilled shaft), not the metaphor sense."
-
-[[attested_exceptions]]
-compound = "primordial soup"
-notes = "Established idiom in CS/biology contexts (the origin-of-life hypothesis, and its computing-metaphor derivatives), not a coinage."
-
-[[attested_exceptions]]
-compound = "color harmony"
-notes = "Established design term (a color-theory relationship), not a metaphor coinage."
-
-[[attested_exceptions]]
-compound = "tile mosaic"
-notes = "Literal sense: the physical/optical tiled pattern (e.g. a camera sensor's color-filter array, or a literal tiled surface), not a metaphor coinage. Found by a full-corpus precision sweep (beyond the pinned snapshot sample) flagging a real human StackExchange forum post describing a camera demosaicing filter pattern."
-
-[[attested_exceptions]]
-compound = "hot soup"
-notes = "Literal food, not the metaphor sense \"topical soup\"/\"information soup\" this pack targets. Found by a full-corpus precision sweep (beyond the pinned snapshot sample) flagging a real human StackExchange forum post about food safety. \"Soup\" as an ordinary food noun remains a residual false-positive risk for other common food-soup phrases this small, honest exception list does not enumerate (\"chicken soup\", \"canned soup\", etc.) — narrowing further would need either a broader curated exception list or a food-noun guard, out of scope for this pass."
+notes = "Literal well (an exploratory drilled shaft), not the metaphor sense. Not a jargon-attest-v1 filter hit (unlike \"oil well\"/\"water well\", both now filter-attested and pruned from this list) — kept here as a defensible literal-sense override in technical (drilling/exploration) context."

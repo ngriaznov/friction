@@ -122,16 +122,23 @@ tag-gated scan over a curated list of physical/aesthetic metaphor nouns
 compound as its rightmost, tagged-noun word, immediately preceded by at least
 one noun/adjective modifier: *"semantic wells"*, *"cross-domain resonance"*, *"a
 rich tapestry of services"*. The same word as a bare noun (*"the well is
-deep"*) or as a modifier (*"soup kitchen"*) never matches, a handful of
-established compounds are exempted by name (*"data fabric"*, *"primordial
-soup"*, *"resonance frequency"*…), and a compound with any mid-sentence
-capitalized word is treated as a possible product name and declined. This is a
-deliberately narrow, high-precision slice of pseudo-jargon — a curated lexeme
-list, not the broader web-scale attestation design (every head word frequent,
-the compound unattested) `docs/research/SYNTHESIS.md` §4 documents as future
-work — and it is detection-only like the contrast-frame templates: there is no
-deterministic true replacement for an invented term, so a flagged span is
-reported in `check` and unioned into `fix`'s paraphrase list, never rewritten.
+deep"*) or as a modifier (*"soup kitchen"*) never matches, and a compound with
+any mid-sentence capitalized word is treated as a possible product name and
+declined. The web-scale attestation design `docs/research/SYNTHESIS.md` §4
+describes — every head word frequent, but the compound itself unattested
+anywhere — is the exemption mechanism: a compound is checked against
+`jargon-attest-v1`, a `BinaryFuse8` filter over ~2M normalized Wikipedia-title
+and OpenAlex-topic keys built offline and embedded in the binary (*"data
+fabric"*, *"primordial soup"*, *"color harmony"*, *"resonance frequency"*, and
+every other real title, are attested and never flagged), OR against a small
+hand-curated TOML exception list that only carries what the filter still
+misses (*"service fabric"*, *"test well"*), each with its own stated reason.
+This is a deliberately narrow, high-precision slice of pseudo-jargon — a
+curated head-word lexeme (not an open-vocabulary jargon detector) paired with
+a real attestation table, not a hand-picked exceptions list alone — and it is
+detection-only like the contrast-frame templates: there is no deterministic
+true replacement for an invented term, so a flagged span is reported in
+`check` and unioned into `fix`'s paraphrase list, never rewritten.
 The sixth channel is document-level: a count of register-marking constructions
 over a dependency parse, compared against the human band. It answers a
 question the others cannot, because a construction that is *missing* has no
@@ -596,10 +603,25 @@ detection frame, or introduces an unattested content word, fails the build):
   and 90th percentiles of the per-document rate across 58 human documentation
   files. The band, not its centre, is the target.
 - `jargon-v1.toml` — the curated metaphor-lexeme list `jargon.metaphor`
-  matches against, and a small attested-exceptions allowlist of established
-  compounds it never flags. Each lexeme is `mined` (measured directly against
-  this corpus) or `external` (documented LLM metaphor vocabulary); every
-  entry, and every exception, carries its own provenance note.
+  matches against, and a small attested-exceptions allowlist of compounds it
+  never flags regardless of what the filter below says. Each lexeme is
+  `mined` (measured directly against this corpus) or `external` (documented
+  LLM metaphor vocabulary); every entry, and every exception, carries its own
+  provenance note.
+- `jargon-attest-v1.bin` + `jargon-attest-v1.toml` — the web-scale
+  attestation oracle behind `jargon.metaphor`'s exception check: a
+  `BinaryFuse8` filter (`xorf`) over ~2M normalized, multiword compound keys
+  mined from Wikipedia article titles and OpenAlex Topics display names,
+  built offline by `corpus-tool jargon-attest` and embedded in the binary.
+  A compound in the filter is attested and never flagged; the filter's
+  false-positive direction is the safe one (~0.4%, no false negatives) — a
+  spurious "attested" only ever suppresses a flag, never invents one. The
+  TOML exception list above is now a near-empty override layer for what the
+  filter misses, not the primary mechanism. Wikipedia titles are
+  CC BY-SA 4.0 and GFDL (Wikipedia contributors,
+  <https://en.wikipedia.org/>); OpenAlex Topics are CC0
+  (<https://openalex.org/>). Full provenance — input sha256s, normalization
+  and hash spec, build date — is in the `.toml` sidecar.
 
 The contrast-frame templates (`frame.contrast.question`,
 `frame.contrast.correction`) are the one detection channel that is not

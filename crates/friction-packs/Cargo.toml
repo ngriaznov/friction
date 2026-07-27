@@ -23,6 +23,16 @@ serde = { workspace = true }
 sha2 = { workspace = true }
 thiserror = { workspace = true }
 toml = { workspace = true }
+# `jargon_attest`'s `BinaryFuse8`/`BinaryFuse8Ref` — see that module's own
+# docs for why construction (`corpus-tool jargon-attest`, via
+# `build_pack_bytes`) and lookup (`JARGON_ATTEST`, via `from_dma`/
+# `DmaSerializable`) both live in this one crate rather than splitting the
+# dependency across this crate and `corpus-tool`.
+xorf = { workspace = true }
+# `jargon_attest`'s fixed-seed key hash — see that module's own docs for
+# why a seeded, non-cryptographic hash (not std's randomized `SipHash`) is
+# required for a byte-reproducible filter.
+xxhash-rust = { workspace = true }
 # Not yet in [workspace.dependencies]; added directly here per this
 # workspace's existing crate-local convention (see friction-harness's own
 # Cargo.toml, which needs this same crate for the same seed-pattern

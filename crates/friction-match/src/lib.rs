@@ -69,7 +69,7 @@ pub use span::{Channel, DmsFamilyReport, DmsReport, DocumentReport, MatchScore, 
 
 use friction_core::Document;
 use friction_nlp::{Segmenter, Tagger};
-use friction_packs::{DmsIndex, InventoryPack, JargonPack, ModelFamily};
+use friction_packs::{DmsIndex, InventoryPack, JargonAttestPack, JargonPack, ModelFamily};
 
 use crate::token::ScopedUnit;
 
@@ -83,6 +83,7 @@ pub struct MatchEngine<'a> {
     inventory: &'a InventoryPack,
     dms: &'a DmsIndex,
     jargon: &'a JargonPack,
+    jargon_attest: &'a JargonAttestPack,
     target_family: ModelFamily,
     tagger: &'a dyn Tagger,
     segmenter: &'a dyn Segmenter,
@@ -91,8 +92,9 @@ pub struct MatchEngine<'a> {
 
 impl<'a> MatchEngine<'a> {
     /// Builds an engine bound to `inventory`, `dms`, `jargon`,
-    /// `target_family`, `tagger`, and `segmenter` for its whole lifetime —
-    /// the literal automaton is compiled exactly once here.
+    /// `jargon_attest`, `target_family`, `tagger`, and `segmenter` for its
+    /// whole lifetime — the literal automaton is compiled exactly once
+    /// here.
     ///
     /// # Errors
     /// [`MatchError::FamilyNotInPack`] if `dms` has no stream for
@@ -103,6 +105,7 @@ impl<'a> MatchEngine<'a> {
         inventory: &'a InventoryPack,
         dms: &'a DmsIndex,
         jargon: &'a JargonPack,
+        jargon_attest: &'a JargonAttestPack,
         target_family: ModelFamily,
         tagger: &'a dyn Tagger,
         segmenter: &'a dyn Segmenter,
@@ -115,6 +118,7 @@ impl<'a> MatchEngine<'a> {
             inventory,
             dms,
             jargon,
+            jargon_attest,
             target_family,
             tagger,
             segmenter,
@@ -152,7 +156,13 @@ impl<'a> MatchEngine<'a> {
 
         let frame_spans = frame::scan_units(&units);
 
-        let jargon_spans = jargon::scan_units(&units, document.source(), self.tagger, self.jargon);
+        let jargon_spans = jargon::scan_units(
+            &units,
+            document.source(),
+            self.tagger,
+            self.jargon,
+            self.jargon_attest,
+        );
 
         let spans = span::merge_spans(vec![
             dms_spans,

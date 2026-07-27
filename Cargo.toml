@@ -21,8 +21,21 @@ proptest = "1"
 ureq = { version = "3", features = ["json"] }
 walkdir = "2"
 # Deterministic, non-cryptographic hashing used to seed the fix-strategy
-# PRNG from (sentence bytes, rule id) — see `friction-rules::StrategyRng`.
+# PRNG from (sentence bytes, rule id) — see `friction-rules::StrategyRng` —
+# and, with a fixed seed, to hash `jargon-attest-v1`'s normalized compound
+# keys into the `u64`s its `BinaryFuse8` filter is built over
+# (`friction-packs::jargon_attest`).
 xxhash-rust = { version = "0.8", features = ["xxh64"] }
+# Binary fuse filter for `jargon-attest-v1`'s web-scale compound
+# attestation table (`friction-packs::jargon_attest`). `default-features =
+# false` drops the `uniform-random` feature (and its `rand`/`getrandom`
+# transitive deps), which this workspace never needs: keys are hashed
+# deterministically by this workspace's own `xxhash-rust`, not sampled.
+# `binary-fuse` (pulls in `libm` only) is the one filter family this
+# workspace uses. Pinned to the `0.12` line; bump deliberately.
+xorf = { version = "0.12", default-features = false, features = [
+    "binary-fuse",
+] }
 # Literal automaton for the short single-word/phrase tells the DMS channel
 # has no match-length signal for (friction-match's literal channel).
 # Already present transitively via `regex`; promoted to a direct,

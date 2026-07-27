@@ -24,7 +24,7 @@
 //! paraphrase report), never rewritten.
 
 use friction_nlp::{TaggedToken, Tagger};
-use friction_packs::JargonPack;
+use friction_packs::{JargonAttestPack, JargonPack};
 
 use crate::span::{Channel, MatchScore, MatchSpan};
 use crate::token::ScopedUnit;
@@ -93,9 +93,13 @@ fn compound_is_clean(
         .all(|i| i == 0 || !starts_uppercase(&document_text[tokens[i].token.range.clone()]))
 }
 
-/// The compound's lookup key for [`JargonPack::is_attested_exception`]:
-/// every token's text lowercased, hyphens folded to spaces, joined with a
-/// single space each — "cross-domain resonance" -> "cross domain
+/// The compound's lookup key: the exact source span `tokens[start..=
+/// head_idx]` covers, run through [`friction_packs::normalize_compound`]
+/// — the SAME function `corpus-tool jargon-attest` normalizes every
+/// Wikipedia/OpenAlex source string with, so this channel's lookup key
+/// and the embedded filter's own keys can never drift apart (see that
+/// function's own docs). Folds case, underscores, and hyphens, and
+/// collapses whitespace — "cross-domain resonance" -> "cross domain
 /// resonance".
 fn normalized_compound(
     tokens: &[TaggedToken],
@@ -103,15 +107,8 @@ fn normalized_compound(
     start: usize,
     head_idx: usize,
 ) -> String {
-    tokens[start..=head_idx]
-        .iter()
-        .map(|t| {
-            document_text[t.token.range.clone()]
-                .to_lowercase()
-                .replace('-', " ")
-        })
-        .collect::<Vec<_>>()
-        .join(" ")
+    let span = tokens[start].token.range.start..tokens[head_idx].token.range.end;
+    friction_packs::normalize_compound(&document_text[span])
 }
 
 /// Attempts to find a `jargon.metaphor` compound headed at `tokens[head_idx]`.
@@ -120,6 +117,7 @@ fn jargon_span_at(
     document_text: &str,
     head_idx: usize,
     pack: &JargonPack,
+    attest: &JargonAttestPack,
 ) -> Option<MatchSpan> {
     let head = &tokens[head_idx];
     if !is_head_tag(head.pos.as_str()) {
@@ -135,8 +133,13 @@ fn jargon_span_at(
         return None;
     }
 
+    // The exception check: a hand-curated TOML override (kept for the
+    // cases the filter misses but a human reason still applies — see
+    // jargon-v1.toml's own header) OR the web-scale attestation filter
+    // (the real oracle now — SYNTHESIS.md §4). Either suppresses the
+    // flag; neither is authoritative over the other.
     let normalized = normalized_compound(tokens, document_text, start, head_idx);
-    if pack.is_attested_exception(&normalized) {
+    if pack.is_attested_exception(&normalized) || attest.is_attested(&normalized) {
         return None;
     }
 
@@ -149,15 +152,20 @@ fn jargon_span_at(
     })
 }
 
-/// Tags every sentence in `units` (per-sentence, real absolute byte
-/// offsets via `tagger.tag(text, sentence.start)`) and reports every
-/// `jargon.metaphor` compound found, in source order.
+/// Tags every sentence in `units` and reports every `jargon.metaphor`
+/// compound found, in source order.
+///
+/// Per-sentence, real absolute byte offsets via `tagger.tag(text,
+/// sentence.start)`. `pack`'s hand-curated `attested_exceptions` and
+/// `attest`'s web-scale filter (SYNTHESIS.md §4) both suppress a
+/// would-be flag — see [`jargon_span_at`]'s own docs.
 #[must_use]
 pub fn scan_units(
     units: &[ScopedUnit<'_>],
     document_text: &str,
     tagger: &dyn Tagger,
     pack: &JargonPack,
+    attest: &JargonAttestPack,
 ) -> Vec<MatchSpan> {
     let mut spans = Vec::new();
     for unit in units {
@@ -165,7 +173,7 @@ pub fn scan_units(
             let sentence_text = &document_text[sentence.clone()];
             let tokens = tagger.tag(sentence_text, sentence.start);
             for head_idx in 0..tokens.len() {
-                if let Some(span) = jargon_span_at(&tokens, document_text, head_idx, pack) {
+                if let Some(span) = jargon_span_at(&tokens, document_text, head_idx, pack, attest) {
                     spans.push(span);
                 }
             }
@@ -176,10 +184,12 @@ pub fn scan_units(
 
 #[cfg(test)]
 mod tests {
+    use std::collections::BTreeSet;
     use std::sync::OnceLock;
 
     use friction_core::{Block, BlockKind, Document, ProseUnit};
     use friction_nlp::{PerceptronTagger, SrxSegmenter};
+    use friction_packs::build_pack_bytes;
 
     use super::*;
 
@@ -215,6 +225,11 @@ mod tests {
         source = "mined"
         notes = "test"
 
+        [[lexemes]]
+        lexeme = "harmony"
+        source = "mined"
+        notes = "test"
+
         [[attested_exceptions]]
         compound = "data fabric"
         notes = "established industry term"
@@ -223,6 +238,32 @@ mod tests {
     fn pack() -> &'static JargonPack {
         static PACK: OnceLock<JargonPack> = OnceLock::new();
         PACK.get_or_init(|| JargonPack::parse(TEST_PACK).expect("test pack parses"))
+    }
+
+    /// A small synthetic attestation filter, standing in for the real
+    /// embedded `jargon-attest-v1` pack: attests exactly `"color
+    /// harmony"` (plus a filler key so the filter isn't a size-1 edge
+    /// case) and nothing else — deliberately NOT the same compound as
+    /// `TEST_PACK`'s own `data fabric` TOML exception, so tests using
+    /// this can tell the two suppression paths apart.
+    fn attest() -> &'static JargonAttestPack {
+        static ATTEST: OnceLock<JargonAttestPack> = OnceLock::new();
+        ATTEST.get_or_init(|| {
+            let keys: BTreeSet<String> = ["color harmony", "unattested filler key"]
+                .into_iter()
+                .map(String::from)
+                .collect();
+            let built = build_pack_bytes(&keys).expect("small synthetic filter builds");
+            let bin: &'static [u8] = Box::leak(built.bytes.into_boxed_slice());
+            let sidecar: &'static str = Box::leak(
+                format!(
+                    "[pack]\nversion = \"jargon-attest-v1\"\nkey_count = {}\n",
+                    built.key_count
+                )
+                .into_boxed_str(),
+            );
+            JargonAttestPack::load(bin, sidecar).expect("synthetic filter pack loads")
+        })
     }
 
     fn scoped_document(source: &str) -> Document {
@@ -235,7 +276,7 @@ mod tests {
         let document = scoped_document(source);
         let segmenter = SrxSegmenter::new();
         let units = crate::token::prose_scope(&document, &segmenter);
-        scan_units(&units, document.source(), tagger(), pack())
+        scan_units(&units, document.source(), tagger(), pack(), attest())
     }
 
     /// End-to-end scan through real markdown parsing (so an inline-code
@@ -245,7 +286,7 @@ mod tests {
         let document = friction_parse::parse(source).expect("valid markdown parses");
         let segmenter = SrxSegmenter::new();
         let units = crate::token::prose_scope(&document, &segmenter);
-        scan_units(&units, document.source(), tagger(), pack())
+        scan_units(&units, document.source(), tagger(), pack(), attest())
     }
 
     #[test]
@@ -307,6 +348,31 @@ mod tests {
     fn negative_data_fabric_is_an_attested_exception() {
         let source = "The team runs everything on a shared data fabric.";
         assert!(spans_for(source).is_empty());
+    }
+
+    /// `"color harmony"` is suppressed via the FILTER path, not the TOML
+    /// path — `TEST_PACK`'s only `attested_exceptions` entry is `"data
+    /// fabric"`, so this can only be `attest()`'s synthetic filter at
+    /// work (see [`jargon_span_at`]'s `pack.is_attested_exception(..) ||
+    /// attest.is_attested(..)` check).
+    #[test]
+    fn positive_color_harmony_is_suppressed_by_the_filter_not_the_toml_list() {
+        assert!(!pack().is_attested_exception("color harmony"));
+        assert!(attest().is_attested("color harmony"));
+        let source = "Good UI design depends on color harmony across every surface.";
+        assert!(spans_for(source).is_empty());
+    }
+
+    /// A compound neither the TOML exception list nor the (synthetic)
+    /// filter attests still fires — the filter only ever suppresses,
+    /// never invents a flag.
+    #[test]
+    fn negative_celestial_tapestry_is_absent_from_both_lists_so_it_still_fires() {
+        assert!(!attest().is_attested("celestial tapestry"));
+        let source = "The report imagines a celestial tapestry of interconnected services.";
+        let spans = spans_for(source);
+        assert_eq!(spans.len(), 1, "{spans:?}");
+        assert_eq!(&source[spans[0].range.clone()], "celestial tapestry");
     }
 
     #[test]
