@@ -1,8 +1,9 @@
-//! Fix-time detection: four independent channels (differential matching
+//! Fix-time detection: five independent channels (differential matching
 //! statistics, a literal tell inventory, licensed light-verb
-//! constructions, and deterministic contrast-frame templates) over a
-//! document's prose, reporting byte-honest [`MatchSpan`]s. This crate
-//! never rewrites text — see [`MatchEngine`]'s own docs.
+//! constructions, deterministic contrast-frame templates, and metaphor-
+//! compound jargon detection) over a document's prose, reporting byte-
+//! honest [`MatchSpan`]s. This crate never rewrites text — see
+//! [`MatchEngine`]'s own docs.
 //!
 //! # Span honesty by construction, not by translation
 //!
@@ -57,6 +58,7 @@
 mod dms;
 mod error;
 pub mod frame;
+pub mod jargon;
 mod literal;
 mod lvc;
 pub mod span;
@@ -67,7 +69,7 @@ pub use span::{Channel, DmsFamilyReport, DmsReport, DocumentReport, MatchScore, 
 
 use friction_core::Document;
 use friction_nlp::{Segmenter, Tagger};
-use friction_packs::{DmsIndex, InventoryPack, ModelFamily};
+use friction_packs::{DmsIndex, InventoryPack, JargonPack, ModelFamily};
 
 use crate::token::ScopedUnit;
 
@@ -80,6 +82,7 @@ use crate::token::ScopedUnit;
 pub struct MatchEngine<'a> {
     inventory: &'a InventoryPack,
     dms: &'a DmsIndex,
+    jargon: &'a JargonPack,
     target_family: ModelFamily,
     tagger: &'a dyn Tagger,
     segmenter: &'a dyn Segmenter,
@@ -87,9 +90,9 @@ pub struct MatchEngine<'a> {
 }
 
 impl<'a> MatchEngine<'a> {
-    /// Builds an engine bound to `inventory`, `dms`, `target_family`,
-    /// `tagger`, and `segmenter` for its whole lifetime — the literal
-    /// automaton is compiled exactly once here.
+    /// Builds an engine bound to `inventory`, `dms`, `jargon`,
+    /// `target_family`, `tagger`, and `segmenter` for its whole lifetime —
+    /// the literal automaton is compiled exactly once here.
     ///
     /// # Errors
     /// [`MatchError::FamilyNotInPack`] if `dms` has no stream for
@@ -99,6 +102,7 @@ impl<'a> MatchEngine<'a> {
     pub fn new(
         inventory: &'a InventoryPack,
         dms: &'a DmsIndex,
+        jargon: &'a JargonPack,
         target_family: ModelFamily,
         tagger: &'a dyn Tagger,
         segmenter: &'a dyn Segmenter,
@@ -110,6 +114,7 @@ impl<'a> MatchEngine<'a> {
         Ok(Self {
             inventory,
             dms,
+            jargon,
             target_family,
             tagger,
             segmenter,
@@ -117,7 +122,7 @@ impl<'a> MatchEngine<'a> {
         })
     }
 
-    /// Scans `document`, running all four channels over the same
+    /// Scans `document`, running all five channels over the same
     /// prose-only, in-scope unit set ([`token::prose_scope`]), and
     /// merges their spans deterministically ([`span::merge_spans`]).
     ///
@@ -147,12 +152,15 @@ impl<'a> MatchEngine<'a> {
 
         let frame_spans = frame::scan_units(&units);
 
+        let jargon_spans = jargon::scan_units(&units, document.source(), self.tagger, self.jargon);
+
         let spans = span::merge_spans(vec![
             dms_spans,
             literal_ac_spans,
             literal_fallback_spans,
             lvc_spans,
             frame_spans,
+            jargon_spans,
         ]);
 
         Ok(DocumentReport {

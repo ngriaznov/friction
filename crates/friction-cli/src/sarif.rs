@@ -46,6 +46,12 @@ const fn channel_description(channel: Channel) -> &'static str {
              interrogative (\"is X just A, or B?\") or a declarative \
              epanorthosis (\"not just X — it's Y\")."
         }
+        Channel::Jargon => {
+            "A curated metaphor lexeme (e.g. \"resonance\", \"tapestry\", \
+             \"well\") heading a noun compound (\"semantic wells\", \
+             \"cross-domain resonance\") — a narrow, high-precision slice \
+             of invented pseudo-terminology, detection-only."
+        }
     }
 }
 

@@ -1,0 +1,198 @@
+# jargon-v1 pack: curated metaphor lexemes for the friction-match
+# jargon.metaphor channel (SYNTHESIS.md §4). Detection-only — there is no
+# deterministic true replacement for an invented term, so this pack
+# carries no repair machinery at all, just the lexeme list and a small
+# attested-exceptions allowlist.
+#
+# V1 detects one narrow, high-precision shape: a curated metaphor noun
+# borrowed from a physical/aesthetic domain, sitting in the HEAD position
+# of a noun compound ("semantic wells", "cross-domain resonance"). The
+# broader attestation-table design (weirdness ratio over web-scale
+# n-gram counts, not a curated list) is future work — see SYNTHESIS.md
+# §4 and §5.
+#
+# `source` on every `[[lexemes]]` entry is one of:
+#   "mined"     - measured directly against this corpus (train split);
+#                 `notes` records the per-100k-word llm vs human rate.
+#   "external"  - documented LLM metaphor vocabulary from a source
+#                 external to this corpus (antislop-sampler / Wikipedia
+#                 "Signs of AI writing" lists cited in
+#                 docs/research/FRONTIER_MODELS.md §3.4); near-zero in
+#                 both corpus classes here, so this corpus alone can't
+#                 confirm them the way the "mined" entries are confirmed.
+#
+# Explicitly EXCLUDED (considered and rejected, not merely unconsidered):
+# echo (human-favored 3.16 vs 0.45 per 100k words — it is a shell
+# command, not a metaphor, in this corpus's technical-documentation
+# register), landscape (human-favored 5.27 vs machine), garden, sea/
+# ocean, journey ("user journey" is real UX terminology), dance, pulse,
+# storm, river, art, music, magic — each either mined human-favored on
+# this corpus or a real-terminology collision that would cost precision.
+#
+# `attested_exceptions` are exact compounds (lowercased, hyphens
+# normalized to spaces) the jargon.metaphor channel never flags
+# regardless of head/modifier shape, each with its own reason in `notes`.
+# Kept deliberately small.
+
+[pack]
+version = "jargon-v1"
+
+# --------------------------------------------------------------------
+# Mined: train split, per-100k-word rates (llm vs human), measured
+# 2026-07-27.
+# --------------------------------------------------------------------
+
+[[lexemes]]
+lexeme = "symphony"
+source = "mined"
+notes = "Mined from this corpus (train split, per-100k-word rates llm vs human, measured 2026-07-27): 0.90 vs 0.00."
+
+[[lexemes]]
+lexeme = "constellation"
+source = "mined"
+notes = "Mined from this corpus (train split, per-100k-word rates llm vs human, measured 2026-07-27): 0.45 vs 0.00."
+
+[[lexemes]]
+lexeme = "cornerstone"
+source = "mined"
+notes = "Mined from this corpus (train split, per-100k-word rates llm vs human, measured 2026-07-27): 0.45 vs 0.00."
+
+[[lexemes]]
+lexeme = "fabric"
+source = "mined"
+notes = "Mined from this corpus (train split, per-100k-word rates llm vs human, measured 2026-07-27): 1.79 vs 0.00."
+
+[[lexemes]]
+lexeme = "galaxy"
+source = "mined"
+notes = "Mined from this corpus (train split, per-100k-word rates llm vs human, measured 2026-07-27): 1.34 vs 0.00."
+
+[[lexemes]]
+lexeme = "harmony"
+source = "mined"
+notes = "Mined from this corpus (train split, per-100k-word rates llm vs human, measured 2026-07-27): 0.45 vs 0.00."
+
+[[lexemes]]
+lexeme = "soup"
+source = "mined"
+notes = "Mined from this corpus (train split, per-100k-word rates llm vs human, measured 2026-07-27): 1.34 vs 0.35."
+
+[[lexemes]]
+lexeme = "rhythm"
+source = "mined"
+notes = "Mined from this corpus (train split, per-100k-word rates llm vs human, measured 2026-07-27): 1.79 vs 0.35."
+
+# --------------------------------------------------------------------
+# External: documented LLM metaphor vocabulary (antislop-sampler /
+# Wikipedia "Signs of AI writing" lists cited in
+# docs/research/FRONTIER_MODELS.md §3.4); near-zero in both corpus
+# classes here.
+# --------------------------------------------------------------------
+
+[[lexemes]]
+lexeme = "tapestry"
+source = "external"
+notes = "Documented LLM metaphor vocabulary (antislop/Wikipedia signs-of-AI-writing lists, docs/research/FRONTIER_MODELS.md §3.4); near-zero in both corpus classes."
+
+[[lexemes]]
+lexeme = "mosaic"
+source = "external"
+notes = "Documented LLM metaphor vocabulary (antislop/Wikipedia signs-of-AI-writing lists, docs/research/FRONTIER_MODELS.md §3.4); near-zero in both corpus classes."
+
+[[lexemes]]
+lexeme = "kaleidoscope"
+source = "external"
+notes = "Documented LLM metaphor vocabulary (antislop/Wikipedia signs-of-AI-writing lists, docs/research/FRONTIER_MODELS.md §3.4); near-zero in both corpus classes."
+
+[[lexemes]]
+lexeme = "odyssey"
+source = "external"
+notes = "Documented LLM metaphor vocabulary (antislop/Wikipedia signs-of-AI-writing lists, docs/research/FRONTIER_MODELS.md §3.4); near-zero in both corpus classes."
+
+[[lexemes]]
+lexeme = "ballet"
+source = "external"
+notes = "Documented LLM metaphor vocabulary (antislop/Wikipedia signs-of-AI-writing lists, docs/research/FRONTIER_MODELS.md §3.4); near-zero in both corpus classes."
+
+[[lexemes]]
+lexeme = "choreography"
+source = "external"
+notes = "Documented LLM metaphor vocabulary (antislop/Wikipedia signs-of-AI-writing lists, docs/research/FRONTIER_MODELS.md §3.4); near-zero in both corpus classes."
+
+[[lexemes]]
+lexeme = "cacophony"
+source = "external"
+notes = "Documented LLM metaphor vocabulary (antislop/Wikipedia signs-of-AI-writing lists, docs/research/FRONTIER_MODELS.md §3.4); near-zero in both corpus classes."
+
+[[lexemes]]
+lexeme = "resonance"
+source = "external"
+notes = "Documented LLM metaphor vocabulary (antislop/Wikipedia signs-of-AI-writing lists, docs/research/FRONTIER_MODELS.md §3.4); near-zero in both corpus classes."
+
+[[lexemes]]
+lexeme = "well"
+plural = "wells"
+source = "external"
+notes = "Documented LLM metaphor vocabulary (antislop/Wikipedia signs-of-AI-writing lists, docs/research/FRONTIER_MODELS.md §3.4); near-zero in both corpus classes. Plural \"wells\" listed explicitly because the singular \"well\" is usually an adverb or discourse marker (\"works well\", \"well, actually\") — the channel's own NN/NNS tag gate handles the singular noun sense, but the plural is worth naming since it almost never has a non-noun reading."
+
+[[lexemes]]
+lexeme = "beacon"
+source = "external"
+notes = "Documented LLM metaphor vocabulary (antislop/Wikipedia signs-of-AI-writing lists, docs/research/FRONTIER_MODELS.md §3.4); near-zero in both corpus classes."
+
+[[lexemes]]
+lexeme = "labyrinth"
+source = "external"
+notes = "Documented LLM metaphor vocabulary (antislop/Wikipedia signs-of-AI-writing lists, docs/research/FRONTIER_MODELS.md §3.4); near-zero in both corpus classes."
+
+# --------------------------------------------------------------------
+# Attested exceptions: exact compounds never flagged.
+# --------------------------------------------------------------------
+
+[[attested_exceptions]]
+compound = "data fabric"
+notes = "Established industry term (a data-integration architecture pattern), not a metaphor coinage."
+
+[[attested_exceptions]]
+compound = "service fabric"
+notes = "Product-adjacent, established (Azure Service Fabric and the general distributed-systems sense predate LLM prose)."
+
+[[attested_exceptions]]
+compound = "resonance frequency"
+notes = "Physics: the frequency at which a system oscillates with maximum amplitude."
+
+[[attested_exceptions]]
+compound = "resonant frequency"
+notes = "Physics: adjectival form of resonance frequency."
+
+[[attested_exceptions]]
+compound = "wave resonance"
+notes = "Physics: resonance between coupled waves."
+
+[[attested_exceptions]]
+compound = "oil well"
+notes = "Literal well (a drilled shaft), not the metaphor sense."
+
+[[attested_exceptions]]
+compound = "water well"
+notes = "Literal well (a drilled or dug shaft), not the metaphor sense."
+
+[[attested_exceptions]]
+compound = "test well"
+notes = "Literal well (an exploratory drilled shaft), not the metaphor sense."
+
+[[attested_exceptions]]
+compound = "primordial soup"
+notes = "Established idiom in CS/biology contexts (the origin-of-life hypothesis, and its computing-metaphor derivatives), not a coinage."
+
+[[attested_exceptions]]
+compound = "color harmony"
+notes = "Established design term (a color-theory relationship), not a metaphor coinage."
+
+[[attested_exceptions]]
+compound = "tile mosaic"
+notes = "Literal sense: the physical/optical tiled pattern (e.g. a camera sensor's color-filter array, or a literal tiled surface), not a metaphor coinage. Found by a full-corpus precision sweep (beyond the pinned snapshot sample) flagging a real human StackExchange forum post describing a camera demosaicing filter pattern."
+
+[[attested_exceptions]]
+compound = "hot soup"
+notes = "Literal food, not the metaphor sense \"topical soup\"/\"information soup\" this pack targets. Found by a full-corpus precision sweep (beyond the pinned snapshot sample) flagging a real human StackExchange forum post about food safety. \"Soup\" as an ordinary food noun remains a residual false-positive risk for other common food-soup phrases this small, honest exception list does not enumerate (\"chicken soup\", \"canned soup\", etc.) — narrowing further would need either a broader curated exception list or a food-noun guard, out of scope for this pass."

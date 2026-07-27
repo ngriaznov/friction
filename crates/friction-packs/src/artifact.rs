@@ -199,6 +199,41 @@ pub enum PackError {
         /// The offending upper bound.
         high: f64,
     },
+
+    /// A `jargon-v1` `lexemes` entry's `source` isn't `"mined"` or
+    /// `"external"` (see [`crate::JargonPack::parse`]).
+    #[error("lexemes.{lexeme}: {value:?} is not a known jargon lexeme source")]
+    JargonUnknownSource {
+        /// The offending entry's `lexeme`.
+        lexeme: String,
+        /// The offending value.
+        value: String,
+    },
+
+    /// The same `lexeme` (or the same `plural`) appears twice in
+    /// `jargon-v1`'s `lexemes`.
+    #[error("duplicate jargon-v1 lexeme: {lexeme:?}")]
+    JargonDuplicateLexeme {
+        /// The duplicated lexeme text.
+        lexeme: String,
+    },
+
+    /// The same `compound` appears twice in `jargon-v1`'s
+    /// `attested_exceptions`.
+    #[error("duplicate jargon-v1 attested exception: {compound:?}")]
+    JargonDuplicateException {
+        /// The duplicated compound text.
+        compound: String,
+    },
+
+    /// A `jargon-v1` `lexemes`/`attested_exceptions` entry's `notes` is
+    /// empty or whitespace-only — provenance is mandatory for every entry
+    /// in this pack (see [`crate::JargonPack::parse`]).
+    #[error("{entry:?}: notes must be non-empty (provenance is mandatory for jargon-v1)")]
+    JargonMissingNotes {
+        /// The entry's own key (`lexeme` or `compound`).
+        entry: String,
+    },
 }
 
 impl From<toml::de::Error> for PackError {

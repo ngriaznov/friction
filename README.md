@@ -104,11 +104,11 @@ the inspection was for. Neither is caught by a grammar check — both are
 meaning changes that read fine. The guards that refuse them are in the source
 with the sentence that motivated each one.
 
-Detection (what finds the candidates) runs five channels. Four are span-level: a
+Detection (what finds the candidates) runs six channels. Five are span-level: a
 mined literal inventory, a shallow tag-pattern scan for light-verb
 constructions, a differential matching-statistics profile computed against
 per-generator-family suffix-automaton indexes — which also powers the
-document-level report in `friction check` — and a deterministic contrast-frame
+document-level report in `friction check` — a deterministic contrast-frame
 template scan: `frame.contrast.question` (the dismissive-foil interrogative
 above) and `frame.contrast.correction` (declarative epanorthosis, *"not just
 X — it's Y"*), both detect-only in `check` and, for `fix`, reported in the
@@ -116,10 +116,26 @@ paraphrase list alongside DMS (differential matching statistics — friction's
 own name for its corpus-differential detection channel, built on the
 matching-statistics literature; see `docs/research/ALGORITHMS.md` §1)
 candidates whenever no gated edit applies (an
-`only`-marked question, or any correction span). The fifth is document-level: a
-count of register-marking constructions over a dependency parse, compared
-against the human band. It answers a question the others cannot, because a
-construction that is *missing* has no span to detect.
+`only`-marked question, or any correction span) — and `jargon.metaphor`, a
+tag-gated scan over a curated list of physical/aesthetic metaphor nouns
+("resonance", "tapestry", "well", "soup"…), flagged only when one heads a noun
+compound as its rightmost, tagged-noun word, immediately preceded by at least
+one noun/adjective modifier: *"semantic wells"*, *"cross-domain resonance"*, *"a
+rich tapestry of services"*. The same word as a bare noun (*"the well is
+deep"*) or as a modifier (*"soup kitchen"*) never matches, a handful of
+established compounds are exempted by name (*"data fabric"*, *"primordial
+soup"*, *"resonance frequency"*…), and a compound with any mid-sentence
+capitalized word is treated as a possible product name and declined. This is a
+deliberately narrow, high-precision slice of pseudo-jargon — a curated lexeme
+list, not the broader web-scale attestation design (every head word frequent,
+the compound unattested) `docs/research/SYNTHESIS.md` §4 documents as future
+work — and it is detection-only like the contrast-frame templates: there is no
+deterministic true replacement for an invented term, so a flagged span is
+reported in `check` and unioned into `fix`'s paraphrase list, never rewritten.
+The sixth channel is document-level: a count of register-marking constructions
+over a dependency parse, compared against the human band. It answers a
+question the others cannot, because a construction that is *missing* has no
+span to detect.
 
 ## Install
 
@@ -579,6 +595,11 @@ detection frame, or introduces an unattested content word, fails the build):
 - `register-v1.toml` — the per-feature bands register homes toward, as the 10th
   and 90th percentiles of the per-document rate across 58 human documentation
   files. The band, not its centre, is the target.
+- `jargon-v1.toml` — the curated metaphor-lexeme list `jargon.metaphor`
+  matches against, and a small attested-exceptions allowlist of established
+  compounds it never flags. Each lexeme is `mined` (measured directly against
+  this corpus) or `external` (documented LLM metaphor vocabulary); every
+  entry, and every exception, carries its own provenance note.
 
 The contrast-frame templates (`frame.contrast.question`,
 `frame.contrast.correction`) are the one detection channel that is not

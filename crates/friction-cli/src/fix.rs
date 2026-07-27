@@ -1,5 +1,7 @@
 //! `friction fix`: runs the five-operation repair engine and writes the
 //! fixed text to stdout (or back to the input file with `--in-place`).
+//! `jargon.metaphor` (unioned into the paraphrase report below) is
+//! detection-only and adds no sixth operation.
 //!
 //! No `--genre`/`--pack`: the engine's five operations (ritual deletion,
 //! paired substitution, derivational pivot, gated span deletion, frame-
@@ -19,27 +21,31 @@
 //! a declared target family and reporting only one would be an arbitrary
 //! choice.
 //!
-//! # DMS and contrast frames surface paraphrase candidates, never edits
+//! # DMS, contrast frames, and jargon surface paraphrase candidates, never edits
 //!
 //! After fixing, the FIXED output is scanned with the DMS channel
 //! (`friction_match::dms_spans_for_family`) against every family
-//! [`friction_packs::ModelFamily::ALL`] defines, and separately with the
-//! contrast-frame template channel (`friction_match::frame::scan_units`)
-//! — the same detector [`friction_match::Channel::Frame`] spans in
-//! `friction check` come from. Every span from both is unioned into one
-//! report (see [`union_paraphrase_spans`]). These are detection-only: the
-//! closed-operation engine above has no licensed rewrite for a DMS tell
-//! (no fixed substitution string, no attested derivation) and only ever
-//! acts on a `frame.contrast.question` span whose marker is
+//! [`friction_packs::ModelFamily::ALL`] defines, with the contrast-frame
+//! template channel (`friction_match::frame::scan_units`) — the same
+//! detector [`friction_match::Channel::Frame`] spans in `friction check`
+//! come from — and with the metaphor-compound jargon channel
+//! (`friction_match::jargon::scan_units`, the same detector
+//! [`friction_match::Channel::Jargon`] spans come from). Every span from
+//! all three is unioned into one report (see [`union_paraphrase_spans`]).
+//! These are detection-only: the closed-operation engine above has no
+//! licensed rewrite for a DMS tell (no fixed substitution string, no
+//! attested derivation), no licensed rewrite for an invented term (no
+//! deterministic true replacement — SYNTHESIS.md §4), and only ever acts
+//! on a `frame.contrast.question` span whose marker is
 //! `just`/`merely`/`simply` (`frame.dejust`) — a `frame.contrast.question`
-//! span whose marker is `only`, and every `frame.contrast.correction`
-//! span, has no licensed edit either, so both are left for a human to
-//! paraphrase alongside DMS's. DMS stays banned as an edit judge —
-//! `friction-edit`'s own crate docs say every gate is the curated
-//! inventory pack and the corpus-attested seam-bigram/skeleton tables,
-//! never a metric or genre envelope, and this module does not change
-//! that: `friction_edit::Engine` is never given the DMS pack, only
-//! `friction_match` is, purely for reporting.
+//! span whose marker is `only`, every `frame.contrast.correction` span,
+//! and every `jargon.metaphor` span all have no licensed edit either, so
+//! all three are left for a human to paraphrase alongside DMS's. DMS
+//! stays banned as an edit judge — `friction-edit`'s own crate docs say
+//! every gate is the curated inventory pack and the corpus-attested seam-
+//! bigram/skeleton tables, never a metric or genre envelope, and this
+//! module does not change that: `friction_edit::Engine` is never given
+//! the DMS pack, only `friction_match` is, purely for reporting.
 
 use std::collections::BTreeMap;
 use std::ops::Range;
@@ -301,18 +307,29 @@ fn print_suggestions(output: &str, path_label: &str, suggestions: &[Finding]) {
 /// Scans `output` — the FIXED text `fix` is about to print — for DMS
 /// paraphrase candidates against every family the embedded DMS pack
 /// defines, plus contrast-frame template spans
-/// (`friction_match::frame::scan_units`), unioning everything into one
-/// report (see [`union_paraphrase_spans`]). Only prose blocks are
+/// (`friction_match::frame::scan_units`) and metaphor-compound jargon
+/// spans (`friction_match::jargon::scan_units`), unioning everything into
+/// one report (see [`union_paraphrase_spans`]). Only prose blocks are
 /// scanned, the same scoping every detection channel already uses
 /// (`friction_match::token::prose_scope`).
+///
+/// Builds its own tagger (jargon detection needs part-of-speech tags —
+/// see `friction_match::jargon`'s own module docs) rather than threading
+/// one in from `run_inner`'s already-built `friction_edit::Engine`, whose
+/// tagger field is private to that crate; a fresh
+/// `friction_nlp::PerceptronTagger` is cheap to load (an embedded, gzip-
+/// compressed weight artifact), the same cost `crate::common::Engine`
+/// already pays for `check`/`explain`.
 ///
 /// # Errors
 /// Returns [`CliError::Parse`] if `output` fails to parse as markdown —
 /// not expected, since `output` is text `fix_document` has already parsed
-/// successfully once.
+/// successfully once. Returns [`CliError::Tagger`] if the embedded
+/// English tagger model fails to load.
 fn scan_paraphrase_spans(output: &str) -> Result<Vec<ParaphraseSpan>, CliError> {
     let document = friction_parse::parse(output)?;
     let segmenter = friction_nlp::SrxSegmenter::new();
+    let tagger = friction_nlp::PerceptronTagger::new()?;
     let units = friction_match::token::prose_scope(&document, &segmenter);
 
     let mut spans = Vec::new();
@@ -324,6 +341,12 @@ fn scan_paraphrase_spans(output: &str) -> Result<Vec<ParaphraseSpan>, CliError> 
         }
     }
     spans.extend(friction_match::frame::scan_units(&units));
+    spans.extend(friction_match::jargon::scan_units(
+        &units,
+        document.source(),
+        &tagger,
+        &friction_packs::JARGON.pack,
+    ));
 
     Ok(union_paraphrase_spans(spans))
 }

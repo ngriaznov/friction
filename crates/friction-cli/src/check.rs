@@ -1,6 +1,6 @@
 //! `friction check`: parse + metrics + fix-time detection (DMS, literal
 //! tell inventory, licensed light-verb constructions, contrast-frame
-//! templates), with no fixes applied.
+//! templates, metaphor-compound jargon), with no fixes applied.
 //!
 //! Prints a per-metric table (value, envelope band, in/out), a per-family
 //! DMS summary, and every detected span, in `--format text` (a plain
@@ -83,8 +83,8 @@ struct SpanRow {
     line: usize,
     column: usize,
     /// The DMS differential score (`sum(d)` over the run), when this
-    /// span's channel is [`Channel::Dms`] — `None` for `Literal`/`Lvc`
-    /// spans, whose channels report presence only.
+    /// span's channel is [`Channel::Dms`] — `None` for `Literal`/`Lvc`/
+    /// `Frame`/`Jargon` spans, whose channels report presence only.
     score: Option<i64>,
 }
 
@@ -130,6 +130,7 @@ fn run_inner(args: &CheckArgs) -> Result<ExitCode, CliError> {
     let match_engine = MatchEngine::new(
         &friction_packs::INVENTORY.pack,
         &friction_packs::DMS.pack,
+        &friction_packs::JARGON.pack,
         family,
         &engine.tagger,
         &engine.segmenter,
@@ -217,6 +218,7 @@ const fn channel_str(channel: Channel) -> &'static str {
         Channel::Literal => "literal",
         Channel::Lvc => "lvc",
         Channel::Frame => "frame",
+        Channel::Jargon => "jargon",
     }
 }
 

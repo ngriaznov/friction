@@ -32,6 +32,9 @@ pub enum Channel {
     /// A deterministic contrast-frame template match ([`crate::frame`]):
     /// `"frame.contrast.question"` or `"frame.contrast.correction"`.
     Frame,
+    /// A metaphor-compound jargon match ([`crate::jargon`]):
+    /// `"jargon.metaphor"`.
+    Jargon,
 }
 
 /// A [`MatchSpan`]'s score.

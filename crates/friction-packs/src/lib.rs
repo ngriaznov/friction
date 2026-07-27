@@ -64,6 +64,15 @@
 //! that module's own doc comment for why membership in the band, not
 //! distance from its `median`, is the termination condition.
 //!
+//! # Jargon pack
+//!
+//! [`JargonPack`] parses the curated metaphor-lexeme pack
+//! (`packs/jargon-v1.toml`, embedded and exposed pre-parsed as
+//! [`JARGON`]) `friction-match`'s `jargon.metaphor` channel flags against:
+//! a lexeme list (each with `source`/`notes` provenance) and a small
+//! attested-exceptions allowlist of established compounds never flagged.
+//! Detection-only — see that module's own doc comment.
+//!
 //! # Determinism
 //!
 //! Every pack parses into sorted or declaration-ordered collections, so
@@ -77,6 +86,7 @@ mod attestation;
 mod dms;
 mod envelope;
 mod inventory;
+mod jargon;
 mod register;
 mod registry;
 mod validate;
@@ -89,8 +99,9 @@ pub use inventory::{
     Anchor, DeletionSpan, FrequencyUnit, GuardTokens, InventoryPack, LvcPair, OutputFrequencyBand,
     PreviewFrame, RepairKind, RitualFrame, SubstitutionPair,
 };
+pub use jargon::{AttestedException, JargonPack, Lexeme, LexemeSource};
 pub use register::{RegisterBand, RegisterPack};
-pub use registry::{ATTESTATION, DMS, INVENTORY, LoadedPack, REGISTER, load_dms_pack};
+pub use registry::{ATTESTATION, DMS, INVENTORY, JARGON, LoadedPack, REGISTER, load_dms_pack};
 pub use validate::{
     ClosureViolation, DisjointnessViolation, FrequencyHygieneReason, FrequencyHygieneViolation,
     Violation, check_closure, check_disjointness, check_frequency_hygiene, validate,

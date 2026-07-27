@@ -42,6 +42,7 @@ fn two_independently_constructed_engines_from_the_same_pack_bytes_agree() {
     let engine_a = MatchEngine::new(
         &friction_packs::INVENTORY.pack,
         &friction_packs::DMS.pack,
+        &friction_packs::JARGON.pack,
         ModelFamily::Qwen,
         &tagger_a,
         &segmenter_a,
@@ -53,6 +54,7 @@ fn two_independently_constructed_engines_from_the_same_pack_bytes_agree() {
     let engine_b = MatchEngine::new(
         &friction_packs::INVENTORY.pack,
         &friction_packs::DMS.pack,
+        &friction_packs::JARGON.pack,
         ModelFamily::Qwen,
         &tagger_b,
         &segmenter_b,
