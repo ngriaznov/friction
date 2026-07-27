@@ -231,9 +231,18 @@ lookups. That accounts for the binary being around 16 MB.
 
 ### `friction fix` — repair a document
 
-Fixed text goes to **stdout**, the summary to **stderr**. They are separate
-streams, so no flag is needed to keep them apart — redirect stderr and you have
-clean text.
+**`fix` never modifies your file unless you pass `--in-place`.** The default
+run prints the fixed text to **stdout** and the summary to **stderr** — so the
+summary can report applied patches while the file on disk stays byte-identical.
+That default is what makes piping safe and an original impossible to destroy
+unasked; when you want the file itself repaired, say so:
+
+```bash
+friction fix draft.md --in-place
+```
+
+The two streams are separate, so no flag is needed to keep them apart —
+redirect stderr and you have clean text.
 
 ```bash
 friction fix draft.md                  # fixed text to stdout, summary to stderr
