@@ -272,9 +272,9 @@ pub fn run_register(
 
     let mut accepted: Vec<PositionedCandidate> = Vec::new();
 
-    for (feature, fix, direction, count, _) in features {
+    for (feature, fix, direction, count, kind) in features {
         if let Some(band) = fix {
-            let (_, new_words) = select_and_apply(
+            let (final_count, new_words) = select_and_apply(
                 &mut pool,
                 &sentences,
                 feature,
@@ -285,6 +285,26 @@ pub fn run_register(
                 &mut accepted,
             );
             total_words = new_words;
+            // A Decrease feature can run out of licensed candidates while
+            // still above its band — every remaining instance was a
+            // hold-don't-guess decline at candidate-generation time, which
+            // leaves no per-span finding of its own. Surface ONE
+            // document-level Suggest finding so the report says why the
+            // visible tells remain, instead of ending silent.
+            if direction == Direction::Decrease && rate(final_count, total_words) > band.high {
+                held.push(Finding {
+                    rule: rule_for(kind),
+                    range: 0..0,
+                    message: format!(
+                        "{feature}: {final_count} instance(s) remain and the document is still \
+                         above the human band ({:.2} > {:.2} per 1000 words) — none has a \
+                         licensed rewrite, so each needs a human hand",
+                        rate(final_count, total_words),
+                        band.high
+                    ),
+                    tier: Tier::Suggest,
+                });
+            }
         }
     }
     let _ = total_words;
