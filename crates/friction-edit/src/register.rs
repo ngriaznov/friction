@@ -47,7 +47,7 @@ use friction_core::{Document, Finding, Patch, RuleId, Tier};
 use friction_match::token::{AnalysisTokenKind, prose_scope, tokenize_str};
 use friction_nlp::{DepParser, FINITE_VERB_TAGS, Segmenter, SentenceParse, TaggedToken, Tagger};
 use friction_packs::{RegisterBand, RegisterPack};
-use friction_register::features::RegisterCounts;
+use friction_register::features::{RegisterCounts, em_dashes, nominalizations, semicolons};
 use friction_register::transduce::{
     self, CandidateKind, PERMITTED_FUNCTION_WORDS, past, past_participle, third_sg,
 };
@@ -228,6 +228,111 @@ fn build_sentence_ctx(
     })
 }
 
+/// The document-absolute byte range of every remaining instance of a
+/// Decrease feature, in document order.
+///
+/// Calls the same detector functions [`RegisterCounts::count`] takes its
+/// lengths from, so the listed positions and the counted rate can't
+/// quietly disagree. Instances overlapping an `accepted` rewrite are
+/// dropped — those bytes are about to change, so pointing a finding at
+/// them would misplace it (in the zero-patch convergence pass whose
+/// findings the CLI actually reports, `accepted` is empty and this
+/// filter is a no-op).
+fn remainder_instance_ranges(
+    sentences: &[SentenceCtx],
+    source: &str,
+    kind: CandidateKind,
+    accepted: &[PositionedCandidate],
+) -> Vec<Range<usize>> {
+    let mut out: Vec<Range<usize>> = Vec::new();
+    for ctx in sentences {
+        let text = &source[ctx.range.clone()];
+        match kind {
+            CandidateKind::NominalizationUnpack => {
+                for index in nominalizations(text, &ctx.tokens, &ctx.parse) {
+                    let local = &ctx.tokens[index].token.range;
+                    out.push(ctx.range.start + local.start..ctx.range.start + local.end);
+                }
+            }
+            CandidateKind::EmDash => {
+                for byte in em_dashes(text) {
+                    let start = ctx.range.start + byte;
+                    out.push(start..start + '\u{2014}'.len_utf8());
+                }
+            }
+            CandidateKind::Semicolon => {
+                for byte in semicolons(text) {
+                    let start = ctx.range.start + byte;
+                    out.push(start..start + 1);
+                }
+            }
+            // An Increase feature never leaves "instances to remove", so
+            // no remainder findings exist for it.
+            CandidateKind::ActivizeToPassive => {}
+        }
+    }
+    out.retain(|range| !accepted.iter().any(|c| ranges_overlap(&c.doc_range, range)));
+    out
+}
+
+/// Emits one Suggest finding per remaining instance of a Decrease
+/// feature that is still above its band after selection.
+///
+/// A Decrease feature can run out of licensed candidates while still
+/// above its band — every remaining instance was a hold-don't-guess
+/// decline at candidate-generation time. Each finding carries the
+/// instance's own byte range, so the report says exactly which tokens
+/// need a human hand instead of ending on an unlocatable count. An
+/// instance whose candidate was gate-held already has a finding of its
+/// own saying exactly why (a quotation guard, a closure failure), so it
+/// is skipped here — a second, generic line on the same bytes would say
+/// less than the one already there. For a nominalization whose verb the
+/// derivational lexicon knows, the finding names that verb: the one
+/// rewrite direction that can be stated without inventing a word.
+#[allow(clippy::too_many_arguments)] // private emission helper for one call site
+fn push_remainder_findings(
+    held: &mut Vec<Finding>,
+    sentences: &[SentenceCtx],
+    source: &str,
+    kind: CandidateKind,
+    accepted: &[PositionedCandidate],
+    feature: &str,
+    feature_rate: f64,
+    band_high: f64,
+) {
+    let explained: Vec<Range<usize>> = held
+        .iter()
+        .filter(|f| f.rule == rule_for(kind))
+        .map(|f| f.range.clone())
+        .collect();
+    for range in remainder_instance_ranges(sentences, source, kind, accepted)
+        .into_iter()
+        .filter(|r| !explained.iter().any(|e| ranges_overlap(e, r)))
+    {
+        let (subject, verb_hint) = match kind {
+            CandidateKind::NominalizationUnpack => {
+                let noun = &source[range.clone()];
+                let hint = friction_nlp::lvc::DERIVATIONAL_LEXICON
+                    .get(noun.to_lowercase().as_str())
+                    .map(|verb| format!(" (its verb is \"{verb}\")"))
+                    .unwrap_or_default();
+                (format!("\"{noun}\""), hint)
+            }
+            _ => ("this instance".to_string(), String::new()),
+        };
+        held.push(Finding {
+            rule: rule_for(kind),
+            range,
+            message: format!(
+                "{feature}: {subject} has no licensed rewrite and the document is still \
+                 above the human band ({feature_rate:.2} > {band_high:.2} per 1000 words) \
+                 — needs a human hand{verb_hint}"
+            ),
+            tier: Tier::Suggest,
+        });
+    }
+}
+
 /// The document-wide `(total_words, nominalization_count,
 /// agentless_passive_count, em_dash_count, semicolon_count)` totals over
 /// `sentences`.
@@ -372,25 +477,17 @@ pub fn run_register(
                 &mut accepted,
             );
             total_words = new_words;
-            // A Decrease feature can run out of licensed candidates while
-            // still above its band — every remaining instance was a
-            // hold-don't-guess decline at candidate-generation time, which
-            // leaves no per-span finding of its own. Surface ONE
-            // document-level Suggest finding so the report says why the
-            // visible tells remain, instead of ending silent.
             if direction == Direction::Decrease && rate(final_count, total_words) > band.high {
-                held.push(Finding {
-                    rule: rule_for(kind),
-                    range: 0..0,
-                    message: format!(
-                        "{feature}: {final_count} instance(s) remain and the document is still \
-                         above the human band ({:.2} > {:.2} per 1000 words) — none has a \
-                         licensed rewrite, so each needs a human hand",
-                        rate(final_count, total_words),
-                        band.high
-                    ),
-                    tier: Tier::Suggest,
-                });
+                push_remainder_findings(
+                    &mut held,
+                    &sentences,
+                    source,
+                    kind,
+                    &accepted,
+                    feature,
+                    rate(final_count, total_words),
+                    band.high,
+                );
             }
         }
     }

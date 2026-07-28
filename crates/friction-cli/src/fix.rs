@@ -247,6 +247,11 @@ fn print_summary(
                 "  paraphrase: {} span(s) flagged for manual rewrite",
                 paraphrase_spans.len()
             );
+            // A count with no way to see what it counts is a dead end:
+            // point at the flag that prints the actual findings.
+            if !suggest && (!suggestions.is_empty() || !paraphrase_spans.is_empty()) {
+                eprintln!("  (run with --suggest to see them)");
+            }
         }
     }
 }
