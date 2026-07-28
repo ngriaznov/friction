@@ -155,6 +155,23 @@ jobs:
           path: dist
           merge-multiple: true
 
+      # The data artifacts compiled into every binary, published standalone
+      # so they can be fetched, cached, and verified independently (the
+      # sidecars and headers already carry source sha256 provenance) — the
+      # groundwork for non-embedded consumers such as a wasm build.
+      - name: Stage data artifacts
+        run: |
+          v="${{ needs.version.outputs.version }}"
+          for f in crates/friction-nlp/weights/parser_en.bin \
+                   crates/friction-nlp/weights/perceptron_en.bin \
+                   crates/friction-packs/packs/jargon-attest-v1.bin; do
+            name="friction-data-${v}-$(basename "$f")"
+            cp "$f" "dist/$name"
+            shasum -a 256 "dist/$name" | cut -d' ' -f1 > "dist/$name.sha256"
+          done
+          cp crates/friction-packs/packs/jargon-attest-v1.toml \
+            "dist/friction-data-${v}-jargon-attest-v1.toml"
+
       - run: ls -l dist
 
       # Creates the tag as well as the release, which is why nothing tags
@@ -170,6 +187,13 @@ jobs:
             extract, and put `friction` on your `PATH`.
 
             Each archive carries a `.sha256` alongside it.
+
+            The `friction-data-*` assets are the weight and attestation
+            artifacts compiled into every binary, published standalone for
+            independent verification and for consumers that load them at
+            runtime instead of embedding them. Their formats and source
+            provenance are documented in the repository
+            (`crates/friction-nlp/weights/NOTICE.md`, the pack sidecars).
 
             **macOS:** these binaries are unsigned, so Gatekeeper will refuse the
             first run. Either `xattr -cr ./friction` or right-click → Open once.
