@@ -80,8 +80,15 @@ Six operations edit text. Nothing else does.
 
    It fires only while the document sits outside a band measured from human
    documents, and stops at the band's edge rather than its centre — every
-   document landing on the same coordinates would be a tell of its own. On the
-   corpus it edits roughly one machine document in ten.
+   document landing on the same coordinates would be a tell of its own. The
+   band comparison uses a Wilson confidence bound, not the raw rate, so the
+   evidence has to be worth the sample: a 58-word comment with four
+   nominalizations reads 69 per 1000 words — above the band — but a sample
+   that small can't support the claim, and the feature stays quiet; the same
+   density sustained over 700 words arms it. Short texts are never refused,
+   just held to a higher evidentiary bar (a single em dash still arms its
+   zero band at any length). On the corpus it edits roughly one machine
+   document in ten.
 
 Every edit passes a stack of hard gates: closure as described above — content
 words input-derived, function words only from the declared set — is checked on

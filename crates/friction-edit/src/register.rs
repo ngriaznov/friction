@@ -477,7 +477,9 @@ pub fn run_register(
                 &mut accepted,
             );
             total_words = new_words;
-            if direction == Direction::Decrease && rate(final_count, total_words) > band.high {
+            if direction == Direction::Decrease
+                && wilson_lower(final_count, total_words) > band.high
+            {
                 push_remainder_findings(
                     &mut held,
                     &sentences,
@@ -559,11 +561,18 @@ fn feature_plan(
     CandidateKind,
 ); 4] {
     [
+        // Arming compares a Wilson confidence bound against the band, not
+        // the raw point estimate — see [`WILSON_Z`]'s docs. A Decrease
+        // feature arms only when even the LOWER bound clears `band.high`;
+        // the Increase feature arms only when even the UPPER bound sits
+        // below `band.low`. Either way, the document must be confidently
+        // outside the band, not just measured outside it on a sample too
+        // small to know.
         (
             "agentless_passive",
             register_pack
                 .band("agentless_passive")
-                .filter(|band| rate(count_agentless_passive, total_words) < band.low),
+                .filter(|band| wilson_upper(count_agentless_passive, total_words) < band.low),
             Direction::Increase,
             count_agentless_passive,
             CandidateKind::ActivizeToPassive,
@@ -572,7 +581,7 @@ fn feature_plan(
             "nominalization",
             register_pack
                 .band("nominalization")
-                .filter(|band| rate(count_nominalization, total_words) > band.high),
+                .filter(|band| wilson_lower(count_nominalization, total_words) > band.high),
             Direction::Decrease,
             count_nominalization,
             CandidateKind::NominalizationUnpack,
@@ -581,7 +590,7 @@ fn feature_plan(
             "em_dash",
             register_pack
                 .band("em_dash")
-                .filter(|band| rate(count_em_dash, total_words) > band.high),
+                .filter(|band| wilson_lower(count_em_dash, total_words) > band.high),
             Direction::Decrease,
             count_em_dash,
             CandidateKind::EmDash,
@@ -590,7 +599,7 @@ fn feature_plan(
             "semicolon",
             register_pack
                 .band("semicolon")
-                .filter(|band| rate(count_semicolon, total_words) > band.high),
+                .filter(|band| wilson_lower(count_semicolon, total_words) > band.high),
             Direction::Decrease,
             count_semicolon,
             CandidateKind::Semicolon,
@@ -634,6 +643,58 @@ fn rate(count: i64, words: i64) -> f64 {
     #[allow(clippy::cast_precision_loss)]
     let (count, words) = (count as f64, words as f64);
     count / words * 1000.0
+}
+
+/// The z-score both Wilson bounds are computed at — 1.96, the
+/// conventional 95% figure.
+///
+/// The point of the bounds is evidence-proportional arming: a 58-word
+/// comment with 4 nominalizations has a point rate of 69/1000, well
+/// above the 50.56 band, but its lower bound is ~27/1000 — the sample
+/// simply cannot support the claim, so the feature stays quiet. The
+/// same density sustained over 700 words clears the bound and arms.
+/// This replaces any fixed word-count floor: a short text is never
+/// refused, it is held to a higher evidentiary bar that decays smoothly
+/// toward the band as length grows (and a zero band still arms on a
+/// single instance at any length — the lower bound of 1-in-anything is
+/// above zero).
+const WILSON_Z: f64 = 1.96;
+
+/// The Wilson score interval's lower bound on a feature's rate, per
+/// 1000 prose words — what a Decrease feature's arming compares against
+/// `band.high` instead of the raw point estimate.
+///
+/// Closed-form and deterministic: IEEE-754 `sqrt` is exactly rounded,
+/// so the same `(count, words)` produces the same bits on every
+/// platform — the byte-determinism bar every path in this crate meets.
+fn wilson_lower(count: i64, words: i64) -> f64 {
+    wilson_bounds(count, words).0
+}
+
+/// The Wilson score interval's upper bound on a feature's rate, per
+/// 1000 prose words — the mirrored test for the one Increase feature:
+/// agentless passive arms only when even the upper bound sits below
+/// `band.low`, i.e. the document is confidently *under*-using the
+/// construction rather than just short.
+fn wilson_upper(count: i64, words: i64) -> f64 {
+    wilson_bounds(count, words).1
+}
+
+/// Both Wilson bounds, as rates per 1000 prose words.
+fn wilson_bounds(count: i64, words: i64) -> (f64, f64) {
+    if words <= 0 {
+        return (0.0, 0.0);
+    }
+    #[allow(clippy::cast_precision_loss)]
+    let (k, n) = (count as f64, words as f64);
+    let p = k / n;
+    let z2 = WILSON_Z * WILSON_Z;
+    let denominator = 1.0 + z2 / n;
+    let centre = p + z2 / (2.0 * n);
+    let spread = WILSON_Z * (p * (1.0 - p) / n + z2 / (4.0 * n * n)).sqrt();
+    let lower = ((centre - spread) / denominator).max(0.0);
+    let upper = ((centre + spread) / denominator).min(1.0);
+    (lower * 1000.0, upper * 1000.0)
 }
 
 /// Generates every `kind` candidate over every sentence, gates each one
@@ -961,6 +1022,63 @@ mod tests {
     use friction_nlp::{Confidence, DepEdge, DepRelation, PosTag};
 
     use super::*;
+
+    // --- Wilson bounds: evidence-proportional arming ---
+
+    /// The motivating case: a 58-word comment with 4 nominalizations has
+    /// a point rate of 68.97/1000 — above the 50.56 band — but its lower
+    /// bound (~27/1000) is not, so the feature must stay quiet. Seven
+    /// instances in the same 58 words (~121/1000 point rate, lower bound
+    /// ~60/1000) is real evidence and must arm.
+    #[test]
+    fn wilson_lower_holds_short_texts_to_a_higher_bar() {
+        let band_high = 50.56;
+        assert!(rate(4, 58) > band_high, "the point estimate IS above band");
+        assert!(wilson_lower(4, 58) < band_high, "…but the evidence isn't");
+        assert!((wilson_lower(4, 58) - 27.2).abs() < 0.5);
+        assert!(
+            wilson_lower(7, 58) > band_high,
+            "7 instances in 58 words is"
+        );
+    }
+
+    /// A zero band still arms on a single instance at any length — the
+    /// lower bound of one-in-anything is above zero — so em-dash
+    /// rewriting keeps working on short snippets with no special case.
+    #[test]
+    fn wilson_lower_of_one_instance_clears_a_zero_band_at_any_length() {
+        for words in [5, 20, 100, 10_000] {
+            assert!(wilson_lower(1, words) > 0.0, "words={words}");
+        }
+    }
+
+    /// The semicolon band (high 3.66/1000): one semicolon in 40 words is
+    /// a strong density signal and arms; one in 200 words is consistent
+    /// with human use and doesn't.
+    #[test]
+    fn wilson_lower_separates_dense_from_incidental_semicolons() {
+        assert!(wilson_lower(1, 40) > 3.66);
+        assert!(wilson_lower(1, 200) < 3.66);
+    }
+
+    /// The Increase mirror: a 58-word text with zero passives has an
+    /// upper bound of ~62/1000 — the sample can't establish confident
+    /// under-use, so passivization must not arm on a short comment.
+    #[test]
+    fn wilson_upper_does_not_call_a_short_text_underpassivized() {
+        assert!((wilson_upper(0, 58) - 62.1).abs() < 0.5);
+        assert!(wilson_upper(0, 58) > 8.0);
+    }
+
+    /// Degenerate and determinism cases: an empty document yields
+    /// `(0, 0)`, and the closed form is bit-stable across calls.
+    #[test]
+    fn wilson_bounds_are_deterministic_and_safe_on_empty_input() {
+        assert_eq!(wilson_bounds(0, 0), (0.0, 0.0));
+        assert_eq!(wilson_bounds(4, 58), wilson_bounds(4, 58));
+        let (lower, upper) = wilson_bounds(4, 58);
+        assert!(lower < rate(4, 58) && rate(4, 58) < upper);
+    }
 
     /// A candidate introducing a word outside the input, the inflection
     /// tables, and the permitted function-word set must be rejected by
