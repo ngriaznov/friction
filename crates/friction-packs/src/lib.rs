@@ -13,19 +13,25 @@
 //!
 //! Every asset this workspace's NLP layer uses is vendored directly into
 //! the repo (the sentence-segmentation ruleset, the part-of-speech
-//! tagger's weight artifact) and every pack in this crate is embedded via
-//! `include_str!` — nothing is fetched at build time or at run time, and
-//! no runtime cache directory needs to exist for a compiled `friction`
-//! binary to work.
+//! tagger's weight artifact) and every pack in this crate is embedded
+//! (`include_str!` for the TOML packs, `include_bytes!` for the two
+//! derived binary artifacts) — nothing is fetched at build time or at
+//! run time, and no runtime cache directory needs to exist for a
+//! compiled `friction` binary to work.
 //!
 //! # DMS index
 //!
 //! [`DmsIndex`] parses the token-id-stream pack `corpus-tool index`
-//! writes (`packs/dms-index-v1.toml`, embedded and exposed pre-parsed as
-//! [`DMS`]) into a shared [`Vocab`] plus one suffix automaton ([`Sam`])
-//! per stream — the human corpus and whichever of the four [`ModelFamily`]
-//! generator corpora the pack defines. A detection crate built on top of
-//! this one wires [`DMS`] into a running fix-time detection pass.
+//! writes (`packs/dms-index-v1.toml`) into a shared [`Vocab`] plus one
+//! suffix automaton ([`Sam`]) per stream — the human corpus and
+//! whichever of the five [`ModelFamily`] generator corpora the pack
+//! defines. That TOML path is the audited source, used offline; the
+//! runtime pass reads [`DMS`] instead — a zero-copy [`DmsIndexView`]
+//! over the derived artifact `corpus-tool dms-pack` serializes the
+//! finished automata into (`packs/dms-index-v1.bin`, embedded), so
+//! process start pays no TOML parse or automaton construction. See
+//! `dms_bin`'s module docs for the layout and the drift guard keeping
+//! the two representations in lockstep.
 //!
 //! # Inventory pack
 //!
@@ -95,6 +101,7 @@
 mod artifact;
 mod attestation;
 mod dms;
+mod dms_bin;
 mod envelope;
 mod inventory;
 mod jargon;
@@ -106,6 +113,7 @@ mod validate;
 pub use artifact::{PackError, Sha256};
 pub use attestation::{AttestationPack, BigramTable, NearNoOpCalibration, SkeletonSet};
 pub use dms::{DmsIndex, ModelFamily, Sam, Vocab};
+pub use dms_bin::{DmsBinError, DmsIndexView, SamView, VocabView, pack_dms_index_bin};
 pub use envelope::{ENVELOPE_V2, EnvelopePack, exceedance};
 pub use inventory::{
     Anchor, DeletionSpan, FrequencyUnit, GuardTokens, InventoryPack, LvcPair, OutputFrequencyBand,

@@ -13,7 +13,7 @@
 //! bridge across a heading/table gap into a byte range that slices
 //! through excluded content.
 
-use friction_packs::{DmsIndex, ModelFamily, Sam, Vocab};
+use friction_packs::{DmsIndexView, ModelFamily, SamView, VocabView};
 use rayon::prelude::*;
 
 use crate::span::{Channel, DmsFamilyReport, DmsReport, MatchScore, MatchSpan};
@@ -97,9 +97,9 @@ pub fn spans_from_curve(
 }
 
 /// Queries `unit`'s tokens through `vocab`, producing the `Option<u32>`
-/// query [`Sam::matching_stats`] expects (`None` for an out-of-vocabulary
-/// token, the `-1` sentinel).
-fn query_ids(unit: &ScopedUnit<'_>, vocab: &Vocab) -> Vec<Option<u32>> {
+/// query [`SamView::matching_stats`] expects (`None` for an
+/// out-of-vocabulary token, the `-1` sentinel).
+fn query_ids(unit: &ScopedUnit<'_>, vocab: VocabView<'_>) -> Vec<Option<u32>> {
     unit.tokens
         .iter()
         .map(|token| vocab.id_of(&token.text))
@@ -112,10 +112,10 @@ fn query_ids(unit: &ScopedUnit<'_>, vocab: &Vocab) -> Vec<Option<u32>> {
 /// via `unit.tokens`, and tags every span `frame_id = "dms.<family>"`.
 pub fn scan_units(
     units: &[ScopedUnit<'_>],
-    target: &Sam,
+    target: SamView<'_>,
     target_family: ModelFamily,
-    human: &Sam,
-    vocab: &Vocab,
+    human: SamView<'_>,
+    vocab: VocabView<'_>,
 ) -> Vec<MatchSpan> {
     let mut spans = Vec::new();
     let frame_id: Box<str> = format!("dms.{target_family}").into_boxed_str();
@@ -172,9 +172,9 @@ struct UnitContext {
 /// contract.
 pub fn document_report(
     units: &[ScopedUnit<'_>],
-    index: &DmsIndex,
+    index: &DmsIndexView<'_>,
     target_family: ModelFamily,
-    vocab: &Vocab,
+    vocab: VocabView<'_>,
 ) -> DmsReport {
     let contexts: Vec<UnitContext> = units
         .par_iter()
@@ -202,7 +202,7 @@ pub fn document_report(
 /// `par_iter` runs.
 fn family_report(
     contexts: &[UnitContext],
-    index: &DmsIndex,
+    index: &DmsIndexView<'_>,
     family: ModelFamily,
 ) -> Option<DmsFamilyReport> {
     let sam = index.family_sam(family)?;

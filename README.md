@@ -605,7 +605,11 @@ detection frame, or introduces an unattested content word, fails the build):
   substitution pairs, ritual frames, licensed light-verb pairs, guard-token
   classes. Hand-reviewed; every mined entry carries its corpus counts.
 - `dms-index-v1.toml` — per-family machine/human token streams for the
-  matching-statistics channel.
+  matching-statistics channel. The runtime embeds `dms-index-v1.bin`
+  alongside it: the same streams with their suffix automata pre-built by
+  `corpus-tool dms-pack` and serialized flat, loaded as a zero-copy view
+  so process start pays no parse or automaton construction (a test
+  re-packs the TOML and fails if the two ever diverge).
 - `attestation-v1.toml` — human-corpus bigram seams, tag-skeleton sets, and the
   near-no-op calibration.
 - `register-v1.toml` — the per-feature bands register homes toward, as the 10th

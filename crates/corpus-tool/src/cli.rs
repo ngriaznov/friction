@@ -95,6 +95,11 @@ enum Command {
     /// (`friction_nlp::PerceptronTagger`/`PerceptronParser` load at
     /// runtime) from the vendored, audited `json.gz` weight artifacts.
     WeightsPack(commands::weights_pack::Args),
+    /// Builds the derived DMS binary artifact (`friction_packs::DMS`
+    /// loads at runtime) from the vendored `dms-index-v1.toml`: every
+    /// stream's suffix automaton pre-built and serialized flat, so
+    /// process start pays no TOML parse or automaton construction.
+    DmsPack(commands::dms_pack::Args),
 }
 
 /// Parses process arguments and runs the selected subcommand.
@@ -150,5 +155,6 @@ pub fn run() -> anyhow::Result<()> {
         Command::RegisterBands(args) => commands::register_bands::run(&args),
         Command::JargonAttest(args) => commands::jargon_attest::run(&args),
         Command::WeightsPack(args) => commands::weights_pack::run(&args),
+        Command::DmsPack(args) => commands::dms_pack::run(&args),
     }
 }

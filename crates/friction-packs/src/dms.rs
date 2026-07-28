@@ -232,6 +232,33 @@ impl Sam {
         self.last = cur;
     }
 
+    /// The number of states, including the root — the serialization bound
+    /// `crate::dms_bin`'s packer walks.
+    pub(crate) const fn state_count(&self) -> usize {
+        self.len.len()
+    }
+
+    /// State `s`'s `len` value (longest string reaching it).
+    pub(crate) fn len_of(&self, s: usize) -> u32 {
+        self.len[s]
+    }
+
+    /// State `s`'s suffix link (`None` only for the root).
+    pub(crate) fn link_of(&self, s: usize) -> Option<u32> {
+        self.link[s]
+    }
+
+    /// State `s`'s outgoing transitions, sorted by label — the one place
+    /// `next`'s `HashMap` is ever *iterated*, and only after an explicit
+    /// sort, so the machine-dependent bucket order documented on [`Sam`]
+    /// never reaches the serialized artifact.
+    pub(crate) fn sorted_transitions(&self, s: usize) -> Vec<(u32, u32)> {
+        let mut transitions: Vec<(u32, u32)> =
+            self.next[s].iter().map(|(&c, &to)| (c, to)).collect();
+        transitions.sort_unstable();
+        transitions
+    }
+
     /// The longest match ENDING at each position of `query`, walking the
     /// automaton exactly as `ref_dms.py::matching_stats` does. `None` in
     /// `query` is the `-1` sentinel: a query token absent from the shared
@@ -401,6 +428,12 @@ impl DmsIndex {
     #[must_use]
     pub fn family_sam(&self, family: ModelFamily) -> Option<&Sam> {
         self.families.get(&family)
+    }
+
+    /// Every family stream this pack defines, in [`ModelFamily`] order —
+    /// the iteration `crate::dms_bin`'s packer serializes streams in.
+    pub(crate) fn family_sams(&self) -> impl Iterator<Item = (ModelFamily, &Sam)> {
+        self.families.iter().map(|(&family, sam)| (family, sam))
     }
 }
 

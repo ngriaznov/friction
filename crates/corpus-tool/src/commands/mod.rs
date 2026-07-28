@@ -10,6 +10,7 @@
 
 pub mod attest;
 pub mod clean;
+pub mod dms_pack;
 pub mod envelope;
 pub mod fix_entities;
 pub mod generate;

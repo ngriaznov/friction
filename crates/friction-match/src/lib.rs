@@ -70,7 +70,7 @@ pub use span::{Channel, DmsFamilyReport, DmsReport, DocumentReport, MatchScore, 
 
 use friction_core::Document;
 use friction_nlp::{Segmenter, Tagger};
-use friction_packs::{DmsIndex, InventoryPack, JargonAttestPack, JargonPack, ModelFamily};
+use friction_packs::{DmsIndexView, InventoryPack, JargonAttestPack, JargonPack, ModelFamily};
 
 use crate::token::ScopedUnit;
 
@@ -82,7 +82,7 @@ use crate::token::ScopedUnit;
 /// separate concern.
 pub struct MatchEngine<'a> {
     inventory: &'a InventoryPack,
-    dms: &'a DmsIndex,
+    dms: &'a DmsIndexView<'a>,
     jargon: &'a JargonPack,
     jargon_attest: &'a JargonAttestPack,
     target_family: ModelFamily,
@@ -104,7 +104,7 @@ impl<'a> MatchEngine<'a> {
     /// the embedded pack — covered by this crate's own tests).
     pub fn new(
         inventory: &'a InventoryPack,
-        dms: &'a DmsIndex,
+        dms: &'a DmsIndexView<'a>,
         jargon: &'a JargonPack,
         jargon_attest: &'a JargonAttestPack,
         target_family: ModelFamily,
@@ -236,7 +236,7 @@ impl<'a> MatchEngine<'a> {
 #[must_use]
 pub fn dms_spans_for_family(
     units: &[ScopedUnit<'_>],
-    dms: &DmsIndex,
+    dms: &DmsIndexView<'_>,
     family: ModelFamily,
 ) -> Option<Vec<MatchSpan>> {
     let target_sam = dms.family_sam(family)?;

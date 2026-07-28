@@ -6,6 +6,7 @@ use std::sync::LazyLock;
 
 use crate::attestation::AttestationPack;
 use crate::dms::DmsIndex;
+use crate::dms_bin::DmsIndexView;
 use crate::inventory::InventoryPack;
 use crate::jargon::JargonPack;
 use crate::jargon_attest::JargonAttestPack;
@@ -26,8 +27,14 @@ pub struct LoadedPack<T> {
 /// `ENVELOPE_V2_TOML`.
 const INVENTORY_V1_TOML: &str = include_str!("../packs/inventory-v1.toml");
 
-/// The embedded `dms-index-v1.toml` source — ~1.9 MB.
-const DMS_INDEX_V1_TOML: &str = include_str!("../packs/dms-index-v1.toml");
+/// The embedded derived DMS artifact — every stream's suffix automaton
+/// pre-built by `corpus-tool dms-pack` and serialized flat (see
+/// [`crate::dms_bin`]'s module docs for the layout and why). The source
+/// `dms-index-v1.toml` stays in `packs/` as the audited artifact
+/// `corpus-tool index` writes, but is no longer embedded or parsed at
+/// runtime: this crate's `dms_bin` drift test re-packs it and compares
+/// bytes, so the two cannot silently diverge.
+const DMS_INDEX_V1_BIN: &[u8] = include_bytes!("../packs/dms-index-v1.bin");
 
 /// The built-in inventory pack, parsed once from the embedded
 /// `inventory-v1.toml` and reused for the life of the process.
@@ -57,8 +64,9 @@ pub static INVENTORY: LazyLock<LoadedPack<InventoryPack>> = LazyLock::new(|| {
 /// — today, `corpus-tool index --calibrate`) into a [`LoadedPack`], the
 /// same `sha256`-recording discipline [`INVENTORY`] uses.
 ///
-/// Deliberately **not** embedded here: the pack is ~1.9 MB and not yet
-/// wired into any runtime detection pass — see [`crate::dms`]'s own docs.
+/// This is the TOML-source path, used offline by `corpus-tool`; the
+/// runtime detection pass reads [`DMS`], the derived binary artifact's
+/// zero-copy view, instead.
 ///
 /// # Errors
 /// Returns [`PackError`] if `toml` does not parse as a valid
@@ -72,21 +80,29 @@ pub fn load_dms_pack(toml: &str) -> Result<LoadedPack<DmsIndex>, PackError> {
     })
 }
 
-/// The built-in DMS index, parsed once from the embedded
-/// `dms-index-v1.toml` and reused for the life of the process.
+/// The built-in DMS index, viewed zero-copy over the embedded derived
+/// artifact and reused for the life of the process.
 ///
-/// ~1.9 MB embedded — the pack this crate's own `dms` module docs said
-/// was "not yet wired into any runtime detection pass"; `friction-match`
-/// is that pass.
+/// This used to parse the ~2.5 MB `dms-index-v1.toml` and build every
+/// suffix automaton on first touch — the whole of `friction`'s measured
+/// fixed startup cost (~90 ms). The view does a handful of slice splits
+/// instead; the construction now happens once, offline, in `corpus-tool
+/// dms-pack`. `sha256` records the **source TOML's** digest (carried in
+/// the artifact's own header), preserving this registry's provenance
+/// contract: the checksum still names the audited source bytes, exactly
+/// as it did when the TOML was parsed directly.
 ///
 /// # Panics
-/// Panics if the embedded pack fails to parse — a bug in this crate's own
-/// vendored data, not a runtime condition.
-pub static DMS: LazyLock<LoadedPack<DmsIndex>> = LazyLock::new(|| {
-    let pack = DmsIndex::parse(DMS_INDEX_V1_TOML).expect("embedded dms-index-v1.toml must parse");
+/// Panics if the embedded artifact fails to parse — a bug in this
+/// crate's own vendored data (covered by `dms_bin`'s round-trip and
+/// drift tests), not a runtime condition.
+pub static DMS: LazyLock<LoadedPack<DmsIndexView<'static>>> = LazyLock::new(|| {
+    let pack = DmsIndexView::parse(DMS_INDEX_V1_BIN).expect("embedded dms-index-v1.bin must parse");
+    let sha256 = Sha256::parse_hex(pack.source_sha256_hex())
+        .expect("a parsed artifact's recorded sha256 is always 64 hex characters");
     LoadedPack {
         version: "dms-index-v1".into(),
-        sha256: Sha256::of_bytes(DMS_INDEX_V1_TOML.as_bytes()),
+        sha256,
         pack,
     }
 });
@@ -222,22 +238,42 @@ mod tests {
         assert_eq!(loaded.sha256, Sha256::of_bytes(SAMPLE_DMS_PACK.as_bytes()));
     }
 
+    /// The in-repo source TOML, loaded at test time only — the runtime
+    /// embeds the derived `.bin`, and these tests are what keep the two
+    /// from diverging.
+    const DMS_INDEX_V1_TOML: &str = include_str!("../packs/dms-index-v1.toml");
+
     #[test]
     fn dms_static_loads_and_defines_every_family() {
         assert_eq!(&*DMS.version, "dms-index-v1");
         for family in crate::ModelFamily::ALL {
             assert!(
                 DMS.pack.family_sam(family).is_some(),
-                "embedded dms-index-v1.toml has no stream for {family}"
+                "embedded dms-index-v1.bin has no stream for {family}"
             );
         }
     }
 
     #[test]
-    fn dms_sha256_matches_recomputed_hash_of_the_embedded_bytes() {
+    fn dms_sha256_matches_recomputed_hash_of_the_source_toml() {
         let recomputed = Sha256::of_bytes(DMS_INDEX_V1_TOML.as_bytes());
         assert_eq!(DMS.sha256, recomputed);
         assert!(recomputed.verify(DMS_INDEX_V1_TOML.as_bytes()));
+    }
+
+    /// The drift guard: re-packing the in-repo TOML must reproduce the
+    /// embedded `.bin` byte for byte. Fails when `corpus-tool index`
+    /// regenerates the TOML but `corpus-tool dms-pack` wasn't re-run —
+    /// the exact staleness the artifact's recorded source sha256 exists
+    /// to catch.
+    #[test]
+    fn dms_bin_is_freshly_packed_from_the_source_toml() {
+        let repacked =
+            crate::pack_dms_index_bin(DMS_INDEX_V1_TOML).expect("in-repo dms-index-v1.toml packs");
+        assert_eq!(
+            repacked, DMS_INDEX_V1_BIN,
+            "packs/dms-index-v1.bin is stale: re-run `corpus-tool dms-pack`"
+        );
     }
 
     #[test]
