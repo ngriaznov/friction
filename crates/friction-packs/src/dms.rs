@@ -9,10 +9,11 @@
 //! detection crate built on top of this one (`friction-match`) wires a
 //! [`DmsIndex`] into a running fix-time detection pass.
 //!
-//! [`Sam`] is a faithful transcription of the suffix-automaton reference
-//! (`next`/`link`/`len` arrays, the exact clone-handling branch in
-//! `extend`, and the matching-statistics walk), over `u32` token ids
-//! rather than characters.
+//! [`Sam`] is the textbook online suffix-automaton construction
+//! (`next`/`link`/`len` arrays, the clone-splitting branch in `extend`,
+//! and the matching-statistics walk — see
+//! `docs/research/ALGORITHMS.md` §1), over `u32` token ids rather than
+//! characters.
 
 use std::collections::{BTreeMap, HashMap};
 
@@ -97,7 +98,8 @@ impl Vocab {
     }
 
     /// The id for `token`'s exact text, or `None` if it is out-of-vocab —
-    /// the `-1` case `ref_dms.py::ids_query` maps an unseen word to.
+    /// the sentinel [`Sam::matching_stats`] treats as "no transition
+    /// anywhere".
     #[must_use]
     pub fn id_of(&self, token: &str) -> Option<u32> {
         self.by_text.get(token).copied()
@@ -126,10 +128,9 @@ impl Vocab {
 
 /// Suffix automaton over a `u32` token-id stream.
 ///
-/// Faithful transcription of `ref_dms.py::SAM`: `next`/`link`/`len`
-/// arrays, the exact clone-handling branch in `extend`. Rust's `Option<u32>`
-/// stands in for Python's `-1` sentinel: `link[0]` (the root's own link)
-/// is `None`, every other state's link is always `Some`.
+/// The standard online construction — `next`/`link`/`len` arrays and the
+/// clone-splitting branch in `extend`. `link[0]` (the root's own suffix
+/// link) is `None`; every other state's link is always `Some`.
 ///
 /// `next` is a `HashMap` per state rather than a `BTreeMap`: unlike every
 /// other collection in this codebase that is *iterated* to produce
@@ -170,8 +171,8 @@ impl Sam {
         }
     }
 
-    /// Builds a suffix automaton over `ids`, in order — `ref_dms.py`'s own
-    /// `for c in stream: sam.extend(c)` loop.
+    /// Builds a suffix automaton over `ids`, extending one id at a time,
+    /// in order.
     #[must_use]
     pub fn build(ids: &[u32]) -> Self {
         let mut sam = Self::new();
@@ -181,10 +182,10 @@ impl Sam {
         sam
     }
 
-    /// Extends the automaton by one token id. Transcribed 1:1 from
-    /// `ref_dms.py::SAM.extend`, with Python's `-1` sentinel (`p == -1`,
-    /// meaning "walked off the root") represented as `p: Option<u32> ==
-    /// None`.
+    /// Extends the automaton by one token id — the standard online step:
+    /// walk suffix links adding the new transition until a state already
+    /// has one, then either link directly or split off a clone state.
+    /// `p == None` means the walk ran off the root.
     fn extend(&mut self, c: u32) {
         #[allow(clippy::cast_possible_truncation)]
         let cur = self.next.len() as u32;
@@ -259,9 +260,10 @@ impl Sam {
         transitions
     }
 
-    /// The longest match ENDING at each position of `query`, walking the
-    /// automaton exactly as `ref_dms.py::matching_stats` does. `None` in
-    /// `query` is the `-1` sentinel: a query token absent from the shared
+    /// The longest match ENDING at each position of `query` — the
+    /// matching-statistics walk: follow transitions while they exist,
+    /// fall back along suffix links when they don't. `None` in
+    /// `query` marks a query token absent from the shared
     /// vocabulary entirely (out-of-vocab), which always forces `l` to `0`
     /// and the walk back to the root state, the same as a known id this
     /// automaton's alphabet simply never saw following the current state.
@@ -497,11 +499,8 @@ mod tests {
     /// Corpus `[1,2,3,2,3]` ("a b c b c"). Querying the corpus back
     /// against its own automaton gives a strictly growing match length at
     /// every position, ending at the full length: every prefix of the
-    /// corpus is (trivially) a substring of the corpus.
-    ///
-    /// Cross-checked by re-running `ref_dms.py`'s own `SAM`/
-    /// `matching_stats` (verbatim, offline) against this exact input:
-    /// `[1, 2, 3, 4, 5]`.
+    /// corpus is (trivially) a substring of the corpus, so the expected
+    /// curve is `[1, 2, 3, 4, 5]`.
     #[test]
     fn matching_stats_self_query_grows_to_full_length() {
         let sam = Sam::build(&[1, 2, 3, 2, 3]);
@@ -512,10 +511,8 @@ mod tests {
     /// Same corpus. A query id genuinely absent from the corpus (`9`,
     /// never extended into the automaton at all) produces `0` at that
     /// position and forces a reset to the root — matching lengths after
-    /// it recover from empty match state, not from wherever the walk was
-    /// before the miss.
-    ///
-    /// Cross-checked against `ref_dms.py`: `[1, 2, 0, 1, 2]`.
+    /// it recover from empty match state (`[1, 2, 0, 1, 2]`), not from
+    /// wherever the walk was before the miss.
     #[test]
     fn matching_stats_unseen_id_produces_zero_and_resets() {
         let sam = Sam::build(&[1, 2, 3, 2, 3]);
@@ -524,11 +521,9 @@ mod tests {
     }
 
     /// Same corpus and query shape as the unseen-id case, but the missing
-    /// position is `None` (the out-of-vocabulary / `-1` sentinel) rather
-    /// than a known-but-absent id. Produces the identical curve — both
+    /// position is `None` (out-of-vocabulary) rather than a
+    /// known-but-absent id. Produces the identical curve — both
     /// are "no transition for this token", just for different reasons.
-    ///
-    /// Cross-checked against `ref_dms.py`: `[1, 2, 0, 1, 2]`.
     #[test]
     fn matching_stats_unknown_token_produces_zero_and_resets() {
         let sam = Sam::build(&[1, 2, 3, 2, 3]);
@@ -536,17 +531,14 @@ mod tests {
         assert_eq!(sam.matching_stats(&query), vec![1, 2, 0, 1, 2]);
     }
 
-    /// A second, independent hand/reference-checked example: corpus
-    /// `[1,2,1,2,3]` ("a b a b c"), queried with `[2,1,2,3,1]` ("b a b c
-    /// a"). The match grows through `"baba"`'s longest run
-    /// (`b`,`ba`,`bab`,`babc`... — actually the corpus contains `"abab"`,
-    /// so `"b"`,`"ab"`... see the reference cross-check) and drops back
-    /// on the final `a` because `"ca"` never occurs in the corpus, only a
-    /// bare `"a"` does.
-    ///
-    /// Cross-checked against `ref_dms.py`: `[1, 2, 3, 4, 1]`.
+    /// A second, independent hand-worked example: corpus `[1,2,1,2,3]`
+    /// ("a b a b c"), queried with `[2,1,2,3,1]` ("b a b c a"). The
+    /// match grows through the corpus's `"b"`, `"ba"`, `"bab"`, `"babc"`
+    /// substrings and drops back to `1` on the final `a`, because `"ca"`
+    /// never occurs in the corpus — only a bare `"a"` does. Expected
+    /// curve: `[1, 2, 3, 4, 1]`.
     #[test]
-    fn matching_stats_matches_second_reference_cross_check() {
+    fn matching_stats_second_hand_worked_example() {
         let sam = Sam::build(&[1, 2, 1, 2, 3]);
         let query: Vec<Option<u32>> = vec![Some(2), Some(1), Some(2), Some(3), Some(1)];
         assert_eq!(sam.matching_stats(&query), vec![1, 2, 3, 4, 1]);

@@ -106,8 +106,8 @@ fn ritual_deletion_never_empties_a_numbered_list_item() {
 }
 
 /// An unordered list item is not covered by the enumeration hold: no
-/// counted sequence breaks, so the reference's unconditional ritual
-/// deletion still applies.
+/// counted sequence breaks, so ritual deletion's unconditional rule
+/// still applies.
 #[test]
 fn ritual_deletion_still_fires_in_unordered_list_items() {
     let source = "Notes:\n\n- If you have any questions, please reach out to support.\n- \

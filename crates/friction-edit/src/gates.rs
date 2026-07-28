@@ -72,9 +72,11 @@ pub fn clause_gate(post_edit_tokens: &[TaggedToken], text: &str, original_clause
     clause_ok(post_edit_tokens, text) || !original_clause_ok
 }
 
-/// Tags `text` from scratch (case-preserved, offset 0) — the one place
-/// this crate re-runs the tagger mid-pipeline, matching the reference
-/// engine's own re-tagging-per-candidate discipline.
+/// Tags `text` from scratch (case-preserved, offset 0).
+///
+/// The one place this crate re-runs the tagger mid-pipeline: a
+/// candidate's post-edit text is a string that never existed before, so
+/// no cached tags can describe it.
 #[must_use]
 pub fn tag(tagger: &dyn Tagger, text: &str) -> Vec<TaggedToken> {
     tagger.tag(text, 0)
@@ -119,9 +121,10 @@ pub fn check_deletion_gates(
     let sentence_initial = pre_tokens.is_empty();
     let left = pre_tokens.last().map_or("<s>", |t| &t.text);
     let right = post_tokens.first().map_or(".", |t| &t.text);
-    // Only a literal `.` is auto-safe, matching the reference's `R ==
-    // "."` exactly — `!`/`?` must clear the bigram check like any other
-    // right token below.
+    // Only a literal `.` is auto-safe — `!`/`?` must clear the bigram
+    // check like any other right token below. The accept fixtures were
+    // validated under exactly this asymmetry; widening it is a
+    // recalibration, not a cleanup.
     let right_is_terminal = post_tokens
         .first()
         .is_none_or(|t| t.kind == AnalysisTokenKind::Punctuation && t.text.as_ref() == ".");
@@ -133,8 +136,8 @@ pub fn check_deletion_gates(
     }
 
     // Excised-candidate text for tagging: pre and post, trimmed and
-    // joined by one space (mirrors the reference's `pre.rstrip() + " "
-    // + post.lstrip()`), so `lo`'s boundary offset is `pre_trimmed.len()`.
+    // joined by one space, so `lo`'s boundary offset is
+    // `pre_trimmed.len()`.
     let pre_trimmed = pre.trim_end();
     let post_trimmed = post.trim_start();
     let ct_text = match (pre_trimmed.is_empty(), post_trimmed.is_empty()) {
@@ -165,12 +168,12 @@ pub fn check_deletion_gates(
     coarse.push("<E>".to_string());
     let coarse_refs: Vec<&str> = coarse.iter().map(String::as_str).collect();
 
-    // Deliberately unshifted: `ref_engine.py::skeleton_ok` computes
-    // `lo`/`hi` as indices into the UNWRAPPED token list, then reuses
-    // them unshifted as indices into the `<S>`-prefixed WRAPPED sequence
-    // — never correcting for the sentinel's leading slot. Transcribed
-    // verbatim, not "fixed", because the accept fixtures were validated
-    // against this exact window placement.
+    // Deliberately unshifted: `lo`/`hi` are indices into the UNWRAPPED
+    // token list, reused unshifted as indices into the `<S>`-prefixed
+    // WRAPPED sequence — never corrected for the sentinel's leading
+    // slot. Kept, not "fixed": the accept fixtures were validated
+    // against this exact window placement, so shifting it is a
+    // recalibration of the whole deletion gate.
     if attestation.skeleton().window_attested(&coarse_refs, lo, hi) {
         DeletionGateOutcome::Allowed
     } else {

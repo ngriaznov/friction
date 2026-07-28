@@ -1,10 +1,10 @@
 //! Differential matching statistics: span extraction and the document-
 //! level report.
 //!
-//! Faithful transcription of `ref_dms.py::spans()`/its matching-statistics
-//! walk (see this crate's own algorithm reference, sections 1.2-1.3), with
-//! one deliberate deviation: the reference streams a whole raw file with
-//! no prose/non-prose distinction, so its automaton walk never needs to
+//! The span-extraction algorithm and its scoring are specified in
+//! `docs/research/ALGORITHMS.md` §1.2-1.3. One difference from a naive
+//! whole-file walk: a raw byte stream has no prose/non-prose
+//! distinction, so a single automaton walk over it would never need to
 //! reset mid-document. Once non-prose tokens are dropped (this crate's
 //! prose-only guarantee), "the token stream" is no longer contiguous in
 //! the source, so [`scan_units`]/[`document_report`] reset the walk (state
@@ -19,7 +19,7 @@ use rayon::prelude::*;
 use crate::span::{Channel, DmsFamilyReport, DmsReport, MatchScore, MatchSpan};
 use crate::token::ScopedUnit;
 
-/// The thresholds the validated reference run used: a span starts where
+/// The validated thresholds: a span starts where
 /// `d[i] >= 3`, continues while `d[j] >= 2`, and requires length `>= 2`
 /// tokens.
 const START_THRESH: i64 = 3;
@@ -27,8 +27,8 @@ const CONT_THRESH: i64 = 2;
 const MIN_LEN: usize = 2;
 
 /// One extracted run in TOKEN-INDEX space (unit-local), before byte
-/// translation — the literal transcription target, hand-verifiable
-/// against the reference's own worked examples.
+/// translation — the raw algorithmic result, hand-verifiable against
+/// the worked examples in this module's tests.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct DmsRun {
     pub score: i64,
@@ -36,18 +36,17 @@ pub struct DmsRun {
     pub end: usize,
 }
 
-/// Faithful transcription of the reference `spans()`: `d[i] = mM[i] -
-/// mH[i]`; a run starts where `d[i] >= start_thresh`, continues while
-/// `d[j] >= cont_thresh`, requires length `>= min_len`, is extended left
-/// by `mM[i]-1` tokens (clamped to 0) to cover the matched phrase, and is
-/// scored by `sum(d[i..j])` — the CONTINUE region only, NOT including the
-/// left-extension prefix. Runs are returned sorted by score descending,
-/// matching the reference's `runs.sort(reverse=True)` (which, over
-/// `(score, left, end)` tuples, breaks ties by `left` then `end`,
-/// descending).
-// `m`/`h`/`d`/`i`/`j` are the reference's own variable names
-// (`ref_dms.py::spans`) — kept identical on purpose so this function
-// stays hand-verifiable against that transcription target.
+/// Extracts differential runs from a pair of matching-statistics
+/// curves: `d[i] = mM[i] - mH[i]`; a run starts where `d[i] >=
+/// start_thresh`, continues while `d[j] >= cont_thresh`, requires
+/// length `>= min_len`, is extended left by `mM[i]-1` tokens (clamped
+/// to 0) to cover the matched phrase, and is scored by `sum(d[i..j])` —
+/// the CONTINUE region only, NOT including the left-extension prefix.
+/// Runs are returned sorted descending over `(score, left, end)`
+/// tuples, so ties break by `left` then `end`, descending.
+// `m`/`h`/`d`/`i`/`j` mirror the algorithm write-up's own variable
+// names (docs/research/ALGORITHMS.md §1.2) — kept identical so this
+// function stays hand-verifiable against its worked examples.
 #[allow(clippy::many_single_char_names)]
 pub fn spans_from_curve(
     m: &[u32],
@@ -260,7 +259,7 @@ mod tests {
     /// - `i=4`: `d[4]=3 >= 3`, starts. Continue: `d[4]=3`, `d[5]=0` stops
     ///   -> `j=5`. Length `5-4=1 < min_len=2` -> NOT a run (the near-miss).
     #[test]
-    fn spans_from_curve_matches_reference_worked_example() {
+    fn spans_from_curve_matches_hand_worked_example() {
         let m = [1, 4, 5, 0, 3, 0, 0, 0];
         let h = [0, 0, 0, 0, 0, 0, 0, 0];
         let runs = spans_from_curve(&m, &h, 3, 2, 2);

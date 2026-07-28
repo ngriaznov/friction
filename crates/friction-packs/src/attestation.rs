@@ -19,8 +19,8 @@
 //! question one level more abstract: has this exact run of coarse
 //! part-of-speech tags (`<S>`/`<E>` sentinels included) been observed as
 //! a human sentence's skeleton. Both are membership-only — no counts, no
-//! frequencies — matching the boolean `R in bigram[L]` test the mining
-//! algorithm this pack transcribes uses.
+//! frequencies — attestation is a question of existence, and a
+//! frequency threshold would just be a second, hidden calibration knob.
 //!
 //! # Independent tokenizations, on purpose
 //!
@@ -185,19 +185,15 @@ impl SkeletonSet {
     /// 5-gram check — see below) starting in `[lo.saturating_sub(3),
     /// (tags.len().saturating_sub(4)).min(hi.saturating_add(3)))` was
     /// attested in the TRAIN human corpus — a universal, not existential,
-    /// quantifier: this is a direct transcription of
-    /// `ref_engine.py::skeleton_ok`'s own loop (`for i in range(a, b): if
-    /// w not in SKEL5 and w[:4] not in SKEL4: return False`), which
-    /// rejects on the *first* unattested window in range rather than
-    /// accepting on the first attested one. The upper bound is likewise
-    /// transcribed verbatim (`b = min(len(tg) - 4, hi + 3)`, not merely
-    /// `hi + 3` clamped to the sequence end): capping the range so every
-    /// checked start index has a full 4-gram available avoids a spurious
-    /// reject from an incomplete window right at the sequence's own tail,
-    /// the same boundary care `ref_engine.py` takes. The loop always
-    /// checks at least one window at `lo.saturating_sub(3)` even when that
-    /// bound computation would otherwise produce an empty range (`for i in
-    /// range(a, max(a + 1, b))`).
+    /// quantifier: the loop rejects on the *first* unattested window in
+    /// range rather than accepting on the first attested one. The upper
+    /// bound is `min(tags.len() - 4, hi + 3)`, not merely `hi + 3`
+    /// clamped to the sequence end: capping the range so every checked
+    /// start index has a full 4-gram available avoids a spurious reject
+    /// from an incomplete window right at the sequence's own tail. The
+    /// loop always checks at least one window at `lo.saturating_sub(3)`
+    /// even when that bound computation would otherwise produce an empty
+    /// range.
     ///
     /// `tags` is the caller's full wrapped tag sequence, typically the
     /// sentence's coarse tags wrapped in the `<S>`/`<E>` sentinels;

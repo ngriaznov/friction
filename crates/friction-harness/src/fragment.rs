@@ -17,9 +17,9 @@ use friction_nlp::{
 
 use crate::error::HarnessError;
 
-/// The clause-completeness rule, transcribed as a guardrail: a sentence is
-/// complete if it contains a token tagged `VBZ`/`VBP`/`VBD`/`MD`, or its
-/// first token is tagged `VB` (imperative).
+/// The clause-completeness guardrail: a sentence is complete if it
+/// contains a token tagged `VBZ`/`VBP`/`VBD`/`MD`, or its first token is
+/// tagged `VB` (imperative).
 ///
 /// Segments `text` with `segmenter` (the real prose-extraction +
 /// sentence-segmentation pipeline), tags each sentence with `tagger`, and

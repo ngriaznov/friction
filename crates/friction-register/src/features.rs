@@ -1,20 +1,21 @@
 //! Register-marking construction counts over a dependency parse.
 //!
-//! Ported from `docs/research/regvec/biber.py`'s counting logic (see that
-//! module's own doc for what it is and isn't -- a reading of Biber's
-//! register categories through spaCy's output, not a `pseudobibeR` port,
-//! and the research phase's largest source of error). This module ports
-//! the *counting*, using this crate's own [`SentenceParse`] instead of
-//! spaCy's `Doc`.
+//! The features are a reading of Biber's register categories over this
+//! crate's own [`SentenceParse`]. How the human-band targets were
+//! measured from these counts -- including what the corpus turned out
+//! not to support -- is documented in
+//! `docs/research/regvec/TARGET_ESTIMATION.md`; because the bands were
+//! measured with exactly this counting, its semantics are pinned:
+//! changing a detector means re-measuring every band.
 //!
-//! # Reconstructing a coarse part-of-speech spaCy predicted directly
+//! # Reconstructing a coarse part-of-speech
 //!
-//! `biber.py`'s detectors read spaCy's `Token.pos_`, predicted
-//! independently of the Penn tag and dependency label. Neither this
-//! crate's tagger nor the fixture exposes that layer, so [`coarse_pos`]
-//! rebuilds it from the Penn tag plus, where ambiguous, relation and
-//! surface text. A spaCy-only `pos_` field in the fixture was rejected:
-//! no [`SentenceParse`] this crate builds would ever carry it.
+//! The detectors match on a coarse lexical category (noun, adjective,
+//! adposition, ...) that a Penn tag alone doesn't determine, so
+//! [`coarse_pos`] rebuilds it from the Penn tag plus, where ambiguous,
+//! relation and surface text. Storing a precomputed category in the
+//! fixture was rejected: no [`SentenceParse`] this crate builds would
+//! ever carry it.
 //!
 //! Three entries are lexical exceptions the fixture forced into the open
 //! (negation, indefinite `-thing`/`-one`/`-body` pronouns, a closed
@@ -29,10 +30,9 @@ use friction_nlp::{DepEdge, DepRelation, SentenceParse, TaggedToken};
 /// detects in one sentence.
 ///
 /// A struct with one field per feature, not a `HashMap<&str, usize>`:
-/// seventeen of these nineteen fields are `biber.py`'s per-sentence dict
-/// minus the two rate-based outputs (a caller's business), and a typo in
-/// a map key would fail to compile instead of silently reading a missing
-/// feature. [`Self::em_dashes`] and [`Self::semicolons`] are the
+/// the field set is fixed by the feature inventory the bands were
+/// measured over, and a typo in a map key would fail to compile instead
+/// of silently reading a missing feature. [`Self::em_dashes`] and [`Self::semicolons`] are the
 /// exceptions -- not Biber categories at all, each added later for its
 /// own band (see [`em_dashes`]'s and [`semicolons`]'s own docs).
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
@@ -176,10 +176,10 @@ fn is_one_of(word: &str, candidates: &[&str]) -> bool {
         .any(|candidate| word.eq_ignore_ascii_case(candidate))
 }
 
-/// Reconstructs the category a `biber.py` detector reads from spaCy's
-/// `Token.pos_`, given `pos` (Penn tag), `relation` (to its head), and
-/// `surface` (exact text). See the module doc for exceptions and the
-/// open case (`since`).
+/// Reconstructs the coarse lexical category the detectors match on,
+/// given `pos` (Penn tag), `relation` (to its head), and `surface`
+/// (exact text). See the module doc for exceptions and the open case
+/// (`since`).
 fn coarse_pos(pos: &str, relation: DepRelation, surface: &str) -> CoarsePos {
     if matches!(pos, "RB" | "RBR" | "RBS") && is_one_of(surface, &NEGATION_PARTICLES) {
         return CoarsePos::Other;
@@ -296,8 +296,9 @@ pub fn present_participials(
 /// A common noun (not proper, not one of [`coarse_pos`]'s indefinite
 /// pronouns) at least six characters long, ending in a fixed
 /// nominalizing suffix and absent from a fixed exception list
-/// (`signal`, `nature`, `figure`...). Both lists are ported verbatim
-/// from the reference.
+/// (`signal`, `nature`, `figure`...). Both lists are pinned by the band
+/// measurement -- the human bands were measured with exactly these
+/// lists, so extending either means re-measuring the bands.
 #[must_use]
 pub fn nominalizations(text: &str, tokens: &[TaggedToken], parse: &SentenceParse) -> Vec<usize> {
     const SUFFIXES: [&str; 14] = [
@@ -620,9 +621,10 @@ const SENTENCE_INITIAL_DEMONSTRATIVE_WORDS: [&str; 3] = ["this", "these", "that"
 /// A positional signature, not one of Biber's categories: the repair for
 /// a present participial ("... . **This** ensures X") concentrates
 /// demonstratives sentence-initially, which plain [`demonstratives`]
-/// can't express. No relation/part-of-speech filter and no "those"
-/// (matching `biber.py`), so a sentence-initial complementizer "that" --
-/// impossible in well-formed English -- would count here if it occurred.
+/// can't express. No relation/part-of-speech filter and no "those" (the
+/// band measurement counted exactly this set), so a sentence-initial
+/// complementizer "that" -- impossible in well-formed English -- would
+/// count here if it occurred.
 #[must_use]
 pub fn sentence_initial_demonstratives(text: &str, tokens: &[TaggedToken]) -> Vec<usize> {
     if tokens.is_empty()

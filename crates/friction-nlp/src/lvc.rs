@@ -201,13 +201,13 @@ pub enum CandidateOutcome {
 /// itself and is agnostic to whatever `base_offset` the caller used.
 ///
 /// Factored out of `friction-harness::pivot`'s private loop body so
-/// both that module (stops at the sentence's first licensed match,
-/// matching `ref_pivot.py::pivot()`) and a detection channel (reports
-/// every non-overlapping licensed match) share one gate/licensing
-/// implementation, differing only in outer-loop policy.
+/// both that module (stops at the sentence's first licensed match) and
+/// a detection channel (reports every non-overlapping licensed match)
+/// share one gate/licensing implementation, differing only in
+/// outer-loop policy.
 ///
-/// Gate order mirrors `ref_pivot.py::pivot()`: passive, then
-/// modified-nominal (`JJ`), then plural-nominal, then licensing.
+/// Gate order: passive, then modified-nominal (`JJ`), then
+/// plural-nominal, then licensing.
 #[must_use]
 pub fn classify_candidate(
     tokens: &[TaggedToken],

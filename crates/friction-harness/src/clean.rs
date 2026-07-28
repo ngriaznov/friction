@@ -1,14 +1,16 @@
-//! Shared string-level cleaning and tokenization conventions, transcribed
-//! from `ref_engine.py::clean`/`toks` (and identically, `ref_dms.py`'s own
-//! copies of the same two functions).
+//! Shared string-level cleaning and tokenization conventions.
+//!
+//! This is the exact normalization the fixture expectations in
+//! `docs/research/` were produced under, pinned here so scoring uses the
+//! same text shape the fixtures were validated against.
 //!
 //! This is the *string-level* half of the harness: [`tellspan`](crate::tellspan),
 //! [`pivot`](crate::pivot), and [`closure`](crate::closure) all analyze text
 //! through this module rather than through `friction-parse`'s real block
-//! tree, matching the "STRING-LEVEL REFERENCE" framing of the prototypes
-//! being transcribed. [`fragment`](crate::fragment) is the one module in
-//! this crate that deliberately does *not* use it — see that module's own
-//! docs.
+//! tree — the fixtures are string-level contracts, deliberately
+//! independent of any one Markdown parser. [`fragment`](crate::fragment)
+//! is the one module in this crate that deliberately does *not* use it —
+//! see that module's own docs.
 
 use std::sync::LazyLock;
 
@@ -40,9 +42,9 @@ static TOKEN: LazyLock<Regex> =
 /// inline code stripped, links replaced by their anchor text, and the
 /// leftover markdown syntax characters `#>*_|` stripped.
 ///
-/// Mirrors `ref_engine.py::clean`/`ref_dms.py::clean` exactly, including
-/// their choice to normalize only curly *single* quotes (`'`, `'`), not
-/// curly double quotes — those prototypes never touch `"`/`"`.
+/// Normalizes only curly *single* quotes (`'`, `'`), not curly double
+/// quotes — the fixture expectations were produced under exactly that
+/// asymmetry, so "fixing" it here would silently invalidate them.
 #[must_use]
 pub fn clean(text: &str) -> String {
     let text = text.replace(['\u{2019}', '\u{2018}'], "'");

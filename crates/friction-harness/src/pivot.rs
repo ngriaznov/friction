@@ -1,11 +1,10 @@
 //! Derivational pivot (light-verb construction collapse) detection.
 //!
-//! Transcribed from `ref_pivot.py`'s `DERIV`/`LV` tables and its `pivot()`
-//! matching logic. The per-candidate gating and licensing walk itself
-//! lives in `friction_nlp::lvc::classify_candidate` (fixed, closed
-//! grammatical classes — the perform/conduct/make/do inflection tables —
-//! plus the passive/modified-nominal/plural-nominal guards); this module
-//! keeps only `ref_pivot.py::pivot()`'s outer-loop policy. The licensed
+//! The per-candidate gating and licensing walk itself lives in
+//! `friction_nlp::lvc::classify_candidate` (fixed, closed grammatical
+//! classes — the perform/conduct/make/do inflection tables — plus the
+//! passive/modified-nominal/plural-nominal guards); this module keeps
+//! only the outer-loop policy. The licensed
 //! (nominalization -> derived verb) lookup itself is sourced from
 //! `friction_packs::INVENTORY.pack.lvc_lexicon()` instead of
 //! `friction_nlp::lvc::DERIVATIONAL_LEXICON` directly, so the pack's own
@@ -42,8 +41,8 @@ use friction_nlp::lvc::{CandidateOutcome, classify_candidate};
 pub enum PivotOutcome {
     /// No token in the sentence is a member of the light-verb table.
     NoLightVerb,
-    /// A light verb was found but a guard rejected it before licensing was
-    /// even checked, in the same order `ref_pivot.py` checks them.
+    /// A light verb was found but a guard rejected it before licensing
+    /// was even checked — see [`match_pivot`] for the fixed guard order.
     Rejected(PivotRejection),
     /// A light verb plus determiner-optional-nominalization was found, but
     /// the nominalization is not a key in
@@ -65,29 +64,27 @@ pub struct LicensedPivot {
     pub derived_verb: String,
 }
 
-/// Faithful transcription of `ref_pivot.py::pivot()`'s *matching* half only
-/// (this crate never rewrites text).
+/// The pivot *matching* half only (this crate never rewrites text).
 ///
 /// Walks `tagger.tag(sentence, 0)` directly — `friction_nlp::Tagger`
 /// tokenizes internally and has no "tag this pre-split word list" entry
-/// point the way NLTK's tagger does, so aligning a second tokenizer's
-/// indices against the tagger's own tags would be an added, unnecessary
-/// failure mode. Per-candidate gating and licensing (the LV lookup, the
-/// passive-preceding-`BE` check, the modified-nominal `JJ` check, the
-/// plural-suffix check, and the licensed-pair lookup) is delegated to
+/// point, so aligning a second tokenizer's indices against the tagger's
+/// own tags would be an added, unnecessary failure mode. Per-candidate
+/// gating and licensing (the LV lookup, the passive-preceding-`BE`
+/// check, the modified-nominal `JJ` check, the plural-suffix check, and
+/// the licensed-pair lookup) is delegated to
 /// [`friction_nlp::lvc::classify_candidate`] against
 /// `friction_packs::INVENTORY.pack.lvc_lexicon()`; this function is left
-/// with only the outer-loop policy `ref_pivot.py::pivot()` itself encodes.
+/// with only the outer-loop policy.
 ///
-/// Scans every light-verb-table token in the sentence, left to right, the
-/// same way `ref_pivot.py`'s `pivot()` loop does: `Passive`, `ModifiedNominal`,
-/// and `PluralNominal` stop the scan immediately and reject (the reference
-/// returns on these), but a candidate that runs out of following tokens or
-/// whose nominalization isn't a licensed pair is *not* a final answer for the
-/// sentence — the reference's loop `continue`s past it to the next
-/// light-verb-table token, and so does this one. Only once every light-verb
-/// token in the sentence has been tried without a reject or a license does
-/// this return `Unlicensed` (or `NoLightVerb` if the sentence never
+/// Scans every light-verb-table token in the sentence, left to right:
+/// `Passive`, `ModifiedNominal`, and `PluralNominal` stop the scan
+/// immediately and reject, but a candidate that runs out of following
+/// tokens or whose nominalization isn't a licensed pair is *not* a
+/// final answer for the sentence — the loop continues past it to the
+/// next light-verb-table token. Only once every light-verb token in the
+/// sentence has been tried without a reject or a license does this
+/// return `Unlicensed` (or `NoLightVerb` if the sentence never
 /// contained a light-verb-table token at all).
 #[must_use]
 pub fn match_pivot(sentence: &str, tagger: &dyn Tagger) -> PivotOutcome {
@@ -107,8 +104,7 @@ pub fn match_pivot(sentence: &str, tagger: &dyn Tagger) -> PivotOutcome {
             }
             CandidateOutcome::Licensed(licensed) => {
                 // Reconstructed by joining each matched token's own
-                // surface text with a single space, exactly as
-                // `ref_pivot.py::pivot()` does — not a slice of
+                // surface text with a single space — not a slice of
                 // `licensed.range`, which would instead reproduce
                 // whatever literal (possibly irregular) whitespace sits
                 // between the matched tokens in `sentence`.

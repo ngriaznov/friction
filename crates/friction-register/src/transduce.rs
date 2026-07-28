@@ -1,17 +1,17 @@
-//! Rewrite transducers ported from a Python register-rewriting
-//! prototype, plus two native additions.
+//! Rewrite transducers for the register pass.
 //!
 //! Each proposes a candidate edit predicting an exact per-feature count
-//! delta, with a confidence and the byte range it would replace. Five
-//! Python-prototype transducers existed; only two are ported.
+//! delta, with a confidence and the byte range it would replace. Two of
+//! a possible five register transducers are implemented — the cut is
+//! parser accuracy, not effort:
 //!
 //! [`t4_activize_to_passive`]/[`t5_nominalization`] depend on
 //! `nsubj`/`dobj`/`det`/`prep`/`pobj`, resolved at 82-96% accuracy. The
-//! other three depend on `acl`/`advcl`, resolved at only 52-58% —
-//! firing wrongly half the time is worse than not firing, so they stay
-//! unported.
+//! other three candidates would depend on `acl`/`advcl`, resolved at
+//! only 52-58% — firing wrongly half the time is worse than not firing,
+//! so they don't exist.
 //!
-//! [`t6_em_dash`]/[`t7_semicolon`] have no prototype predecessor: neither
+//! [`t6_em_dash`]/[`t7_semicolon`] are later additions: neither
 //! em dashes nor semicolon splices came up in the research phase's
 //! Biber-feature work, only later as measured Claude-family tells (see
 //! `register-v1.toml`'s `[features.em_dash]`/`[features.semicolon]` and
@@ -263,8 +263,8 @@ fn recapitalize(text: &str) -> String {
 /// vendor") whose demotion erases information.
 ///
 /// Matched against the subject's full span, not just its head token —
-/// the prototype compared single tokens, so its multi-word entries
-/// (`"the team"`, `"our team"`) could never match. `they` is
+/// a single-token comparison would leave the multi-word entries
+/// (`"the team"`, `"our team"`) unable to ever match. `they` is
 /// deliberately absent: it's anaphoric to an earlier antecedent, unlike
 /// `we`/`i`/`you`/`one`, which are non-referential.
 ///
@@ -723,10 +723,10 @@ pub fn nominal_verb_for(nominalization_lower: &str) -> Option<&'static str> {
         .map(|&(_, verb)| verb)
 }
 
-/// Nominalized-noun -> verb table, ported verbatim (23 entries). Fixed
-/// and closed: a suffix detector (`"-tion"`, `"-ment"`) would also
-/// match nouns with no verb reading (`"nation"`, `"moment"`), so this
-/// stays a literal, audited table.
+/// Nominalized-noun -> verb table (23 entries). Fixed and closed: a
+/// suffix detector (`"-tion"`, `"-ment"`) would also match nouns with
+/// no verb reading (`"nation"`, `"moment"`), so this stays a literal,
+/// audited table.
 const NOMINAL_VERB: &[(&str, &str)] = &[
     ("optimization", "optimizing"),
     ("reduction", "reducing"),
@@ -775,9 +775,9 @@ pub fn t5_nominalization(
 
     for index in 0..tokens.len() {
         // Penn `NN`/`NNS` exactly, not `coarse_tag`'s truncated "NN",
-        // which would also match `NNP`/`NNPS`: the reference this table
-        // was audited against excludes proper nouns from
-        // nominalization.
+        // which would also match `NNP`/`NNPS`: proper nouns are never
+        // nominalizations, and the table above was audited under that
+        // exclusion.
         if !matches!(tokens[index].pos.as_str(), "NN" | "NNS") {
             continue;
         }
@@ -1334,11 +1334,11 @@ pub fn t7_semicolon(source: &str, tokens: &[TaggedToken], parse: &SentenceParse)
 }
 
 // ---------------------------------------------------------------------
-// Inflection: ported verbatim from the same prototype. `third_sg` is
-// unused by either transducer (T5's `NOMINAL_VERB` spells out its own
-// forms), but ships alongside `past`/`past_participle` since the three
-// were one audited unit — splitting it out would leave the port
-// incomplete until a participial transducer needs it.
+// Inflection. `third_sg` is unused by either transducer (T5's
+// `NOMINAL_VERB` spells out its own forms), but ships alongside
+// `past`/`past_participle` since the three were audited as one unit —
+// a participial transducer would need it, and splitting it out now
+// would only fragment that audit.
 // ---------------------------------------------------------------------
 
 /// Endings after which the regular third-person-singular suffix is
@@ -1501,9 +1501,10 @@ const fn is_vowel(c: char) -> bool {
 /// The regular third-person-singular present form of `lemma`
 /// (`"deploy"` -> `"deploys"`, `"carry"` -> `"carries"`).
 ///
-/// Consults no irregular table: the reference this is ported from used
-/// [`IRREGULAR_PAST`]/[`IRREGULAR_PAST_PARTICIPLE`] for past forms
-/// only.
+/// Consults no irregular table: [`IRREGULAR_PAST`]/
+/// [`IRREGULAR_PAST_PARTICIPLE`] cover past forms only, and English
+/// third-singular formation is regular outside `be`/`have` (neither of
+/// which is ever a `NOMINAL_VERB` target).
 #[must_use]
 pub fn third_sg(lemma: &str) -> String {
     if SIBILANT_ENDINGS

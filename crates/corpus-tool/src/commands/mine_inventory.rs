@@ -23,10 +23,9 @@
 //! from `friction_harness::clean::tokenize` — the canonical shared
 //! primitive, used here in place of `mine.rs`'s own hand-rolled
 //! `word_segments` (that module is left untouched). `corpus-tool index`,
-//! by contrast, is a faithful transcription of the DMS reference, which
-//! tokenizes raw whole-file text with no block-tree extraction at all —
-//! see that module's own doc comment for why the two commands
-//! deliberately do not share one convention.
+//! by contrast, tokenizes raw whole-file text with no block-tree
+//! extraction at all — see that module's own doc comment for why the
+//! two commands deliberately do not share one convention.
 
 use std::collections::{BTreeMap, BTreeSet};
 use std::fmt::Write as _;

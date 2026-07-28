@@ -657,7 +657,7 @@ fn past_participle_uses_the_irregular_table_verbatim() {
 }
 
 #[test]
-fn past_and_third_sg_are_ported_alongside_past_participle() {
+fn past_and_third_sg_ship_alongside_past_participle() {
     assert_eq!(past("go"), "went");
     assert_eq!(past("write"), "wrote");
     assert_eq!(past("deploy"), "deployed");

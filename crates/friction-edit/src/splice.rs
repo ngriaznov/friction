@@ -1,9 +1,9 @@
 //! [`SentenceSplicer`]: the byte-honest working-text primitive.
 //!
 //! Lets the per-sentence pipeline match and gate against a
-//! progressively-mutated working string — the same way the reference
-//! engine's `fix_sentence` rewrites its own `s` variable — while still
-//! emitting `Patch`es against the *original* document bytes.
+//! progressively-mutated working string — each operation sees the text
+//! as the previous operations left it — while still emitting `Patch`es
+//! against the *original* document bytes.
 //!
 //! A sentence's working text is an ordered chain of chunks: an untouched
 //! slice of the original source (byte-addressable back into the

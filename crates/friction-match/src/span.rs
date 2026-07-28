@@ -22,8 +22,8 @@ use friction_packs::ModelFamily;
 /// channel tie-break [`merge_spans`] sorts by.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
 pub enum Channel {
-    /// Differential matching statistics (§1 of this crate's algorithm
-    /// reference).
+    /// Differential matching statistics
+    /// (`docs/research/ALGORITHMS.md` §1).
     Dms,
     /// The literal automaton / regex-fallback tell inventory (§2).
     Literal,
@@ -40,11 +40,11 @@ pub enum Channel {
 /// A [`MatchSpan`]'s score.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum MatchScore {
-    /// DMS: `sum(d)` over the differential run — transcribed verbatim
-    /// from the reference `spans()` scoring, always positive.
+    /// DMS: `sum(d)` over the differential run's CONTINUE region —
+    /// always positive.
     Differential(i64),
-    /// Literal / LVC: presence is the whole signal; neither channel's
-    /// reference defines a graded per-match score.
+    /// Literal / LVC: presence is the whole signal; neither channel
+    /// defines a graded per-match score.
     Present,
 }
 

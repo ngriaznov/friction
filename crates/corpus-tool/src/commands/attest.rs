@@ -65,8 +65,8 @@ use crate::hashing::sha256_hex;
 use crate::manifest::{self, Class, ManifestRecord, Split};
 
 /// The reserved sentence-start token prepended to every sentence's word
-/// sequence before windowing — `ref_engine.py`'s own `"<s>"` bigram-seed
-/// convention.
+/// sequence before windowing, so a sentence's first real word always has
+/// a left neighbor to form a bigram with.
 const SENTENCE_START: &str = "<s>";
 
 /// The reserved sentence-start/end sentinels prepended/appended to every

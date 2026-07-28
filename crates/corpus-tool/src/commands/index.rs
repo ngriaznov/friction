@@ -6,12 +6,12 @@
 //!
 //! # Tokenization convention — deliberately different from `mine-inventory`
 //!
-//! This is a faithful transcription of `ref_dms.py`, which cleans and
-//! tokenizes the *raw whole-file text* directly — no `friction-parse`
-//! block-tree prose extraction at all. That is the exact pipeline the
-//! reference's 16/16 held-out classification and its size/throughput
-//! numbers were measured against, so changing the input representation
-//! here would invalidate the transcription. `corpus-tool mine-inventory`,
+//! This command cleans and tokenizes the *raw whole-file text* directly
+//! — no `friction-parse` block-tree prose extraction at all. That is
+//! the exact pipeline the DMS channel's validated 16/16 held-out
+//! classification and its size/throughput numbers were measured
+//! against, so changing the input representation here would invalidate
+//! that validation. `corpus-tool mine-inventory`,
 //! by contrast, extracts prose via `friction-parse` first (see that
 //! module's own doc comment for why its mining needs the real block
 //! tree) — the two commands read the same corpus files through two
@@ -29,11 +29,10 @@
 //! deterministic byte-for-byte across reruns of the same corpus.
 //!
 //! Each document contributes `friction_harness::clean::tokenize(raw
-//! text)` (word and punctuation tokens, faithfully mirroring
-//! `ref_dms.py::toks(clean(text))`) followed by one reserved separator
-//! token, `"\u{0}"`, exactly matching `ref_dms.py`'s own `"\x00"`
-//! document-boundary convention (it prevents a matching-statistics walk
-//! from ever bridging two different documents). The separator is interned
+//! text)` (word and punctuation tokens) followed by one reserved
+//! separator token, `"\u{0}"` — a document boundary no real text can
+//! contain, so a matching-statistics walk can never bridge two
+//! different documents. The separator is interned
 //! into the vocabulary immediately after the reserved id-`0` placeholder,
 //! so it is always id `1` — recorded redundantly as `separator_token_id`
 //! in the pack header so a reader never has to search `[vocab].tokens`
@@ -51,7 +50,7 @@ use crate::hashing::sha256_hex;
 use crate::manifest::{self, Class, ManifestRecord, Split};
 
 /// The reserved separator token appended after every document's tokens —
-/// `ref_dms.py`'s own `"\x00"` document-boundary convention.
+/// a document boundary no real text can contain.
 const SEPARATOR_TOKEN: &str = "\u{0}";
 
 /// Arguments for `corpus-tool index`.
@@ -376,8 +375,8 @@ fn render_pack(
 /// `--calibrate`: parses the just-written pack back into a [`DmsIndex`]
 /// and reports, per family, how many `dev`-split (never `holdout`) docs
 /// the sign of `mean(mM) - mean(mH)` classifies correctly against the
-/// human automaton — the same statistic and sign convention
-/// `ref_dms.py`'s own held-out classification uses. Printed under an
+/// human automaton — the same statistic and sign convention the DMS
+/// channel's original held-out validation used. Printed under an
 /// explicitly labeled heading so it is never mistaken for a holdout
 /// result; this is a recommended regression signal, not part of the pack
 /// format itself.

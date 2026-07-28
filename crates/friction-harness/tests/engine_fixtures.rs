@@ -13,13 +13,13 @@
 //! see `regression1_by_following_these_steps_residue` and
 //! `composed_by_following_these_steps_residue` below. Both stem from a
 //! verified (not guessed) fact: this engine's `check_deletion_gates`
-//! reproduces `ref_engine.py::skeleton_ok`'s exact window-index algorithm
-//! (checked position-for-position against the reference), but the
+//! runs the exact window-index algorithm the fixture expectations were
+//! validated under (checked position-for-position), but the
 //! *attestation data* itself — this workspace's own `corpus-tool attest`
 //! output, mined by the shipped `PerceptronTagger` over this repository's
-//! real TRAIN-split corpus — is not byte-identical to whatever
-//! nltk-tagged, ad hoc 8-document-holdout corpus subset the Python
-//! reference's own validation session measured against. The gate and its
+//! real TRAIN-split corpus — is not byte-identical to the nltk-tagged,
+//! ad hoc 8-document-holdout corpus subset the fixtures' original
+//! validation session measured against. The gate and its
 //! data are both real and load-bearing; they just don't reproduce this
 //! one specific held-vs-applied residue decision from a different
 //! tagger's mining run. See each ignored test's own doc comment for the
@@ -155,8 +155,7 @@ fn accept_regression1_getting_started_substitution_and_deletion() {
 /// above verifies every OTHER edit in this fixture byte-exactly.
 ///
 /// Root cause, verified directly (see `crates/friction-packs/src/attestation.rs`'s
-/// `window_attested`, now a byte-for-byte transcription of
-/// `ref_engine.py::skeleton_ok`'s own index math): for the candidate
+/// `window_attested` and its window-index math): for the candidate
 /// deletion of `"By following these steps, "`, every one of the four
 /// coarse-tag 5-gram windows `check_deletion_gates` checks (`<S> PR MD RB
 /// CC`, `PR MD RB CC RB`, `MD RB CC RB VB`, `RB CC RB VB DT`) is attested
@@ -164,15 +163,16 @@ fn accept_regression1_getting_started_substitution_and_deletion() {
 /// `corpus-tool attest` from this repository's real 264-doc TRAIN split
 /// via the shipped `PerceptronTagger`), so the deletion is Allowed here —
 /// whereas the fixture's documented output requires it to be held. The
-/// gate algorithm itself is proven identical to the reference's; the
-/// *attestation data* is not the reference session's own nltk-tagged,
+/// gate algorithm itself is proven identical to the one the fixtures
+/// were validated under; the *attestation data* is not that validation
+/// session's own nltk-tagged,
 /// ad hoc-holdout mining run, and a coarse `RB CC RB` (adverb pair)
 /// structural shape is common enough in ordinary English that a
 /// different tagger/corpus split can legitimately disagree on this one
 /// residue decision without either pack being wrong.
 #[test]
-#[ignore = "corpus/tagger-dependent skeleton-gate divergence from the ref_engine.py validation \
-            run — see this test's own doc comment for the measured root cause"]
+#[ignore = "corpus/tagger-dependent skeleton-gate divergence from the fixtures' original \
+            validation run — see this test's own doc comment for the measured root cause"]
 fn accept_regression1_getting_started() {
     assert_engine_exact("regression1_getting_started");
 }
@@ -192,8 +192,8 @@ fn accept_regression1_getting_started() {
 /// fixture deliberately concentrates all four operations into one short
 /// paragraph as a stress test, which is exactly the shape a *per-rate*
 /// budget calibrated against realistic document lengths (train mean
-/// ~960 words/doc) cannot help but constrain). `ref_engine.py` has no
-/// budget concept at all (§B.5 is a production-only addition), which is
+/// ~960 words/doc) cannot help but constrain). The budget is a
+/// production-only addition (§B.5) the fixtures predate, which is
 /// why the fixture's own documented output assumes both pivots fire
 /// unconstrained — a second, independent reason (beyond the skeleton-gate
 /// divergence) the full byte-exact assertion below is `#[ignore]`d rather
@@ -214,9 +214,9 @@ fn accept_composed_four_operation_paragraph_operations() {
 /// verified corpus/tagger-dependent skeleton-gate divergence applies to
 /// this fixture's own `"By following these steps, "` residue.
 #[test]
-#[ignore = "corpus/tagger-dependent skeleton-gate divergence from the ref_engine.py validation \
-            run — see accept_regression1_getting_started's doc comment for the measured root \
-            cause"]
+#[ignore = "corpus/tagger-dependent skeleton-gate divergence from the fixtures' original \
+            validation run — see accept_regression1_getting_started's doc comment for the \
+            measured root cause"]
 fn accept_composed_four_operation_paragraph() {
     assert_engine_exact("composed_four_operation_paragraph");
 }

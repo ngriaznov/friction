@@ -1,9 +1,9 @@
-//! Sentence-level parity check against the reference register-feature
-//! fixture.
+//! Sentence-level parity check against the register-feature fixture.
 //!
 //! `docs/research/regvec/feature_parity.json` carries, for 188 sentences,
-//! the reference parse *and* the per-feature counts `biber.py` produced
-//! from it. This test builds a [`SentenceParse`] from the fixture's own
+//! a pinned parse *and* the per-feature counts the band-measurement
+//! pipeline produced from it (see that directory's own README for how
+//! it was built). This test builds a [`SentenceParse`] from the fixture's own
 //! parse -- never by running this workspace's tagger/parser -- and checks
 //! [`RegisterCounts::count`] against it: a mismatch means the port is
 //! wrong, not parser quality. Every mismatch is collected and reported
@@ -21,7 +21,7 @@ const FIXTURE_JSON: &str = include_str!(concat!(
     "/../../docs/research/regvec/feature_parity.json"
 ));
 
-/// Divergences from the reference that are accepted, enumerated exactly,
+/// Divergences from the fixture that are accepted, enumerated exactly,
 /// and not to be widened without a reason written here. Not a gap in test
 /// inputs: this workspace's tagger emits Penn tags with no universal
 /// category to read, so `coarse_pos`'s reconstruction is what runs in
@@ -36,8 +36,8 @@ const FIXTURE_JSON: &str = include_str!(concat!(
 /// toward, so the cost is bounded.
 const KNOWN_DIVERGENCES: &[(&str, &str)] = &[("08d07d7b04ccd440:7", "prepositions")];
 
-/// The seventeen counted features, spelled as `build_feature_parity.py`'s
-/// `counts_for` did -- the fixture's own `counts` object keys.
+/// The seventeen counted features, spelled exactly as the fixture's own
+/// `counts` object keys spell them.
 const FEATURE_NAMES: [&str; 17] = [
     "present_participial",
     "nominalization",
@@ -206,7 +206,7 @@ fn feature_parity_against_reference_fixture() {
     // neither.
     assert!(
         unexpected.is_empty(),
-        "{} unexpected mismatch(es) against the reference fixture:\n{}",
+        "{} unexpected mismatch(es) against the fixture:\n{}",
         unexpected.len(),
         unexpected.join("\n")
     );
