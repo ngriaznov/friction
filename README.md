@@ -23,7 +23,7 @@ aspirational, and neither is checked at runtime:
 friction never invents content. Every content word it emits is already present in
 the input or derived from one through a static table ("performs validation of" →
 "validates"). It may introduce function words, but only from a fixed set declared
-per operation — `was`, `were`, `is`, `are`, and nothing else — never a word chosen
+per operation — `was`, `were`, `is`, `are`, and nothing else: never a word chosen
 by searching for one that fits. Where no safe edit exists, it reports instead of
 rewriting. No model runs at fix time; everything is offline, table-driven, and
 byte-deterministic.
@@ -32,7 +32,7 @@ byte-deterministic.
 
 Six operations edit text. Nothing else does.
 
-1. **Ritual deletion** — sentences matching ritual frames are removed whole:
+1. **Ritual deletion**: sentences matching ritual frames are removed whole:
    *"If you have any questions or require further assistance, please reach out
    to our support team."* → gone.
 2. **Gated span deletion** — a detected filler span is removed only if the
@@ -72,7 +72,7 @@ Six operations edit text. Nothing else does.
    directly"*. A fourth homes toward a band that is genuinely nonzero, not to
    zero: the semicolon, which Claude-family output also uses well past the
    human rate, is split into a sentence break only when it joins two
-   independent clauses — *"the job reads from the queue; it commits offsets
+   independent clauses: *"the job reads from the queue; it commits offsets
    only after the batch is durably written"* → *"the job reads from the
    queue. It commits offsets only after the batch is durably written"*. A
    semicolon that is part of a serial list, or that has no independent clause
@@ -90,13 +90,13 @@ Six operations edit text. Nothing else does.
    zero band at any length). On the corpus it edits roughly one machine
    document in ten.
 
-Every edit passes a stack of hard gates: closure as described above — content
-words input-derived, function words only from the declared set — is checked on
+Every edit passes a stack of hard gates: closure as described above (content
+words input-derived, function words only from the declared set) is checked on
 every candidate before it is applied. Beyond that, the sentence must stay
 clause-complete, edits never touch code spans,
 links, numbers, identifiers, negation, quantifiers, modals, or logical
 connectives, quoted text is left alone because it is someone's example rather
-than the author's own register, and edits fire only inside prose blocks — never
+than the author's own register, and edits fire only inside prose blocks: never
 in headings, code, tables, or link text. On human-written text the whole engine
 is calibrated to be a near-no-op. When a gate says no, the candidate is kept
 verbatim and reported as a suggestion — doing nothing is the designed fallback,
@@ -292,8 +292,7 @@ $ echo 'The style guide bans "will walk you through" outright. This guide will w
 The style guide bans "will walk you through" outright. This guide covers the rest.
 ```
 
-The quoted phrase is a *mention* — someone's example, not the author's register —
-so it survives while the same words unquoted get fixed.
+The quoted phrase is a *mention* (someone's example, not the author's register) so it survives while the same words unquoted get fixed.
 
 ```bash
 $ echo 'Set `leverage` in the config. We leverage the cache heavily.' \
@@ -395,18 +394,18 @@ matching-statistics differential. The SARIF output validates against the SARIF
 `--family` is required and matters: detection indexes are specific to the
 generator family they were mined from (`qwen`, `gemma`, `llama`, `granite`).
 Text from a model family you have no index for will mostly evade the
-statistical channel — see limits below.
+statistical channel. See limits below.
 
 **`check` is a report, not a gate.** Its exit code is `0` only when *every*
 metric sits inside its envelope and no span was detected, and the envelope is
-two-sided — a document is flagged for falling outside it in either direction,
+two-sided. A document is flagged for falling outside it in either direction,
 including for being more human-favoured than the human band's upper bound.
 Measured over 25 human documentation files from the corpus, **24 exit non-zero**.
 That is the metric layer working as designed (it describes a distribution, it
 does not classify a document), but it means `check` will fail almost any real
 document and should not be wired to a build.
 
-Gate on `fix` instead — see below.
+Gate on `fix` instead: see below.
 
 ### `friction explain` — why did (or didn't) it edit?
 
@@ -528,12 +527,11 @@ friction noticed and chose not to touch.
 
 There is no flag to disable an individual operation. If you only want the five
 closed operations and not register rephrasing, read the edits from `explain
---format json`, drop the `register.*` rules, and apply the rest yourself —
-the ranges are byte-exact against your input, so that is a mechanical splice.
+--format json`, drop the `register.*` rules, and apply the rest yourself: the ranges are byte-exact against your input, so that is a mechanical splice.
 
 ## Guarantees
 
-- **Deterministic** — same input, same pack, same bytes. Always.
+- **Deterministic**: same input, same pack, same bytes. Always.
 - **Idempotent** — a second pass may clean up after first-pass deletions; a
   third pass changes nothing (enforced by a CI canary over fixtures and real
   corpus documents).
@@ -543,7 +541,7 @@ the ranges are byte-exact against your input, so that is a mechanical splice.
   held-out split that never feeds back into the threshold.
 - **Span-honest** — every reported range slices your original bytes to exactly
   the text the finding is about.
-- **Closed** — no code path can insert a *searched-for* word. Content words are
+- **Closed**: no code path can insert a *searched-for* word. Content words are
   always input-derived. Function words may be introduced only from a fixed set
   declared per operation, checked on every candidate before it is applied, so
   the guarantee is enforced structurally rather than asserted. The approaches
@@ -559,8 +557,8 @@ source stays empty. It is not for fiction. It is not a detector-beater. And
 detection packs are specific to the model family they were built from: the
 shipped indexes cover qwen/gemma/llama/granite-style output, so prose from an
 unindexed family will largely pass the statistical channel untouched (the
-literal inventory still applies). Growing coverage means growing the data — see
-below — not cleverer search.
+literal inventory still applies). Growing coverage means growing the data, see
+below, not cleverer search.
 
 Three limits worth knowing before you rely on it.
 
@@ -569,7 +567,7 @@ dependency parser, the segmentation rules and every phrase in the inventory are
 English; given another language, friction tags it as English anyway.
 
 What that means in practice, measured rather than assumed. On German, Spanish,
-Dutch, Italian and Portuguese paragraphs it is **completely inert** — zero
+Dutch, Italian and Portuguese paragraphs it is **completely inert**: zero
 patches, output byte-identical. The tells it looks for are English phrases and
 English dependency structures, and neither is there to find, so nothing fires.
 That is the safe failure, and it is the one you get.
@@ -650,7 +648,7 @@ auxiliaries, four markers, a handful of connectives) compiled directly into
 `friction-match`, with no corpus-mined pattern to version.
 
 They are produced by `corpus-tool` (`mine-inventory`, `mine-paired`, `index`,
-`attest`) from the repository's document corpus — machine text from six local
+`attest`) from the repository's document corpus: machine text from six local
 models plus a topic-matched stock-vs-antislop paired corpus that cancels topic
 so mining isolates pure style; the human side of every pair comes exclusively
 from license-vetted, pre-2022 human documents. All tuning uses the train split;
@@ -716,7 +714,7 @@ remember is a step that gets forgotten.
 Rust 2024 workspace, MSRV 1.96. `cargo fmt --check`, `cargo clippy --workspace
 --all-targets -- -D warnings`, and `cargo test --workspace` must all pass; the
 test suite includes the literal accept/reject/rank fixtures from the validation
-research (`docs/research/fixtures.json`) — if a change makes a reject fixture
+research (`docs/research/fixtures.json`): if a change makes a reject fixture
 pass or an accept fixture fail, the change is wrong, not the fixture.
 
 Two invariants are worth knowing before changing anything. A **sealed holdout
