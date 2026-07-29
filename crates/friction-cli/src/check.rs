@@ -124,7 +124,8 @@ fn run_inner(args: &CheckArgs) -> Result<ExitCode, CliError> {
     let pack = Pack::load(args.pack.as_deref())?;
     let engine = Engine::load()?;
 
-    let document = friction_parse::parse(source.clone())?;
+    let syntax = crate::common::syntax_of(&args.input, &source);
+    let document = friction_parse::parse_with(source.clone(), syntax)?;
     let metrics = friction_metrics::compute(&document, &engine.segmenter, &engine.tagger);
 
     let match_engine = MatchEngine::new(

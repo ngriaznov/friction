@@ -70,8 +70,23 @@ impl Engine {
     /// # Errors
     /// Returns [`EditError`] if `source` fails to parse or segment.
     pub fn fix_document(&self, source: &str) -> Result<(String, EditReport), EditError> {
+        self.fix_document_with(source, friction_parse::Syntax::Markdown)
+    }
+
+    /// [`Self::fix_document`] with the surface syntax chosen by the
+    /// caller — every pass in the pipeline (including register's own
+    /// re-parses) reads `source` and its intermediate texts as `syntax`.
+    ///
+    /// # Errors
+    /// Returns [`EditError`] if `source` fails to parse or segment.
+    pub fn fix_document_with(
+        &self,
+        source: &str,
+        syntax: friction_parse::Syntax,
+    ) -> Result<(String, EditReport), EditError> {
         document::edit_document(
             source,
+            syntax,
             self.inventory,
             self.attestation,
             self.register_pack,

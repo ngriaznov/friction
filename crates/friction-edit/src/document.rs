@@ -54,7 +54,16 @@ pub(crate) fn prose_word_count(
     source: &str,
     segmenter: &dyn Segmenter,
 ) -> Result<usize, EditError> {
-    let document = friction_parse::parse(source)?;
+    prose_word_count_with(source, friction_parse::Syntax::Markdown, segmenter)
+}
+
+/// [`prose_word_count`] with the surface syntax chosen by the caller.
+pub(crate) fn prose_word_count_with(
+    source: &str,
+    syntax: friction_parse::Syntax,
+    segmenter: &dyn Segmenter,
+) -> Result<usize, EditError> {
+    let document = friction_parse::parse_with(source, syntax)?;
     let with_sentences = segment_document(&document, segmenter)?;
     let mut count = 0usize;
     for unit in with_sentences.prose() {
@@ -79,8 +88,10 @@ pub(crate) fn prose_word_count(
 ///
 /// # Errors
 /// Returns [`EditError`] if `source` fails to parse or segment.
+#[allow(clippy::too_many_arguments)] // the engine's one assembly point: each argument is a distinct pack or model
 pub fn edit_document(
     source: &str,
+    syntax: friction_parse::Syntax,
     inventory: &InventoryPack,
     attestation: &AttestationPack,
     register_pack: &RegisterPack,
@@ -88,7 +99,7 @@ pub fn edit_document(
     parser: &dyn DepParser,
     segmenter: &dyn Segmenter,
 ) -> Result<(String, EditReport), EditError> {
-    let word_count = prose_word_count(source, segmenter)?;
+    let word_count = prose_word_count_with(source, syntax, segmenter)?;
     let mut pivot_budget = attestation
         .near_noop()
         .map_or_else(PivotBudget::unlimited, |calibration| {
@@ -109,7 +120,7 @@ pub fn edit_document(
     let mut generation_cache = crate::sentence::GenerationCache::default();
 
     for _ in 0..MAX_PASSES {
-        let document = friction_parse::parse(current.as_str())?;
+        let document = friction_parse::parse_with(current.as_str(), syntax)?;
         let with_sentences = segment_document(&document, segmenter)?;
 
         let mut candidates: Vec<Patch> = Vec::new();
@@ -215,7 +226,7 @@ pub fn edit_document(
     }
 
     let (registered, register_pass, reusable_scan) =
-        register::run_register(&current, register_pack, tagger, parser, segmenter)?;
+        register::run_register(&current, syntax, register_pack, tagger, parser, segmenter)?;
     report.passes.push(register_pass);
     report.reusable_scan = reusable_scan;
     current = registered;

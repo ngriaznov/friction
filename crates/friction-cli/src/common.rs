@@ -188,6 +188,22 @@ impl CliError {
 /// Returns [`CliError::ReadInput`] on any I/O failure (including invalid
 /// UTF-8, surfaced as an [`std::io::Error`] of kind `InvalidData` the same
 /// way `std::fs::read_to_string` reports it).
+/// The surface syntax to parse `path`'s contents as: `.html`/`.htm`
+/// extensions read as HTML; stdin (`-`) is sniffed for an unambiguous
+/// page opener (`friction_parse::looks_like_html`); everything else is
+/// markdown, exactly as before HTML support existed.
+#[must_use]
+pub fn syntax_of(path: &str, source: &str) -> friction_parse::Syntax {
+    let extension_is_html = std::path::Path::new(path)
+        .extension()
+        .is_some_and(|ext| ext.eq_ignore_ascii_case("html") || ext.eq_ignore_ascii_case("htm"));
+    if extension_is_html || (path == "-" && friction_parse::looks_like_html(source)) {
+        friction_parse::Syntax::Html
+    } else {
+        friction_parse::Syntax::Markdown
+    }
+}
+
 pub fn read_input(path: &str) -> Result<String, CliError> {
     if path == "-" {
         let mut buf = String::new();

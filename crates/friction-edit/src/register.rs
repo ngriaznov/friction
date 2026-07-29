@@ -417,12 +417,13 @@ pub fn measure_semicolon_rate(
 /// Returns [`EditError`] if `source` fails to parse or segment.
 pub fn run_register(
     source: &str,
+    syntax: friction_parse::Syntax,
     register_pack: &RegisterPack,
     tagger: &dyn Tagger,
     parser: &dyn DepParser,
     segmenter: &dyn Segmenter,
 ) -> Result<(String, crate::document::PassReport, Option<ReusableScan>), EditError> {
-    let document = friction_parse::parse(source)?;
+    let document = friction_parse::parse_with(source, syntax)?;
     let units = prose_scope(&document, segmenter);
     let sentences = build_sentence_contexts(source, &units, tagger, parser);
     let (

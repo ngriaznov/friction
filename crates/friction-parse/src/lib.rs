@@ -48,12 +48,30 @@
 
 mod error;
 mod extract;
+mod html;
 
 use std::sync::Arc;
 
 pub use error::ParseError;
 use extract::extract;
 use friction_core::Document;
+pub use html::looks_like_html;
+
+/// Which surface syntax a source text is written in — what
+/// [`parse_with`] dispatches on.
+///
+/// Everything downstream of parsing is format-agnostic (byte ranges in,
+/// byte-range patches out), so this enum is the entire extent of the
+/// engine's format awareness.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+pub enum Syntax {
+    /// `CommonMark` + GFM markdown — the default, via `pulldown-cmark`.
+    #[default]
+    Markdown,
+    /// A static HTML page — see the `html` module docs for exactly what
+    /// is and isn't extracted as prose.
+    Html,
+}
 
 /// Parses `source` into a [`Document`]: a markdown block tree with exact
 /// byte ranges, plus the prose extracted from it.
@@ -82,11 +100,29 @@ use friction_core::Document;
 /// [`std::panic::catch_unwind`] and any panic it catches is converted
 /// into this variant rather than propagated.
 pub fn parse(source: impl Into<Arc<str>>) -> Result<Document, ParseError> {
+    parse_with(source, Syntax::Markdown)
+}
+
+/// Parses `source` as `syntax` into a [`Document`] — [`parse`] with the
+/// surface syntax chosen by the caller instead of defaulting to
+/// markdown.
+///
+/// # Errors
+/// Exactly [`parse`]'s: [`ParseError::Core`] on a span-honesty
+/// violation, [`ParseError::UnderlyingParserPanicked`] if
+/// `pulldown-cmark` panics (markdown only — the HTML extractor is this
+/// crate's own single-pass tokenizer and has no panicking dependency to
+/// guard).
+pub fn parse_with(source: impl Into<Arc<str>>, syntax: Syntax) -> Result<Document, ParseError> {
     let source = source.into();
-    let (blocks, prose) =
-        std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| extract(&source))).map_err(
-            |payload| ParseError::UnderlyingParserPanicked(panic_payload_message(&*payload)),
-        )?;
+    let (blocks, prose) = match syntax {
+        Syntax::Markdown => {
+            std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| extract(&source))).map_err(
+                |payload| ParseError::UnderlyingParserPanicked(panic_payload_message(&*payload)),
+            )?
+        }
+        Syntax::Html => html::extract_html(&source),
+    };
     Document::new(source, blocks, prose).map_err(ParseError::from)
 }
 

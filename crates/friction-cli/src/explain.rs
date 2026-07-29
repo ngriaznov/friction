@@ -71,8 +71,9 @@ fn run_inner(args: &ExplainArgs) -> Result<ExitCode, CliError> {
     }
 
     let source = read_input(&args.input)?;
+    let syntax = crate::common::syntax_of(&args.input, &source);
     let engine = friction_edit::Engine::new()?;
-    let (_output, report) = engine.fix_document(&source)?;
+    let (_output, report) = engine.fix_document_with(&source, syntax)?;
 
     let passes = pass_rows(&report);
     let patches_applied = report

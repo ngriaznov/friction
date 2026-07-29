@@ -156,8 +156,9 @@ fn run_inner(args: &FixArgs) -> Result<ExitCode, CliError> {
     }
 
     let source = read_input(&args.input)?;
+    let syntax = crate::common::syntax_of(&args.input, &source);
     let engine = friction_edit::Engine::new()?;
-    let (output, report) = engine.fix_document(&source)?;
+    let (output, report) = engine.fix_document_with(&source, syntax)?;
 
     if args.in_place {
         write_in_place(Path::new(&args.input), &output)?;
@@ -166,8 +167,12 @@ fn run_inner(args: &FixArgs) -> Result<ExitCode, CliError> {
     }
 
     let remaining_held = final_pass_held(&report);
-    let paraphrase_spans =
-        scan_paraphrase_spans(&output, engine.tagger(), report.reusable_scan.as_ref())?;
+    let paraphrase_spans = scan_paraphrase_spans(
+        &output,
+        syntax,
+        engine.tagger(),
+        report.reusable_scan.as_ref(),
+    )?;
     print_summary(
         args.format,
         &report,
@@ -405,12 +410,13 @@ fn reused_tags(
 }
 
 /// # Errors
-/// Returns [`CliError::Parse`] if `output` fails to parse as markdown —
+/// Returns [`CliError::Parse`] if `output` fails to parse as `syntax` —
 /// not expected, since `output` is text `fix_document` has already parsed
 /// successfully once. Never returns this error on the reuse path, since
 /// no parsing happens there.
 fn scan_paraphrase_spans(
     output: &str,
+    syntax: friction_parse::Syntax,
     tagger: &dyn friction_nlp::Tagger,
     reusable: Option<&friction_edit::ReusableScan>,
 ) -> Result<Vec<ParaphraseSpan>, CliError> {
@@ -423,7 +429,7 @@ fn scan_paraphrase_spans(
     let document: &friction_core::Document = if let Some(scan) = reusable {
         &scan.document
     } else {
-        owned_document = friction_parse::parse(output)?;
+        owned_document = friction_parse::parse_with(output, syntax)?;
         &owned_document
     };
     let units = friction_match::token::prose_scope(document, &segmenter);

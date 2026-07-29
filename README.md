@@ -258,7 +258,22 @@ friction fix draft.md > fixed.md       # original untouched
 friction fix draft.md --in-place       # rewrite the file atomically
 friction fix draft.md --suggest        # also list what was detected but held
 friction fix draft.md --format json    # summary as JSON instead of a table
+friction fix page.html                 # static HTML: text nodes edited, markup untouched
 ```
+
+#### Static HTML
+
+A `.html`/`.htm` file (or stdin starting with a doctype or `<html>`) is read
+as a static HTML page instead of markdown: text runs between tags become the
+prose, and everything else — tags, attributes, comments, entities, and the
+entire contents of `head`, `script`, `style`, `pre`, and `code` — is
+untouchable by construction, so the output differs from the input only inside
+text nodes. Headings and table cells follow the same rules as in markdown
+(detected against, never edited). Two boundaries to know: a sentence
+interrupted by inline markup is analyzed as fragments on either side of the
+tag, and prose that lives inside JavaScript string literals (client-rendered
+pages, generated slide decks) is code, not HTML text. Run friction on the
+source those pages are generated from instead.
 
 #### Reading from stdin
 
