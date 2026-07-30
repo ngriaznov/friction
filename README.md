@@ -269,11 +269,19 @@ prose, and everything else — tags, attributes, comments, entities, and the
 entire contents of `head`, `script`, `style`, `pre`, and `code` — is
 untouchable by construction, so the output differs from the input only inside
 text nodes. Headings and table cells follow the same rules as in markdown
-(detected against, never edited). Two boundaries to know: a sentence
-interrupted by inline markup is analyzed as fragments on either side of the
-tag, and prose that lives inside JavaScript string literals (client-rendered
-pages, generated slide decks) is code, not HTML text. Run friction on the
-source those pages are generated from instead.
+(detected against, never edited).
+
+JSON *data blocks* are prose too: a `<script>` whose `type` is
+`application/json` or any `+json` variant is inert data, not code, so the
+string **values** inside it (slide notes, embedded content) are extracted and
+edited — keys, structure, and every escape sequence stay untouchable, which
+keeps the document valid JSON by construction. Executable script content is
+never touched: prose inside real JavaScript string literals is code, and the
+right place for friction there is the source the page is generated from.
+
+One boundary to know: a sentence interrupted by inline markup is analyzed as
+fragments on either side of the tag, so a tell spanning an `<em>` boundary is
+invisible to the span channels.
 
 #### Reading from stdin
 

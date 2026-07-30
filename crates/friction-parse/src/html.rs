@@ -70,8 +70,6 @@ struct OpenElement {
     excluded: bool,
 }
 
-/// Extracts `(blocks, prose)` from HTML source — the read side
-/// [`crate::parse_with`] hands to [`friction_core::Document::new`].
 /// Ends the current text run (if any) at `end`, emitting a block/prose
 /// pair for its whitespace-trimmed extent.
 fn flush(
@@ -99,6 +97,8 @@ fn flush(
     prose.push(ProseUnit::new(block_index, range, Vec::new()));
 }
 
+/// Extracts `(blocks, prose)` from HTML source — the read side
+/// [`crate::parse_with`] hands to [`friction_core::Document::new`].
 pub fn extract_html(source: &str) -> (Vec<Block>, Vec<ProseUnit>) {
     let bytes = source.as_bytes();
     let mut blocks: Vec<Block> = Vec::new();
@@ -113,7 +113,14 @@ pub fn extract_html(source: &str) -> (Vec<Block>, Vec<ProseUnit>) {
         match bytes[pos] {
             b'<' => {
                 flush(source, &mut run_start, pos, &stack, &mut blocks, &mut prose);
-                pos = consume_markup(source, pos, &mut stack, &mut excluded_depth);
+                pos = consume_markup(
+                    source,
+                    pos,
+                    &mut stack,
+                    &mut excluded_depth,
+                    &mut blocks,
+                    &mut prose,
+                );
             }
             b'&' => {
                 if let Some(after) = character_reference_end(bytes, pos) {
@@ -181,6 +188,8 @@ fn consume_markup(
     at: usize,
     stack: &mut Vec<OpenElement>,
     excluded_depth: &mut usize,
+    blocks: &mut Vec<Block>,
+    prose: &mut Vec<ProseUnit>,
 ) -> usize {
     let bytes = source.as_bytes();
     let rest = &bytes[at..];
@@ -213,11 +222,23 @@ fn consume_markup(
             }
             if is_raw_text_element(&name) {
                 // Raw-text content: opaque bytes to the matching close
-                // tag; the element never stays on the stack.
+                // tag; the element never stays on the stack. One
+                // exception inside the opacity: a `<script>` whose
+                // `type` marks it a JSON *data block* (not executable
+                // code) gets its string VALUES extracted as prose — see
+                // [`scan_json_data_block`].
                 if excluded {
                     *excluded_depth -= 1;
                 }
-                return raw_text_end(source, tag_end, &name);
+                let end = raw_text_end(source, tag_end, &name);
+                if name == "script"
+                    && attribute_value(&source[at..tag_end], "type")
+                        .is_some_and(|t| is_json_data_type(&t))
+                {
+                    let content_end = close_tag_start(source, tag_end, &name);
+                    scan_json_data_block(source, tag_end, content_end, blocks, prose);
+                }
+                return end;
             }
             stack.push(OpenElement { name, excluded });
         }
@@ -285,18 +306,186 @@ fn consume_attributes(bytes: &[u8], at: usize) -> (usize, bool) {
     (bytes.len(), self_closed)
 }
 
+/// The position where `</name` begins for a raw-text element whose
+/// content starts at `content_start`, scanning case-insensitively —
+/// i.e. the end of the element's content. Unterminated raw text runs to
+/// the end of the input.
+fn close_tag_start(source: &str, content_start: usize, name: &str) -> usize {
+    let lower = source.to_ascii_lowercase();
+    let needle = format!("</{name}");
+    lower[content_start..]
+        .find(&needle)
+        .map_or(source.len(), |found| content_start + found)
+}
+
 /// The position just past `</name ... >` for a raw-text element opened
 /// at `content_start`, scanning case-insensitively. Unterminated raw
 /// text swallows the rest of the input — the safe direction, since none
 /// of it becomes prose.
 fn raw_text_end(source: &str, content_start: usize, name: &str) -> usize {
-    let lower = source.to_ascii_lowercase();
-    let needle = format!("</{name}");
-    let Some(found) = lower[content_start..].find(&needle) else {
+    let close_start = close_tag_start(source, content_start, name);
+    if close_start >= source.len() {
         return source.len();
-    };
-    let close_start = content_start + found;
+    }
     find_from(source.as_bytes(), close_start, b">").map_or(source.len(), |i| i + 1)
+}
+
+/// The value of attribute `name` inside `tag` (the raw `<tag ...>` byte
+/// slice), lowercased and unquoted, or `None` if absent. A minimal scan
+/// sufficient for the one attribute this module reads (`type`).
+fn attribute_value(tag: &str, name: &str) -> Option<String> {
+    let lower = tag.to_ascii_lowercase();
+    let bytes = lower.as_bytes();
+    let mut search_from = 0;
+    loop {
+        let found = lower[search_from..].find(name)?;
+        let start = search_from + found;
+        search_from = start + name.len();
+        // Must be a standalone attribute name: preceded by whitespace
+        // and followed (after optional whitespace) by `=`.
+        let preceded_ok = start > 0 && bytes[start - 1].is_ascii_whitespace();
+        let mut pos = start + name.len();
+        while pos < bytes.len() && bytes[pos].is_ascii_whitespace() {
+            pos += 1;
+        }
+        if !preceded_ok || bytes.get(pos) != Some(&b'=') {
+            continue;
+        }
+        pos += 1;
+        while pos < bytes.len() && bytes[pos].is_ascii_whitespace() {
+            pos += 1;
+        }
+        return match bytes.get(pos) {
+            Some(&quote @ (b'"' | b'\'')) => {
+                let value_start = pos + 1;
+                let value_end = lower[value_start..]
+                    .find(quote as char)
+                    .map_or(lower.len(), |i| value_start + i);
+                Some(lower[value_start..value_end].to_string())
+            }
+            Some(_) => {
+                let value_start = pos;
+                let value_end = lower[value_start..]
+                    .find(|c: char| c.is_ascii_whitespace() || c == '>')
+                    .map_or(lower.len(), |i| value_start + i);
+                Some(lower[value_start..value_end].to_string())
+            }
+            None => None,
+        };
+    }
+}
+
+/// `true` if a `<script type="...">` value marks a JSON *data block* —
+/// inert data the page reads, not executable code. Covers the two plain
+/// JSON MIME types and the whole `+json` suffix family
+/// (`application/ld+json`, `application/bento+json`, ...).
+fn is_json_data_type(value: &str) -> bool {
+    let value = value.trim();
+    value == "application/json" || value == "text/json" || value.ends_with("+json")
+}
+
+/// Extracts prose from a JSON data block's string VALUES.
+///
+/// A hand-rolled forward lexer, not a JSON parser: it walks
+/// `source[start..end]` finding string literals, treats a string as a
+/// key exactly when the next non-whitespace byte after it is `:`, and
+/// emits every other string's content as prose runs. Inside a value,
+/// every backslash escape (`\"`, `\n`, `\uXXXX`, ...) is a run boundary
+/// — the same rule character references get in HTML text, and with the
+/// same consequence: a run's bytes are always literal text, no edit can
+/// slice through an escape, and the inserted-word closure (plain ASCII
+/// words only) can never produce bytes that need JSON escaping. The
+/// document therefore stays valid JSON by construction.
+///
+/// Values without internal whitespace (ids, colors, font stacks come
+/// close but keep their spaces) are skipped: a single token carries
+/// nothing any operation could edit, and skipping it keeps
+/// machine-value noise out of the register denominators.
+fn scan_json_data_block(
+    source: &str,
+    start: usize,
+    end: usize,
+    blocks: &mut Vec<Block>,
+    prose: &mut Vec<ProseUnit>,
+) {
+    let bytes = source.as_bytes();
+    let mut pos = start;
+    while pos < end {
+        if bytes[pos] != b'"' {
+            pos += 1;
+            continue;
+        }
+        // A string literal: find its end, honoring escapes.
+        let content_start = pos + 1;
+        let mut cursor = content_start;
+        while cursor < end && bytes[cursor] != b'"' {
+            cursor += if bytes[cursor] == b'\\' { 2 } else { 1 };
+        }
+        let content_end = cursor.min(end);
+        pos = (content_end + 1).min(end);
+
+        // A key iff the next non-whitespace byte is `:`.
+        let mut after = pos;
+        while after < end && bytes[after].is_ascii_whitespace() {
+            after += 1;
+        }
+        if bytes.get(after) == Some(&b':') {
+            continue;
+        }
+
+        // Skip whole values with no internal whitespace.
+        let value = &source[content_start..content_end];
+        if !value.trim().contains(|c: char| c.is_ascii_whitespace()) {
+            continue;
+        }
+
+        // Emit the value's escape-delimited runs.
+        let mut run_start = content_start;
+        let mut scan = content_start;
+        while scan <= content_end {
+            let boundary = scan == content_end || bytes[scan] == b'\\';
+            if boundary {
+                emit_json_run(source, run_start, scan, blocks, prose);
+                if scan < content_end {
+                    // `\uXXXX` is six bytes; every other escape is two.
+                    scan += if bytes.get(scan + 1) == Some(&b'u') {
+                        6
+                    } else {
+                        2
+                    };
+                } else {
+                    scan += 1;
+                }
+                run_start = scan;
+            } else {
+                scan += 1;
+            }
+        }
+    }
+}
+
+/// Emits one whitespace-trimmed prose run from a JSON string value, as
+/// an in-scope paragraph block.
+fn emit_json_run(
+    source: &str,
+    start: usize,
+    end: usize,
+    blocks: &mut Vec<Block>,
+    prose: &mut Vec<ProseUnit>,
+) {
+    if start >= end {
+        return;
+    }
+    let raw = &source[start..end];
+    let trimmed_front = raw.len() - raw.trim_start().len();
+    let trimmed = raw.trim();
+    if trimmed.is_empty() {
+        return;
+    }
+    let range = start + trimmed_front..start + trimmed_front + trimmed.len();
+    let block_index = blocks.len();
+    blocks.push(Block::new(BlockKind::Paragraph, range.clone()));
+    prose.push(ProseUnit::new(block_index, range, Vec::new()));
 }
 
 /// The first position of `needle` in `bytes` at or after `from`.
@@ -546,6 +735,73 @@ mod tests {
         assert_eq!(
             prose_a.iter().map(|u| u.range.clone()).collect::<Vec<_>>(),
             prose_b.iter().map(|u| u.range.clone()).collect::<Vec<_>>(),
+        );
+    }
+
+    #[test]
+    fn json_data_block_values_become_prose_and_keys_do_not() {
+        let source = r#"<script type="application/bento+json">
+{"title": "The Results Deck", "id": "cover",
+ "notes": "The comparison covers both branches.",
+ "tags": ["read path", "single"]}
+</script><script>let code = "executable strings stay out";</script>"#;
+        let runs = prose_ranges(source);
+        let texts: Vec<&str> = runs.iter().map(|(_, t)| t.as_str()).collect();
+        // Keys ("title", "notes", ...) never appear; single-token values
+        // ("cover", "single") are skipped; executable-script strings are
+        // untouchable.
+        assert_eq!(
+            texts,
+            vec![
+                "The Results Deck",
+                "The comparison covers both branches.",
+                "read path",
+            ]
+        );
+    }
+
+    #[test]
+    fn json_escapes_split_runs_and_are_never_prose() {
+        let source = r#"<script type="application/json">
+{"notes": "first line.\nSecond line with \"quoted\" text and — dash."}
+</script>"#;
+        let runs = prose_ranges(source);
+        let texts: Vec<&str> = runs.iter().map(|(_, t)| t.as_str()).collect();
+        // The literal `—` is raw text, not an escape: it stays inside
+        // its run, which is what lets the em-dash operation see it with
+        // its surrounding clauses.
+        assert_eq!(
+            texts,
+            vec![
+                "first line.",
+                "Second line with",
+                "quoted",
+                "text and — dash."
+            ]
+        );
+    }
+
+    #[test]
+    fn non_json_script_types_stay_opaque() {
+        let source = r#"<script id="rt" type="bento/deflate-b64">eJzT08vP "not prose" x</script>"#;
+        assert!(prose_ranges(source).is_empty());
+    }
+
+    #[test]
+    fn attribute_value_reads_quoted_unquoted_and_absent() {
+        assert_eq!(
+            attribute_value(r#"<script type="application/json" id=x"#, "type"),
+            Some("application/json".to_string())
+        );
+        assert_eq!(
+            attribute_value("<script type=text/json>", "type"),
+            Some("text/json".to_string())
+        );
+        assert_eq!(attribute_value("<script id=x>", "type"), None);
+        // `data-type` must not satisfy a lookup for `type`.
+        assert_eq!(
+            attribute_value(r#"<script data-type="a+json">"#, "type"),
+            None
         );
     }
 
