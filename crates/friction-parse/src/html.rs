@@ -70,30 +70,60 @@ struct OpenElement {
     excluded: bool,
 }
 
-/// Ends the current text run (if any) at `end`, emitting a block/prose
-/// pair for its whitespace-trimmed extent.
+/// One pending text run: where it starts and whether it *continues* a
+/// block interrupted mid-sentence (an inline tag, entity, or template
+/// expression) rather than opening fresh after a block boundary.
+#[derive(Clone, Copy)]
+struct PendingRun {
+    start: usize,
+    continues: bool,
+}
+
+/// Ends the current text run (if any) at `end`, emitting a prose unit
+/// for its trimmed extent.
+///
+/// A run that *continues* an interrupted block joins its predecessor's
+/// [`Block`] (whose range is widened to cover it) instead of opening a
+/// new one — the same shared-block-index convention the markdown
+/// extractor uses for runs split by inline code, and load-bearing
+/// downstream: the engine treats a same-block successor unit as a new
+/// sentence only when the previous run ended with sentence-terminal
+/// punctuation, which is exactly what stops a mid-sentence fragment
+/// from being "recapitalized". A continuation also keeps its leading
+/// whitespace, matching the markdown extractor's ranges byte for byte
+/// in the analogous split.
 fn flush(
     source: &str,
-    run_start: &mut Option<usize>,
+    run_start: &mut Option<PendingRun>,
     end: usize,
     stack: &[OpenElement],
     blocks: &mut Vec<Block>,
     prose: &mut Vec<ProseUnit>,
 ) {
-    let Some(start) = run_start.take() else {
+    let Some(run) = run_start.take() else {
         return;
     };
-    debug_assert!(start <= end);
-    let raw = &source[start..end];
-    let trimmed_front = raw.len() - raw.trim_start().len();
-    let trimmed = raw.trim_end().trim_start();
-    if trimmed.is_empty() {
+    debug_assert!(run.start <= end);
+    let raw = &source[run.start..end];
+    let trimmed_front = if run.continues {
+        0
+    } else {
+        raw.len() - raw.trim_start().len()
+    };
+    let trimmed = raw[trimmed_front..].trim_end();
+    if trimmed.trim_start().is_empty() {
         return;
     }
-    let range = start + trimmed_front..start + trimmed_front + trimmed.len();
-    let kind = kind_for_context(stack);
-    let block_index = blocks.len();
-    blocks.push(Block::new(kind, range.clone()));
+    let range = run.start + trimmed_front..run.start + trimmed_front + trimmed.len();
+    let block_index = if run.continues && !blocks.is_empty() {
+        let last = blocks.len() - 1;
+        blocks[last].range.end = blocks[last].range.end.max(range.end);
+        last
+    } else {
+        let kind = kind_for_context(stack);
+        blocks.push(Block::new(kind, range.clone()));
+        blocks.len() - 1
+    };
     prose.push(ProseUnit::new(block_index, range, Vec::new()));
 }
 
@@ -107,7 +137,11 @@ pub fn extract_html(source: &str) -> (Vec<Block>, Vec<ProseUnit>) {
     let mut excluded_depth: usize = 0;
 
     let mut pos = 0;
-    let mut run_start: Option<usize> = None;
+    let mut run_start: Option<PendingRun> = None;
+    // Whether text encountered NEXT continues an interrupted block —
+    // set by inline boundaries (an inline tag, an entity, a template
+    // expression), cleared by block-level ones.
+    let mut continues = false;
 
     while pos < bytes.len() {
         match bytes[pos] {
@@ -120,6 +154,7 @@ pub fn extract_html(source: &str) -> (Vec<Block>, Vec<ProseUnit>) {
                     &mut excluded_depth,
                     &mut blocks,
                     &mut prose,
+                    &mut continues,
                 );
             }
             b'&' => {
@@ -127,11 +162,15 @@ pub fn extract_html(source: &str) -> (Vec<Block>, Vec<ProseUnit>) {
                     // A recognized-shape character reference: a run
                     // boundary, exactly like inline code in markdown.
                     flush(source, &mut run_start, pos, &stack, &mut blocks, &mut prose);
+                    continues = true;
                     pos = after;
                 } else {
                     // A bare ampersand ("R&D") is ordinary prose text.
                     if excluded_depth == 0 && run_start.is_none() {
-                        run_start = Some(pos);
+                        run_start = Some(PendingRun {
+                            start: pos,
+                            continues,
+                        });
                     }
                     pos += 1;
                 }
@@ -144,10 +183,14 @@ pub fn extract_html(source: &str) -> (Vec<Block>, Vec<ProseUnit>) {
                     // bytes — a run boundary, never prose, so no edit can
                     // ever alter or splice across one.
                     flush(source, &mut run_start, pos, &stack, &mut blocks, &mut prose);
+                    continues = true;
                     pos = after;
                 } else {
                     if excluded_depth == 0 && run_start.is_none() {
-                        run_start = Some(pos);
+                        run_start = Some(PendingRun {
+                            start: pos,
+                            continues,
+                        });
                     }
                     pos += 1;
                 }
@@ -200,24 +243,30 @@ fn consume_markup(
     excluded_depth: &mut usize,
     blocks: &mut Vec<Block>,
     prose: &mut Vec<ProseUnit>,
+    continues: &mut bool,
 ) -> usize {
     let bytes = source.as_bytes();
     let rest = &bytes[at..];
 
     if rest.starts_with(b"<!--") {
+        // A comment can sit mid-sentence; the text after it continues.
+        *continues = true;
         return find_from(bytes, at + 4, b"-->").map_or(bytes.len(), |i| i + 3);
     }
     if rest.starts_with(b"<![CDATA[") {
+        *continues = false;
         return find_from(bytes, at + 9, b"]]>").map_or(bytes.len(), |i| i + 3);
     }
     if rest.starts_with(b"<!") || rest.starts_with(b"<?") {
         // Doctype or processing instruction: skip to `>`.
+        *continues = false;
         return find_from(bytes, at + 2, b">").map_or(bytes.len(), |i| i + 1);
     }
     if rest.starts_with(b"</") {
         let (name, after_name) = tag_name(source, at + 2);
         let end = find_from(bytes, after_name, b">").map_or(bytes.len(), |i| i + 1);
         if !name.is_empty() {
+            *continues = is_inline_element(&name);
             close_element(&name, stack, excluded_depth);
         }
         return end;
@@ -225,6 +274,7 @@ fn consume_markup(
     if rest.len() > 1 && rest[1].is_ascii_alphabetic() {
         let (name, after_name) = tag_name(source, at + 1);
         let (tag_end, self_closed) = consume_attributes(bytes, after_name);
+        *continues = is_inline_element(&name);
         if !self_closed && !is_void_element(&name) {
             let excluded = is_excluded_element(&name);
             if excluded {
@@ -254,8 +304,49 @@ fn consume_markup(
         }
         return tag_end;
     }
-    // A stray `<` opening nothing: consume the one byte.
+    // A stray `<` opening nothing: consume the one byte. The text on
+    // either side is the same interrupted flow.
+    *continues = true;
     at + 1
+}
+
+/// Phrasing-content elements: an open or close tag of one of these
+/// interrupts a sentence rather than starting a block, so the text after
+/// it *continues* — see [`flush`]'s leading-whitespace rule.
+fn is_inline_element(name: &str) -> bool {
+    matches!(
+        name,
+        "a" | "abbr"
+            | "b"
+            | "bdi"
+            | "bdo"
+            | "br"
+            | "cite"
+            | "code"
+            | "data"
+            | "del"
+            | "dfn"
+            | "em"
+            | "i"
+            | "img"
+            | "ins"
+            | "kbd"
+            | "mark"
+            | "q"
+            | "ruby"
+            | "s"
+            | "samp"
+            | "small"
+            | "span"
+            | "strong"
+            | "sub"
+            | "sup"
+            | "time"
+            | "tt"
+            | "u"
+            | "var"
+            | "wbr"
+    )
 }
 
 /// Pops the stack down through the innermost element named `name`, if
@@ -450,16 +541,41 @@ fn scan_json_data_block(
         }
 
         // Emit the value's runs, delimited by escapes and template
-        // expressions alike.
+        // expressions alike. Every run of one value shares one block
+        // (the same convention [`flush`] applies to an interrupted HTML
+        // block), so the engine's own previous-run-ended-a-sentence
+        // check decides which fragments genuinely start sentences. A
+        // run after `\n`/`\r` additionally starts trimmed (a fresh
+        // line); every other delimiter interrupts mid-sentence, so the
+        // following run keeps its leading whitespace.
+        let mut value_block: Option<usize> = None;
         let mut run_start = content_start;
+        let mut continues = false;
         let mut scan = content_start;
         while scan <= content_end {
             if scan == content_end {
-                emit_json_run(source, run_start, scan, blocks, prose);
+                emit_json_run(
+                    source,
+                    run_start,
+                    scan,
+                    continues,
+                    &mut value_block,
+                    blocks,
+                    prose,
+                );
                 break;
             }
             if bytes[scan] == b'\\' {
-                emit_json_run(source, run_start, scan, blocks, prose);
+                emit_json_run(
+                    source,
+                    run_start,
+                    scan,
+                    continues,
+                    &mut value_block,
+                    blocks,
+                    prose,
+                );
+                continues = !matches!(bytes.get(scan + 1), Some(&b'n' | &b'r'));
                 // `\uXXXX` is six bytes; every other escape is two.
                 scan += if bytes.get(scan + 1) == Some(&b'u') {
                     6
@@ -468,7 +584,16 @@ fn scan_json_data_block(
                 };
                 run_start = scan;
             } else if let Some(after) = template_expression_end(bytes, scan) {
-                emit_json_run(source, run_start, scan, blocks, prose);
+                emit_json_run(
+                    source,
+                    run_start,
+                    scan,
+                    continues,
+                    &mut value_block,
+                    blocks,
+                    prose,
+                );
+                continues = true;
                 scan = after.min(content_end);
                 run_start = scan;
             } else {
@@ -484,6 +609,8 @@ fn emit_json_run(
     source: &str,
     start: usize,
     end: usize,
+    continues: bool,
+    value_block: &mut Option<usize>,
     blocks: &mut Vec<Block>,
     prose: &mut Vec<ProseUnit>,
 ) {
@@ -491,14 +618,25 @@ fn emit_json_run(
         return;
     }
     let raw = &source[start..end];
-    let trimmed_front = raw.len() - raw.trim_start().len();
-    let trimmed = raw.trim();
-    if trimmed.is_empty() {
+    // A continuation keeps its leading whitespace — see [`flush`].
+    let trimmed_front = if continues {
+        0
+    } else {
+        raw.len() - raw.trim_start().len()
+    };
+    let trimmed = raw[trimmed_front..].trim_end();
+    if trimmed.trim_start().is_empty() {
         return;
     }
     let range = start + trimmed_front..start + trimmed_front + trimmed.len();
-    let block_index = blocks.len();
-    blocks.push(Block::new(BlockKind::Paragraph, range.clone()));
+    let block_index = if let Some(index) = *value_block {
+        blocks[index].range.end = blocks[index].range.end.max(range.end);
+        index
+    } else {
+        blocks.push(Block::new(BlockKind::Paragraph, range.clone()));
+        *value_block = Some(blocks.len() - 1);
+        blocks.len() - 1
+    };
     prose.push(ProseUnit::new(block_index, range, Vec::new()));
 }
 
@@ -662,7 +800,7 @@ mod tests {
         let source = "<p>the <em>fix</em> command runs</p>";
         let runs = prose_ranges(source);
         let texts: Vec<&str> = runs.iter().map(|(_, t)| t.as_str()).collect();
-        assert_eq!(texts, vec!["the", "fix", "command runs"]);
+        assert_eq!(texts, vec!["the", "fix", " command runs"]);
     }
 
     #[test]
@@ -673,7 +811,7 @@ mod tests {
                       <p>Uses <code>friction fix</code> daily.</p></body></html>";
         let runs = prose_ranges(source);
         let texts: Vec<&str> = runs.iter().map(|(_, t)| t.as_str()).collect();
-        assert_eq!(texts, vec!["Real prose.", "Uses", "daily."]);
+        assert_eq!(texts, vec!["Real prose.", "Uses", " daily."]);
     }
 
     #[test]
@@ -690,7 +828,7 @@ mod tests {
         let source = "<p>ships &amp; runs</p><p>R&D budget</p><p>x &#8212; y</p>";
         let runs = prose_ranges(source);
         let texts: Vec<&str> = runs.iter().map(|(_, t)| t.as_str()).collect();
-        assert_eq!(texts, vec!["ships", "runs", "R&D budget", "x", "y"]);
+        assert_eq!(texts, vec!["ships", " runs", "R&D budget", "x", " y"]);
     }
 
     #[test]
@@ -739,7 +877,7 @@ mod tests {
         let source = "<p>before<br>after</p><p>with <img src=\"x\"> image</p>";
         let runs = prose_ranges(source);
         let texts: Vec<&str> = runs.iter().map(|(_, t)| t.as_str()).collect();
-        assert_eq!(texts, vec!["before", "after", "with", "image"]);
+        assert_eq!(texts, vec!["before", "after", "with", " image"]);
     }
 
     #[test]
@@ -749,7 +887,7 @@ mod tests {
         let source = "<p>one</em> two<b> three</p><p>four</p>";
         let runs = prose_ranges(source);
         let texts: Vec<&str> = runs.iter().map(|(_, t)| t.as_str()).collect();
-        assert_eq!(texts, vec!["one", "two", "three", "four"]);
+        assert_eq!(texts, vec!["one", " two", " three", "four"]);
     }
 
     #[test]
@@ -803,14 +941,16 @@ mod tests {
         let texts: Vec<&str> = runs.iter().map(|(_, t)| t.as_str()).collect();
         // The literal `—` is raw text, not an escape: it stays inside
         // its run, which is what lets the em-dash operation see it with
-        // its surrounding clauses.
+        // its surrounding clauses. Runs after mid-sentence escapes keep
+        // their leading whitespace (continuations); the run after `\n`
+        // starts a fresh line and is trimmed.
         assert_eq!(
             texts,
             vec![
                 "first line.",
                 "Second line with",
                 "quoted",
-                "text and — dash."
+                " text and — dash."
             ]
         );
     }
@@ -853,7 +993,7 @@ mod tests {
                 ", to the dashboard.",
                 "You have elevated access.",
                 "The total is",
-                "exactly.",
+                " exactly.",
             ]
         );
     }
@@ -865,7 +1005,7 @@ mod tests {
 </script>"#;
         let runs = prose_ranges(source);
         let texts: Vec<&str> = runs.iter().map(|(_, t)| t.as_str()).collect();
-        assert_eq!(texts, vec!["The value", "is measured hourly."]);
+        assert_eq!(texts, vec!["The value", " is measured hourly."]);
     }
 
     #[test]
