@@ -279,6 +279,12 @@ keeps the document valid JSON by construction. Executable script content is
 never touched: prose inside real JavaScript string literals is code, and the
 right place for friction there is the source the page is generated from.
 
+Template expressions are another processor's bytes, not prose: `{{ ... }}`,
+`{% ... %}`, and `<% ... %>` (mustache, Jinja, Liquid, Hugo, ERB, EJS) are
+run boundaries wherever they appear — a `.html` file is often really a
+template, and no edit can alter or splice across an expression another tool
+will evaluate.
+
 One boundary to know: a sentence interrupted by inline markup is analyzed as
 fragments on either side of the tag, so a tell spanning an `<em>` boundary is
 invisible to the span channels.

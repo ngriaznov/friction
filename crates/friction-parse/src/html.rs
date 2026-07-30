@@ -111,7 +111,7 @@ pub fn extract_html(source: &str) -> (Vec<Block>, Vec<ProseUnit>) {
 
     while pos < bytes.len() {
         match bytes[pos] {
-            b'<' => {
+            b'<' if !bytes[pos..].starts_with(b"<%") => {
                 flush(source, &mut run_start, pos, &stack, &mut blocks, &mut prose);
                 pos = consume_markup(
                     source,
@@ -137,10 +137,20 @@ pub fn extract_html(source: &str) -> (Vec<Block>, Vec<ProseUnit>) {
                 }
             }
             _ => {
-                if excluded_depth == 0 && run_start.is_none() {
-                    run_start = Some(pos);
+                if let Some(after) = template_expression_end(bytes, pos) {
+                    // A template-language expression (`{{ ... }}`,
+                    // `{% ... %}`, `<% ... %>`): an `.html` file is often
+                    // really a template, and another processor owns these
+                    // bytes — a run boundary, never prose, so no edit can
+                    // ever alter or splice across one.
+                    flush(source, &mut run_start, pos, &stack, &mut blocks, &mut prose);
+                    pos = after;
+                } else {
+                    if excluded_depth == 0 && run_start.is_none() {
+                        run_start = Some(pos);
+                    }
+                    pos += 1;
                 }
-                pos += 1;
             }
         }
     }
@@ -439,23 +449,27 @@ fn scan_json_data_block(
             continue;
         }
 
-        // Emit the value's escape-delimited runs.
+        // Emit the value's runs, delimited by escapes and template
+        // expressions alike.
         let mut run_start = content_start;
         let mut scan = content_start;
         while scan <= content_end {
-            let boundary = scan == content_end || bytes[scan] == b'\\';
-            if boundary {
+            if scan == content_end {
                 emit_json_run(source, run_start, scan, blocks, prose);
-                if scan < content_end {
-                    // `\uXXXX` is six bytes; every other escape is two.
-                    scan += if bytes.get(scan + 1) == Some(&b'u') {
-                        6
-                    } else {
-                        2
-                    };
+                break;
+            }
+            if bytes[scan] == b'\\' {
+                emit_json_run(source, run_start, scan, blocks, prose);
+                // `\uXXXX` is six bytes; every other escape is two.
+                scan += if bytes.get(scan + 1) == Some(&b'u') {
+                    6
                 } else {
-                    scan += 1;
-                }
+                    2
+                };
+                run_start = scan;
+            } else if let Some(after) = template_expression_end(bytes, scan) {
+                emit_json_run(source, run_start, scan, blocks, prose);
+                scan = after.min(content_end);
                 run_start = scan;
             } else {
                 scan += 1;
@@ -497,6 +511,26 @@ fn find_from(bytes: &[u8], from: usize, needle: &[u8]) -> Option<usize> {
         .windows(needle.len())
         .position(|window| window == needle)
         .map(|i| from + i)
+}
+
+/// The end position (past the closing delimiter) of a template-language
+/// expression starting at `at`, or `None` if the bytes there don't open
+/// one. Recognizes the three delimiter families shared by the common
+/// HTML template languages — `{{ ... }}` (mustache, Jinja, Hugo, Vue),
+/// `{% ... %}` (Jinja/Django/Liquid tags), and `<% ... %>` (ERB, EJS,
+/// JSP) — because a file named `.html` is often really a template, and
+/// those bytes belong to another processor. An unterminated expression
+/// extends to the end of the input: the conservative direction, since
+/// none of it becomes prose.
+fn template_expression_end(bytes: &[u8], at: usize) -> Option<usize> {
+    const DELIMITERS: [(&[u8], &[u8]); 3] = [(b"{{", b"}}"), (b"{%", b"%}"), (b"<%", b"%>")];
+    let rest = &bytes[at..];
+    DELIMITERS
+        .iter()
+        .find(|(open, _)| rest.starts_with(open))
+        .map(|(open, close)| {
+            find_from(bytes, at + open.len(), close).map_or(bytes.len(), |i| i + close.len())
+        })
 }
 
 /// The end position (past the `;`) of a character reference starting at
@@ -803,6 +837,43 @@ mod tests {
             attribute_value(r#"<script data-type="a+json">"#, "type"),
             None
         );
+    }
+
+    #[test]
+    fn template_expressions_are_never_prose_in_text_nodes() {
+        let source = "<p>Welcome back, {{ user.name }}, to the dashboard.</p>\
+                      <p>{% if admin %}You have elevated access.{% endif %}</p>\
+                      <p>The total is <% order.total %> exactly.</p>";
+        let runs = prose_ranges(source);
+        let texts: Vec<&str> = runs.iter().map(|(_, t)| t.as_str()).collect();
+        assert_eq!(
+            texts,
+            vec![
+                "Welcome back,",
+                ", to the dashboard.",
+                "You have elevated access.",
+                "The total is",
+                "exactly.",
+            ]
+        );
+    }
+
+    #[test]
+    fn template_expressions_split_json_values_too() {
+        let source = r#"<script type="application/json">
+{"notes": "The value {{ metric }} is measured hourly."}
+</script>"#;
+        let runs = prose_ranges(source);
+        let texts: Vec<&str> = runs.iter().map(|(_, t)| t.as_str()).collect();
+        assert_eq!(texts, vec!["The value", "is measured hourly."]);
+    }
+
+    #[test]
+    fn a_lone_brace_is_ordinary_prose() {
+        let source = "<p>use braces { and } freely in prose</p>";
+        let runs = prose_ranges(source);
+        assert_eq!(runs.len(), 1);
+        assert_eq!(runs[0].1, "use braces { and } freely in prose");
     }
 
     #[test]
