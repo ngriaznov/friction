@@ -484,7 +484,10 @@ pub fn parse_pattern(raw: &str) -> Result<Vec<PatElem>, FrameRulesError> {
         let (at, lexeme) = &lexemes[i];
         match lexeme {
             Lexeme::Quoted(text) => {
-                elems.push(PatElem::Lit(text.clone()));
+                // A quoted literal may contain spaces ("seamless
+                // integration"): it matches as a phrase, one element
+                // per token.
+                elems.extend(text.split_whitespace().map(|w| PatElem::Lit(w.to_string())));
                 i += 1;
             }
             Lexeme::Word(word) => {
@@ -559,7 +562,7 @@ fn parse_group(
             Lexeme::Quoted(text) => {
                 alts.last_mut()
                     .expect("alts starts non-empty")
-                    .push(PatElem::Lit(text.clone()));
+                    .extend(text.split_whitespace().map(|w| PatElem::Lit(w.to_string())));
                 i += 1;
             }
             Lexeme::Word(word) => {

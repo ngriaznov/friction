@@ -103,6 +103,7 @@ mod attestation;
 mod dms;
 mod dms_bin;
 mod envelope;
+pub mod frame_compile;
 pub mod frame_rules;
 mod inventory;
 mod jargon;
