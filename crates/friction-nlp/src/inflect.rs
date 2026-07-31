@@ -283,6 +283,7 @@ const IRREGULAR_VERBS: &[(&str, &str, &str, &str)] = &[
     ("take", "takes", "taking", "took"),
     ("get", "gets", "getting", "got"),
     ("give", "gives", "giving", "gave"),
+    ("speed", "speeds", "speeding", "sped"),
     ("know", "knows", "knowing", "knew"),
     ("think", "thinks", "thinking", "thought"),
     ("see", "sees", "seeing", "saw"),

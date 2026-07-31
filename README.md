@@ -30,7 +30,7 @@ byte-deterministic.
 
 ## What it does
 
-Six operations edit text. Nothing else does.
+Seven operations edit text. Nothing else does.
 
 1. **Ritual deletion**: sentences matching ritual frames are removed whole:
    *"If you have any questions or require further assistance, please reach out
@@ -56,7 +56,20 @@ Six operations edit text. Nothing else does.
    meaning — and only when the marker sits strictly between the question's
    auxiliary and its coordinating `or`, so a genuine either-or question is
    never touched.
-6. **Register rephrasing** — the only operation that can *raise* a construction
+6. **Frame rewriting** — a compiled rule program of corpus-adjudicated
+   lexical frames: *"We utilized the cache"* → *"We used the cache"*,
+   *"It showcases the results"* → *"It shows the results"*, *"alongside the
+   dashboard"* → *"with the dashboard"*. Every rule carries measured
+   per-million frequencies from the machine and human corpora, and the pack
+   compiler enforces the evidence at build time: a rule whose target word
+   is unattested in human text, whose trigger measures human-tilted, or
+   whose trigger is simply too common in human prose to auto-edit
+   (100+/M) never compiles as an edit — it demotes to a report-only
+   finding, and `--suggest` shows it with its measured rates. Rewrites
+   realize through the inflection tables, so tense and agreement survive
+   the swap, and every candidate still passes the same seam, clause, and
+   skeleton gates as a deletion.
+7. **Register rephrasing** — the only operation that can *raise* a construction
    rather than remove one. Language models under-produce the agentless passive
    relative to human technical writing, consistently and across every model
    measured, and no amount of deleting fixes an under-use. So a clause with a
@@ -261,6 +274,7 @@ friction fix draft.md --format json    # summary as JSON instead of a table
 friction fix page.html                 # static HTML: text nodes edited, markup untouched
 ```
 
+
 #### Static HTML
 
 A `.html`/`.htm` file (or stdin starting with a doctype or `<html>`) is read
@@ -413,12 +427,18 @@ friction fix: 2 pass(es), 0 patch(es) applied
 ```
 friction check draft.md --family qwen --genre blog
 friction check draft.md --family gemma --format sarif > report.sarif
+friction check draft.md --family qwen --residual
 ```
 
 Reports detected spans with byte-exact locations, tell counts per family,
 distribution metrics against the genre envelope, and the document-level
 matching-statistics differential. The SARIF output validates against the SARIF
 2.1.0 schema.
+
+`--residual` appends the spans the statistical channel flags that no
+compiled frame rule covers — the machine tells the rule set cannot yet
+explain or rewrite, which is exactly the evidence queue the next
+rule-generation batch should start from.
 
 `--family` is required and matters: detection indexes are specific to the
 generator family they were mined from (`qwen`, `gemma`, `llama`, `granite`).
@@ -649,6 +669,15 @@ detection frame, or introduces an unattested content word, fails the build):
 - `register-v1.toml` — the per-feature bands register homes toward, as the 10th
   and 90th percentiles of the per-document rate across 58 human documentation
   files. The band, not its centre, is the target.
+- `frame-rules-v1.toml` — the adjudicated frame-rewrite rule set: 3,333
+  rules in seven evidence buckets, of which only the corpus-confirmed
+  buckets ever compile; the rest are staged evidence for `corpus-tool
+  adjudicate`, the referee that re-derives every verdict from the corpora.
+  The runtime embeds `frame-pack-v1.bin` (117 KB): the surviving rule
+  program — 785 edits and guards plus 93 report-only rules after the
+  rejection gauntlet — serialized flat by `corpus-tool frame-pack` and
+  loaded zero-copy, with a drift test that recompiles the TOML and fails
+  on any divergence.
 - `jargon-v1.toml` — the curated metaphor-lexeme list `jargon.metaphor`
   matches against, and a small attested-exceptions allowlist of compounds it
   never flags regardless of what the filter below says. Each lexeme is

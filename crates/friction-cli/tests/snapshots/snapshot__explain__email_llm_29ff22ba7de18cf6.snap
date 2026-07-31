@@ -2,7 +2,25 @@
 source: crates/friction-cli/tests/snapshot.rs
 expression: stdout
 ---
-pass 1: 1 operation(s) fired
+pass 1: 3 operation(s) fired
   ritual.delete            90..228  (deleted)
+  adjd.unwavering          1877..1895  -> "support"
+  mod.feel-free-to::lit    2166..2186  -> "you can bring a"
+  7 held:
+    intg.especially        339..349  KEPT (frame intg.especially: measured 226.0/M machine vs 141.3/M human; report-only)
+    vguard.ensure          685..692  KEPT (frame vguard.ensure: measured 1376.3/M machine vs 314.8/M human; report-only)
+    conng.further          1323..1330  KEPT (frame conng.further: measured 275.8/M machine vs 199.6/M human; report-only)
+    vguard.ensure          2097..2103  KEPT (frame vguard.ensure: measured 1376.3/M machine vs 314.8/M human; report-only)
+    vguard.ensure          2742..2749  KEPT (frame vguard.ensure: measured 1376.3/M machine vs 314.8/M human; report-only)
+    vguard.ensure          3314..3320  KEPT (frame vguard.ensure: measured 1376.3/M machine vs 314.8/M human; report-only)
+    pilot.such-as          3343..3350  KEPT (frame pilot.such-as: report-only (see the frame-pack compile report))
 pass 2: 0 operation(s) fired — converged
+  7 held:
+    intg.especially        201..211  KEPT (frame intg.especially: measured 226.0/M machine vs 141.3/M human; report-only)
+    vguard.ensure          531..681  KEPT (frame vguard.ensure: measured 1376.3/M machine vs 314.8/M human; report-only)
+    conng.further          1123..1317  KEPT (frame conng.further: measured 275.8/M machine vs 199.6/M human; report-only)
+    vguard.ensure          1903..1975  KEPT (frame vguard.ensure: measured 1376.3/M machine vs 314.8/M human; report-only)
+    vguard.ensure          2566..2670  KEPT (frame vguard.ensure: measured 1376.3/M machine vs 314.8/M human; report-only)
+    vguard.ensure          3150..3339  KEPT (frame vguard.ensure: measured 1376.3/M machine vs 314.8/M human; report-only)
+    pilot.such-as          3150..3339  KEPT (frame pilot.such-as: report-only (see the frame-pack compile report))
 pass 3: 0 operation(s) fired — converged

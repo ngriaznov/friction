@@ -190,18 +190,27 @@ fn run_inner(args: &FixArgs) -> Result<ExitCode, CliError> {
     Ok(ExitCode::SUCCESS)
 }
 
-/// The engine's own last-pass held candidates — i.e. the gate-held
-/// diagnostics scanned against the text the engine actually converged to,
-/// since the last pass run is always either the zero-patch convergence
-/// pass (re-scanning the previous pass's already-fixed output) or the
-/// final bounded pass. Empty if the engine ran zero passes (not expected —
-/// `fix_document` always runs at least one) or found nothing to hold.
+/// The engine's current held candidates: the register pass's holds
+/// (always the report's final entry) merged with the last bounded
+/// pass's — the bounded passes re-scan every sentence each round, so
+/// the final bounded pass (the zero-patch convergence pass, or the
+/// bounded-out last round) carries the gate-held diagnostics against
+/// the text the engine actually converged to, and the register pass
+/// carries only its own remainder findings, never those.
 fn final_pass_held(report: &EditReport) -> Vec<Finding> {
-    report
-        .passes
-        .last()
-        .map(|pass| pass.held.clone())
-        .unwrap_or_default()
+    let passes = &report.passes;
+    let mut held: Vec<Finding> = passes
+        .len()
+        .checked_sub(2)
+        .map(|i| passes[i].held.clone())
+        .unwrap_or_default();
+    held.extend(
+        passes
+            .last()
+            .map(|pass| pass.held.clone())
+            .unwrap_or_default(),
+    );
+    held
 }
 
 fn print_summary(
@@ -644,17 +653,25 @@ mod tests {
         }
     }
 
-    /// `final_pass_held` reads only the last pass's held candidates.
+    /// `final_pass_held` merges the last bounded pass's holds (the
+    /// gate-held candidates against the converged text — frame and
+    /// deletion holds live there) with the register pass's own (always
+    /// the final entry). A pass before the converged one contributes
+    /// nothing.
     #[test]
-    fn final_pass_held_reads_last_pass_only() {
-        let earlier = Finding::new(RuleId::new("span.delete"), 0..1, "earlier", Tier::Suggest);
-        let last = Finding::new(RuleId::new("pivot.lvc"), 1..2, "last", Tier::Suggest);
+    fn final_pass_held_merges_converged_and_register_passes() {
+        let stale = Finding::new(RuleId::new("span.delete"), 0..1, "stale", Tier::Suggest);
+        let converged = Finding::new(RuleId::new("vsub.notify"), 0..1, "gate", Tier::Suggest);
+        let register = Finding::new(RuleId::new("pivot.lvc"), 1..2, "register", Tier::Suggest);
         let report = EditReport {
-            passes: vec![pass(vec![earlier]), pass(vec![last.clone()])],
+            passes: vec![
+                pass(vec![stale]),
+                pass(vec![converged.clone()]),
+                pass(vec![register.clone()]),
+            ],
             reusable_scan: None,
         };
-        let remaining = final_pass_held(&report);
-        assert_eq!(remaining, vec![last]);
+        assert_eq!(final_pass_held(&report), vec![converged, register]);
     }
 
     /// An empty `EditReport` (never produced by `fix_document` in

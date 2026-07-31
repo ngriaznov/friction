@@ -55,7 +55,7 @@ use serde::Deserialize;
 
 use crate::frame_rules::{
     Clitic, FrameRule, FrameRuleSet, PatElem, PilotRule, RuleKind, Slot, Tag, Target, TplElem,
-    parse_pattern, parse_target,
+    Verdict, classify, parse_pattern, parse_target,
 };
 
 /// The human-corpus frequency floor (occurrences per million tokens) a
@@ -260,65 +260,167 @@ pub enum FrameCompileError {
     RateSource(String),
 }
 
-/// Builds the human-corpus word-rate table the attestation fence needs
-/// from a `dms-index-v1` TOML's shared vocabulary and human stream.
+/// The corpus evidence the compile fences consult.
 ///
-/// Deriving the rates from that committed artifact (rather than from a
-/// live corpus walk) keeps the compile a pure function of in-repo
-/// bytes, so the pack drift test can re-run it byte-identically.
-///
-/// # Errors
-/// Returns [`FrameCompileError::RateSource`] if the TOML lacks the
-/// `[vocab]`/`[streams.human]` shape or the id stream is malformed.
-pub fn human_rates_from_dms_toml(
-    toml_text: &str,
-) -> Result<BTreeMap<String, f64>, FrameCompileError> {
-    #[derive(Deserialize)]
-    struct RawVocab {
-        tokens: Vec<String>,
+/// Derived entirely from the committed `dms-index-v1` TOML so the
+/// compile stays a pure function of in-repo bytes (the pack drift
+/// test re-runs it byte-identically): per-word human rates for the
+/// attestation floor, and both sides' token-id streams for the
+/// direction fence's phrase counts (the machine side is every family
+/// stream concatenated).
+#[derive(Debug, Clone)]
+pub struct CorpusEvidence {
+    /// Lowercased word → human-corpus occurrences per million tokens.
+    pub human_rates: BTreeMap<String, f64>,
+    word_ids: BTreeMap<String, u32>,
+    human_stream: Vec<u32>,
+    machine_stream: Vec<u32>,
+}
+
+impl CorpusEvidence {
+    /// Parses a `dms-index-v1` TOML's shared vocabulary and streams.
+    ///
+    /// # Errors
+    /// Returns [`FrameCompileError::RateSource`] if the TOML lacks the
+    /// `[vocab]`/`[streams.*]` shape or an id stream is malformed.
+    pub fn from_dms_toml(toml_text: &str) -> Result<Self, FrameCompileError> {
+        #[derive(Deserialize)]
+        struct RawVocab {
+            tokens: Vec<String>,
+        }
+        #[derive(Deserialize, Default)]
+        struct RawStream {
+            ids: String,
+        }
+        #[derive(Deserialize)]
+        struct RawStreams {
+            human: RawStream,
+            #[serde(default)]
+            qwen: Option<RawStream>,
+            #[serde(default)]
+            gemma: Option<RawStream>,
+            #[serde(default)]
+            llama: Option<RawStream>,
+            #[serde(default)]
+            granite: Option<RawStream>,
+            #[serde(default)]
+            claude: Option<RawStream>,
+        }
+        #[derive(Deserialize)]
+        struct RawPack {
+            vocab: RawVocab,
+            streams: RawStreams,
+        }
+        let raw: RawPack =
+            toml::from_str(toml_text).map_err(|e| FrameCompileError::RateSource(e.to_string()))?;
+        let parse_stream = |ids: &str| -> Result<Vec<u32>, FrameCompileError> {
+            ids.split(',')
+                .map(|t| {
+                    t.trim()
+                        .parse()
+                        .map_err(|_| FrameCompileError::RateSource(format!("bad stream id {t:?}")))
+                })
+                .collect()
+        };
+        let human_stream = parse_stream(&raw.streams.human.ids)?;
+        if human_stream.is_empty() {
+            return Err(FrameCompileError::RateSource("empty human stream".into()));
+        }
+        let mut machine_stream = Vec::new();
+        for family in [
+            &raw.streams.qwen,
+            &raw.streams.gemma,
+            &raw.streams.llama,
+            &raw.streams.granite,
+            &raw.streams.claude,
+        ]
+        .into_iter()
+        .flatten()
+        {
+            machine_stream.extend(parse_stream(&family.ids)?);
+        }
+
+        let mut counts: BTreeMap<u32, u64> = BTreeMap::new();
+        for id in &human_stream {
+            *counts.entry(*id).or_default() += 1;
+        }
+        #[expect(
+            clippy::cast_precision_loss,
+            reason = "corpus counts are far below 2^52"
+        )]
+        let rate = |count: u64| count as f64 / human_stream.len() as f64 * 1_000_000.0;
+        let mut human_rates: BTreeMap<String, f64> = BTreeMap::new();
+        let mut word_ids: BTreeMap<String, u32> = BTreeMap::new();
+        for (index, token) in raw.vocab.tokens.iter().enumerate() {
+            let id = u32::try_from(index).expect("vocab far below u32::MAX");
+            let word = token.to_lowercase();
+            // Duplicate vocab texts: rates accumulate; the id map keeps
+            // the first (matching the runtime vocab's first-id-wins).
+            if let Some(count) = counts.get(&id) {
+                *human_rates.entry(word.clone()).or_insert(0.0) += rate(*count);
+            }
+            word_ids.entry(word).or_insert(id);
+        }
+        Ok(Self {
+            human_rates,
+            word_ids,
+            human_stream,
+            machine_stream,
+        })
     }
-    #[derive(Deserialize)]
-    struct RawStream {
-        ids: String,
-    }
-    #[derive(Deserialize)]
-    struct RawStreams {
-        human: RawStream,
-    }
-    #[derive(Deserialize)]
-    struct RawPack {
-        vocab: RawVocab,
-        streams: RawStreams,
-    }
-    let raw: RawPack =
-        toml::from_str(toml_text).map_err(|e| FrameCompileError::RateSource(e.to_string()))?;
-    let mut counts: BTreeMap<u32, u64> = BTreeMap::new();
-    let mut total: u64 = 0;
-    for id_text in raw.streams.human.ids.split(',') {
-        let id: u32 = id_text
-            .trim()
-            .parse()
-            .map_err(|_| FrameCompileError::RateSource(format!("bad stream id {id_text:?}")))?;
-        *counts.entry(id).or_default() += 1;
-        total += 1;
-    }
-    if total == 0 {
-        return Err(FrameCompileError::RateSource("empty human stream".into()));
-    }
-    #[expect(
-        clippy::cast_precision_loss,
-        reason = "corpus counts are far below 2^52"
-    )]
-    let rate = |count: u64| count as f64 / total as f64 * 1_000_000.0;
-    let mut rates = BTreeMap::new();
-    for (id, count) in counts {
-        if let Some(token) = raw.vocab.tokens.get(id as usize) {
-            // Duplicate vocab texts resolve by accumulation: the rate of
-            // a word is the rate of all ids spelling it.
-            *rates.entry(token.to_lowercase()).or_insert(0.0) += rate(count);
+
+    /// A minimal evidence table for tests: the given words attested at
+    /// a generous rate, with empty streams (so the direction fence
+    /// never trips).
+    #[must_use]
+    pub fn for_tests(attested: &[&str]) -> Self {
+        Self {
+            human_rates: attested.iter().map(|w| ((*w).to_string(), 100.0)).collect(),
+            word_ids: BTreeMap::new(),
+            human_stream: Vec::new(),
+            machine_stream: Vec::new(),
         }
     }
-    Ok(rates)
+
+    /// Non-overlapping occurrences of the word phrase in each side's
+    /// stream: `(machine, human)`. A phrase containing any word the
+    /// vocabulary does not know occurs zero times by construction.
+    #[must_use]
+    pub fn phrase_counts(&self, words: &[&str]) -> (u64, u64) {
+        let ids: Option<Vec<u32>> = words
+            .iter()
+            .map(|w| self.word_ids.get(&w.to_lowercase()).copied())
+            .collect();
+        let Some(ids) = ids else {
+            return (0, 0);
+        };
+        if ids.is_empty() {
+            return (0, 0);
+        }
+        let count = |stream: &[u32]| {
+            let mut n = 0u64;
+            let mut i = 0;
+            while i + ids.len() <= stream.len() {
+                if stream[i..i + ids.len()] == ids[..] {
+                    n += 1;
+                    i += ids.len();
+                } else {
+                    i += 1;
+                }
+            }
+            n
+        };
+        (count(&self.machine_stream), count(&self.human_stream))
+    }
+
+    /// Each side's token total: `(machine, human)`.
+    #[must_use]
+    pub const fn totals(&self) -> (u64, u64) {
+        (
+            self.machine_stream.len() as u64,
+            self.human_stream.len() as u64,
+        )
+    }
 }
 
 /// Compiles the fenced buckets of `set` against the attestation table.
@@ -329,7 +431,7 @@ pub fn human_rates_from_dms_toml(
 /// land in the report instead.
 pub fn compile(
     set: &FrameRuleSet,
-    human_rates: &BTreeMap<String, f64>,
+    evidence: &CorpusEvidence,
 ) -> Result<(CompiledPack, CompileReport), FrameCompileError> {
     let mut report = CompileReport::default();
     let mut interner = Interner {
@@ -355,13 +457,7 @@ pub fn compile(
     // resolved first and closure runs as a second pass.
     let mut survivors: Vec<CompiledRule> = Vec::new();
     for draft in drafts {
-        match compile_one(
-            draft,
-            &mut interner,
-            &mut classes,
-            &ship_parents,
-            human_rates,
-        ) {
+        match compile_one(draft, &mut interner, &mut classes, &ship_parents, evidence) {
             Outcome::Compiled(rule, demotion) => {
                 match demotion {
                     Some(reason) => report.demoted.push((rule.id.clone(), reason)),
@@ -565,7 +661,7 @@ fn compile_one(
     interner: &mut Interner,
     classes: &mut ClassTable,
     ship_parents: &BTreeMap<&str, Vec<PatElem>>,
-    human_rates: &BTreeMap<String, f64>,
+    evidence: &CorpusEvidence,
 ) -> Outcome {
     // Guard shape: a fenced guard must protect, not rewrite.
     if draft.kind == RuleKind::Guard
@@ -613,6 +709,11 @@ fn compile_one(
         Some("target was never authored (REVIEW placeholder)".to_string())
     } else if template_has_placeholder(&draft.target) {
         Some("target realization was never authored (`?` placeholder)".to_string())
+    } else if draft.kind != RuleKind::Guard
+        && let Some(reason) =
+            anchor_evidence_demotion(&draft.pattern, anchor_start, anchor_len, evidence)
+    {
+        Some(reason)
     } else {
         None
     };
@@ -635,7 +736,7 @@ fn compile_one(
         Vec::new()
     };
     if kind == CompiledKind::Rewrite
-        && let Some(reject) = attest_template(&template, interner, classes, human_rates)
+        && let Some(reject) = attest_template(&template, interner, classes, &evidence.human_rates)
     {
         return Outcome::Rejected(draft.id, reject);
     }
@@ -705,6 +806,60 @@ fn anchor_run(pattern: &[PatElem]) -> Option<(usize, usize)> {
     }
     consider(run_start, pattern.len(), &mut best);
     best
+}
+
+/// The per-million rate above which an anchor is too common in human
+/// prose to auto-edit: at 100/M a rule fires on ordinary human text
+/// about once every ten thousand words, which is exactly the
+/// near-no-op noise the human-holdout criterion forbids — the same
+/// reasoning that turned the human-dense verbs into guards.
+const HUMAN_RATE_CEILING_PER_MILLION: f64 = 100.0;
+
+/// Why the anchor's own measured evidence demotes an edit rule to
+/// report-only, if it does. Two fences, both re-derived from corpus
+/// bytes on every compile (the trust model applied to the delivered
+/// buckets — never hand-curation):
+///
+/// - **direction**: an anchor solidly HUMAN-tilted here (three or more
+///   human occurrences and the referee's own direction-error verdict)
+///   marks a rewrite that would push text toward the machine register;
+/// - **human-rate ceiling**: an anchor above
+///   [`HUMAN_RATE_CEILING_PER_MILLION`] in human prose fires on human
+///   text too often to auto-edit no matter how machine-tilted its
+///   ratio is — absolute human frequency, not the ratio, is what sets
+///   the human-holdout edit noise.
+fn anchor_evidence_demotion(
+    pattern: &[PatElem],
+    anchor_start: usize,
+    anchor_len: usize,
+    evidence: &CorpusEvidence,
+) -> Option<String> {
+    let words: Vec<&str> = pattern[anchor_start..anchor_start + anchor_len]
+        .iter()
+        .map(|elem| match elem {
+            PatElem::Lit(text) => text.as_str(),
+            _ => unreachable!("anchor runs contain only literals"),
+        })
+        .collect();
+    let (m, h) = evidence.phrase_counts(&words);
+    let (m_total, h_total) = evidence.totals();
+    if h >= 3 && classify(RuleKind::Rewrite, m, h, m_total, h_total) == Verdict::DirectionError {
+        return Some(format!(
+            "anchor measured human-tilted on the shipped corpora ({m} machine vs {h} human occurrences)"
+        ));
+    }
+    #[expect(
+        clippy::cast_precision_loss,
+        reason = "corpus counts are far below 2^52"
+    )]
+    let h_rate = if h_total == 0 {
+        0.0
+    } else {
+        h as f64 / h_total as f64 * 1_000_000.0
+    };
+    (h_rate >= HUMAN_RATE_CEILING_PER_MILLION).then(|| {
+        format!("anchor too common in human prose to auto-edit ({h_rate:.0}/M human); report-only")
+    })
 }
 
 /// First class name referenced by the pattern that the set does not
@@ -976,9 +1131,10 @@ mod tests {
     use super::*;
     use crate::frame_rules::FrameRuleSet;
 
-    /// A rates table where everything common is attested.
-    fn generous_rates(words: &[&str]) -> BTreeMap<String, f64> {
-        words.iter().map(|w| ((*w).to_string(), 100.0)).collect()
+    /// An evidence table where the given words are attested and the
+    /// direction fence never trips.
+    fn generous_rates(words: &[&str]) -> CorpusEvidence {
+        CorpusEvidence::for_tests(words)
     }
 
     fn tiny_set(rules_ship: &str) -> FrameRuleSet {
@@ -1117,7 +1273,7 @@ words = ["a", "an", "the", "to", "of"]
     fn shipped_rule_set_compiles_with_full_accounting() {
         let set = FrameRuleSet::parse(include_str!("../packs/frame-rules-v1.toml"))
             .expect("shipped rules parse");
-        let rates = human_rates_from_dms_toml(include_str!("../packs/dms-index-v1.toml"))
+        let rates = CorpusEvidence::from_dms_toml(include_str!("../packs/dms-index-v1.toml"))
             .expect("shipped dms index parses");
         let (pack, report) = compile(&set, &rates).expect("shipped set must compile");
         let fenced = set.rules_ship.len()
@@ -1162,7 +1318,7 @@ words = ["a", "an", "the", "to", "of"]
     fn compile_is_deterministic() {
         let set = FrameRuleSet::parse(include_str!("../packs/frame-rules-v1.toml"))
             .expect("shipped rules parse");
-        let rates = human_rates_from_dms_toml(include_str!("../packs/dms-index-v1.toml"))
+        let rates = CorpusEvidence::from_dms_toml(include_str!("../packs/dms-index-v1.toml"))
             .expect("shipped dms index parses");
         let (pack_a, _) = compile(&set, &rates).expect("compile a");
         let (pack_b, _) = compile(&set, &rates).expect("compile b");

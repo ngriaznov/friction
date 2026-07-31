@@ -3,6 +3,12 @@ source: crates/friction-cli/tests/snapshot.rs
 expression: stdout
 ---
 pass 1: 0 operation(s) fired — converged
-  1 held:
+  7 held:
+    intg.effectively       252..263  KEPT (frame intg.effectively: measured 152.6/M machine vs 29.2/M human; report-only)
+    intg.simply            932..938  KEPT (frame intg.simply: measured 220.1/M machine vs 145.9/M human; report-only)
     span.delete            909..963  KEPT (deletion span.simply held: SeamNotAttested)
+    intg.actually          1336..1344  KEPT (frame intg.actually: measured 548.7/M machine vs 211.9/M human; report-only)
+    adjg.clean             1863..1868  KEPT (frame adjg.clean: measured 267.0/M machine vs 109.0/M human; report-only)
+    intg.entirely          2701..2709  KEPT (frame intg.entirely: measured 193.7/M machine vs 82.9/M human; report-only)
+    phg.at-least           3624..3632  KEPT (frame phg.at-least: measured 249.4/M machine vs 145.9/M human; report-only)
 pass 2: 0 operation(s) fired — converged

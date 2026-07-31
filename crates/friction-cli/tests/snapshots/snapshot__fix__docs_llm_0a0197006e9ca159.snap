@@ -4,7 +4,7 @@ expression: stdout
 ---
 **How to Set Up Automatic Database Backups for Corkboard**
 
-Corkboard is your go-to platform for organizing notes and ideas in an intuitive, visual manner. To ensure that all your valuable data remains safe and accessible, setting up automatic database backups matters. This guide covers the process of configuring these backups using cron scheduling on a Linux server environment, specifying where to store the backups, and detailing how to restore from a backup file.
+Corkboard is your go-to platform for organizing notes and ideas in an intuitive, visual manner. To ensure that all your valuable data remains safe and accessible, setting up automatic database backups matters. This guide covers configuring these backups using cron scheduling on a Linux server environment, specifying where to store the backups, and detailing how to restore from a backup file.
 
 ### Prerequisites
 

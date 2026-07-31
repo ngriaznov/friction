@@ -6,7 +6,7 @@ expression: stdout
 
 ## Introduction
 
-Lumen is a static site generator tailored specifically for photography portfolios. It uses Ruby's power through a gem distribution system, making it easy to integrate into existing projects or workflows. Designed with simplicity and performance in mind, Lumen automates the generation of visually appealing portfolio sites by handling image galleries, markdown-based content, thumbnail creation, and EXIF-based caption extraction seamlessly.
+Lumen is a static site generator tailored specifically for photography portfolios. It uses Ruby's power through a gem distribution system, making it easy to integrate into existing projects or workflows. Designed with simplicity and performance in mind, Lumen automates the generation of visually appealing portfolio sites by handling image galleries, markdown-based content, thumbnail creation, and EXIF-based caption extraction.
 
 ## Folder Convention
 

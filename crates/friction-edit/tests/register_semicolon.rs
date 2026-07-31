@@ -123,7 +123,7 @@ const INSIDE_BAND: &str = "The job reads from the queue; it commits offsets only
      state between runs. Each run starts from a clean slate and reads the tree fresh. A file \
      that changes while the scanner is reading it may produce a stale result for that one file \
      only, never for the rest of the run. The scanner never writes to the tree it reads. \
-     Running it alongside another tool that also reads the tree is always safe.";
+     Running it with another tool that also reads the tree is always safe.";
 
 #[test]
 fn a_document_with_a_semicolon_inside_the_band_is_byte_identical() {

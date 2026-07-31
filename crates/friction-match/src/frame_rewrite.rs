@@ -157,8 +157,20 @@ pub fn scan_sentence(
                 }
             };
             push(&token.lemma.to_lowercase());
+            // Irregular forms reduce through the shared tables...
             for pos in ["VBD", "VBG", "VBZ"] {
                 push(&friction_nlp::lemmatize(&surface, pos));
+            }
+            // ...but the regular reverse lemmatization there keeps ONE
+            // stem per form, and when two stems both round-trip
+            // ("commenc"/"commence" for "commenced") it can keep the
+            // wrong one. Here the pack's own interner is the
+            // dictionary: generate every plausible suffix reduction
+            // and let interner membership arbitrate — a stem that is
+            // no rule's word can never matter to a scan, and a stem
+            // that is one is exactly the reading the rule wants.
+            for candidate in suffix_reductions(&surface) {
+                push(&candidate);
             }
             ResolvedToken { surface_id, ids }
         })
@@ -226,6 +238,42 @@ pub fn resolve(view: &FramePackView<'_>, mut matches: Vec<FrameMatch>) -> Vec<Fr
 /// The token's surface text.
 fn surface_of<'a>(token: &TaggedToken, text: &'a str) -> &'a str {
     &text[token.token.range.clone()]
+}
+
+/// Every plausible base-form reduction of a lowercased surface:
+/// `-ied`/`-ed`/`-ing` (with doubled-consonant undoubling and `-e`
+/// restoration) and `-ies`/`-es`/`-s`. Deliberately over-generates —
+/// the caller keeps only candidates the pack's interner knows.
+fn suffix_reductions(surface: &str) -> Vec<String> {
+    let mut out = Vec::new();
+    let undoubled = |stem: &str| {
+        let chars: Vec<char> = stem.chars().collect();
+        let n = chars.len();
+        (n >= 2 && chars[n - 1] == chars[n - 2] && !"aeiou".contains(chars[n - 1]))
+            .then(|| chars[..n - 1].iter().collect::<String>())
+    };
+    if let Some(stem) = surface.strip_suffix("ied") {
+        out.push(format!("{stem}y"));
+    }
+    for suffix in ["ed", "ing"] {
+        if let Some(stem) = surface.strip_suffix(suffix) {
+            if let Some(un) = undoubled(stem) {
+                out.push(un);
+            }
+            out.push(stem.to_string());
+            out.push(format!("{stem}e"));
+        }
+    }
+    if let Some(stem) = surface.strip_suffix("ies") {
+        out.push(format!("{stem}y"));
+    }
+    if let Some(stem) = surface.strip_suffix("es") {
+        out.push(stem.to_string());
+    }
+    if let Some(stem) = surface.strip_suffix('s') {
+        out.push(stem.to_string());
+    }
+    out
 }
 
 /// Whether `rule`'s full anchor id run matches starting at token `at`.
@@ -599,6 +647,7 @@ mod tests {
     use super::*;
     use friction_nlp::{PerceptronTagger, Tagger};
     use friction_packs::FRAME;
+    use friction_packs::frame_compile::CompiledKind;
 
     fn tagged(text: &str) -> Vec<TaggedToken> {
         let tagger = PerceptronTagger::new().expect("embedded tagger loads");

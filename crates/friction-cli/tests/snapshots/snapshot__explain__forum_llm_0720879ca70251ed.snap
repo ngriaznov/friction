@@ -3,4 +3,21 @@ source: crates/friction-cli/tests/snapshot.rs
 expression: stdout
 ---
 pass 1: 0 operation(s) fired — converged
+  16 held:
+    vguard.optimize        76..84  KEPT (frame vguard.optimize: measured 237.7/M machine vs 93.7/M human; report-only)
+    intg.actually          421..429  KEPT (frame intg.actually: measured 548.7/M machine vs 211.9/M human; report-only)
+    intg.significantly     636..649  KEPT (frame intg.significantly: measured 270.0/M machine vs 39.9/M human; report-only)
+    adjg.efficient         1945..1954  KEPT (frame adjg.efficient: measured 270.0/M machine vs 79.8/M human; report-only)
+    vguard.require         1978..1986  KEPT (frame vguard.require: measured 1065.2/M machine vs 967.4/M human; report-only)
+    pilot.within           2119..2125  KEPT (frame pilot.within: report-only (see the frame-pack compile report))
+    vguard.indicate        2846..2855  KEPT (frame vguard.indicate: measured 176.1/M machine vs 165.8/M human; report-only)
+    adjg.simple            2858..2864  KEPT (frame adjg.simple: measured 748.3/M machine vs 317.9/M human; report-only)
+    vguard.indicate        2928..2937  KEPT (frame vguard.indicate: measured 176.1/M machine vs 165.8/M human; report-only)
+    adjg.basic             2940..2945  KEPT (frame adjg.basic: measured 434.3/M machine vs 231.9/M human; report-only)
+    adjg.simple            4253..4259  KEPT (frame adjg.simple: measured 748.3/M machine vs 317.9/M human; report-only)
+    intg.specifically      4460..4472  KEPT (frame intg.specifically: measured 199.5/M machine vs 86.0/M human; report-only)
+    intg.actually          4593..4601  KEPT (frame intg.actually: measured 548.7/M machine vs 211.9/M human; report-only)
+    vguard.indicate        4811..4820  KEPT (frame vguard.indicate: measured 176.1/M machine vs 165.8/M human; report-only)
+    vguard.require         5006..5014  KEPT (frame vguard.require: measured 1065.2/M machine vs 967.4/M human; report-only)
+    adjg.complex           5237..5244  KEPT (frame adjg.complex: measured 372.7/M machine vs 182.7/M human; report-only)
 pass 2: 0 operation(s) fired — converged

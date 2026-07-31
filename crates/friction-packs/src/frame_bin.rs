@@ -878,13 +878,13 @@ fn string_at<'a>(offsets: &[u8], pool: &'a str, count: u32, id: u32) -> Option<&
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::frame_compile::{compile, human_rates_from_dms_toml};
+    use crate::frame_compile::{CorpusEvidence, compile};
     use crate::frame_rules::FrameRuleSet;
 
     fn shipped_pack() -> CompiledPack {
         let set = FrameRuleSet::parse(include_str!("../packs/frame-rules-v1.toml"))
             .expect("shipped rules parse");
-        let rates = human_rates_from_dms_toml(include_str!("../packs/dms-index-v1.toml"))
+        let rates = CorpusEvidence::from_dms_toml(include_str!("../packs/dms-index-v1.toml"))
             .expect("shipped dms index parses");
         compile(&set, &rates).expect("shipped set compiles").0
     }

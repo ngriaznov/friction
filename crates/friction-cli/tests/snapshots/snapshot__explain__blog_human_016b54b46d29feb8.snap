@@ -4,7 +4,42 @@ expression: stdout
 ---
 pass 1: 1 operation(s) fired
   sub.apply                7459..7468  -> "uses"
+  17 held:
+    adjg.clear             326..331  KEPT (frame adjg.clear: measured 228.9/M machine vs 112.1/M human; report-only)
+    adjg.practical         422..431  KEPT (frame adjg.practical: measured 85.1/M machine vs 38.4/M human; report-only)
+    intg.recently          2402..2410  KEPT (frame intg.recently: measured 82.2/M machine vs 79.8/M human; report-only)
+    vguard.establish       2571..2582  KEPT (frame vguard.establish: measured 76.3/M machine vs 36.9/M human; report-only)
+    pilot.instance         2941..2949  KEPT (frame pilot.instance: report-only (see the frame-pack compile report))
+    lex.leverage-dl::leverage 3432..3446  KEPT (frame lex.leverage-dl::leverage: measured 143.8/M machine vs 17.7/M human; report-only)
+    vsub.leverage          3432..3446  KEPT (frame vsub.leverage held: left seam not attested)
+    phg.a-handful-of       4507..4519  KEPT (frame phg.a-handful-of: measured 70.4/M machine vs 20.0/M human; report-only)
+    intg.especially        5787..5797  KEPT (frame intg.especially: measured 226.0/M machine vs 141.3/M human; report-only)
+    pilot.such-as          6110..6117  KEPT (frame pilot.such-as: report-only (see the frame-pack compile report))
+    pilot.such-as          6447..6454  KEPT (frame pilot.such-as: report-only (see the frame-pack compile report))
+    vguard.achieve         6991..6998  KEPT (frame vguard.achieve: measured 114.4/M machine vs 79.8/M human; report-only)
+    lex.leverage-dl::leverage 7459..7477  KEPT (frame lex.leverage-dl::leverage: measured 143.8/M machine vs 17.7/M human; report-only)
+    adjg.simple            7595..7601  KEPT (frame adjg.simple: measured 748.3/M machine vs 317.9/M human; report-only)
+    conng.overall          8661..8668  KEPT (frame conng.overall: measured 208.3/M machine vs 49.1/M human; report-only)
+    adjg.simple            8724..8730  KEPT (frame adjg.simple: measured 748.3/M machine vs 317.9/M human; report-only)
+    vguard.monitor         9050..9059  KEPT (frame vguard.monitor: measured 701.3/M machine vs 164.3/M human; report-only)
 pass 2: 0 operation(s) fired — converged
+  16 held:
+    adjg.clear             198..412  KEPT (frame adjg.clear: measured 228.9/M machine vs 112.1/M human; report-only)
+    adjg.practical         414..623  KEPT (frame adjg.practical: measured 85.1/M machine vs 38.4/M human; report-only)
+    intg.recently          2371..2549  KEPT (frame intg.recently: measured 82.2/M machine vs 79.8/M human; report-only)
+    vguard.establish       2551..2804  KEPT (frame vguard.establish: measured 76.3/M machine vs 36.9/M human; report-only)
+    pilot.instance         2937..3204  KEPT (frame pilot.instance: report-only (see the frame-pack compile report))
+    lex.leverage-dl::leverage 3331..3515  KEPT (frame lex.leverage-dl::leverage: measured 143.8/M machine vs 17.7/M human; report-only)
+    vsub.leverage          3331..3515  KEPT (frame vsub.leverage held: left seam not attested)
+    phg.a-handful-of       4415..4570  KEPT (frame phg.a-handful-of: measured 70.4/M machine vs 20.0/M human; report-only)
+    intg.especially        5728..5861  KEPT (frame intg.especially: measured 226.0/M machine vs 141.3/M human; report-only)
+    pilot.such-as          5968..6191  KEPT (frame pilot.such-as: report-only (see the frame-pack compile report))
+    pilot.such-as          6400..6560  KEPT (frame pilot.such-as: report-only (see the frame-pack compile report))
+    vguard.achieve         6936..7031  KEPT (frame vguard.achieve: measured 114.4/M machine vs 79.8/M human; report-only)
+    adjg.simple            7522..7627  KEPT (frame adjg.simple: measured 748.3/M machine vs 317.9/M human; report-only)
+    conng.overall          8653..8698  KEPT (frame conng.overall: measured 208.3/M machine vs 49.1/M human; report-only)
+    adjg.simple            8699..8818  KEPT (frame adjg.simple: measured 748.3/M machine vs 317.9/M human; report-only)
+    vguard.monitor         8939..9070  KEPT (frame vguard.monitor: measured 701.3/M machine vs 164.3/M human; report-only)
 pass 3: 0 operation(s) fired — converged
   3 held:
     register.em_dash       2733..2743  KEPT (register held: matched inside quotation)

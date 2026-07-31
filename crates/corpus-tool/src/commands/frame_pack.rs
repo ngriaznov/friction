@@ -25,7 +25,7 @@ use std::path::PathBuf;
 use anyhow::Context as _;
 use clap::Args as ClapArgs;
 use friction_packs::Sha256;
-use friction_packs::frame_compile::{compile, human_rates_from_dms_toml};
+use friction_packs::frame_compile::{CorpusEvidence, compile};
 use friction_packs::frame_rules::FrameRuleSet;
 
 /// Arguments for `corpus-tool frame-pack`.
@@ -61,8 +61,8 @@ pub fn run(args: &Args) -> anyhow::Result<()> {
         .with_context(|| format!("reading {}", args.dms_toml.display()))?;
     let set = FrameRuleSet::parse(&rules_text)
         .map_err(|e| anyhow::anyhow!("{} did not parse: {e}", args.rules.display()))?;
-    let rates = human_rates_from_dms_toml(&dms_text)
-        .map_err(|e| anyhow::anyhow!("{} rates: {e}", args.dms_toml.display()))?;
+    let rates = CorpusEvidence::from_dms_toml(&dms_text)
+        .map_err(|e| anyhow::anyhow!("{} evidence: {e}", args.dms_toml.display()))?;
 
     let (pack, report) = compile(&set, &rates)
         .map_err(|e| anyhow::anyhow!("compiling {}: {e}", args.rules.display()))?;
@@ -104,7 +104,7 @@ pub fn run(args: &Args) -> anyhow::Result<()> {
 
 #[cfg(test)]
 mod tests {
-    use friction_packs::frame_compile::{compile, human_rates_from_dms_toml};
+    use friction_packs::frame_compile::{CorpusEvidence, compile};
     use friction_packs::frame_rules::FrameRuleSet;
 
     /// Compiling and packing the vendored artifacts twice is
@@ -125,7 +125,7 @@ mod tests {
         )
         .expect("vendored dms-index-v1.toml exists");
         let set = FrameRuleSet::parse(&rules_text).expect("vendored rules parse");
-        let rates = human_rates_from_dms_toml(&dms_text).expect("vendored rates derive");
+        let rates = CorpusEvidence::from_dms_toml(&dms_text).expect("vendored evidence derives");
         let sha = "0".repeat(64);
         let first = friction_packs::frame_bin::pack_frame_bin(
             &compile(&set, &rates).expect("vendored set compiles").0,

@@ -54,6 +54,13 @@ pub struct CheckArgs {
     #[arg(long, value_enum, default_value_t = Format::Text)]
     format: Format,
 
+    /// After the report, list every DMS-flagged span that no compiled
+    /// frame rule covers — the work queue for the next rule-generation
+    /// batch (a span the statistical channel flags but no adjudicated
+    /// rule can explain or rewrite).
+    #[arg(long)]
+    residual: bool,
+
     /// Disable `--format text`'s ANSI color, regardless of whether stdout
     /// is a terminal. Implied by the `NO_COLOR` environment variable; see
     /// `crate::diagnostics` for the full auto-detection policy.
@@ -153,6 +160,12 @@ fn run_inner(args: &CheckArgs) -> Result<ExitCode, CliError> {
             let color = color_enabled(args.no_color);
             let rendered = render_spans(&source, path_label, &report.spans, color);
             print!("{rendered}");
+            if args.residual {
+                print!(
+                    "{}",
+                    render_residual(&residual_spans(&source, &document, &report.spans, &engine))
+                );
+            }
         }
         Format::Json => {
             let check_report = CheckReport {
@@ -310,6 +323,71 @@ fn render_tell_counts(spans: &[MatchSpan]) -> String {
     let _ = writeln!(out, "tell counts ({} span(s) total):", spans.len());
     for (prefix, count) in &counts {
         let _ = writeln!(out, "  {prefix}: {count}");
+    }
+    out
+}
+
+/// One DMS-flagged span no compiled frame rule covers.
+struct ResidualSpan<'a> {
+    range: std::ops::Range<usize>,
+    frame_id: &'a str,
+    text: &'a str,
+}
+
+/// The DMS spans of `spans` that overlap no frame-rule match anywhere
+/// in the document — the statistical channel sees a machine tell
+/// there, but no adjudicated rule can explain or rewrite it, so it is
+/// exactly the evidence queue the next rule batch should be generated
+/// from.
+fn residual_spans<'a>(
+    source: &'a str,
+    document: &friction_core::Document,
+    spans: &'a [MatchSpan],
+    engine: &Engine,
+) -> Vec<ResidualSpan<'a>> {
+    let units = friction_match::token::prose_scope(document, &engine.segmenter);
+    let tagged = friction_match::tagging::tag_units(&units, source, &engine.tagger);
+    let view = &friction_packs::FRAME.pack;
+    let index = friction_match::frame_rewrite::FrameIndex::build(view);
+    let mut frame_ranges: Vec<std::ops::Range<usize>> = Vec::new();
+    for sentence in &tagged {
+        for m in
+            friction_match::frame_rewrite::scan_sentence(view, &index, &sentence.tokens, source)
+        {
+            frame_ranges.push(m.bytes);
+        }
+    }
+    spans
+        .iter()
+        .filter(|span| span.channel == Channel::Dms)
+        .filter(|span| {
+            !frame_ranges
+                .iter()
+                .any(|f| span.range.start < f.end && f.start < span.range.end)
+        })
+        .map(|span| ResidualSpan {
+            range: span.range.clone(),
+            frame_id: &span.frame_id,
+            text: source.get(span.range.clone()).unwrap_or_default(),
+        })
+        .collect()
+}
+
+/// Renders the `--residual` section.
+fn render_residual(residual: &[ResidualSpan<'_>]) -> String {
+    use std::fmt::Write as _;
+    let mut out = String::new();
+    let _ = writeln!(
+        out,
+        "\nresidual: {} DMS span(s) covered by no frame rule",
+        residual.len()
+    );
+    for span in residual {
+        let _ = writeln!(
+            out,
+            "  {}..{} [{}] {:?}",
+            span.range.start, span.range.end, span.frame_id, span.text
+        );
     }
     out
 }

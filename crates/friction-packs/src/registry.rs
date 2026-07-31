@@ -338,8 +338,8 @@ mod tests {
     fn frame_pack_is_freshly_compiled_from_the_source_toml() {
         let set = crate::frame_rules::FrameRuleSet::parse(FRAME_RULES_V1_TOML)
             .expect("in-repo frame-rules-v1.toml parses");
-        let rates = crate::frame_compile::human_rates_from_dms_toml(DMS_INDEX_V1_TOML)
-            .expect("in-repo dms-index-v1.toml rates derive");
+        let rates = crate::frame_compile::CorpusEvidence::from_dms_toml(DMS_INDEX_V1_TOML)
+            .expect("in-repo dms-index-v1.toml evidence derives");
         let (pack, _) =
             crate::frame_compile::compile(&set, &rates).expect("in-repo rule set compiles");
         let sha_hex = Sha256::of_bytes(FRAME_RULES_V1_TOML.as_bytes()).to_string();

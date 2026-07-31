@@ -3,4 +3,8 @@ source: crates/friction-cli/tests/snapshot.rs
 expression: stdout
 ---
 pass 1: 0 operation(s) fired — converged
+  3 held:
+    vguard.highlight       2552..2561  KEPT (frame vguard.highlight: measured 123.2/M machine vs 90.6/M human; report-only)
+    idg.don't-panic        3557..3568  KEPT (frame idg.don't-panic: measured 2.9/M machine vs 0.0/M human; report-only)
+    adjg.simple            10706..10712  KEPT (frame adjg.simple: measured 748.3/M machine vs 317.9/M human; report-only)
 pass 2: 0 operation(s) fired — converged
