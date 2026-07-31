@@ -100,6 +100,11 @@ enum Command {
     /// stream's suffix automaton pre-built and serialized flat, so
     /// process start pays no TOML parse or automaton construction.
     DmsPack(commands::dms_pack::Args),
+    /// On the train split, re-derives every frame-rewrite rule's evidence
+    /// verdict from the corpora and reports where the re-measurement
+    /// agrees or disagrees with the verdict recorded in
+    /// `frame-rules-v1.toml`.
+    Adjudicate(commands::adjudicate::Args),
 }
 
 /// Parses process arguments and runs the selected subcommand.
@@ -156,5 +161,6 @@ pub fn run() -> anyhow::Result<()> {
         Command::JargonAttest(args) => commands::jargon_attest::run(&args),
         Command::WeightsPack(args) => commands::weights_pack::run(&args),
         Command::DmsPack(args) => commands::dms_pack::run(&args),
+        Command::Adjudicate(args) => commands::adjudicate::run(&args),
     }
 }

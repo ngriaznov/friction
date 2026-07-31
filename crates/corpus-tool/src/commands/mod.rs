@@ -8,6 +8,7 @@
 //! model, without this module ever calling `std::process::exit` itself
 //! (which would make it untestable in-process).
 
+pub mod adjudicate;
 pub mod attest;
 pub mod clean;
 pub mod dms_pack;

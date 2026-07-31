@@ -219,6 +219,46 @@ impl Tag {
             _ => return None,
         })
     }
+
+    /// Every tag in stable serialization order — [`Self::code`] is the
+    /// index here, so this array is part of the pack format.
+    pub const ALL: [Self; 19] = [
+        Self::Nn,
+        Self::Nns,
+        Self::Vb,
+        Self::Vbz,
+        Self::Vbg,
+        Self::Vbn,
+        Self::Vbd,
+        Self::Adj,
+        Self::Adjs,
+        Self::Adv,
+        Self::Dt,
+        Self::Md,
+        Self::Prp,
+        Self::PrpPoss,
+        Self::Aux,
+        Self::Be,
+        Self::Uh,
+        Self::Punct,
+        Self::Nom,
+    ];
+
+    /// The tag's stable one-byte serialization code.
+    #[must_use]
+    pub fn code(self) -> u8 {
+        Self::ALL
+            .iter()
+            .position(|t| *t == self)
+            .map(|i| u8::try_from(i).expect("tag count fits u8"))
+            .expect("every tag is in ALL")
+    }
+
+    /// Decodes [`Self::code`]'s value.
+    #[must_use]
+    pub fn from_code(code: u8) -> Option<Self> {
+        Self::ALL.get(usize::from(code)).copied()
+    }
 }
 
 /// Contraction clitic tokens.
@@ -243,6 +283,38 @@ impl Clitic {
             _ => return None,
         })
     }
+
+    /// Every clitic in stable serialization order — [`Self::code`] is
+    /// the index here, so this array is part of the pack format.
+    pub const ALL: [Self; 5] = [Self::S, Self::Nt, Self::Ve, Self::Re, Self::Ll];
+
+    /// The clitic's stable one-byte serialization code.
+    #[must_use]
+    pub fn code(self) -> u8 {
+        Self::ALL
+            .iter()
+            .position(|c| *c == self)
+            .map(|i| u8::try_from(i).expect("clitic count fits u8"))
+            .expect("every clitic is in ALL")
+    }
+
+    /// Decodes [`Self::code`]'s value.
+    #[must_use]
+    pub fn from_code(code: u8) -> Option<Self> {
+        Self::ALL.get(usize::from(code)).copied()
+    }
+
+    /// The clitic's surface text, apostrophe included.
+    #[must_use]
+    pub const fn surface(self) -> &'static str {
+        match self {
+            Self::S => "'s",
+            Self::Nt => "n't",
+            Self::Ve => "'ve",
+            Self::Re => "'re",
+            Self::Ll => "'ll",
+        }
+    }
 }
 
 /// Typed content slots, copied verbatim into targets.
@@ -262,6 +334,27 @@ impl Slot {
             "Z" => Self::Z,
             _ => return None,
         })
+    }
+
+    /// The slot's stable one-byte serialization code (also its index).
+    #[must_use]
+    pub const fn code(self) -> u8 {
+        match self {
+            Self::X => 0,
+            Self::Y => 1,
+            Self::Z => 2,
+        }
+    }
+
+    /// Decodes [`Self::code`]'s value.
+    #[must_use]
+    pub const fn from_code(code: u8) -> Option<Self> {
+        match code {
+            0 => Some(Self::X),
+            1 => Some(Self::Y),
+            2 => Some(Self::Z),
+            _ => None,
+        }
     }
 }
 
