@@ -236,7 +236,40 @@ pub fn pack_frame_bin(pack: &CompiledPack, source_sha256_hex: &str) -> Vec<u8> {
     out.extend_from_slice(&u32::try_from(class_blob.len()).expect("len").to_le_bytes());
     out.extend_from_slice(&class_blob);
 
-    // Op blobs, anchor ids, rule ids, rule records.
+    let sections = write_rules(pack, map);
+    for blob in [
+        &sections.pat_ops,
+        &sections.tpl_ops,
+        &sections.anchor_ids,
+        &sections.id_pool,
+    ] {
+        out.extend_from_slice(
+            &u32::try_from(blob.len())
+                .expect("blob length")
+                .to_le_bytes(),
+        );
+        out.extend_from_slice(blob);
+    }
+    out.extend_from_slice(
+        &u32::try_from(pack.rules.len())
+            .expect("rule count")
+            .to_le_bytes(),
+    );
+    out.extend_from_slice(&sections.records);
+    out
+}
+
+/// The per-rule blobs of the pack, written in one pass.
+struct RuleSections {
+    pat_ops: Vec<u8>,
+    tpl_ops: Vec<u8>,
+    anchor_ids: Vec<u8>,
+    id_pool: Vec<u8>,
+    records: Vec<u8>,
+}
+
+/// Writes every rule's ops, anchor, id, and fixed record.
+fn write_rules(pack: &CompiledPack, map: impl Fn(u32) -> u32 + Copy) -> RuleSections {
     let mut pat_ops: Vec<u8> = Vec::new();
     let mut tpl_ops: Vec<u8> = Vec::new();
     let mut anchor_ids: Vec<u8> = Vec::new();
@@ -287,21 +320,13 @@ pub fn pack_frame_bin(pack: &CompiledPack, source_sha256_hex: &str) -> Vec<u8> {
             records.extend_from_slice(&(rule.h_pm as f32).to_le_bytes());
         }
     }
-    for blob in [&pat_ops, &tpl_ops, &anchor_ids, &id_pool] {
-        out.extend_from_slice(
-            &u32::try_from(blob.len())
-                .expect("blob length")
-                .to_le_bytes(),
-        );
-        out.extend_from_slice(blob);
+    RuleSections {
+        pat_ops,
+        tpl_ops,
+        anchor_ids,
+        id_pool,
+        records,
     }
-    out.extend_from_slice(
-        &u32::try_from(pack.rules.len())
-            .expect("rule count")
-            .to_le_bytes(),
-    );
-    out.extend_from_slice(&records);
-    out
 }
 
 /// Writes one string table: `u32` count, `count + 1` cumulative `u32`
@@ -424,7 +449,7 @@ pub struct FramePackView<'a> {
 }
 
 /// One rule as viewed from the pack.
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone)]
 pub struct RuleView<'a> {
     /// The rule id.
     pub id: &'a str,
@@ -451,7 +476,7 @@ pub struct RuleView<'a> {
 
 /// Iterator over a rule's pattern op cells; each item is
 /// `(op, optional)`.
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone)]
 pub struct PatOps<'a> {
     cells: &'a [u8],
 }
@@ -484,7 +509,7 @@ impl PatOps<'_> {
 }
 
 /// Iterator over a rule's template op cells.
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone)]
 pub struct TplOps<'a> {
     cells: &'a [u8],
 }
@@ -503,7 +528,7 @@ impl Iterator for TplOps<'_> {
 }
 
 /// A rule's anchor id sequence, decoded on the fly.
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone)]
 pub struct AnchorIds<'a> {
     bytes: &'a [u8],
 }
@@ -601,7 +626,7 @@ struct Reader<'a> {
 }
 
 impl<'a> Reader<'a> {
-    fn take(&mut self, len: usize, section: &'static str) -> Result<&'a [u8], FrameBinError> {
+    const fn take(&mut self, len: usize, section: &'static str) -> Result<&'a [u8], FrameBinError> {
         if self.bytes.len() < len {
             return Err(FrameBinError::Truncated { section });
         }
@@ -635,6 +660,9 @@ impl<'a> FramePackView<'a> {
     /// Returns [`FrameBinError`] on truncation, bad magic, an
     /// unsupported version, or invalid UTF-8 in a string section.
     pub fn parse(bytes: &'a [u8]) -> Result<Self, FrameBinError> {
+        if bytes.len() < HEADER_LEN {
+            return Err(FrameBinError::Truncated { section: "header" });
+        }
         let mut r = Reader { bytes };
         let magic = r.take(8, "header")?;
         if magic != MAGIC {
@@ -893,16 +921,22 @@ mod tests {
             assert_eq!(anchor_words, source_words, "rule {}", rule.id);
             // Ops decode without error and match in count (groups add
             // delimiter cells, so pattern count is >=).
-            let pat_ops: Vec<_> = v
+            let pat_ops = v
                 .pattern
-                .map(|cell| cell.expect("pattern op decodes"))
-                .collect();
-            assert!(pat_ops.len() >= rule.pattern.len(), "rule {}", rule.id);
-            let tpl_ops: Vec<_> = v
+                .clone()
+                .inspect(|cell| {
+                    cell.as_ref().expect("pattern op decodes");
+                })
+                .count();
+            assert!(pat_ops >= rule.pattern.len(), "rule {}", rule.id);
+            let tpl_ops = v
                 .template
-                .map(|op| op.expect("template op decodes"))
-                .collect();
-            assert_eq!(tpl_ops.len(), rule.template.len(), "rule {}", rule.id);
+                .clone()
+                .inspect(|op| {
+                    op.as_ref().expect("template op decodes");
+                })
+                .count();
+            assert_eq!(tpl_ops, rule.template.len(), "rule {}", rule.id);
         }
     }
 
@@ -944,7 +978,7 @@ mod tests {
             FramePackView::parse(&bad_magic),
             Err(FrameBinError::BadMagic)
         ));
-        let mut bad_version = bytes.clone();
+        let mut bad_version = bytes;
         bad_version[8] = 0xFF;
         assert!(matches!(
             FramePackView::parse(&bad_version),
