@@ -670,7 +670,14 @@ fn generate_sentence(
     run_pivot(&mut splicer, &mut held, &sentence_range, ctx, pivot_budget);
     run_deletion(&mut splicer, &mut held, &sentence_range, ctx, &original);
     run_frame_dejust(&mut splicer, &mut held, &sentence_range, pivot_budget);
-    run_frame_rewrite(&mut splicer, &mut held, &sentence_range, ctx, &original);
+    run_frame_rewrite(
+        &mut splicer,
+        &mut held,
+        &sentence_range,
+        ctx,
+        &original,
+        &original_frame_matches,
+    );
     // Recapitalization is deliberately NOT run here — see
     // `edit_sentence`'s own docs on why it's applied separately, after
     // any [`GenerationCache`] lookup/insert, never as part of the cached
@@ -1041,24 +1048,30 @@ fn run_frame_rewrite(
     sentence_range: &Range<usize>,
     ctx: &EditContext<'_>,
     original: &OriginalState,
+    original_frame_matches: &[FrameMatch],
 ) {
     let view = &friction_packs::FRAME.pack;
     let working = splicer.working_text();
-    // Tagging is the expensive part of a scan; the original tags are
-    // exact whenever no earlier operation edited this sentence.
-    let tags = if splicer.edited() {
-        tag(ctx.tagger, &working)
+    // Tagging and scanning are the expensive parts, and an unedited
+    // sentence is byte-identical to the original the guard phase
+    // already tagged and scanned — reuse both; only an edited sentence
+    // pays for a fresh tag and scan.
+    let owned_tags;
+    let owned_matches;
+    let (tags, matches): (&[TaggedToken], &[FrameMatch]) = if splicer.edited() {
+        owned_tags = tag(ctx.tagger, &working);
+        owned_matches = frame_rewrite::scan_sentence(view, &FRAME_INDEX, &owned_tags, &working);
+        (&owned_tags, &owned_matches)
     } else {
-        original.tags.clone()
+        (&original.tags, original_frame_matches)
     };
-    let matches = frame_rewrite::scan_sentence(view, &FRAME_INDEX, &tags, &working);
     let guard_spans: Vec<Range<usize>> = matches
         .iter()
         .filter(|m| frame_kind(view, m) == CompiledKind::Guard)
         .map(|m| m.bytes.clone())
         .collect();
     let edits: Vec<FrameMatch> = matches
-        .into_iter()
+        .iter()
         .filter(|m| {
             matches!(
                 frame_kind(view, m),
@@ -1067,6 +1080,7 @@ fn run_frame_rewrite(
                 .iter()
                 .any(|g| m.bytes.start < g.end && g.start < m.bytes.end)
         })
+        .cloned()
         .collect();
     let mut resolved = frame_rewrite::resolve(view, edits);
     resolved.reverse();
@@ -1078,7 +1092,7 @@ fn run_frame_rewrite(
             ctx,
             original,
             &working,
-            &tags,
+            tags,
             m,
         );
     }
