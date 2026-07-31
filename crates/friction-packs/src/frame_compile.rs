@@ -344,7 +344,11 @@ pub fn compile(
     let mut classes = ClassTable::new(&set.classes, &mut interner);
 
     let drafts = collect_drafts(set, &mut report)?;
-    let ship_parents: BTreeSet<&str> = set.rules_ship.iter().map(|r| r.id.as_str()).collect();
+    let ship_parents: BTreeMap<&str, Vec<PatElem>> = set
+        .rules_ship
+        .iter()
+        .filter_map(|r| Some((r.id.as_str(), parse_pattern(&r.p).ok()?)))
+        .collect();
 
     // Individual fences. Each draft either compiles, demotes, or falls;
     // the closure fence needs every survivor's anchor, so anchors are
@@ -560,7 +564,7 @@ fn compile_one(
     draft: Draft,
     interner: &mut Interner,
     classes: &mut ClassTable,
-    ship_parents: &BTreeSet<&str>,
+    ship_parents: &BTreeMap<&str, Vec<PatElem>>,
     human_rates: &BTreeMap<String, f64>,
 ) -> Outcome {
     // Guard shape: a fenced guard must protect, not rewrite.
@@ -576,14 +580,21 @@ fn compile_one(
         return Outcome::Rejected(draft.id, Reject::UndefinedClass(name));
     }
 
-    // Shadowing: surface rules whose compiling parent already covers
-    // them at lemma level.
+    // Shadowing: a surface rule adds nothing when its pattern is its
+    // compiling parent's pattern with literals merely re-inflected —
+    // literal matching is lemma-level, so the parent already covers
+    // every such match. A surface with a *different* structure (extra
+    // sentinels, groups, tags) is a refinement, not a shadow, and
+    // compiles alongside its parent; overlaps resolve by
+    // leftmost-longest at runtime.
     if draft.bucket == Bucket::Surface
         && let Some(parent) = draft
             .id
             .split_once("::")
             .map(|(parent, _)| parent.to_string())
-        && ship_parents.contains(parent.as_str())
+        && ship_parents
+            .get(parent.as_str())
+            .is_some_and(|parent_pattern| is_inflection_shadow(&draft.pattern, parent_pattern))
     {
         return Outcome::Rejected(draft.id, Reject::ShadowedByLemmaRule { parent });
     }
@@ -656,6 +667,23 @@ fn compile_one(
         h_pm: draft.h_pm,
     };
     Outcome::Compiled(rule, demotion)
+}
+
+/// Whether `surface` matches exactly the same shapes as `parent`,
+/// element for element, with literals allowed to differ only by
+/// inflection of the parent's lemma (checked through the inflection
+/// tables: `surface_lit` must be `parent_lit` realized in
+/// `surface_lit`'s own form).
+fn is_inflection_shadow(surface: &[PatElem], parent: &[PatElem]) -> bool {
+    surface.len() == parent.len()
+        && surface.iter().zip(parent).all(|(s, p)| match (s, p) {
+            (PatElem::Lit(surface_lit), PatElem::Lit(parent_lit)) => {
+                surface_lit == parent_lit
+                    || friction_nlp::inflect(surface_lit, parent_lit).as_deref()
+                        == Some(surface_lit.as_str())
+            }
+            _ => s == p,
+        })
 }
 
 /// Finds the longest run of consecutive obligatory literal elements;

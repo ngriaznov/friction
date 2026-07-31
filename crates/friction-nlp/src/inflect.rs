@@ -81,13 +81,15 @@ pub fn agreeing_forms(lemma: &str, class: WordClass) -> Vec<String> {
     forms
 }
 
-/// Best-effort reverse lemmatization for a tagged surface word: given its
-/// surface text and a coarse Penn tag, guesses the base-form lemma by
-/// generating candidate stems and keeping the one that round-trips back to
-/// `surface` through [`inflect`]'s own forward generation — so this never
-/// duplicates a suffix/irregular rule, only reuses the forward direction's
-/// tables and logic in reverse. Falls back to the lowercased `surface`
-/// when no candidate round-trips, matching
+/// Best-effort reverse lemmatization for a tagged surface word.
+///
+/// Given its surface text and a coarse Penn tag, guesses the base-form
+/// lemma by generating candidate stems and keeping the one that
+/// round-trips back to `surface` through [`inflect`]'s own forward
+/// generation — so this never duplicates a suffix/irregular rule, only
+/// reuses the forward direction's tables and logic in reverse. Falls
+/// back to the lowercased `surface` when no candidate round-trips,
+/// matching
 /// [`crate::TaggedToken::lemma`]'s documented fallback.
 ///
 /// `pos` only picks which suffix family to try (`VBG` gerunds,

@@ -58,6 +58,7 @@
 mod dms;
 mod error;
 pub mod frame;
+pub mod frame_rewrite;
 pub mod jargon;
 mod literal;
 mod lvc;
