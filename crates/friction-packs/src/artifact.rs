@@ -281,6 +281,25 @@ pub enum PackError {
         /// The `.bin` header's own recorded key count.
         embedded: u64,
     },
+
+    /// A `human-evidence-v1` `.bin` ran out of bytes while a fixed-shape
+    /// section was being read (see
+    /// [`crate::human_evidence::HumanEvidencePack::load`]).
+    #[error("human-evidence-v1: pack truncated at {section}")]
+    HumanEvidenceTruncated {
+        /// Which section ran out of bytes.
+        section: &'static str,
+    },
+
+    /// A `human-evidence-v1` `.bin` doesn't start with the expected magic
+    /// bytes.
+    #[error("human-evidence-v1: pack does not start with the expected magic bytes")]
+    HumanEvidenceBadMagic,
+
+    /// A `human-evidence-v1` `.bin`'s format version isn't one this build
+    /// of `friction-packs` knows how to read.
+    #[error("human-evidence-v1: unsupported pack version {0}")]
+    HumanEvidenceUnsupportedVersion(u16),
 }
 
 impl From<toml::de::Error> for PackError {

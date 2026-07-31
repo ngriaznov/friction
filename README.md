@@ -673,11 +673,29 @@ detection frame, or introduces an unattested content word, fails the build):
   rules in seven evidence buckets, of which only the corpus-confirmed
   buckets ever compile; the rest are staged evidence for `corpus-tool
   adjudicate`, the referee that re-derives every verdict from the corpora.
-  The runtime embeds `frame-pack-v1.bin` (117 KB): the surviving rule
-  program — 785 edits and guards plus 93 report-only rules after the
+  The runtime embeds `frame-pack-v1.bin` (126 KB): the surviving rule
+  program — 855 edits and guards plus 111 report-only rules after the
   rejection gauntlet — serialized flat by `corpus-tool frame-pack` and
   loaded zero-copy, with a drift test that recompiles the TOML and fails
   on any divergence.
+- `human-evidence-v1.bin` + `human-evidence-v1.toml` — external
+  human-corpus evidence pooled into the frame-rewrite compile fences:
+  unigram rates over ~50M tokens of pre-2022, human-written code-review
+  prose, plus occurrence counts for every frame rule's literal probes,
+  built offline by `corpus-tool human-evidence` from locally staged
+  corpora (the raw text never enters this repository — only these
+  aggregate counts). External evidence feeds the one-sided fences only:
+  target-word attestation (best single-corpus rate, so one register
+  cannot dilute another's words) and the human-rate ceiling.
+  Direction verdicts stay register-matched on the DMS streams — a
+  machine-vs-human ratio over mismatched registers would measure
+  register difference, not machine-ness. Shipped-pack inputs: the Code
+  Review Stack Exchange data dump of 2022-03-07 (CC BY-SA,
+  <https://codereview.stackexchange.com/>) and the natural-language
+  review comments of Microsoft's CodeReviewer dataset (CC BY 4.0,
+  <https://doi.org/10.5281/zenodo.6900648>), both predating ChatGPT's
+  release by construction. Input sha256s and per-bucket totals are in
+  the `.toml` sidecar.
 - `jargon-v1.toml` — the curated metaphor-lexeme list `jargon.metaphor`
   matches against, and a small attested-exceptions allowlist of compounds it
   never flags regardless of what the filter below says. Each lexeme is

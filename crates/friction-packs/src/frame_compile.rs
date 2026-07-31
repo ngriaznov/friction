@@ -57,6 +57,7 @@ use crate::frame_rules::{
     Clitic, FrameRule, FrameRuleSet, PatElem, PilotRule, RuleKind, Slot, Tag, Target, TplElem,
     Verdict, classify, parse_pattern, parse_target,
 };
+use crate::human_evidence::HumanEvidencePack;
 
 /// The human-corpus frequency floor (occurrences per million tokens) a
 /// static target word must clear when it is not in the declared
@@ -262,19 +263,52 @@ pub enum FrameCompileError {
 
 /// The corpus evidence the compile fences consult.
 ///
-/// Derived entirely from the committed `dms-index-v1` TOML so the
-/// compile stays a pure function of in-repo bytes (the pack drift
-/// test re-runs it byte-identically): per-word human rates for the
-/// attestation floor, and both sides' token-id streams for the
-/// direction fence's phrase counts (the machine side is every family
-/// stream concatenated).
+/// Derived from the committed `dms-index-v1` TOML so the compile stays a
+/// pure function of in-repo bytes (the pack drift test re-runs it
+/// byte-identically): per-word human occurrence counts for the
+/// attestation floor, and both sides' token-id streams for the direction
+/// fence's phrase counts (the machine side is every family stream
+/// concatenated).
+///
+/// Optionally strengthened with a `corpus-tool human-evidence` pack
+/// ([`Self::with_external`]) — additional human-side unigram and
+/// literal-probe counts mined from staged external human corpora. Every
+/// accessor below pools the external pack in automatically when one is
+/// attached, so every fence that reads this struct (the attestation
+/// floor, the direction fence, the human-rate ceiling, the guard
+/// direction check) is pooled for free, with no fence-specific special
+/// case: `pooled = (dms_count + ext_count) / (dms_total + ext_total) *
+/// 1_000_000`.
+///
+/// # Absence asymmetry
+///
+/// The external pack's two tables answer "absent" differently, and this
+/// struct's accessors honor that difference rather than flattening it
+/// (see [`crate::human_evidence`]'s own docs for why each table means
+/// what it means): a unigram absent from the external pack is folded in
+/// as a real `0` count *with* the external total still added to the
+/// denominator (its absence is itself evidence — fewer than the
+/// builder's five-occurrence floor). A phrase absent from the external
+/// pack's probe table is left out of the pooled count *and* its total
+/// entirely — that absence means the phrase was never one of
+/// `frame-rules-v1.toml`'s own literal probes when the pack was built,
+/// so nothing about it was ever measured, and pooling a `0` would be a
+/// fabricated data point, not a real one.
+///
+/// With no external pack attached (or the shipped empty pack, whose
+/// tables and total are all empty/zero), every accessor is numerically
+/// identical to the dms-only computation — pooling a pack with nothing
+/// in it changes nothing.
 #[derive(Debug, Clone)]
 pub struct CorpusEvidence {
-    /// Lowercased word → human-corpus occurrences per million tokens.
-    pub human_rates: BTreeMap<String, f64>,
+    /// Lowercased word → DMS human-stream occurrence count (raw, not yet
+    /// per-million — see [`Self::human_rate_per_million`] for the pooled
+    /// per-million rate every fence actually reads).
+    human_word_counts: BTreeMap<String, u64>,
     word_ids: BTreeMap<String, u32>,
     human_stream: Vec<u32>,
     machine_stream: Vec<u32>,
+    external: Option<HumanEvidencePack>,
 }
 
 impl CorpusEvidence {
@@ -344,49 +378,156 @@ impl CorpusEvidence {
         for id in &human_stream {
             *counts.entry(*id).or_default() += 1;
         }
-        #[expect(
-            clippy::cast_precision_loss,
-            reason = "corpus counts are far below 2^52"
-        )]
-        let rate = |count: u64| count as f64 / human_stream.len() as f64 * 1_000_000.0;
-        let mut human_rates: BTreeMap<String, f64> = BTreeMap::new();
+        let mut human_word_counts: BTreeMap<String, u64> = BTreeMap::new();
         let mut word_ids: BTreeMap<String, u32> = BTreeMap::new();
         for (index, token) in raw.vocab.tokens.iter().enumerate() {
             let id = u32::try_from(index).expect("vocab far below u32::MAX");
             let word = token.to_lowercase();
-            // Duplicate vocab texts: rates accumulate; the id map keeps
+            // Duplicate vocab texts: counts accumulate; the id map keeps
             // the first (matching the runtime vocab's first-id-wins).
             if let Some(count) = counts.get(&id) {
-                *human_rates.entry(word.clone()).or_insert(0.0) += rate(*count);
+                *human_word_counts.entry(word.clone()).or_insert(0) += count;
             }
             word_ids.entry(word).or_insert(id);
         }
         Ok(Self {
-            human_rates,
+            human_word_counts,
             word_ids,
             human_stream,
             machine_stream,
+            external: None,
         })
+    }
+
+    /// Attaches a `corpus-tool human-evidence` pack, pooled into every
+    /// accessor below from this point on (see this struct's own docs for
+    /// the pooling formula and the two tables' absence asymmetry).
+    #[must_use]
+    pub fn with_external(mut self, external: HumanEvidencePack) -> Self {
+        self.external = Some(external);
+        self
     }
 
     /// A minimal evidence table for tests: the given words attested at
     /// a generous rate, with empty streams (so the direction fence
-    /// never trips).
+    /// never trips) and no external pack attached.
     #[must_use]
     pub fn for_tests(attested: &[&str]) -> Self {
         Self {
-            human_rates: attested.iter().map(|w| ((*w).to_string(), 100.0)).collect(),
+            human_word_counts: attested.iter().map(|w| ((*w).to_string(), 1)).collect(),
             word_ids: BTreeMap::new(),
-            human_stream: Vec::new(),
+            human_stream: vec![0; 1],
             machine_stream: Vec::new(),
+            external: None,
         }
     }
 
-    /// Non-overlapping occurrences of the word phrase in each side's
-    /// stream: `(machine, human)`. A phrase containing any word the
-    /// vocabulary does not know occurs zero times by construction.
+    /// The pooled human-corpus per-million rate for one word: the DMS
+    /// human stream's own count, plus the external pack's unigram count
+    /// when one is attached, over the sum of both totals — see this
+    /// struct's own docs for the pooling formula and why a unigram
+    /// absent from the external pack still folds its total in (unlike a
+    /// probe).
     #[must_use]
-    pub fn phrase_counts(&self, words: &[&str]) -> (u64, u64) {
+    pub fn human_rate_per_million(&self, word: &str) -> f64 {
+        let word = word.to_lowercase();
+        let dms_count = self.human_word_counts.get(&word).copied().unwrap_or(0);
+        let ext = self.external.as_ref();
+        let ext_count = ext.map_or(0, |pack| pack.unigram_count(&word));
+        let ext_total = ext.map_or(0, HumanEvidencePack::total_tokens);
+        pooled_rate_per_million(
+            dms_count + ext_count,
+            self.human_stream.len() as u64 + ext_total,
+        )
+    }
+
+    /// The per-million rate a word must be judged against for target
+    /// attestation: the *best* single-bucket rate (DMS human stream, or
+    /// the external pack over its own total), never the pooled rate.
+    ///
+    /// Attestation asks "do humans use this word at all?" — an
+    /// existence question, answered per corpus. Pooling would let a
+    /// large register-narrow external corpus dilute a word that is
+    /// perfectly ordinary in the DMS corpus's registers below the
+    /// floor ("food" is rare in code-review prose; that must not
+    /// un-attest it for a travel-register rule), silently converting
+    /// the floor from "unknown to humans" into "unknown to whichever
+    /// register dominates the token count".
+    #[must_use]
+    pub fn human_attestation_rate_per_million(&self, word: &str) -> f64 {
+        let word = word.to_lowercase();
+        let dms_count = self.human_word_counts.get(&word).copied().unwrap_or(0);
+        let dms_rate = pooled_rate_per_million(dms_count, self.human_stream.len() as u64);
+        let ext_rate = self.external.as_ref().map_or(0.0, |pack| {
+            pooled_rate_per_million(pack.unigram_count(&word), pack.total_tokens())
+        });
+        dms_rate.max(ext_rate)
+    }
+
+    /// Pooled evidence for one anchor phrase: `(machine_count,
+    /// human_count, machine_total, human_total)` — exactly the four raw
+    /// numbers [`crate::frame_rules::classify`] takes, already resolved
+    /// to the same measurement universe.
+    ///
+    /// `machine_count`/`machine_total` are always DMS-only (the external
+    /// pack is human corpora only, by construction). `human_count`/
+    /// `human_total` pool the external pack's PROBE-table entry and its
+    /// own token total — but only when `words` was actually registered
+    /// as a probe when that pack was built. An unregistered phrase keeps
+    /// both DMS-only: the alternative (an un-pooled numerator over a
+    /// pooled denominator) would silently deflate every unregistered
+    /// phrase's apparent rate, which is exactly what this struct's own
+    /// documented absence asymmetry says a probe's absence must not do
+    /// (see this struct's own docs). A phrase containing any word the
+    /// DMS vocabulary does not know occurs zero times on the DMS side by
+    /// construction.
+    #[must_use]
+    pub fn phrase_counts(&self, words: &[&str]) -> (u64, u64, u64, u64) {
+        let (machine, dms_human) = self.dms_phrase_counts(words);
+        let machine_total = self.machine_stream.len() as u64;
+        let dms_human_total = self.human_stream.len() as u64;
+        match self.external.as_ref().and_then(|pack| {
+            pack.probe_count(words)
+                .map(|count| (count, pack.total_tokens()))
+        }) {
+            Some((ext_human, ext_total)) => (
+                machine,
+                dms_human + ext_human,
+                machine_total,
+                dms_human_total + ext_total,
+            ),
+            None => (machine, dms_human, machine_total, dms_human_total),
+        }
+    }
+
+    /// Register-matched phrase evidence: `(machine_count, human_count,
+    /// machine_total, human_total)`, both sides DMS-only.
+    ///
+    /// Two-sided verdicts — direction errors and guard confirmation —
+    /// compare a machine rate against a human rate, which is only
+    /// meaningful when both sides sample the same register mix. The DMS
+    /// streams do (their genres were paired by construction); an
+    /// external human corpus does not (it brings its own register, with
+    /// no machine counterpart), so pooling it into one side of a ratio
+    /// manufactures verdicts out of register difference — "enable" is
+    /// human-tilted in docs prose and rare in review comments, and only
+    /// the first comparison says anything about machines. One-sided
+    /// checks (attestation, the human-rate ceiling) are the ones that
+    /// may draw on external corpora.
+    #[must_use]
+    pub fn phrase_counts_register_matched(&self, words: &[&str]) -> (u64, u64, u64, u64) {
+        let (machine, human) = self.dms_phrase_counts(words);
+        (
+            machine,
+            human,
+            self.machine_stream.len() as u64,
+            self.human_stream.len() as u64,
+        )
+    }
+
+    /// The DMS-only phrase counts [`Self::phrase_counts`] pools external
+    /// evidence on top of.
+    fn dms_phrase_counts(&self, words: &[&str]) -> (u64, u64) {
         let ids: Option<Vec<u32>> = words
             .iter()
             .map(|w| self.word_ids.get(&w.to_lowercase()).copied())
@@ -413,13 +554,37 @@ impl CorpusEvidence {
         (count(&self.machine_stream), count(&self.human_stream))
     }
 
-    /// Each side's token total: `(machine, human)`.
+    /// Each side's pooled token total: `(machine, human)`. The machine
+    /// total is always DMS-only; the human total folds in the external
+    /// pack's own token total whenever one is attached, regardless of
+    /// any particular phrase — a general corpus-size stat, not the
+    /// phrase-specific denominator [`Self::phrase_counts`] already
+    /// bundles (see that method's own docs for why the two can differ
+    /// for a phrase absent from the external pack's probe table).
     #[must_use]
-    pub const fn totals(&self) -> (u64, u64) {
+    pub fn totals(&self) -> (u64, u64) {
+        let ext_total = self
+            .external
+            .as_ref()
+            .map_or(0, HumanEvidencePack::total_tokens);
         (
             self.machine_stream.len() as u64,
-            self.human_stream.len() as u64,
+            self.human_stream.len() as u64 + ext_total,
         )
+    }
+}
+
+/// `count` occurrences over `total` tokens, as occurrences per million —
+/// `0.0` for a zero total rather than a division by zero.
+#[expect(
+    clippy::cast_precision_loss,
+    reason = "corpus counts are far below 2^52"
+)]
+fn pooled_rate_per_million(count: u64, total: u64) -> f64 {
+    if total == 0 {
+        0.0
+    } else {
+        count as f64 / total as f64 * 1_000_000.0
     }
 }
 
@@ -747,7 +912,7 @@ fn compile_one(
         Vec::new()
     };
     if kind == CompiledKind::Rewrite
-        && let Some(reject) = attest_template(&template, interner, classes, &evidence.human_rates)
+        && let Some(reject) = attest_template(&template, interner, classes, evidence)
     {
         return Outcome::Rejected(draft.id, reject);
     }
@@ -833,7 +998,10 @@ const HUMAN_RATE_CEILING_PER_MILLION: f64 = 100.0;
 ///
 /// - **direction**: an anchor solidly HUMAN-tilted here (three or more
 ///   human occurrences and the referee's own direction-error verdict)
-///   marks a rewrite that would push text toward the machine register;
+///   marks a rewrite that would push text toward the machine register.
+///   Measured register-matched (DMS streams only) — a two-sided ratio
+///   over mismatched registers is meaningless, see
+///   [`CorpusEvidence::phrase_counts_register_matched`];
 /// - **human-rate ceiling**: an anchor above
 ///   [`HUMAN_RATE_CEILING_PER_MILLION`] in human prose fires on human
 ///   text too often to auto-edit no matter how machine-tilted its
@@ -852,22 +1020,27 @@ fn anchor_evidence_demotion(
             _ => unreachable!("anchor runs contain only literals"),
         })
         .collect();
-    let (m, h) = evidence.phrase_counts(&words);
-    let (m_total, h_total) = evidence.totals();
+    #[expect(
+        clippy::cast_precision_loss,
+        reason = "corpus counts are far below 2^52"
+    )]
+    let rate = |count: u64, total: u64| {
+        if total == 0 {
+            0.0
+        } else {
+            count as f64 / total as f64 * 1_000_000.0
+        }
+    };
+    let (m, h, m_total, h_total) = evidence.phrase_counts_register_matched(&words);
     if h >= 3 && classify(RuleKind::Rewrite, m, h, m_total, h_total) == Verdict::DirectionError {
         return Some(format!(
             "anchor measured human-tilted on the shipped corpora ({m} machine vs {h} human occurrences)"
         ));
     }
-    #[expect(
-        clippy::cast_precision_loss,
-        reason = "corpus counts are far below 2^52"
-    )]
-    let h_rate = if h_total == 0 {
-        0.0
-    } else {
-        h as f64 / h_total as f64 * 1_000_000.0
-    };
+    // The ceiling is one-sided (human frequency alone), so it may pool
+    // every human corpus we have — including external registers.
+    let (_, pooled_h, _, pooled_h_total) = evidence.phrase_counts(&words);
+    let h_rate = rate(pooled_h, pooled_h_total);
     (h_rate >= HUMAN_RATE_CEILING_PER_MILLION).then(|| {
         format!("anchor too common in human prose to auto-edit ({h_rate:.0}/M human); report-only")
     })
@@ -888,8 +1061,9 @@ fn machine_tilted_guard(
             _ => unreachable!("anchor runs contain only literals"),
         })
         .collect();
-    let (m, h) = evidence.phrase_counts(&words);
-    let (m_total, h_total) = evidence.totals();
+    // Guard confirmation is a two-sided verdict: register-matched
+    // evidence only (see `CorpusEvidence::phrase_counts_register_matched`).
+    let (m, h, m_total, h_total) = evidence.phrase_counts_register_matched(&words);
     (classify(RuleKind::Rewrite, m, h, m_total, h_total) == Verdict::Confirmed).then_some((m, h))
 }
 
@@ -1032,7 +1206,7 @@ fn attest_template(
     template: &[CTpl],
     interner: &Interner,
     classes: &ClassTable,
-    human_rates: &BTreeMap<String, f64>,
+    evidence: &CorpusEvidence,
 ) -> Option<Reject> {
     let function_words = &interner.function_words;
     let check = |id: u32| {
@@ -1040,7 +1214,7 @@ fn attest_template(
         if function_words.contains(word.as_str()) {
             return None;
         }
-        let per_million = human_rates.get(word).copied().unwrap_or(0.0);
+        let per_million = evidence.human_attestation_rate_per_million(word);
         (per_million < ATTESTATION_FLOOR_PER_MILLION).then(|| Reject::AttestationFailed {
             word: word.clone(),
             per_million,
@@ -1366,5 +1540,135 @@ words = ["a", "an", "the", "to", "of"]
         let (pack_a, _) = compile(&set, &rates).expect("compile a");
         let (pack_b, _) = compile(&set, &rates).expect("compile b");
         assert_eq!(pack_a, pack_b);
+    }
+
+    // --- external evidence pooling ---
+
+    use crate::human_evidence::{HumanEvidencePack, build_pack_bytes as build_human_evidence_bin};
+
+    /// A tiny synthetic `dms-index-v1`-shaped TOML: two human occurrences
+    /// of "use", one machine occurrence, a two-word human-side phrase.
+    const SMALL_DMS_TOML: &str = r#"
+        [vocab]
+        tokens = ["<unused-0>", "use", "please", "leverage", "synergy"]
+
+        [streams.human]
+        ids = "1,2,1,3,4"
+
+        [streams.qwen]
+        ids = "3,4"
+    "#;
+
+    /// A pooled word's rate is the sum of both sides' counts over the
+    /// sum of both sides' totals — not either side's rate averaged.
+    #[test]
+    fn human_rate_per_million_pools_dms_and_external_unigram_counts() {
+        let unigrams = BTreeMap::from([("use".to_string(), 3u64)]);
+        let external =
+            HumanEvidencePack::load(&build_human_evidence_bin(&unigrams, &BTreeMap::new(), 5))
+                .expect("built pack loads");
+        let evidence = CorpusEvidence::from_dms_toml(SMALL_DMS_TOML)
+            .expect("small pack parses")
+            .with_external(external);
+        // dms: "use" occurs 2 times over 5 human tokens; external: 3
+        // times over 5 tokens. Pooled: (2+3)/(5+5)*1e6 = 500_000.0.
+        let rate = evidence.human_rate_per_million("use");
+        assert!((rate - 500_000.0).abs() < 1e-9, "pooled rate was {rate}");
+    }
+
+    /// A word absent from the external pack's unigram table still folds
+    /// the external total into the denominator (absence means "fewer
+    /// than the floor", not "not measured") — the rate strictly
+    /// decreases relative to dms-only, it never silently ignores the
+    /// external corpus's existence.
+    #[test]
+    fn human_rate_per_million_folds_in_external_total_even_when_the_word_is_unmeasured() {
+        let external = HumanEvidencePack::load(&build_human_evidence_bin(
+            &BTreeMap::new(),
+            &BTreeMap::new(),
+            5,
+        ))
+        .expect("built pack loads");
+        let evidence = CorpusEvidence::from_dms_toml(SMALL_DMS_TOML)
+            .expect("small pack parses")
+            .with_external(external);
+        // dms: "use" occurs 2/5. Pooled: (2+0)/(5+5)*1e6 = 200_000.0,
+        // strictly less than the dms-only 400_000.0.
+        let rate = evidence.human_rate_per_million("use");
+        assert!((rate - 200_000.0).abs() < 1e-9, "pooled rate was {rate}");
+    }
+
+    /// A phrase registered in the external pack's probe table pools its
+    /// count and the pack's total into both the numerator and the
+    /// denominator together.
+    #[test]
+    fn phrase_counts_pools_a_registered_probe_numerator_and_denominator_together() {
+        let probes = BTreeMap::from([(vec!["please".to_string()], 7u64)]);
+        let external =
+            HumanEvidencePack::load(&build_human_evidence_bin(&BTreeMap::new(), &probes, 5))
+                .expect("built pack loads");
+        let evidence = CorpusEvidence::from_dms_toml(SMALL_DMS_TOML)
+            .expect("small pack parses")
+            .with_external(external);
+        // dms: "please" occurs 1/5 human, 0/2 machine. Pooled human:
+        // (1+7) over (5+5); machine stays dms-only (0 over 2).
+        assert_eq!(evidence.phrase_counts(&["please"]), (0, 8, 2, 10));
+    }
+
+    /// A phrase never registered as a probe when the external pack was
+    /// built pools nothing — both its count and its total stay
+    /// dms-only, never an unpooled numerator over a pooled denominator
+    /// (which would silently deflate its apparent rate).
+    #[test]
+    fn phrase_counts_leaves_an_unregistered_phrase_entirely_dms_only() {
+        let probes = BTreeMap::from([(vec!["please".to_string()], 7u64)]);
+        let external =
+            HumanEvidencePack::load(&build_human_evidence_bin(&BTreeMap::new(), &probes, 5))
+                .expect("built pack loads");
+        let evidence = CorpusEvidence::from_dms_toml(SMALL_DMS_TOML)
+            .expect("small pack parses")
+            .with_external(external);
+        // "use" was never one of this pack's probes (only "please" was)
+        // — dms-only on both sides: 2 human over 5, 0 machine over 2.
+        assert_eq!(evidence.phrase_counts(&["use"]), (0, 2, 2, 5));
+    }
+
+    /// `totals()` is a general corpus-size stat: it folds in the
+    /// external total whenever a pack is attached, independent of any
+    /// particular phrase (unlike `phrase_counts`'s bundled denominator).
+    #[test]
+    fn totals_folds_in_the_external_total_unconditionally() {
+        let external = HumanEvidencePack::load(&build_human_evidence_bin(
+            &BTreeMap::new(),
+            &BTreeMap::new(),
+            5,
+        ))
+        .expect("built pack loads");
+        let evidence = CorpusEvidence::from_dms_toml(SMALL_DMS_TOML)
+            .expect("small pack parses")
+            .with_external(external);
+        assert_eq!(evidence.totals(), (2, 10));
+    }
+
+    /// The empty pack (the shipped placeholder — see
+    /// `crate::human_evidence`'s own docs) is a no-op: every pooled
+    /// accessor equals the dms-only computation exactly, and compiling
+    /// the shipped rule set with it attached produces a byte-identical
+    /// pack to compiling without any external evidence at all.
+    #[test]
+    fn empty_external_pack_leaves_compile_output_unchanged() {
+        let set = FrameRuleSet::parse(include_str!("../packs/frame-rules-v1.toml"))
+            .expect("shipped rules parse");
+        let dms_toml = include_str!("../packs/dms-index-v1.toml");
+        let without_external = CorpusEvidence::from_dms_toml(dms_toml).expect("dms index parses");
+        let with_empty_external = CorpusEvidence::from_dms_toml(dms_toml)
+            .expect("dms index parses")
+            .with_external(HumanEvidencePack::empty());
+        let (pack_a, report_a) = compile(&set, &without_external).expect("compile a");
+        let (pack_b, report_b) = compile(&set, &with_empty_external).expect("compile b");
+        assert_eq!(pack_a, pack_b);
+        assert_eq!(report_a.compiled, report_b.compiled);
+        assert_eq!(report_a.demoted, report_b.demoted);
+        assert_eq!(report_a.rejected, report_b.rejected);
     }
 }

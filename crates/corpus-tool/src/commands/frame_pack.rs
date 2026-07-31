@@ -10,15 +10,21 @@
 //! the pack's contents stay fully explainable from the source TOML and
 //! this command's output alone.
 //!
-//! Deterministic and fully offline: both inputs are vendored artifacts
+//! Deterministic and fully offline: every input is a vendored artifact
 //! already checked into `crates/friction-packs/packs/` — the rule set
-//! itself, and the DMS index TOML whose human stream supplies the
-//! attestation word rates. The rules TOML's sha256 is recorded in the
-//! artifact header, so a stale `.bin` (rules edited, this command not
-//! re-run) fails loudly in `friction-packs`' own drift test instead of
-//! silently serving an older rule program. **Re-run this command after
-//! every `frame-rules-v1.toml` change and after every `corpus-tool
-//! index` run** (the second regenerates the attestation rates).
+//! itself, the DMS index TOML whose human stream supplies the
+//! attestation word rates, and the human-evidence pack that pools
+//! additional external human-corpus evidence into that same rate (see
+//! `friction_packs::human_evidence`'s own module docs — today's shipped
+//! pack is the empty placeholder, so it changes nothing until real
+//! external corpora are staged and `corpus-tool human-evidence` is
+//! re-run). The rules TOML's sha256 is recorded in the artifact header,
+//! so a stale `.bin` (rules edited, this command not re-run) fails
+//! loudly in `friction-packs`' own drift test instead of silently
+//! serving an older rule program. **Re-run this command after every
+//! `frame-rules-v1.toml` change, after every `corpus-tool index` run**
+//! (regenerates the attestation rates), and after every `corpus-tool
+//! human-evidence` run.
 
 use std::path::PathBuf;
 
@@ -27,6 +33,7 @@ use clap::Args as ClapArgs;
 use friction_packs::Sha256;
 use friction_packs::frame_compile::{CorpusEvidence, compile};
 use friction_packs::frame_rules::FrameRuleSet;
+use friction_packs::human_evidence::HumanEvidencePack;
 
 /// Arguments for `corpus-tool frame-pack`.
 #[derive(Debug, ClapArgs)]
@@ -41,6 +48,13 @@ pub struct Args {
     /// rates come from its human stream).
     #[arg(long, default_value = "crates/friction-packs/packs/dms-index-v1.toml")]
     pub dms_toml: PathBuf,
+    /// Path to the vendored `human-evidence-v1.bin` pack (pooled into
+    /// the dms-index-v1 human rate — see this module's own docs).
+    #[arg(
+        long,
+        default_value = "crates/friction-packs/packs/human-evidence-v1.bin"
+    )]
+    pub human_evidence: PathBuf,
     /// Path to write the derived binary artifact to.
     #[arg(long, default_value = "crates/friction-packs/packs/frame-pack-v1.bin")]
     pub out_bin: PathBuf,
@@ -50,7 +64,7 @@ pub struct Args {
 /// artifact, prints the compile report.
 ///
 /// # Errors
-/// Returns an error if either input can't be read or parsed, if the
+/// Returns an error if any input can't be read or parsed, if the
 /// compile hits a structural inconsistency (see
 /// `friction_packs::frame_compile::FrameCompileError`), or if the
 /// `.bin` can't be written.
@@ -59,10 +73,15 @@ pub fn run(args: &Args) -> anyhow::Result<()> {
         .with_context(|| format!("reading {}", args.rules.display()))?;
     let dms_text = std::fs::read_to_string(&args.dms_toml)
         .with_context(|| format!("reading {}", args.dms_toml.display()))?;
+    let human_evidence_bytes = std::fs::read(&args.human_evidence)
+        .with_context(|| format!("reading {}", args.human_evidence.display()))?;
     let set = FrameRuleSet::parse(&rules_text)
         .map_err(|e| anyhow::anyhow!("{} did not parse: {e}", args.rules.display()))?;
+    let external = HumanEvidencePack::load(&human_evidence_bytes)
+        .map_err(|e| anyhow::anyhow!("{} did not load: {e}", args.human_evidence.display()))?;
     let rates = CorpusEvidence::from_dms_toml(&dms_text)
-        .map_err(|e| anyhow::anyhow!("{} evidence: {e}", args.dms_toml.display()))?;
+        .map_err(|e| anyhow::anyhow!("{} evidence: {e}", args.dms_toml.display()))?
+        .with_external(external);
 
     let (pack, report) = compile(&set, &rates)
         .map_err(|e| anyhow::anyhow!("compiling {}: {e}", args.rules.display()))?;
@@ -106,6 +125,7 @@ pub fn run(args: &Args) -> anyhow::Result<()> {
 mod tests {
     use friction_packs::frame_compile::{CorpusEvidence, compile};
     use friction_packs::frame_rules::FrameRuleSet;
+    use friction_packs::human_evidence::HumanEvidencePack;
 
     /// Compiling and packing the vendored artifacts twice is
     /// byte-identical — the determinism pin every derived-artifact
@@ -124,8 +144,15 @@ mod tests {
             repo_root.join("crates/friction-packs/packs/dms-index-v1.toml"),
         )
         .expect("vendored dms-index-v1.toml exists");
+        let human_evidence_bytes =
+            std::fs::read(repo_root.join("crates/friction-packs/packs/human-evidence-v1.bin"))
+                .expect("vendored human-evidence-v1.bin exists");
         let set = FrameRuleSet::parse(&rules_text).expect("vendored rules parse");
-        let rates = CorpusEvidence::from_dms_toml(&dms_text).expect("vendored evidence derives");
+        let external =
+            HumanEvidencePack::load(&human_evidence_bytes).expect("vendored human evidence loads");
+        let rates = CorpusEvidence::from_dms_toml(&dms_text)
+            .expect("vendored evidence derives")
+            .with_external(external);
         let sha = "0".repeat(64);
         let first = friction_packs::frame_bin::pack_frame_bin(
             &compile(&set, &rates).expect("vendored set compiles").0,

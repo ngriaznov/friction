@@ -110,6 +110,13 @@ enum Command {
     /// (`frame-pack-v1.bin`), printing the full compile report: every
     /// compiled, demoted, and rejected rule with its reason.
     FramePack(commands::frame_pack::Args),
+    /// Builds `human-evidence-v1`: external human-corpus unigram and
+    /// literal-probe occurrence counts, mined from locally-staged
+    /// external corpora, that pool into
+    /// `friction_packs::frame_compile::CorpusEvidence` to strengthen the
+    /// dms-index-v1 human signal the frame-rewrite compile fences
+    /// consult.
+    HumanEvidence(commands::human_evidence::Args),
 }
 
 /// Parses process arguments and runs the selected subcommand.
@@ -168,5 +175,6 @@ pub fn run() -> anyhow::Result<()> {
         Command::DmsPack(args) => commands::dms_pack::run(&args),
         Command::Adjudicate(args) => commands::adjudicate::run(&args),
         Command::FramePack(args) => commands::frame_pack::run(&args),
+        Command::HumanEvidence(args) => commands::human_evidence::run(&args),
     }
 }

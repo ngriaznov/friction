@@ -90,6 +90,18 @@
 //! comment for the normalization/hash sharing discipline and the
 //! determinism guarantee `corpus-tool jargon-attest` relies on.
 //!
+//! # Human evidence pack
+//!
+//! [`human_evidence`] parses the external human-corpus evidence pack
+//! (`packs/human-evidence-v1.bin`, embedded and exposed pre-parsed as
+//! [`HUMAN_EVIDENCE`]) `corpus-tool human-evidence` mines from
+//! locally-staged external human corpora: unigram and literal-probe
+//! occurrence counts that pool into [`frame_compile::CorpusEvidence`],
+//! strengthening (never replacing) the `dms-index-v1` human signal the
+//! frame-rewrite compile fences already consult. See that module's own
+//! doc comment for the two tables' differing absence semantics and why
+//! the shipped pack starts empty.
+//!
 //! # Determinism
 //!
 //! Every pack parses into sorted or declaration-ordered collections, so
@@ -106,6 +118,7 @@ mod envelope;
 pub mod frame_bin;
 pub mod frame_compile;
 pub mod frame_rules;
+pub mod human_evidence;
 mod inventory;
 mod jargon;
 pub mod jargon_attest;
@@ -118,6 +131,7 @@ pub use attestation::{AttestationPack, BigramTable, NearNoOpCalibration, Skeleto
 pub use dms::{DmsIndex, ModelFamily, Sam, Vocab};
 pub use dms_bin::{DmsBinError, DmsIndexView, SamView, VocabView, pack_dms_index_bin};
 pub use envelope::{ENVELOPE_V2, EnvelopePack, exceedance};
+pub use human_evidence::{HumanEvidencePack, build_pack_bytes as build_human_evidence_bin};
 pub use inventory::{
     Anchor, DeletionSpan, FrequencyUnit, GuardTokens, InventoryPack, LvcPair, OutputFrequencyBand,
     PreviewFrame, RepairKind, RitualFrame, SubstitutionPair,
@@ -126,7 +140,8 @@ pub use jargon::{AttestedException, JargonPack, Lexeme, LexemeSource};
 pub use jargon_attest::{BuiltPack, JargonAttestPack, build_pack_bytes, normalize_compound};
 pub use register::{RegisterBand, RegisterPack};
 pub use registry::{
-    ATTESTATION, DMS, FRAME, INVENTORY, JARGON, JARGON_ATTEST, LoadedPack, REGISTER, load_dms_pack,
+    ATTESTATION, DMS, FRAME, HUMAN_EVIDENCE, INVENTORY, JARGON, JARGON_ATTEST, LoadedPack,
+    REGISTER, load_dms_pack,
 };
 pub use validate::{
     ClosureViolation, DisjointnessViolation, FrequencyHygieneReason, FrequencyHygieneViolation,

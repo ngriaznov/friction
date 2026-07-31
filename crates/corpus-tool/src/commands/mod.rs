@@ -18,6 +18,7 @@ pub mod frame_pack;
 pub mod generate;
 pub mod generate_paired;
 pub mod holdout_check;
+pub mod human_evidence;
 pub mod index;
 pub mod ingest;
 pub mod jargon_attest;
