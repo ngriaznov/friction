@@ -7,6 +7,7 @@ use std::sync::LazyLock;
 use crate::attestation::AttestationPack;
 use crate::dms::DmsIndex;
 use crate::dms_bin::DmsIndexView;
+use crate::frame_bin::FramePackView;
 use crate::inventory::InventoryPack;
 use crate::jargon::JargonPack;
 use crate::jargon_attest::JargonAttestPack;
@@ -35,6 +36,11 @@ const INVENTORY_V1_TOML: &str = include_str!("../packs/inventory-v1.toml");
 /// runtime: this crate's `dms_bin` drift test re-packs it and compares
 /// bytes, so the two cannot silently diverge.
 const DMS_INDEX_V1_BIN: &[u8] = include_bytes!("../packs/dms-index-v1.bin");
+
+/// The embedded derived frame-rewrite pack — the compiled rule program
+/// `corpus-tool frame-pack` builds from `frame-rules-v1.toml` after
+/// running the whole compile fence. ~115 KB.
+const FRAME_PACK_V1_BIN: &[u8] = include_bytes!("../packs/frame-pack-v1.bin");
 
 /// The built-in inventory pack, parsed once from the embedded
 /// `inventory-v1.toml` and reused for the life of the process.
@@ -102,6 +108,31 @@ pub static DMS: LazyLock<LoadedPack<DmsIndexView<'static>>> = LazyLock::new(|| {
         .expect("a parsed artifact's recorded sha256 is always 64 hex characters");
     LoadedPack {
         version: "dms-index-v1".into(),
+        sha256,
+        pack,
+    }
+});
+
+/// The built-in frame-rewrite rule program, viewed zero-copy over the
+/// embedded derived artifact and reused for the life of the process.
+///
+/// The source `frame-rules-v1.toml` never parses at runtime: the whole
+/// compile fence — attestation against the DMS human stream included —
+/// ran once, offline, in `corpus-tool frame-pack`. `sha256` records the
+/// **source TOML's** digest (carried in the artifact's own header), the
+/// same provenance contract as [`DMS`].
+///
+/// # Panics
+/// Panics if the embedded artifact fails to parse — a bug in this
+/// crate's own vendored data (covered by `frame_bin`'s round-trip and
+/// this module's drift tests), not a runtime condition.
+pub static FRAME: LazyLock<LoadedPack<FramePackView<'static>>> = LazyLock::new(|| {
+    let pack =
+        FramePackView::parse(FRAME_PACK_V1_BIN).expect("embedded frame-pack-v1.bin must parse");
+    let sha256 = Sha256::parse_hex(pack.source_sha256_hex())
+        .expect("a parsed artifact's recorded sha256 is always 64 hex characters");
+    LoadedPack {
+        version: "frame-pack-v1".into(),
         sha256,
         pack,
     }
@@ -273,6 +304,49 @@ mod tests {
         assert_eq!(
             repacked, DMS_INDEX_V1_BIN,
             "packs/dms-index-v1.bin is stale: re-run `corpus-tool dms-pack`"
+        );
+    }
+
+    /// The in-repo frame rules TOML, loaded at test time only.
+    const FRAME_RULES_V1_TOML: &str = include_str!("../packs/frame-rules-v1.toml");
+
+    #[test]
+    fn frame_static_loads_with_rules_of_every_kind() {
+        assert_eq!(&*FRAME.version, "frame-pack-v1");
+        assert!(FRAME.pack.rule_count() > 0);
+        let kinds: std::collections::BTreeSet<u8> = (0..FRAME.pack.rule_count())
+            .map(|i| FRAME.pack.rule(i).expect("rule in range").kind as u8)
+            .collect();
+        assert_eq!(
+            kinds.len(),
+            4,
+            "rewrite, delete, guard, and report rules all present"
+        );
+    }
+
+    #[test]
+    fn frame_sha256_matches_recomputed_hash_of_the_source_toml() {
+        let recomputed = Sha256::of_bytes(FRAME_RULES_V1_TOML.as_bytes());
+        assert_eq!(FRAME.sha256, recomputed);
+    }
+
+    /// The drift guard: re-compiling and re-packing the in-repo rules
+    /// (with attestation rates re-derived from the in-repo DMS TOML)
+    /// must reproduce the embedded `.bin` byte for byte. Fails when
+    /// either source changes without `corpus-tool frame-pack` re-run.
+    #[test]
+    fn frame_pack_is_freshly_compiled_from_the_source_toml() {
+        let set = crate::frame_rules::FrameRuleSet::parse(FRAME_RULES_V1_TOML)
+            .expect("in-repo frame-rules-v1.toml parses");
+        let rates = crate::frame_compile::human_rates_from_dms_toml(DMS_INDEX_V1_TOML)
+            .expect("in-repo dms-index-v1.toml rates derive");
+        let (pack, _) =
+            crate::frame_compile::compile(&set, &rates).expect("in-repo rule set compiles");
+        let sha_hex = Sha256::of_bytes(FRAME_RULES_V1_TOML.as_bytes()).to_string();
+        let repacked = crate::frame_bin::pack_frame_bin(&pack, &sha_hex);
+        assert_eq!(
+            repacked, FRAME_PACK_V1_BIN,
+            "packs/frame-pack-v1.bin is stale: re-run `corpus-tool frame-pack`"
         );
     }
 

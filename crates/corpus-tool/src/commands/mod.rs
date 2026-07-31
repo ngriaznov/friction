@@ -14,6 +14,7 @@ pub mod clean;
 pub mod dms_pack;
 pub mod envelope;
 pub mod fix_entities;
+pub mod frame_pack;
 pub mod generate;
 pub mod generate_paired;
 pub mod holdout_check;

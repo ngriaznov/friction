@@ -5,10 +5,12 @@
 //! are ever offered to this compiler, and it still rejects individual
 //! rules freely: every exclusion is recorded in the [`CompileReport`]
 //! with its [`Reject`] reason, so the derived pack's contents are fully
-//! explainable from the source TOML alone. A structural inconsistency
-//! (duplicate rule id, an unparseable pattern in a fenced bucket)
-//! fails the whole compile instead — those never represent evidence
-//! decisions, only a corrupted artifact.
+//! explainable from the source TOML alone. An unparseable pattern in a
+//! fenced bucket fails the whole compile instead — that never
+//! represents an evidence decision, only a corrupted artifact. (A
+//! duplicated id is *not* structural: the shipped surface bucket
+//! carries a handful of duplicated rows, so the first occurrence wins
+//! and later ones soft-reject.)
 //!
 //! # The gauntlet, in check order
 //!

@@ -14,7 +14,7 @@
 //! Every asset this workspace's NLP layer uses is vendored directly into
 //! the repo (the sentence-segmentation ruleset, the part-of-speech
 //! tagger's weight artifact) and every pack in this crate is embedded
-//! (`include_str!` for the TOML packs, `include_bytes!` for the two
+//! (`include_str!` for the TOML packs, `include_bytes!` for the
 //! derived binary artifacts) — nothing is fetched at build time or at
 //! run time, and no runtime cache directory needs to exist for a
 //! compiled `friction` binary to work.
@@ -126,7 +126,7 @@ pub use jargon::{AttestedException, JargonPack, Lexeme, LexemeSource};
 pub use jargon_attest::{BuiltPack, JargonAttestPack, build_pack_bytes, normalize_compound};
 pub use register::{RegisterBand, RegisterPack};
 pub use registry::{
-    ATTESTATION, DMS, INVENTORY, JARGON, JARGON_ATTEST, LoadedPack, REGISTER, load_dms_pack,
+    ATTESTATION, DMS, FRAME, INVENTORY, JARGON, JARGON_ATTEST, LoadedPack, REGISTER, load_dms_pack,
 };
 pub use validate::{
     ClosureViolation, DisjointnessViolation, FrequencyHygieneReason, FrequencyHygieneViolation,

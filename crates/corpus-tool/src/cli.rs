@@ -105,6 +105,11 @@ enum Command {
     /// agrees or disagrees with the verdict recorded in
     /// `frame-rules-v1.toml`.
     Adjudicate(commands::adjudicate::Args),
+    /// Compiles the frame-rewrite rule set through the whole compile
+    /// fence and builds its derived binary artifact
+    /// (`frame-pack-v1.bin`), printing the full compile report: every
+    /// compiled, demoted, and rejected rule with its reason.
+    FramePack(commands::frame_pack::Args),
 }
 
 /// Parses process arguments and runs the selected subcommand.
@@ -162,5 +167,6 @@ pub fn run() -> anyhow::Result<()> {
         Command::WeightsPack(args) => commands::weights_pack::run(&args),
         Command::DmsPack(args) => commands::dms_pack::run(&args),
         Command::Adjudicate(args) => commands::adjudicate::run(&args),
+        Command::FramePack(args) => commands::frame_pack::run(&args),
     }
 }
