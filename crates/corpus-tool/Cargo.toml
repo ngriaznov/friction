@@ -29,6 +29,7 @@ friction-edit = { path = "../friction-edit" }
 # primitives and the relocated `friction_nlp::lvc` tables (transitively)
 # from this crate rather than re-implementing them.
 friction-harness = { path = "../friction-harness" }
+friction-match = { path = "../friction-match" }
 friction-metrics = { path = "../friction-metrics" }
 friction-nlp = { path = "../friction-nlp" }
 # `index` builds `friction_packs::dms::ModelFamily`-keyed streams; parsing

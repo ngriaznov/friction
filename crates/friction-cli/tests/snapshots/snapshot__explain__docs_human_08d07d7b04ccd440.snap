@@ -3,8 +3,9 @@ source: crates/friction-cli/tests/snapshot.rs
 expression: stdout
 ---
 pass 1: 0 operation(s) fired — converged
-  5 held:
+  6 held:
     adjg.powerful          242..250  KEPT (frame adjg.powerful: measured 226.0/M machine vs 76.8/M human; report-only)
+    adj.powerful-guard::powerful 242..262  KEPT (frame adj.powerful-guard::powerful: measured 639.7/M machine vs 153.0/M human; report-only)
     intg.especially        617..627  KEPT (frame intg.especially: measured 226.0/M machine vs 141.3/M human; report-only)
     vguard.achieve         2484..2492  KEPT (frame vguard.achieve: measured 114.4/M machine vs 79.8/M human; report-only)
     vguard.configure       2576..2586  KEPT (frame vguard.configure: measured 510.6/M machine vs 442.2/M human; report-only)

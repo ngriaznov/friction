@@ -714,6 +714,17 @@ fn compile_one(
             anchor_evidence_demotion(&draft.pattern, anchor_start, anchor_len, evidence)
     {
         Some(reason)
+    } else if draft.kind == RuleKind::Guard
+        && let Some((m, h)) =
+            machine_tilted_guard(&draft.pattern, anchor_start, anchor_len, evidence)
+    {
+        // A guard whose own anchor measures machine-tilted would
+        // shelter machine-leaning text — the flip bucket's exact
+        // definition, applied to every guard at compile time rather
+        // than only to the rows the original referee caught.
+        Some(format!(
+            "guard anchor measured machine-tilted on the shipped corpora ({m} machine vs {h} human occurrences); reports instead of protecting"
+        ))
     } else {
         None
     };
@@ -862,6 +873,26 @@ fn anchor_evidence_demotion(
     })
 }
 
+/// The guard anchor's `(machine, human)` counts when they classify as
+/// solidly machine-tilted (the confirmation bar) — `None` otherwise.
+fn machine_tilted_guard(
+    pattern: &[PatElem],
+    anchor_start: usize,
+    anchor_len: usize,
+    evidence: &CorpusEvidence,
+) -> Option<(u64, u64)> {
+    let words: Vec<&str> = pattern[anchor_start..anchor_start + anchor_len]
+        .iter()
+        .map(|elem| match elem {
+            PatElem::Lit(text) => text.as_str(),
+            _ => unreachable!("anchor runs contain only literals"),
+        })
+        .collect();
+    let (m, h) = evidence.phrase_counts(&words);
+    let (m_total, h_total) = evidence.totals();
+    (classify(RuleKind::Rewrite, m, h, m_total, h_total) == Verdict::Confirmed).then_some((m, h))
+}
+
 /// First class name referenced by the pattern that the set does not
 /// define, if any.
 fn first_undefined_class(pattern: &[PatElem], classes: &ClassTable) -> Option<String> {
@@ -916,11 +947,23 @@ fn compile_template(draft: &Draft, interner: &mut Interner, classes: &ClassTable
                 if let Some(class) = classes.id_of(arg) {
                     ops.push(CTpl::ClassRealize { class, tag: *tag });
                 } else {
-                    // A lemma to realize. Agreement source: the
-                    // pattern's BE element if it has one (finite verb
-                    // agreement), else the tag's own form.
+                    // A lemma to realize. Agreement source, in
+                    // preference order: the pattern's BE element if it
+                    // has exactly one (finite-verb agreement); else
+                    // the pattern's leading literal (lemma-matched, so
+                    // "embarked on this journey" realizes VB[begin] as
+                    // "began", never bare "begin"); else the tag's own
+                    // form.
                     let lemma = interner.intern(arg);
-                    match be_element(&draft.pattern) {
+                    let agree = be_element(&draft.pattern).or_else(|| {
+                        draft
+                            .pattern
+                            .iter()
+                            .position(|elem| !matches!(elem, PatElem::SentStart | PatElem::SentEnd))
+                            .filter(|&i| matches!(draft.pattern[i], PatElem::Lit(_)))
+                            .and_then(|i| u8::try_from(i).ok())
+                    });
+                    match agree {
                         Some(pos) => ops.push(CTpl::Inflect {
                             lemma,
                             agree_elem: pos,

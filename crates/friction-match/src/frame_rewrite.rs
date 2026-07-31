@@ -240,11 +240,16 @@ fn surface_of<'a>(token: &TaggedToken, text: &'a str) -> &'a str {
     &text[token.token.range.clone()]
 }
 
-/// Every plausible base-form reduction of a lowercased surface:
-/// `-ied`/`-ed`/`-ing` (with doubled-consonant undoubling and `-e`
-/// restoration) and `-ies`/`-es`/`-s`. Deliberately over-generates —
-/// the caller keeps only candidates the pack's interner knows.
-fn suffix_reductions(surface: &str) -> Vec<String> {
+/// Every plausible base-form reduction of a lowercased surface.
+///
+/// Covers `-ied`/`-ed`/`-ing` (with doubled-consonant undoubling and
+/// `-e` restoration) and `-ies`/`-es`/`-s`. Deliberately
+/// over-generates — callers keep only candidates a dictionary knows
+/// (the pack's interner at match time; the probe vocabulary in the
+/// adjudication referee, which shares this function so referee and
+/// runtime can never disagree about what counts as an occurrence).
+#[must_use]
+pub fn suffix_reductions(surface: &str) -> Vec<String> {
     let mut out = Vec::new();
     let undoubled = |stem: &str| {
         let chars: Vec<char> = stem.chars().collect();

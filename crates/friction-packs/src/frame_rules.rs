@@ -870,21 +870,29 @@ pub fn classify(kind: RuleKind, m: u64, h: u64, m_total: u64, h_total: u64) -> V
 mod tests {
     use super::*;
 
-    /// The shipped rule-set artifact itself: parses, and its bucket
-    /// sizes are exactly the adjudicated counts.
+    /// The shipped rule-set artifact itself: parses, holds every rule
+    /// the original adjudication delivered (bucket membership moves
+    /// with the evidence — `corpus-tool adjudicate --regenerate` — but
+    /// rules are never lost), and keeps its class and function-word
+    /// tables intact.
     #[test]
-    fn shipped_rule_set_parses_with_expected_bucket_sizes() {
+    fn shipped_rule_set_parses_and_keeps_every_rule() {
         let set = FrameRuleSet::parse(include_str!("../packs/frame-rules-v1.toml"))
             .expect("shipped frame-rules-v1.toml must parse");
-        assert_eq!(set.rules_ship.len(), 176);
-        assert_eq!(set.rules_flip.len(), 72);
-        assert_eq!(set.rules_surface.len(), 810);
-        assert_eq!(set.rules_pilot.len(), 21);
-        assert_eq!(set.rules_quarantine.len(), 238);
-        assert_eq!(set.rules_no_evidence.len(), 450);
-        assert_eq!(set.rules_staged_surface.len(), 1566);
+        let total = set.rules_ship.len()
+            + set.rules_flip.len()
+            + set.rules_surface.len()
+            + set.rules_pilot.len()
+            + set.rules_quarantine.len()
+            + set.rules_no_evidence.len()
+            + set.rules_staged_surface.len();
+        assert_eq!(total, 3333, "regeneration moves rules, never loses them");
+        assert_eq!(set.rules_pilot.len(), 21, "pilot rules never move");
         assert_eq!(set.classes.len(), 33);
         assert_eq!(set.function_words.words.len(), 37);
+        for (name, rules) in set.knowledge_buckets() {
+            assert!(!rules.is_empty(), "bucket {name} must not be empty");
+        }
     }
 
     /// Every pattern and target in the four compiling buckets parses.

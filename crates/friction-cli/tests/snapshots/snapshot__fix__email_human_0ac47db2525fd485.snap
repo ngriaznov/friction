@@ -36,7 +36,7 @@ If you have been following Slack and other resources you will have heard
 that in the past Flux v2 releases we reached the "feature parity"
 milestone, but what does that mean?
 
-When we embarked on this journey to rewrite Flux from scratch, we set
+When we began to rewrite Flux from scratch, we set
 out three big blocks of work:
 
 1. support for Flux operations in read-only mode

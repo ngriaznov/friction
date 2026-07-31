@@ -1122,9 +1122,16 @@ fn apply_frame_candidate(
                 ctx.tagger,
             );
             if outcome == DeletionGateOutcome::Allowed {
-                let widened = widen_deletion(working, m.bytes);
+                let base = m.bytes;
+                let widened = widen_deletion(working, base.clone());
                 let (range, replacement) = repair_article(working, widened, String::new());
-                splicer.apply(range, &replacement, rule_id, Tier::Fix);
+                if splicer.can_apply(&range) {
+                    splicer.apply(range, &replacement, rule_id, Tier::Fix);
+                } else if splicer.can_apply(&base) {
+                    // The widening crossed into an earlier edit's
+                    // replacement; the bare deletion is still sound.
+                    splicer.apply(base, "", rule_id, Tier::Fix);
+                }
             } else {
                 held.push(Finding::new(
                     rule_id,
@@ -1180,8 +1187,26 @@ fn apply_frame_candidate(
                 ));
                 return;
             }
-            let (range, replacement) = repair_article(working, m.bytes, replacement);
-            splicer.apply(range, &replacement, rule_id, Tier::Fix);
+            // A replacement that opens its line or sentence carries
+            // the opener's capital itself: the splicer marks the
+            // region as replacement text, which the recapitalization
+            // pass deliberately never touches (same contract as paired
+            // substitution).
+            let replacement = if opens_line_or_sentence(working, m.bytes.start) {
+                capitalize(&replacement)
+            } else {
+                replacement
+            };
+            let base = m.bytes;
+            let (range, widened_replacement) =
+                repair_article(working, base.clone(), replacement.clone());
+            if splicer.can_apply(&range) {
+                splicer.apply(range, &widened_replacement, rule_id, Tier::Fix);
+            } else if splicer.can_apply(&base) {
+                // Article widening crossed an earlier edit's boundary;
+                // the un-widened rewrite is still sound.
+                splicer.apply(base, &replacement, rule_id, Tier::Fix);
+            }
         }
         CompiledKind::Guard | CompiledKind::Report => {}
     }

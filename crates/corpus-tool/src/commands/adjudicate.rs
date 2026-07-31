@@ -113,6 +113,16 @@ pub struct Args {
     /// Report format.
     #[arg(long, value_enum, default_value_t = OutputFormat::Text)]
     pub format: OutputFormat,
+    /// After measuring, rewrite the rule-set TOML with every promotion
+    /// the evidence supports: a quarantined/no-evidence/staged rule
+    /// whose re-measured verdict is CONFIRMED (or guard-confirmed)
+    /// moves into the matching compile-eligible bucket, with its
+    /// measured rates and verdict recorded. Promote-only — demotions
+    /// stay the pack compiler's evidence fences, so a noisy
+    /// measurement can never silently eject a shipping rule.
+    /// **Re-run `corpus-tool frame-pack` afterwards.**
+    #[arg(long)]
+    pub regenerate: bool,
 }
 
 /// The seven buckets `frame-rules-v1.toml` carries, in the fixed order
@@ -383,27 +393,40 @@ fn build_index(probes: &[ProbeEntry]) -> HashMap<String, Vec<u32>> {
 /// state (`next_allowed`) is local to this call, so nothing here can ever
 /// bridge two sentences.
 fn scan_sentence(
-    lemma: &[String],
-    surface: &[String],
+    sentence: &SentenceTokens,
     index: &HashMap<String, Vec<u32>>,
     probes: &[ProbeEntry],
     is_llm: bool,
     counts: &mut [(u64, u64)],
 ) {
-    let word_matches = |word: &str, at: usize| word == lemma[at] || word == surface[at];
+    let SentenceTokens {
+        lemma,
+        surface,
+        reductions,
+    } = sentence;
+    let word_matches = |word: &str, at: usize| {
+        word == lemma[at] || word == surface[at] || reductions[at].iter().any(|r| r == word)
+    };
     let mut next_allowed: HashMap<u32, usize> = HashMap::new();
+    let mut candidate_ids: Vec<u32> = Vec::new();
     for i in 0..lemma.len() {
-        // Candidate probes are those whose first word matches either
-        // stream here; when lemma and surface agree, the two lookups
-        // return the same list and the duplicate-skip below drops the
-        // repeat.
-        let by_lemma = index.get(&lemma[i]).map_or(&[][..], Vec::as_slice);
-        let by_surface = if surface[i] == lemma[i] {
-            &[]
-        } else {
-            index.get(&surface[i]).map_or(&[][..], Vec::as_slice)
+        // Candidate probes are those whose first word matches the
+        // token under any reading; duplicates across readings are
+        // dropped below.
+        candidate_ids.clear();
+        let mut extend = |key: &str| {
+            for &id in index.get(key).map_or(&[][..], Vec::as_slice) {
+                if !candidate_ids.contains(&id) {
+                    candidate_ids.push(id);
+                }
+            }
         };
-        for &probe_idx in by_lemma.iter().chain(by_surface) {
+        extend(&lemma[i]);
+        extend(&surface[i]);
+        for reduction in &reductions[i] {
+            extend(reduction);
+        }
+        for &probe_idx in &candidate_ids {
             let probe = &probes[probe_idx as usize];
             let plen = probe.words.len();
             if i + plen > lemma.len() {
@@ -437,6 +460,13 @@ fn scan_sentence(
 struct SentenceTokens {
     lemma: Vec<String>,
     surface: Vec<String>,
+    /// Per token, the tag-independent suffix reductions of its surface
+    /// (`friction_match::frame_rewrite::suffix_reductions` — shared
+    /// with the runtime matcher, so referee and runtime can never
+    /// disagree about what counts as an occurrence). The tagger's own
+    /// lemma misses these when it mis-tags or keeps a wrong stem
+    /// ("commenced" -> "commenc").
+    reductions: Vec<Vec<String>>,
 }
 
 /// Extracts `document`'s prose, splits it into sentences, and tags each
@@ -454,11 +484,18 @@ fn tokenize_document(document: &Document, tagger: &dyn Tagger) -> Vec<SentenceTo
             }
             let mut lemma = Vec::with_capacity(sentence_tags.len());
             let mut surface = Vec::with_capacity(sentence_tags.len());
+            let mut reductions = Vec::with_capacity(sentence_tags.len());
             for token in &sentence_tags {
+                let text = sentence[token.token.range.clone()].to_lowercase();
                 lemma.push(token.lemma.to_lowercase());
-                surface.push(sentence[token.token.range.clone()].to_lowercase());
+                reductions.push(friction_match::frame_rewrite::suffix_reductions(&text));
+                surface.push(text);
             }
-            out.push(SentenceTokens { lemma, surface });
+            out.push(SentenceTokens {
+                lemma,
+                surface,
+                reductions,
+            });
         }
     }
     out
@@ -505,14 +542,7 @@ fn scan_corpus(
             } else {
                 scan.h_total += len;
             }
-            scan_sentence(
-                &sentence.lemma,
-                &sentence.surface,
-                index,
-                probes,
-                is_llm,
-                &mut scan.probe_counts,
-            );
+            scan_sentence(&sentence, index, probes, is_llm, &mut scan.probe_counts);
         }
     }
     Ok(scan)
@@ -828,6 +858,21 @@ pub fn run(args: &Args) -> anyhow::Result<()> {
     );
     let report = build_report(args, &rows, &measured, &scan);
 
+    if args.regenerate {
+        let (regenerated, promotions) = regenerate_rule_set(&rule_set, &rows, &measured);
+        std::fs::write(&args.rules, regenerated)
+            .with_context(|| format!("adjudicate: failed to write {}", args.rules.display()))?;
+        println!(
+            "regenerated {}: {} rule(s) promoted (re-run `corpus-tool frame-pack`)",
+            args.rules.display(),
+            promotions.len()
+        );
+        for line in &promotions {
+            println!("  {line}");
+        }
+        println!();
+    }
+
     match args.format {
         OutputFormat::Text => print!("{}", render_text(&report)),
         OutputFormat::Json => println!(
@@ -838,6 +883,255 @@ pub fn run(args: &Args) -> anyhow::Result<()> {
     }
 
     Ok(())
+}
+
+/// One rule's regeneration fate: where the evidence says it belongs.
+///
+/// Promote-only: a rule already in a compile-eligible bucket never
+/// moves out here (the pack compiler's evidence fences demote at
+/// compile time instead, so measurement noise can never silently eject
+/// a shipping rule), and a staged rule moves only on the referee's own
+/// CONFIRMED bar — the same one the original buckets were built with.
+const fn promotion_target(bucket: Bucket, kind: RuleKind, verdict: Verdict) -> Option<Bucket> {
+    let stays = matches!(
+        bucket,
+        Bucket::Ship | Bucket::Flip | Bucket::Surface | Bucket::Pilot
+    );
+    if stays {
+        return None;
+    }
+    match (kind, verdict) {
+        // Confirmed edits and confirmed guards both land beside their
+        // kin: surfaces with surfaces, knowledge rules in ship.
+        (RuleKind::Rewrite | RuleKind::Delete, Verdict::Confirmed)
+        | (RuleKind::Guard, Verdict::GuardConfirmed) => Some(match bucket {
+            Bucket::StagedSurface => Bucket::Surface,
+            _ => Bucket::Ship,
+        }),
+        // A staged guard measured machine-tilted is exactly the flip
+        // bucket's definition: authored as protection, evidence says
+        // report instead.
+        (RuleKind::Guard, Verdict::GuardWrong) => Some(Bucket::Flip),
+        _ => None,
+    }
+}
+
+/// The verdict label a promoted rule records, in the target bucket's
+/// own labeling convention.
+fn promoted_label(target: Bucket, verdict: Verdict) -> &'static str {
+    match (target, verdict) {
+        (Bucket::Surface, Verdict::Confirmed) => "frame:CONFIRMED",
+        (Bucket::Surface, Verdict::GuardConfirmed) => "frame:guard-confirmed",
+        (_, Verdict::Confirmed) => "CONFIRMED",
+        (_, Verdict::GuardConfirmed) => "guard-confirmed",
+        (_, Verdict::GuardWrong) => "guard-WRONG",
+        _ => unreachable!("promotion_target only admits the three verdicts above"),
+    }
+}
+
+/// One rule's promotion: its target bucket, measured rates, and the
+/// verdict label it records there.
+type PromotionMove = (Bucket, f64, f64, &'static str);
+
+/// Every promotion the measurements support, by rule id, plus one
+/// human-readable report line per promotion.
+fn promotion_moves<'a>(
+    rows: &'a [RuleRow],
+    measured: &[Measured],
+) -> (BTreeMap<&'a str, PromotionMove>, Vec<String>) {
+    let mut moves: BTreeMap<&str, PromotionMove> = BTreeMap::new();
+    let mut promotions = Vec::new();
+    for (row, m) in rows.iter().zip(measured) {
+        let Measured::Evidence {
+            verdict,
+            m_per_million,
+            h_per_million,
+            ..
+        } = m
+        else {
+            continue;
+        };
+        if let Some(target) = promotion_target(row.bucket, row.kind, *verdict) {
+            let label = promoted_label(target, *verdict);
+            moves.insert(
+                row.id.as_str(),
+                (target, *m_per_million, *h_per_million, label),
+            );
+            promotions.push(format!(
+                "{} [{} -> {}] measured {} ({:.1}/M vs {:.1}/M)",
+                row.id,
+                row.bucket.name(),
+                target.name(),
+                label,
+                m_per_million,
+                h_per_million
+            ));
+        }
+    }
+    (moves, promotions)
+}
+
+/// Serializes the rule set back to the pack TOML with every promotion
+/// applied: promoted rules leave their evidence bucket, append to the
+/// end of their target bucket (stable — existing rows keep their
+/// order), and record their measured rates and verdict. Returns the
+/// TOML text and one human-readable line per promotion.
+fn regenerate_rule_set(
+    set: &FrameRuleSet,
+    rows: &[RuleRow],
+    measured: &[Measured],
+) -> (String, Vec<String>) {
+    use friction_packs::frame_rules::FrameRule;
+
+    let (moves, promotions) = promotion_moves(rows, measured);
+
+    // Rebuild each bucket: keep non-promoted rows in place, then append
+    // promoted arrivals in their original (deterministic) order.
+    let bucket_of = |target: Bucket, buckets: &mut BTreeMap<&'static str, Vec<FrameRule>>| {
+        buckets.entry(target.name()).or_default();
+    };
+    let mut buckets: BTreeMap<&'static str, Vec<FrameRule>> = BTreeMap::new();
+    for b in [
+        Bucket::Ship,
+        Bucket::Flip,
+        Bucket::Surface,
+        Bucket::Quarantine,
+        Bucket::NoEvidence,
+        Bucket::StagedSurface,
+    ] {
+        bucket_of(b, &mut buckets);
+    }
+    let mut arrivals: BTreeMap<&'static str, Vec<FrameRule>> = BTreeMap::new();
+    for (bucket, rules) in [
+        (Bucket::Ship, &set.rules_ship),
+        (Bucket::Flip, &set.rules_flip),
+        (Bucket::Surface, &set.rules_surface),
+        (Bucket::Quarantine, &set.rules_quarantine),
+        (Bucket::NoEvidence, &set.rules_no_evidence),
+        (Bucket::StagedSurface, &set.rules_staged_surface),
+    ] {
+        for rule in rules {
+            if let Some((target, m_pm, h_pm, label)) = moves.get(rule.id.as_str()) {
+                let mut promoted = rule.clone();
+                promoted.m_pm = (m_pm * 10.0).round() / 10.0;
+                promoted.h_pm = (h_pm * 10.0).round() / 10.0;
+                promoted.v = (*label).to_string();
+                arrivals.entry(target.name()).or_default().push(promoted);
+            } else {
+                buckets
+                    .get_mut(bucket.name())
+                    .expect("seeded")
+                    .push(rule.clone());
+            }
+        }
+    }
+    for (label, mut rules) in arrivals {
+        buckets.get_mut(label).expect("seeded").append(&mut rules);
+    }
+
+    let mut out = String::new();
+    out.push_str(
+        "# frame-rules-v1 — adjudicated frame_rewrite rule set (source artifact).\n#\n\
+         # COMPILE FENCE: only rules_ship, rules_flip, rules_surface and\n\
+         # rules_pilot may compile into frame-pack-v1.bin; rules_quarantine,\n\
+         # rules_no_evidence and rules_staged_surface are staged evidence for\n\
+         # `corpus-tool adjudicate` and MUST NOT compile.\n#\n\
+         # m_pm / h_pm are measured occurrences per million tokens in\n\
+         # corpus/llm vs corpus/human; every verdict is re-derivable — and\n\
+         # bucket membership regenerable — with `corpus-tool adjudicate`.\n\n",
+    );
+    for (name, key) in [
+        ("rules_ship", Bucket::Ship),
+        ("rules_flip", Bucket::Flip),
+        ("rules_surface", Bucket::Surface),
+    ] {
+        write_rule_bucket(&mut out, name, &buckets[key.name()]);
+    }
+    write_pilot_bucket_toml(&mut out, &set.rules_pilot);
+    for (name, key) in [
+        ("rules_quarantine", Bucket::Quarantine),
+        ("rules_no_evidence", Bucket::NoEvidence),
+        ("rules_staged_surface", Bucket::StagedSurface),
+    ] {
+        write_rule_bucket(&mut out, name, &buckets[key.name()]);
+    }
+    out.push_str("[classes]\n");
+    for (name, members) in &set.classes {
+        out.push_str(name);
+        out.push_str(" = [");
+        for (i, member) in members.iter().enumerate() {
+            if i > 0 {
+                out.push_str(", ");
+            }
+            out.push('"');
+            out.push_str(&toml_escape(member));
+            out.push('"');
+        }
+        out.push_str("]\n");
+    }
+    out.push_str("\n[function_words]\nwords = [\n");
+    for word in &set.function_words.words {
+        out.push_str("  \"");
+        out.push_str(&toml_escape(word));
+        out.push_str("\",\n");
+    }
+    out.push_str("]\n");
+    (out, promotions)
+}
+
+/// Writes one knowledge bucket as the pack's inline-table array form.
+fn write_rule_bucket(
+    out: &mut String,
+    name: &str,
+    rules: &[friction_packs::frame_rules::FrameRule],
+) {
+    use std::fmt::Write as _;
+    let _ = writeln!(out, "{name} = [");
+    for rule in rules {
+        let _ = write!(
+            out,
+            "{{ id=\"{}\", p=\"{}\", t=\"{}\", k=\"{}\", m_pm={}, h_pm={}, v=\"{}\"",
+            toml_escape(&rule.id),
+            toml_escape(&rule.p),
+            toml_escape(&rule.t),
+            toml_escape(&rule.k),
+            format_rate(rule.m_pm),
+            format_rate(rule.h_pm),
+            toml_escape(&rule.v),
+        );
+        if let Some(note) = &rule.n {
+            let _ = write!(out, ", n=\"{}\"", toml_escape(note));
+        }
+        out.push_str(" },\n");
+    }
+    out.push_str("]\n\n");
+}
+
+/// Writes the pilot bucket (pair-support literals, no measured rates).
+fn write_pilot_bucket_toml(out: &mut String, rules: &[friction_packs::frame_rules::PilotRule]) {
+    use std::fmt::Write as _;
+    out.push_str("rules_pilot = [\n");
+    for rule in rules {
+        let _ = writeln!(
+            out,
+            "{{ p=\"{}\", t=\"{}\", k=\"{}\", support={} }},",
+            toml_escape(&rule.p),
+            toml_escape(&rule.t),
+            toml_escape(&rule.k),
+            rule.support
+        );
+    }
+    out.push_str("]\n\n");
+}
+
+/// A per-million rate in the pack's own style: one decimal place.
+fn format_rate(rate: f64) -> String {
+    format!("{rate:.1}")
+}
+
+/// TOML basic-string escaping for the pack's inline tables.
+fn toml_escape(text: &str) -> String {
+    text.replace('\\', "\\\\").replace('"', "\\\"")
 }
 
 #[cfg(test)]
@@ -851,8 +1145,16 @@ mod tests {
         }
     }
 
-    fn tokens(words: &[&str]) -> Vec<String> {
-        words.iter().map(|s| (*s).to_string()).collect()
+    fn tokens(words: &[&str]) -> SentenceTokens {
+        let list: Vec<String> = words.iter().map(|s| (*s).to_string()).collect();
+        SentenceTokens {
+            reductions: list
+                .iter()
+                .map(|w| friction_match::frame_rewrite::suffix_reductions(w))
+                .collect(),
+            lemma: list.clone(),
+            surface: list,
+        }
     }
 
     // --- scan_sentence: probe counting ---
@@ -866,7 +1168,7 @@ mod tests {
         let index = build_index(&probes);
         let sentence = tokens(&["use", "use", "use", "use"]);
         let mut counts = vec![(0u64, 0u64)];
-        scan_sentence(&sentence, &sentence, &index, &probes, true, &mut counts);
+        scan_sentence(&sentence, &index, &probes, true, &mut counts);
         assert_eq!(counts[0], (2, 0));
     }
 
@@ -881,8 +1183,8 @@ mod tests {
         let mut counts = vec![(0u64, 0u64)];
         let first = tokens(&["please"]);
         let second = tokens(&["use"]);
-        scan_sentence(&first, &first, &index, &probes, true, &mut counts);
-        scan_sentence(&second, &second, &index, &probes, true, &mut counts);
+        scan_sentence(&first, &index, &probes, true, &mut counts);
+        scan_sentence(&second, &index, &probes, true, &mut counts);
         assert_eq!(counts[0], (0, 0));
     }
 
@@ -892,7 +1194,7 @@ mod tests {
         let index = build_index(&probes);
         let mut counts = vec![(0u64, 0u64)];
         let sentence = tokens(&["leverage"]);
-        scan_sentence(&sentence, &sentence, &index, &probes, false, &mut counts);
+        scan_sentence(&sentence, &index, &probes, false, &mut counts);
         assert_eq!(counts[0], (0, 1));
     }
 
@@ -903,10 +1205,15 @@ mod tests {
         // one occurrence, counted once, not twice.
         let probes = vec![probe(0, &["utilizing"]), probe(1, &["utilize"])];
         let index = build_index(&probes);
-        let lemma = tokens(&["utilize"]);
-        let surface = tokens(&["utilizing"]);
+        let mixed = SentenceTokens {
+            lemma: vec!["utilize".to_string()],
+            surface: vec!["utilizing".to_string()],
+            reductions: vec![friction_match::frame_rewrite::suffix_reductions(
+                "utilizing",
+            )],
+        };
         let mut counts = vec![(0u64, 0u64); 2];
-        scan_sentence(&lemma, &surface, &index, &probes, true, &mut counts);
+        scan_sentence(&mixed, &index, &probes, true, &mut counts);
         assert_eq!(counts[0], (1, 0), "surface-form probe matches via surface");
         assert_eq!(counts[1], (1, 0), "lemma probe matches via lemma");
     }

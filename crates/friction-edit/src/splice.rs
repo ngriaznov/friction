@@ -164,6 +164,29 @@ impl<'src> SentenceSplicer<'src> {
         !self.patches.is_empty()
     }
 
+    /// Whether [`Self::apply`] would accept `working_range`: the range
+    /// falls entirely within a single untouched [`Chunk::Original`]
+    /// piece. Lets a caller that *widens* a range (article repair,
+    /// deletion space-swallowing) probe the widened form first and fall
+    /// back to the unwidened one instead of tripping `apply`'s
+    /// containment contract when the extra byte crosses into an
+    /// earlier edit's replacement.
+    #[must_use]
+    pub fn can_apply(&self, working_range: &Range<usize>) -> bool {
+        if working_range.start > working_range.end {
+            return false;
+        }
+        let mut cursor = 0usize;
+        for chunk in &self.chunks {
+            let len = chunk.len();
+            if working_range.start >= cursor && working_range.end <= cursor + len {
+                return matches!(chunk, Chunk::Original(_));
+            }
+            cursor += len;
+        }
+        false
+    }
+
     /// `true` if the working text's very first chunk is an untouched
     /// [`Chunk::Original`] slice (as opposed to an earlier edit's
     /// replacement text) — used by the recapitalization step to avoid

@@ -335,6 +335,7 @@ dependencies = [
  "friction-core",
  "friction-edit",
  "friction-harness",
+ "friction-match",
  "friction-metrics",
  "friction-nlp",
  "friction-packs",
