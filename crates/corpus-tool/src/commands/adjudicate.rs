@@ -80,6 +80,7 @@ use anyhow::Context as _;
 use clap::Args as ClapArgs;
 use friction_core::Document;
 use friction_nlp::{PerceptronTagger, Tagger};
+use friction_packs::HumanEvidencePack;
 use friction_packs::frame_rules::{
     FrameRule, FrameRuleSet, PilotRule, RuleKind, Verdict, classify, literal_probes, parse_pattern,
 };
@@ -565,12 +566,26 @@ fn per_million(count: u64, total: u64) -> f64 {
 /// Sums every rule's probe counts and classifies the result — `NoEvidence`
 /// or a real [`Verdict`] for a probeable rule, [`Measured::Unprobeable`]
 /// otherwise.
+///
+/// # The review-pair fallback
+///
+/// The DMS corpora carry the blog/docs/email/readme registers only; a
+/// review-register rule can be genuinely machine-tilted and still
+/// measure `NoEvidence` here, which would strand it in a staged bucket
+/// forever. When (and only when) the DMS measurement is NOT itself a
+/// promotable verdict, each probe is re-measured against the second
+/// register-matched evidence pair — the committed generated-review
+/// machine pack and the external human-review pack, both read fresh
+/// from `packs/` — and a `classify` verdict from that pair (the same
+/// bars, the same function) stands in. DMS evidence always wins when it
+/// speaks: the fallback fills silence, it never overrules.
 fn aggregate_measurements(
     rows: &[RuleRow],
     probes: &[ProbeEntry],
     probe_counts: &[(u64, u64)],
     m_total: u64,
     h_total: u64,
+    review_pair: Option<&(HumanEvidencePack, HumanEvidencePack)>,
 ) -> Vec<Measured> {
     let mut rule_m = vec![0u64; rows.len()];
     let mut rule_h = vec![0u64; rows.len()];
@@ -588,6 +603,12 @@ fn aggregate_measurements(
             let m_count = rule_m[idx];
             let h_count = rule_h[idx];
             let verdict = classify(row.kind, m_count, h_count, m_total, h_total);
+            if !matches!(verdict, Verdict::Confirmed | Verdict::GuardConfirmed)
+                && let Some((machine, human)) = review_pair
+                && let Some(review) = review_pair_measurement(rows, probes, idx, machine, human)
+            {
+                return review;
+            }
             Measured::Evidence {
                 verdict,
                 m_count,
@@ -597,6 +618,45 @@ fn aggregate_measurements(
             }
         })
         .collect()
+}
+
+/// One rule's review-pair measurement, `Some` only when every one of the
+/// rule's probes was registered in BOTH packs' probe tables (a pack
+/// built against an older rule set simply has no entry — "not
+/// measured", which must never masquerade as a zero) and the pair's
+/// verdict is promotable. Counts are summed across the rule's probes,
+/// mirroring the DMS aggregation above.
+fn review_pair_measurement(
+    rows: &[RuleRow],
+    probes: &[ProbeEntry],
+    idx: usize,
+    machine: &HumanEvidencePack,
+    human: &HumanEvidencePack,
+) -> Option<Measured> {
+    let (m2_total, h2_total) = (machine.total_tokens(), human.total_tokens());
+    if m2_total == 0 || h2_total == 0 {
+        return None;
+    }
+    let mut m2 = 0u64;
+    let mut h2 = 0u64;
+    let mut any = false;
+    for probe in probes.iter().filter(|p| p.rule_idx == idx) {
+        let words: Vec<&str> = probe.words.iter().map(String::as_str).collect();
+        m2 += machine.probe_count(&words)?;
+        h2 += human.probe_count(&words)?;
+        any = true;
+    }
+    if !any {
+        return None;
+    }
+    let verdict = classify(rows[idx].kind, m2, h2, m2_total, h2_total);
+    matches!(verdict, Verdict::Confirmed | Verdict::GuardConfirmed).then(|| Measured::Evidence {
+        verdict,
+        m_count: m2,
+        h_count: h2,
+        m_per_million: per_million(m2, m2_total),
+        h_per_million: per_million(h2, h2_total),
+    })
 }
 
 // --- report model ---
@@ -849,12 +909,22 @@ pub fn run(args: &Args) -> anyhow::Result<()> {
     let index = build_index(&probes);
 
     let scan = scan_corpus(&args.corpus_dir, &docs, &tagger, &probes, &index)?;
+    // The review-register evidence pair, read fresh from packs/ (the
+    // embedded registry statics may predate the rule set being
+    // adjudicated). Absence of either file just disables the fallback.
+    let load_pack = |name: &str| {
+        std::fs::read(Path::new("crates/friction-packs/packs").join(name))
+            .ok()
+            .and_then(|bytes| HumanEvidencePack::load(&bytes).ok())
+    };
+    let review_pair = load_pack("machine-evidence-v1.bin").zip(load_pack("human-evidence-v1.bin"));
     let measured = aggregate_measurements(
         &rows,
         &probes,
         &scan.probe_counts,
         scan.m_total,
         scan.h_total,
+        review_pair.as_ref(),
     );
     let report = build_report(args, &rows, &measured, &scan);
 
