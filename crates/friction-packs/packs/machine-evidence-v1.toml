@@ -9,7 +9,7 @@
 
 [pack]
 version = "machine-evidence-v1"
-rules_sha256 = "1defef0608d3641a2dff606eb32a748abc0c2b19cfdbad1c0195c726a8206ba0"
+rules_sha256 = "a0dac3985e894e220453fa4f90e61d158e64b5fcfd927f3f0ff685097430359a"
 unigram_count = 1780
 probe_count = 2716
 total_tokens = 67748
