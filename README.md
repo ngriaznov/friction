@@ -82,7 +82,7 @@ Seven operations edit text. Nothing else does.
    already license — *"the queue holds items — 3 workers drain it"* → *"the
    queue holds items; 3 workers drain it"*, *"reached over the network — it is
    never called directly"* → *"reached over the network. It is never called
-   directly"*. A fourth homes toward a band that is genuinely nonzero, not to
+   directly"*. A fourth homes toward a band that is nonzero, not to
    zero: the semicolon, which Claude-family output also uses well past the
    human rate, is split into a sentence break only when it joins two
    independent clauses: *"the job reads from the queue; it commits offsets
@@ -162,7 +162,13 @@ true replacement for an invented term, so a flagged span is reported in
 The sixth channel is document-level: a count of register-marking constructions
 over a dependency parse, compared against the human band. It answers a
 question the others cannot, because a construction that is *missing* has no
-span to detect.
+span to detect. A seventh, `overuse.word`, is also document-level and also
+detect-only: a finite verb or adverb repeated in one document more densely
+than ANY single human document in the reference corpus ever used it (each
+word's ceiling — its burst envelope — ships in `human-evidence-v1`). Nouns
+and adjectives are exempt on purpose: a document about Haskell is allowed to
+say "haskell", and the topic words a document is entitled to are exactly what
+per-word envelopes measured from real human documents encode.
 
 ## Install
 
@@ -436,7 +442,7 @@ matching-statistics differential. The SARIF output validates against the SARIF
 2.1.0 schema.
 
 `--residual` appends the spans the statistical channel flags that no
-compiled frame rule covers — the machine tells the rule set cannot yet
+compiled frame rule covers. The machine tells the rule set cannot yet
 explain or rewrite, which is exactly the evidence queue the next
 rule-generation batch should start from.
 
@@ -669,19 +675,24 @@ detection frame, or introduces an unattested content word, fails the build):
 - `register-v1.toml` — the per-feature bands register homes toward, as the 10th
   and 90th percentiles of the per-document rate across 58 human documentation
   files. The band, not its centre, is the target.
-- `frame-rules-v1.toml` — the adjudicated frame-rewrite rule set: 3,333
-  rules in seven evidence buckets, of which only the corpus-confirmed
-  buckets ever compile; the rest are staged evidence for `corpus-tool
-  adjudicate`, the referee that re-derives every verdict from the corpora.
-  The runtime embeds `frame-pack-v1.bin` (126 KB): the surviving rule
-  program — 855 edits and guards plus 111 report-only rules after the
-  rejection gauntlet — serialized flat by `corpus-tool frame-pack` and
-  loaded zero-copy, with a drift test that recompiles the TOML and fails
-  on any divergence.
+- `frame-rules-v1.toml` — the adjudicated frame-rewrite rule set: 3,388
+  rules in seven evidence buckets (the delivered 3,333 plus corpus-mined
+  arrivals), of which only the corpus-confirmed buckets ever compile;
+  the rest are staged evidence for `corpus-tool adjudicate`, the referee
+  that re-derives every verdict from the corpora — from the DMS streams
+  first, then from the review-register evidence pair for rules whose
+  register the DMS corpora do not carry. The runtime embeds
+  `frame-pack-v1.bin` (134 KB): the surviving rule program — 913 edits
+  and guards plus 127 report-only rules after the rejection gauntlet —
+  serialized flat by `corpus-tool frame-pack` and loaded zero-copy,
+  with a drift test that recompiles the TOML and fails on any
+  divergence.
 - `human-evidence-v1.bin` + `human-evidence-v1.toml` — external
   human-corpus evidence pooled into the frame-rewrite compile fences:
-  unigram rates over ~50M tokens of pre-2022, human-written code-review
-  prose, plus occurrence counts for every frame rule's literal probes,
+  unigram rates and per-word burst envelopes (the densest any single
+  human document used a word — what arms the `overuse.word` channel)
+  over ~50M tokens of pre-2022, human-written code-review prose, plus
+  occurrence counts for every frame rule's literal probes,
   built offline by `corpus-tool human-evidence` from locally staged
   corpora (the raw text never enters this repository — only these
   aggregate counts). External evidence feeds the one-sided fences only:
@@ -696,6 +707,13 @@ detection frame, or introduces an unattested content word, fails the build):
   <https://doi.org/10.5281/zenodo.6900648>), both predating ChatGPT's
   release by construction. Input sha256s and per-bucket totals are in
   the `.toml` sidecar.
+- `machine-evidence-v1.bin` + `machine-evidence-v1.toml` — the machine
+  half of the review-register evidence pair: the same tables, built by
+  the same command over the 150 committed machine-written review
+  documents in `corpus/review/machine/`. Register-matched against the
+  human pack, it gives the two-sided fences (direction, guard
+  confirmation) and the adjudication referee a review-register
+  measurement the DMS streams cannot provide.
 - `jargon-v1.toml` — the curated metaphor-lexeme list `jargon.metaphor`
   matches against, and a small attested-exceptions allowlist of compounds it
   never flags regardless of what the filter below says. Each lexeme is
