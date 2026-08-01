@@ -1,6 +1,7 @@
 //! `friction check`: parse + metrics + fix-time detection (DMS, literal
 //! tell inventory, licensed light-verb constructions, contrast-frame
-//! templates, metaphor-compound jargon), with no fixes applied.
+//! templates, metaphor-compound jargon, per-document word overuse), with
+//! no fixes applied.
 //!
 //! Prints a per-metric table (value, envelope band, in/out), a per-family
 //! DMS summary, and every detected span, in `--format text` (a plain
@@ -91,8 +92,14 @@ struct SpanRow {
     column: usize,
     /// The DMS differential score (`sum(d)` over the run), when this
     /// span's channel is [`Channel::Dms`] — `None` for `Literal`/`Lvc`/
-    /// `Frame`/`Jargon` spans, whose channels report presence only.
+    /// `Frame`/`Jargon`/`Overuse` spans, whose channels report presence
+    /// only.
     score: Option<i64>,
+    /// This span's own [`MatchSpan::message`], when its channel supplies
+    /// one (`overuse.word` today) — `None` for a channel whose spans all
+    /// share a generic, frame-id-derived message instead.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    message: Option<String>,
 }
 
 /// One generator family's document-level DMS statistics.
@@ -140,6 +147,7 @@ fn run_inner(args: &CheckArgs) -> Result<ExitCode, CliError> {
         &friction_packs::DMS.pack,
         &friction_packs::JARGON.pack,
         &friction_packs::JARGON_ATTEST,
+        &friction_packs::HUMAN_EVIDENCE,
         family,
         &engine.tagger,
         &engine.segmenter,
@@ -234,6 +242,7 @@ const fn channel_str(channel: Channel) -> &'static str {
         Channel::Lvc => "lvc",
         Channel::Frame => "frame",
         Channel::Jargon => "jargon",
+        Channel::Overuse => "overuse",
     }
 }
 
@@ -258,6 +267,7 @@ fn span_rows(source: &str, spans: &[MatchSpan]) -> Vec<SpanRow> {
                 line,
                 column,
                 score: span_score(span),
+                message: span.message.as_deref().map(str::to_string),
             }
         })
         .collect()
@@ -445,18 +455,21 @@ mod tests {
                 channel: Channel::Dms,
                 frame_id: "dms.qwen".into(),
                 score: MatchScore::Differential(3),
+                message: None,
             },
             MatchSpan {
                 range: 6..10,
                 channel: Channel::Dms,
                 frame_id: "dms.gemma".into(),
                 score: MatchScore::Differential(1),
+                message: None,
             },
             MatchSpan {
                 range: 11..15,
                 channel: Channel::Lvc,
                 frame_id: "lvc.decision".into(),
                 score: MatchScore::Present,
+                message: None,
             },
         ];
         let counts = tell_counts(&spans);

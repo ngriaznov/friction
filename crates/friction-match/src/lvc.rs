@@ -38,6 +38,7 @@ pub fn scan_units(
                         channel: Channel::Lvc,
                         frame_id,
                         score: MatchScore::Present,
+                        message: None,
                     });
                     i = licensed.end_token_index;
                 }

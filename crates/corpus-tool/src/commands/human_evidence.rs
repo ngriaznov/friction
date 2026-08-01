@@ -86,6 +86,11 @@ use friction_packs::frame_rules::{FrameRuleSet, literal_probes, parse_pattern};
 
 use crate::hashing::sha256_hex;
 
+/// The shortest document whose per-word rates contribute to the burst
+/// envelopes — matching the overuse channel's own document floor, so
+/// envelope and judged document come from the same length population.
+const BURST_MIN_DOC_TOKENS: u64 = 120;
+
 /// Arguments for `corpus-tool human-evidence`.
 #[derive(Debug, ClapArgs)]
 pub struct Args {
@@ -349,6 +354,7 @@ pub fn run(args: &Args) -> anyhow::Result<()> {
     let mut probe_hits = vec![0u64; probes_vec.len()];
 
     let mut unigram_counts: BTreeMap<String, u64> = BTreeMap::new();
+    let mut burst_envelopes: BTreeMap<String, u32> = BTreeMap::new();
     let mut bucket_records: BTreeMap<String, BucketRecord> = BTreeMap::new();
     let mut total_tokens = 0u64;
 
@@ -357,8 +363,25 @@ pub fn run(args: &Args) -> anyhow::Result<()> {
         for doc in &bucket.docs {
             let tokens = friction_harness::clean::tokenize(&doc.text);
             bucket_tokens += tokens.len() as u64;
+            let mut doc_counts: BTreeMap<&str, u64> = BTreeMap::new();
             for token in &tokens {
                 *unigram_counts.entry(token.clone()).or_insert(0) += 1;
+                *doc_counts.entry(token.as_str()).or_insert(0) += 1;
+            }
+            // Burst envelopes: the highest per-document rate observed
+            // for each word, over documents long enough for a rate to
+            // mean anything — the same 120-token floor the overuse
+            // channel refuses to judge below, so the envelope and the
+            // documents later compared against it come from the same
+            // population of "long enough" documents.
+            if tokens.len() as u64 >= BURST_MIN_DOC_TOKENS {
+                #[allow(clippy::cast_precision_loss, clippy::cast_possible_truncation)]
+                #[allow(clippy::cast_sign_loss)]
+                for (word, count) in doc_counts {
+                    let rate = (count as f64 / tokens.len() as f64 * 1_000_000.0).round() as u32;
+                    let entry = burst_envelopes.entry(word.to_string()).or_insert(0);
+                    *entry = (*entry).max(rate);
+                }
             }
             scan_document(&tokens, &probe_index, &probes_vec, &mut probe_hits);
         }
@@ -373,9 +396,13 @@ pub fn run(args: &Args) -> anyhow::Result<()> {
         );
     }
 
-    let unigrams: BTreeMap<String, u64> = unigram_counts
+    let unigrams: BTreeMap<String, (u64, u32)> = unigram_counts
         .into_iter()
         .filter(|(_, count)| *count >= 5)
+        .map(|(word, count)| {
+            let burst = burst_envelopes.get(&word).copied().unwrap_or(0);
+            (word, (count, burst))
+        })
         .collect();
     let probes: BTreeMap<Vec<String>, u64> = probes_vec.into_iter().zip(probe_hits).collect();
 

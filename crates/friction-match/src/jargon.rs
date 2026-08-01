@@ -151,6 +151,7 @@ fn jargon_span_at(
         channel: Channel::Jargon,
         frame_id: JARGON_METAPHOR_ID.into(),
         score: MatchScore::Present,
+        message: None,
     })
 }
 

@@ -35,6 +35,9 @@ pub enum Channel {
     /// A metaphor-compound jargon match ([`crate::jargon`]):
     /// `"jargon.metaphor"`.
     Jargon,
+    /// A per-document word-overuse match ([`crate::overuse`]):
+    /// `"overuse.word"`.
+    Overuse,
 }
 
 /// A [`MatchSpan`]'s score.
@@ -62,6 +65,16 @@ pub struct MatchSpan {
     pub frame_id: Box<str>,
     /// This span's score.
     pub score: MatchScore,
+    /// A channel-supplied, occurrence-specific message, when the generic
+    /// `"<channel> tell: <frame_id>"` every other channel's spans render
+    /// as (see `friction_cli::diagnostics::render_spans`) doesn't carry
+    /// enough information on its own. [`crate::overuse`] is the one
+    /// channel that needs this today: every `overuse.word` span shares
+    /// the same constant `frame_id` (mirroring
+    /// [`crate::jargon::JARGON_METAPHOR_ID`]'s own reasoning — see that
+    /// const's docs), so the flagged word and its measured rates have
+    /// nowhere else to live. `None` for every other channel.
+    pub message: Option<Box<str>>,
 }
 
 impl Spanned for MatchSpan {
@@ -139,6 +152,7 @@ mod tests {
             channel,
             frame_id: frame_id.into(),
             score: MatchScore::Present,
+            message: None,
         }
     }
 

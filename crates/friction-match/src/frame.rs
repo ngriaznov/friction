@@ -213,6 +213,7 @@ fn correction_span(range: Range<usize>) -> MatchSpan {
         channel: Channel::Frame,
         frame_id: CONTRAST_CORRECTION_ID.into(),
         score: MatchScore::Present,
+        message: None,
     }
 }
 
@@ -244,6 +245,7 @@ pub fn scan_units(units: &[ScopedUnit<'_>]) -> Vec<MatchSpan> {
                     channel: Channel::Frame,
                     frame_id: CONTRAST_QUESTION_ID.into(),
                     score: MatchScore::Present,
+                    message: None,
                 });
             }
         }

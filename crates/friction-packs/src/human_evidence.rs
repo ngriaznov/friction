@@ -55,7 +55,10 @@ use crate::PackError;
 const MAGIC: &[u8; 8] = b"HUMANEV1";
 
 /// On-disk format version — bumped only if the layout changes shape.
-const FORMAT_VERSION: u16 = 1;
+/// Version 2 added the per-unigram burst envelope (the highest
+/// per-document rate any contributing document sustained for that word
+/// — see [`HumanEvidencePack::burst_envelope_per_million`]).
+const FORMAT_VERSION: u16 = 2;
 
 /// A parsed `human-evidence-v1` pack: pooled unigram and literal-probe
 /// occurrence counts mined from staged external human corpora, plus the
@@ -69,7 +72,7 @@ const FORMAT_VERSION: u16 = 1;
 #[derive(Debug, Clone, Default)]
 pub struct HumanEvidencePack {
     total_tokens: u64,
-    unigrams: BTreeMap<String, u64>,
+    unigrams: BTreeMap<String, (u64, u32)>,
     probes: BTreeMap<Vec<String>, u64>,
 }
 
@@ -111,7 +114,8 @@ impl HumanEvidencePack {
         for _ in 0..unigram_count {
             let id = r.u32("unigrams")?;
             let count = r.u64("unigrams")?;
-            unigrams.insert(word_at(id)?.to_string(), count);
+            let burst = r.u32("unigrams")?;
+            unigrams.insert(word_at(id)?.to_string(), (count, burst));
         }
 
         let probe_count = r.u32("probes")?;
@@ -150,8 +154,25 @@ impl HumanEvidencePack {
     pub fn unigram_count(&self, word: &str) -> u64 {
         self.unigrams
             .get(&word.to_lowercase())
-            .copied()
-            .unwrap_or(0)
+            .map_or(0, |(count, _)| *count)
+    }
+
+    /// `word`'s burst envelope: the highest per-document per-million rate
+    /// any single contributing document (of at least the builder's
+    /// document-length floor) sustained for `word`. `None` when `word` is
+    /// absent from the unigram table — no envelope evidence at all, which
+    /// a consumer must treat as "cannot arm", never as "envelope zero".
+    ///
+    /// This is what makes a per-document overuse verdict topic-robust:
+    /// human documents burst their own topic words too, so a topical
+    /// word's envelope is naturally high, while a word no human document
+    /// ever leaned on keeps a low one — the per-word analogue of the
+    /// `envelope-v2` genre bands.
+    #[must_use]
+    pub fn burst_envelope_per_million(&self, word: &str) -> Option<u32> {
+        self.unigrams
+            .get(&word.to_lowercase())
+            .map(|(_, burst)| *burst)
     }
 
     /// `words`' external non-overlapping occurrence count, if `words` was
@@ -176,7 +197,7 @@ impl HumanEvidencePack {
 /// `build_pack_bytes_is_deterministic` test).
 #[must_use]
 pub fn build_pack_bytes(
-    unigrams: &BTreeMap<String, u64>,
+    unigrams: &BTreeMap<String, (u64, u32)>,
     probes: &BTreeMap<Vec<String>, u64>,
     total_tokens: u64,
 ) -> Vec<u8> {
@@ -207,9 +228,10 @@ pub fn build_pack_bytes(
             .expect("unigram count fits u32")
             .to_le_bytes(),
     );
-    for (word, count) in unigrams {
+    for (word, (count, burst)) in unigrams {
         out.extend_from_slice(&ids[word.as_str()].to_le_bytes());
         out.extend_from_slice(&count.to_le_bytes());
+        out.extend_from_slice(&burst.to_le_bytes());
     }
 
     out.extend_from_slice(
@@ -329,11 +351,11 @@ fn string_at<'a>(
 mod tests {
     use super::*;
 
-    fn sample_unigrams() -> BTreeMap<String, u64> {
+    fn sample_unigrams() -> BTreeMap<String, (u64, u32)> {
         BTreeMap::from([
-            ("leverage".to_string(), 12),
-            ("utilize".to_string(), 40),
-            (".".to_string(), 900),
+            ("leverage".to_string(), (12, 4_000)),
+            ("utilize".to_string(), (40, 9_000)),
+            (".".to_string(), (900, 70_000)),
         ])
     }
 

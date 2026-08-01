@@ -1625,7 +1625,7 @@ words = ["a", "an", "the", "to", "of"]
     /// sum of both sides' totals — not either side's rate averaged.
     #[test]
     fn human_rate_per_million_pools_dms_and_external_unigram_counts() {
-        let unigrams = BTreeMap::from([("use".to_string(), 3u64)]);
+        let unigrams = BTreeMap::from([("use".to_string(), (3u64, 0u32))]);
         let external =
             HumanEvidencePack::load(&build_human_evidence_bin(&unigrams, &BTreeMap::new(), 5))
                 .expect("built pack loads");

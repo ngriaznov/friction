@@ -52,6 +52,12 @@ const fn channel_description(channel: Channel) -> &'static str {
              \"cross-domain resonance\") — a narrow, high-precision slice \
              of invented pseudo-terminology, detection-only."
         }
+        Channel::Overuse => {
+            "A word whose occurrence rate within this one document is, \
+             with 95% confidence (a Wilson lower bound), far above its \
+             measured rate in human review prose — one word hammered far \
+             past any human's usage, detection-only."
+        }
     }
 }
 
@@ -184,7 +190,10 @@ pub fn render(spans: &[MatchSpan], source: &str, artifact_uri: &str) -> String {
                 rule_id: span.frame_id.to_string(),
                 level: LEVEL,
                 message: Message {
-                    text: format!("{:?} tell: {}", span.channel, span.frame_id),
+                    text: span.message.as_deref().map_or_else(
+                        || format!("{:?} tell: {}", span.channel, span.frame_id),
+                        String::from,
+                    ),
                 },
                 locations: vec![Location {
                     physical_location: PhysicalLocation {
@@ -234,6 +243,7 @@ mod tests {
             channel,
             frame_id: frame_id.into(),
             score: MatchScore::Present,
+            message: None,
         }
     }
 

@@ -134,6 +134,7 @@ impl LiteralAutomaton {
                 channel: Channel::Literal,
                 frame_id,
                 score: MatchScore::Present,
+                message: None,
             });
         }
         out
@@ -181,6 +182,7 @@ pub fn regex_fallback_spans(
                         channel: Channel::Literal,
                         frame_id: (*id).into(),
                         score: MatchScore::Present,
+                        message: None,
                     });
                 }
             }

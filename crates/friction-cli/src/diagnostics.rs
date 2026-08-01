@@ -145,7 +145,10 @@ pub fn render_spans(source: &str, path_label: &str, spans: &[MatchSpan], color: 
     );
     let mut out = String::new();
     for span in spans {
-        let message = format!("{:?} tell: {}", span.channel, span.frame_id);
+        let message = span.message.as_deref().map_or_else(
+            || format!("{:?} tell: {}", span.channel, span.frame_id),
+            String::from,
+        );
         let diagnostic = FindingDiagnostic {
             message: message.clone(),
             rule: span.frame_id.to_string(),
@@ -174,6 +177,7 @@ mod tests {
             channel: Channel::Literal,
             frame_id: frame_id.into(),
             score: MatchScore::Present,
+            message: None,
         }
     }
 

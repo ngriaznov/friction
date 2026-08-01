@@ -27,6 +27,7 @@ pub fn engine() -> MatchEngine<'static> {
         &friction_packs::DMS.pack,
         &friction_packs::JARGON.pack,
         &friction_packs::JARGON_ATTEST,
+        &friction_packs::HUMAN_EVIDENCE,
         ModelFamily::Qwen,
         tagger,
         segmenter,

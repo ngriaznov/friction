@@ -1,9 +1,9 @@
-//! Fix-time detection: five independent channels (differential matching
+//! Fix-time detection: six independent channels (differential matching
 //! statistics, a literal tell inventory, licensed light-verb
-//! constructions, deterministic contrast-frame templates, and metaphor-
-//! compound jargon detection) over a document's prose, reporting byte-
-//! honest [`MatchSpan`]s. This crate never rewrites text — see
-//! [`MatchEngine`]'s own docs.
+//! constructions, deterministic contrast-frame templates, metaphor-
+//! compound jargon detection, and per-document word-overuse detection)
+//! over a document's prose, reporting byte-honest [`MatchSpan`]s. This
+//! crate never rewrites text — see [`MatchEngine`]'s own docs.
 //!
 //! # Span honesty by construction, not by translation
 //!
@@ -62,6 +62,7 @@ pub mod frame_rewrite;
 pub mod jargon;
 mod literal;
 mod lvc;
+pub mod overuse;
 pub mod span;
 pub mod tagging;
 pub mod token;
@@ -71,7 +72,9 @@ pub use span::{Channel, DmsFamilyReport, DmsReport, DocumentReport, MatchScore, 
 
 use friction_core::Document;
 use friction_nlp::{Segmenter, Tagger};
-use friction_packs::{DmsIndexView, InventoryPack, JargonAttestPack, JargonPack, ModelFamily};
+use friction_packs::{
+    DmsIndexView, HumanEvidencePack, InventoryPack, JargonAttestPack, JargonPack, ModelFamily,
+};
 
 use crate::token::ScopedUnit;
 
@@ -86,6 +89,7 @@ pub struct MatchEngine<'a> {
     dms: &'a DmsIndexView<'a>,
     jargon: &'a JargonPack,
     jargon_attest: &'a JargonAttestPack,
+    human_evidence: &'a HumanEvidencePack,
     target_family: ModelFamily,
     tagger: &'a dyn Tagger,
     segmenter: &'a dyn Segmenter,
@@ -94,20 +98,25 @@ pub struct MatchEngine<'a> {
 
 impl<'a> MatchEngine<'a> {
     /// Builds an engine bound to `inventory`, `dms`, `jargon`,
-    /// `jargon_attest`, `target_family`, `tagger`, and `segmenter` for its
-    /// whole lifetime — the literal automaton is compiled exactly once
-    /// here.
+    /// `jargon_attest`, `human_evidence`, `target_family`, `tagger`, and
+    /// `segmenter` for its whole lifetime — the literal automaton is
+    /// compiled exactly once here.
     ///
     /// # Errors
     /// [`MatchError::FamilyNotInPack`] if `dms` has no stream for
     /// `target_family`; [`MatchError::Automaton`] if the inventory's
     /// literal-eligible patterns fail to compile (should not happen for
     /// the embedded pack — covered by this crate's own tests).
+    #[allow(
+        clippy::too_many_arguments,
+        reason = "one parameter per embedded pack the engine is bound to; a builder would only rename the same eight bindings"
+    )]
     pub fn new(
         inventory: &'a InventoryPack,
         dms: &'a DmsIndexView<'a>,
         jargon: &'a JargonPack,
         jargon_attest: &'a JargonAttestPack,
+        human_evidence: &'a HumanEvidencePack,
         target_family: ModelFamily,
         tagger: &'a dyn Tagger,
         segmenter: &'a dyn Segmenter,
@@ -121,6 +130,7 @@ impl<'a> MatchEngine<'a> {
             dms,
             jargon,
             jargon_attest,
+            human_evidence,
             target_family,
             tagger,
             segmenter,
@@ -128,15 +138,15 @@ impl<'a> MatchEngine<'a> {
         })
     }
 
-    /// Scans `document`, running all five channels over the same
+    /// Scans `document`, running all six channels over the same
     /// prose-only, in-scope unit set ([`token::prose_scope`]), and
     /// merges their spans deterministically ([`span::merge_spans`]).
     ///
-    /// DMS, the literal automaton, its regex fallback, frame, the
+    /// DMS, the literal automaton, its regex fallback, frame, overuse, the
     /// document-level DMS report, and the shared tagging step
     /// ([`tagging::tag_units`]) each read only `units`/`document` and this
     /// engine's own packs — never each other's output — so they run as
-    /// six concurrent `rayon::scope` tasks (the DMS report is itself a
+    /// seven concurrent `rayon::scope` tasks (the DMS report is itself a
     /// `par_iter` over every family, in [`dms::document_report`]). LVC and
     /// jargon both need the tagged sentences that step produces, so they
     /// run afterward, as two concurrent `rayon::join` tasks over the same
@@ -144,8 +154,8 @@ impl<'a> MatchEngine<'a> {
     /// instead of each channel tagging every sentence on its own (see
     /// [`tagging`]'s own module docs). [`span::merge_spans`] sorts its
     /// input before returning, so no task's completion order, in either
-    /// stage, ever affects the returned bytes; the six local variables are
-    /// still assembled into `merge_spans`' `Vec` argument (and
+    /// stage, ever affects the returned bytes; the seven local variables
+    /// are still assembled into `merge_spans`' `Vec` argument (and
     /// `DocumentReport`) in the same fixed order the prior sequential
     /// version used, so nothing here depends on that insensitivity to stay
     /// byte-identical across thread counts.
@@ -200,9 +210,21 @@ impl<'a> MatchEngine<'a> {
             });
         });
 
-        let (lvc_spans, jargon_spans) = rayon::join(
+        let (lvc_spans, (jargon_spans, overuse_spans)) = rayon::join(
             || lvc::scan_units(&tagged, document.source(), lexicon),
-            || jargon::scan_units(&tagged, document.source(), self.jargon, self.jargon_attest),
+            || {
+                rayon::join(
+                    || {
+                        jargon::scan_units(
+                            &tagged,
+                            document.source(),
+                            self.jargon,
+                            self.jargon_attest,
+                        )
+                    },
+                    || overuse::scan_units(&tagged, document.source(), self.human_evidence),
+                )
+            },
         );
 
         let spans = span::merge_spans(vec![
@@ -212,6 +234,7 @@ impl<'a> MatchEngine<'a> {
             lvc_spans,
             frame_spans,
             jargon_spans,
+            overuse_spans,
         ]);
 
         Ok(DocumentReport {

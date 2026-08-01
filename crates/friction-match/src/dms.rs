@@ -135,6 +135,7 @@ pub fn scan_units(
                 channel: Channel::Dms,
                 frame_id: frame_id.clone(),
                 score: MatchScore::Differential(run.score),
+                message: None,
             });
         }
     }
