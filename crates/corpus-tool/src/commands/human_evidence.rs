@@ -245,9 +245,15 @@ fn derive_probes(set: &FrameRuleSet) -> BTreeSet<Vec<String>> {
                 continue;
             };
             for probe in literal_probes(&pattern, &set.classes, 64) {
+                // Split on hyphens as well as whitespace:
+                // `friction_harness::clean::tokenize` (the stream these
+                // probes are counted against) drops hyphens entirely,
+                // so "double-checking" is two adjacent stream tokens —
+                // a hyphen-carrying probe key could never match it.
                 let words: Vec<String> = probe
                     .iter()
-                    .flat_map(|part| part.split_whitespace())
+                    .flat_map(|part| part.split(|c: char| c.is_whitespace() || c == '-'))
+                    .filter(|w| !w.is_empty())
                     .map(str::to_lowercase)
                     .collect();
                 if !words.is_empty() {
@@ -257,7 +263,12 @@ fn derive_probes(set: &FrameRuleSet) -> BTreeSet<Vec<String>> {
         }
     }
     for rule in &set.rules_pilot {
-        let words: Vec<String> = rule.p.split_whitespace().map(str::to_lowercase).collect();
+        let words: Vec<String> = rule
+            .p
+            .split(|c: char| c.is_whitespace() || c == '-')
+            .filter(|w| !w.is_empty())
+            .map(str::to_lowercase)
+            .collect();
         if !words.is_empty() {
             probes.insert(words);
         }

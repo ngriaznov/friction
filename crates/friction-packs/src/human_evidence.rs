@@ -181,7 +181,16 @@ impl HumanEvidencePack {
     /// measured", not "measured zero" (see this module's own docs).
     #[must_use]
     pub fn probe_count(&self, words: &[&str]) -> Option<u64> {
-        let key: Vec<String> = words.iter().map(|w| w.to_lowercase()).collect();
+        // Hyphens split exactly as the builder splits probe keys (and as
+        // `friction_harness::clean::tokenize` splits the streams they
+        // were counted against) — a caller quoting "double-checking"
+        // means the same two stream tokens the pack measured.
+        let key: Vec<String> = words
+            .iter()
+            .flat_map(|w| w.split('-'))
+            .filter(|w| !w.is_empty())
+            .map(str::to_lowercase)
+            .collect();
         self.probes.get(&key).copied()
     }
 }
