@@ -228,6 +228,26 @@ rules_ship = [
 { id="idg.word-of-caution", p="\"word of caution\"", t="=", k="g", m_pm=0.0, h_pm=0.3, v="guard-confirmed" },
 { id="idg.word-of-warning", p="\"word of warning\"", t="=", k="g", m_pm=0.0, h_pm=0.4, v="guard-confirmed" },
 { id="idg.long-shot", p="\"long shot\"", t="=", k="g", m_pm=0.0, h_pm=0.4, v="guard-confirmed" },
+{ id="rev.worth-double-checking", p="\"worth double-checking\"", t="\"worth checking\"", k="r", m_pm=147.6, h_pm=0.2, v="CONFIRMED" },
+{ id="rev.hand-rolled", p="\"hand-rolled\" X", t="\"handwritten\" X", k="r", m_pm=132.8, h_pm=1.1, v="CONFIRMED" },
+{ id="con.the-fix-is-to", p="<S> \"the\" \"fix\" BE \"to\" VB X </S>", t="<S> VB X </S>", k="r", m_pm=97.3, h_pm=18.2, v="CONFIRMED" },
+{ id="con.the-standard-fix-is::infinitive", p="<S> \"the\" \"standard\" (\"fix\"|\"fixes\") BE \"to\" VB X </S>", t="<S> VB X </S>", k="r", m_pm=324.7, h_pm=128.6, v="CONFIRMED", n="parent=con.the-standard-fix-is" },
+{ id="con.the-standard-fix-is::np", p="<S> \"the\" \"standard\" (\"fix\"|\"fixes\") BE X </S>", t="<S> X </S>", k="r", m_pm=324.7, h_pm=128.6, v="CONFIRMED", n="parent=con.the-standard-fix-is" },
+{ id="con.the-core-issue-is", p="<S> \"the\" \"core\" (\"issue\"|\"problem\") BE \"that\"? X </S>", t="<S> X </S>", k="r", m_pm=250.9, h_pm=24.5, v="CONFIRMED" },
+{ id="con.the-real-issue-is", p="<S> \"the\" \"real\" \"issue\" BE \"that\"? X </S>", t="<S> X </S>", k="r", m_pm=29.5, h_pm=1.1, v="CONFIRMED" },
+{ id="con.small-nit-colon", p="<S> \"small\" \"nit\" \":\" X </S>", t="<S> X </S>", k="r", m_pm=73.8, h_pm=0.3, v="CONFIRMED" },
+{ id="con.the-short-version-colon", p="<S> \"the\" \"short\" \"version\" \":\" X </S>", t="<S> X </S>", k="r", m_pm=24.3, h_pm=0.0, v="CONFIRMED" },
+{ id="con.one-caveat-colon", p="<S> \"one\" \"caveat\" \":\" X </S>", t="<S> X </S>", k="r", m_pm=6.1, h_pm=0.0, v="CONFIRMED" },
+{ id="col.excellent-x::choice", p="\"excellent\" \"choice\"", t="\"good\" \"choice\"", k="r", m_pm=30.4, h_pm=0.0, v="CONFIRMED", n="parent=col.excellent-x" },
+{ id="col.excellent-x::fit", p="\"excellent\" \"fit\"", t="\"good\" \"fit\"", k="r", m_pm=6.1, h_pm=0.0, v="CONFIRMED", n="parent=col.excellent-x" },
+{ id="col.attractive-x::choice", p="\"attractive\" \"choice\"", t="\"good\" \"choice\"", k="r", m_pm=6.1, h_pm=0.0, v="CONFIRMED", n="parent=col.attractive-x" },
+{ id="col.attractive-x::alternative", p="\"attractive\" \"alternative\"", t="\"good\" \"alternative\"", k="r", m_pm=6.1, h_pm=0.0, v="CONFIRMED", n="parent=col.attractive-x" },
+{ id="col.valuable-addition", p="\"valuable\" \"addition\"", t="\"REVIEW\"", k="r", m_pm=6.1, h_pm=0.0, v="CONFIRMED" },
+{ id="adv.looking-back-opener::lit", p="<S> \"looking\" \"back\" \",\" X </S>", t="<S> X </S>", k="r", m_pm=12.2, h_pm=0.0, v="CONFIRMED", n="parent=adv.looking-back-opener" },
+{ id="adv.in-hindsight-opener::lit", p="<S> \"in\" \"hindsight\" \",\" X </S>", t="<S> X </S>", k="r", m_pm=9.1, h_pm=0.0, v="CONFIRMED", n="parent=adv.in-hindsight-opener" },
+{ id="adv.looking-ahead-opener::lit", p="<S> \"looking\" \"ahead\" \",\" X </S>", t="<S> X </S>", k="r", m_pm=9.1, h_pm=0.0, v="CONFIRMED", n="parent=adv.looking-ahead-opener" },
+{ id="con.heres-why::lit", p="<S> \"here\" CLIT_S \"why\" \":\" </S>", t="", k="r", m_pm=18.2, h_pm=0.0, v="CONFIRMED", n="parent=con.heres-why" },
+{ id="rev.worth-flagging", p="\"worth flagging\"", t="\"worth mentioning\"", k="r", m_pm=44.3, h_pm=0.0, v="CONFIRMED" },
 ]
 
 rules_flip = [
@@ -1231,6 +1251,8 @@ rules_surface = [
 { id="acd.it-has-been-shown::lit", p="\"it\" \"has\" \"been\" \"shown\" \"that\" X", t="=", k="g", m_pm=0.0, h_pm=0.1, v="frame:guard-confirmed", n="parent=acd.it-has-been-shown" },
 { id="cmp.a-far-cry-from-guard::lit", p="DT \"far\" \"cry\" \"from\"", t="=", k="g", m_pm=0.0, h_pm=0.1, v="frame:guard-confirmed", n="parent=cmp.a-far-cry-from-guard" },
 { id="vmt.a-gateway-to::window", p="DT \"window\" (\"to\"|\"into\") X", t="DT \"way\" \"into\" X", k="r", m_pm=457.6, h_pm=67.3, v="frame:CONFIRMED", n="parent=vmt.a-gateway-to" },
+{ id="mkt.win-win::lit", p="DT \"win-win\" NN?", t="=", k="g", m_pm=0.0, h_pm=0.6, v="frame:guard-confirmed", n="parent=mkt.win-win" },
+{ id="mkt.no-brainer-guard::lit", p="DT \"no-brainer\"", t="=", k="g", m_pm=0.0, h_pm=0.7, v="frame:guard-confirmed", n="parent=mkt.no-brainer-guard" },
 ]
 
 rules_pilot = [
@@ -1258,9 +1280,8 @@ rules_pilot = [
 ]
 
 rules_quarantine = [
+{ id="adv.upon-closer-inspection-opener::lit", p="<S> \"upon\" \"closer\" \"inspection\" \",\" X </S>", t="<S> X </S>", k="r", m_pm=0.0, h_pm=0.0, v="weak", n="parent=adv.upon-closer-inspection-opener" },
 { id="meta.in-this-guide-opener", p="<S> \"in this\" (\"guide\"|\"tutorial\"|\"blog post\") \",\" X </S>", t="<S> X </S>", k="r", m_pm=0.0, h_pm=0.0, v="weak" },
-{ id="rev.worth-double-checking", p="\"worth double-checking\"", t="\"worth checking\"", k="r", m_pm=0.0, h_pm=0.0, v="weak" },
-{ id="rev.hand-rolled", p="\"hand-rolled\" X", t="\"handwritten\" X", k="r", m_pm=0.0, h_pm=0.0, v="weak" },
 { id="hedge.to-be-honest-opener", p="<S> \"to be honest\" \",\" X </S>", t="<S> X </S>", k="r", m_pm=0.0, h_pm=0.0, v="weak" },
 { id="adj.honest-drop::assessment", p="\"honest\" \"assessment\"", t="\"assessment\"", k="r", m_pm=0.0, h_pm=0.0, v="weak", n="parent=adj.honest-drop" },
 { id="adj.honest-drop::take", p="\"honest\" \"take\"", t="\"take\"", k="r", m_pm=0.0, h_pm=0.0, v="weak", n="parent=adj.honest-drop" },
@@ -3195,8 +3216,6 @@ rules_staged_surface = [
 { id="mkt.everything-you-need-to-know::lit", p="\"everything\" \"you\" \"need\" \"to\" \"know\" \"about\" X", t="X \"explained\"", k="r", m_pm=0.0, h_pm=0.0, v="frame:no-evidence", n="parent=mkt.everything-you-need-to-know" },
 { id="mkt.one-stop-shop::lit", p="PRP$? \"one-stop\" (\"shop\"|\"solution\") \"for\" X", t="\"covers\" X", k="r", m_pm=0.0, h_pm=17.7, v="frame:DIRECTION-ERROR(human-tilted)", n="parent=mkt.one-stop-shop" },
 { id="mkt.designed-with-in-mind::lit", p="\"designed\" \"with\" X \"in\" \"mind\"", t="\"designed\" \"for\" X", k="r", m_pm=17.6, h_pm=11.8, v="frame:weak-differential", n="parent=mkt.designed-with-in-mind" },
-{ id="mkt.win-win::lit", p="DT \"win-win\" NN?", t="=", k="g", m_pm=0.0, h_pm=0.0, v="frame:no-evidence", n="parent=mkt.win-win" },
-{ id="mkt.no-brainer-guard::lit", p="DT \"no-brainer\"", t="=", k="g", m_pm=0.0, h_pm=0.0, v="frame:no-evidence", n="parent=mkt.no-brainer-guard" },
 { id="mkt.blazing-fast::blazing", p="\"blazing fast\" NN?", t="\"fast\" NN", k="r", m_pm=0.0, h_pm=8.8, v="frame:DIRECTION-ERROR(human-tilted)", n="parent=mkt.blazing-fast" },
 { id="mkt.blazing-fast::lightning", p="\"lightning fast\" NN?", t="\"fast\" NN", k="r", m_pm=0.0, h_pm=8.8, v="frame:DIRECTION-ERROR(human-tilted)", n="parent=mkt.blazing-fast" },
 { id="mkt.blazing-fast::ultra", p="\"ultra fast\" NN?", t="\"fast\" NN", k="r", m_pm=0.0, h_pm=8.8, v="frame:DIRECTION-ERROR(human-tilted)", n="parent=mkt.blazing-fast" },

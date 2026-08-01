@@ -886,11 +886,11 @@ mod tests {
             + set.rules_quarantine.len()
             + set.rules_no_evidence.len()
             + set.rules_staged_surface.len();
-        // 3,333 delivered rules plus 36 authored arrivals (the
-        // honestly/honest/load-bearing batch and the corpus-mined
-        // review-register batch) — bumped only when rules are
-        // deliberately added, never by regeneration.
-        assert_eq!(total, 3369, "regeneration moves rules, never loses them");
+        // 3,333 delivered rules plus 55 authored arrivals (the
+        // honestly/honest/load-bearing batch and two corpus-mined
+        // batches) — bumped only when rules are deliberately added,
+        // never by regeneration.
+        assert_eq!(total, 3388, "regeneration moves rules, never loses them");
         assert_eq!(set.rules_pilot.len(), 21, "pilot rules never move");
         assert_eq!(set.classes.len(), 33);
         assert_eq!(set.function_words.words.len(), 37);
