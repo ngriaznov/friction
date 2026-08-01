@@ -3,9 +3,10 @@ source: crates/friction-cli/tests/snapshot.rs
 expression: stdout
 ---
 pass 1: 0 operation(s) fired — converged
-  4 held:
+  5 held:
     adjg.reliable          136..144  KEPT (frame adjg.reliable: measured 120.3/M machine vs 43.0/M human; report-only)
     adjg.clear             408..413  KEPT (frame adjg.clear: measured 228.9/M machine vs 112.1/M human; report-only)
     pilot.such-as          1313..1320  KEPT (frame pilot.such-as: report-only (see the frame-pack compile report))
+    vguard.render          1352..1361  KEPT (frame vguard.render: measured 167.3/M machine vs 377.7/M human; report-only)
     adjg.robust            3403..3409  KEPT (frame adjg.robust: measured 349.2/M machine vs 30.7/M human; report-only)
 pass 2: 0 operation(s) fired — converged

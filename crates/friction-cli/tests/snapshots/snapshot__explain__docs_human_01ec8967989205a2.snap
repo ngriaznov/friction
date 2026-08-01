@@ -3,11 +3,13 @@ source: crates/friction-cli/tests/snapshot.rs
 expression: stdout
 ---
 pass 1: 0 operation(s) fired — converged
-  11 held:
+  13 held:
     vguard.require         1016..1023  KEPT (frame vguard.require: measured 1065.2/M machine vs 967.4/M human; report-only)
     vguard.require         1247..1255  KEPT (frame vguard.require: measured 1065.2/M machine vs 967.4/M human; report-only)
+    intg.directly          1403..1411  KEPT (frame intg.directly: measured 358.0/M machine vs 373.1/M human; report-only)
     vguard.require         1507..1515  KEPT (frame vguard.require: measured 1065.2/M machine vs 967.4/M human; report-only)
     phg.under-the-hood     1625..1639  KEPT (frame phg.under-the-hood: measured 14.7/M machine vs 9.2/M human; report-only)
+    met.under-the-hood-guard::lit 1625..1639  KEPT (frame met.under-the-hood-guard::lit: measured 14.7/M machine vs 11.8/M human; report-only)
     vguard.require         1644..1652  KEPT (frame vguard.require: measured 1065.2/M machine vs 967.4/M human; report-only)
     phg.best-practices     1673..1687  KEPT (frame phg.best-practices: measured 67.5/M machine vs 44.5/M human; report-only)
     conng.further          2562..2569  KEPT (frame conng.further: measured 275.8/M machine vs 199.6/M human; report-only)

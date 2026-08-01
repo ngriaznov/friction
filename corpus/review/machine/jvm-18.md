@@ -1,0 +1,11 @@
+Thanks for tracking this down — I've seen `PricingClientIntegrationTest` flake in CI a handful of times too, and the diagnosis here (WireMock's default response delay of 0ms combined with the test asserting a specific `Retry-After` backoff timing) matches what I'd have guessed given the failure only ever showed up under load on shared runners.
+
+The fix — switching the retry-backoff assertion from a hardcoded `Thread.sleep(1000)` plus wall-clock timestamp comparison to using `Awaitility.await().atMost(...).until(...)` — is the right direction and should remove most of the flakiness, since it stops coupling the test's pass/fail to real elapsed time on a runner with unpredictable scheduling.
+
+Two things I'd still want addressed:
+
+The underlying retry logic in `PricingClient` reads the `Retry-After` header and sleeps for that duration before retrying, which the test is trying to verify. But the WireMock stub for the 429 response doesn't actually set a `Retry-After` header at all — I see `withStatus(429)` with no matching header, which means `PricingClient.parseRetryAfter()` is presumably falling back to its default backoff, and the test is only proving the default-backoff path works, not the header-driven path it's named for (`shouldRespectRetryAfterHeader`). I'd add `.withHeader("Retry-After", "1")` to the stub so the test actually exercises what its name claims.
+
+Second, `WireMockExtension` is registered with a fixed port (8089) rather than a dynamic one via `wireMockConfig().dynamicPort()`. On a shared CI runner where multiple test JVMs might run concurrently (or a stale process didn't get killed from a previous run), a fixed port is a second, independent source of the same kind of flakiness you just fixed for the timing issue — a bind failure or cross-test interference on port 8089 would look like an unrelated failure and cost someone another debugging session down the line. Worth switching to a dynamic port and injecting the resolved port into `PricingClient`'s base URL via `@BeforeEach`, since you're already touching this test's setup.
+
+The Awaitility fix itself is good and I'd merge it, but I'd want the `Retry-After` header gap fixed in the same PR since it's directly related to what this test is supposed to be proving — right now it would still pass even if the header-parsing logic in `PricingClient` were completely broken.

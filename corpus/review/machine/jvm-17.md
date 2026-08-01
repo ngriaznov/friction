@@ -1,0 +1,7 @@
+Clean addition. The `V14__create_audit_log_table.sql` migration and the corresponding `AuditLogEntry` entity match up field for field, and I like that you made `payload` a `jsonb` column with a GIN index rather than a plain text blob — that'll make future querying against the audit payload much less painful than it would otherwise be.
+
+One thing worth confirming before merging: the migration doesn't set a default on `created_at`, relying instead on `AuditLogEntry` setting it via `@PrePersist` in application code. That's fine as long as every write path goes through JPA, but if this table is ever written to via a raw SQL script, a batch job, or a different service down the line, rows can end up with a null timestamp. A `DEFAULT now()` at the column level costs nothing and gives you a safety net independent of the application layer — worth adding even though the app-level `@PrePersist` is also correct and I'd keep both.
+
+Also, no index on `entity_type` alone, only the composite `(entity_type, entity_id)` — if there's ever a "show me everything that happened to any order" style query without a specific `entity_id`, that composite index won't help much since Postgres needs the leading column bound tightly to use it efficiently for a broad scan. Probably fine for now given the described use case is always entity-specific lookups, just flagging it in case the audit UI's requirements expand.
+
+Approving — nothing here blocks merging, the two notes above are worth a quick follow-up but aren't correctness issues with what's shipped.

@@ -89,13 +89,21 @@ use crate::hashing::sha256_hex;
 /// Arguments for `corpus-tool human-evidence`.
 #[derive(Debug, ClapArgs)]
 pub struct Args {
-    /// A directory holding one external corpus bucket's `cleaned.jsonl`
-    /// (one JSON object per line, `{"id": ..., "text": ...}`). The
-    /// directory's own basename names the bucket (e.g. `codereviewer`,
-    /// `codereview-se`). Repeatable; omit entirely to build the empty
-    /// placeholder pack.
+    /// A directory holding one corpus bucket: either a `cleaned.jsonl`
+    /// (one JSON object per line, `{"id": ..., "text": ...}`) or, when
+    /// no `cleaned.jsonl` is present, a set of `*.md` documents read
+    /// one-per-file in filename order. The directory's own basename
+    /// names the bucket (e.g. `codereviewer`, `machine`). Repeatable;
+    /// omit entirely to build the empty placeholder pack.
     #[arg(long = "input")]
     pub input: Vec<PathBuf>,
+    /// Version string recorded in the TOML sidecar — the pack's
+    /// identity, not its on-disk format (the binary layout is shared).
+    /// The default builds the human-side pack; the machine-review pack
+    /// is built with `--pack-name machine-evidence-v1` and its own
+    /// output paths.
+    #[arg(long, default_value = "human-evidence-v1")]
+    pub pack_name: String,
     /// Path to the frame-rewrite rule set whose literal probes are
     /// counted against the staged corpora.
     #[arg(
@@ -140,18 +148,26 @@ struct BucketRecord {
     sha256: String,
 }
 
-/// Reads and parses one `--input <dir>`'s `cleaned.jsonl`.
+/// Reads and parses one `--input <dir>`: its `cleaned.jsonl` when one
+/// is present, otherwise its `*.md` documents (one document per file,
+/// filename order; `raw_bytes` for the provenance hash is the
+/// filename-prefixed concatenation, so renames and edits both change
+/// the recorded sha).
 ///
 /// # Errors
-/// Returns an error if `dir` has no directory name, if `<dir>/cleaned.jsonl`
-/// can't be read as UTF-8, or if any non-blank line fails to parse as a
-/// `{"id": ..., "text": ...}` JSON object.
+/// Returns an error if `dir` has no directory name, if the input can't
+/// be read as UTF-8, if a `cleaned.jsonl` line fails to parse as a
+/// `{"id": ..., "text": ...}` JSON object, or if a doc-directory
+/// contains no `*.md` files at all.
 fn read_bucket(dir: &std::path::Path) -> anyhow::Result<BucketInput> {
     let name = dir
         .file_name()
         .map(|n| n.to_string_lossy().into_owned())
         .ok_or_else(|| anyhow::anyhow!("--input {}: has no directory name", dir.display()))?;
     let path = dir.join("cleaned.jsonl");
+    if !path.exists() {
+        return read_doc_dir_bucket(dir, name);
+    }
     let raw_bytes = std::fs::read(&path).with_context(|| format!("reading {}", path.display()))?;
     let text = String::from_utf8(raw_bytes.clone())
         .with_context(|| format!("{} is not valid UTF-8", path.display()))?;
@@ -165,6 +181,42 @@ fn read_bucket(dir: &std::path::Path) -> anyhow::Result<BucketInput> {
             format!("{}:{}: not a valid corpus doc", path.display(), lineno + 1)
         })?;
         docs.push(doc);
+    }
+    Ok(BucketInput {
+        name,
+        raw_bytes,
+        docs,
+    })
+}
+
+/// Reads a doc-directory bucket: every `*.md` file, one document per
+/// file, in filename order.
+fn read_doc_dir_bucket(dir: &std::path::Path, name: String) -> anyhow::Result<BucketInput> {
+    let mut paths: Vec<PathBuf> = std::fs::read_dir(dir)
+        .with_context(|| format!("reading {}", dir.display()))?
+        .filter_map(Result::ok)
+        .map(|entry| entry.path())
+        .filter(|p| p.extension().is_some_and(|ext| ext == "md"))
+        .collect();
+    paths.sort();
+    anyhow::ensure!(
+        !paths.is_empty(),
+        "--input {}: no cleaned.jsonl and no *.md documents",
+        dir.display()
+    );
+    let mut raw_bytes = Vec::new();
+    let mut docs = Vec::new();
+    for path in paths {
+        let text = std::fs::read_to_string(&path)
+            .with_context(|| format!("reading {}", path.display()))?;
+        let id = path
+            .file_stem()
+            .map(|stem| stem.to_string_lossy().into_owned())
+            .unwrap_or_default();
+        raw_bytes.extend_from_slice(id.as_bytes());
+        raw_bytes.push(0);
+        raw_bytes.extend_from_slice(text.as_bytes());
+        docs.push(CorpusDoc { id, text });
     }
     Ok(BucketInput {
         name,
@@ -335,6 +387,7 @@ pub fn run(args: &Args) -> anyhow::Result<()> {
         .with_context(|| format!("writing {}", args.out_bin.display()))?;
 
     let toml = render_toml(
+        &args.pack_name,
         &rules_sha256,
         &bucket_records,
         unigrams.len(),
@@ -368,9 +421,10 @@ fn toml_escape(text: &str) -> String {
     text.replace('\\', "\\\\").replace('"', "\\\"")
 }
 
-/// Renders the `human-evidence-v1.toml` sidecar: small, human-readable
-/// provenance, mirroring `jargon-attest-v1.toml`'s own shape.
+/// Renders the pack's TOML sidecar: small, human-readable provenance,
+/// mirroring `jargon-attest-v1.toml`'s own shape.
 fn render_toml(
+    pack_name: &str,
     rules_sha256: &str,
     buckets: &BTreeMap<String, BucketRecord>,
     unigram_count: usize,
@@ -378,19 +432,21 @@ fn render_toml(
     total_tokens: u64,
 ) -> String {
     let mut out = String::new();
-    out.push_str(
-        "# human-evidence-v1 pack: external human-corpus unigram and\n\
-         # literal-probe occurrence counts, pooled into\n\
-         # friction_packs::frame_compile::CorpusEvidence to strengthen (never\n\
-         # replace) the dms-index-v1 human-side evidence the frame-rewrite\n\
-         # compile fences consult. Generated by `corpus-tool human-evidence` —\n\
-         # do not hand-edit.\n\
+    writeln!(
+        out,
+        "# {pack_name} pack: corpus unigram and literal-probe occurrence\n\
+         # counts, consumed by friction_packs::frame_compile::CorpusEvidence\n\
+         # to strengthen (never replace) the dms-index-v1 evidence the\n\
+         # frame-rewrite compile fences consult. Generated by `corpus-tool\n\
+         # human-evidence` — do not hand-edit.\n\
          #\n\
          # See friction_packs::human_evidence's own module docs for the two\n\
-         # tables' differing absence semantics and the pooling formula.\n\n",
-    );
+         # tables' differing absence semantics and the pooling formula.\n"
+    )
+    .expect("write to String is infallible");
     writeln!(out, "[pack]").expect("write to String is infallible");
-    writeln!(out, "version = \"human-evidence-v1\"").expect("write to String is infallible");
+    writeln!(out, "version = \"{}\"", toml_escape(pack_name))
+        .expect("write to String is infallible");
     writeln!(out, "rules_sha256 = \"{}\"", toml_escape(rules_sha256))
         .expect("write to String is infallible");
     writeln!(out, "unigram_count = {unigram_count}").expect("write to String is infallible");
@@ -538,6 +594,7 @@ words = ["a", "the"]
         let args = Args {
             input: Vec::new(),
             rules,
+            pack_name: "human-evidence-v1".to_string(),
             out_toml,
             out_bin: out_bin.clone(),
         };
@@ -571,6 +628,7 @@ words = ["a", "the"]
         let args = Args {
             input: vec![dir.path().join("docs")],
             rules,
+            pack_name: "human-evidence-v1".to_string(),
             out_toml,
             out_bin: out_bin.clone(),
         };
@@ -601,6 +659,7 @@ words = ["a", "the"]
         let args = Args {
             input: vec![dir.path().join("docs")],
             rules,
+            pack_name: "human-evidence-v1".to_string(),
             out_toml,
             out_bin: out_bin.clone(),
         };
@@ -632,6 +691,7 @@ words = ["a", "the"]
         run(&Args {
             input: input.clone(),
             rules: rules.clone(),
+            pack_name: "human-evidence-v1".to_string(),
             out_toml: out_toml_a,
             out_bin: out_bin_a.clone(),
         })
@@ -641,6 +701,7 @@ words = ["a", "the"]
         run(&Args {
             input,
             rules,
+            pack_name: "human-evidence-v1".to_string(),
             out_toml: out_toml_b,
             out_bin: out_bin_b.clone(),
         })
@@ -661,7 +722,7 @@ words = ["a", "the"]
                 sha256: "deadbeef".to_string(),
             },
         )]);
-        let text = render_toml("cafef00d", &buckets, 7, 2, 42);
+        let text = render_toml("human-evidence-v1", "cafef00d", &buckets, 7, 2, 42);
         assert!(text.contains("version = \"human-evidence-v1\""));
         assert!(text.contains("rules_sha256 = \"cafef00d\""));
         assert!(text.contains("unigram_count = 7"));

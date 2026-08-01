@@ -1,0 +1,7 @@
+Great result — cutting the executive dashboard query from 40 seconds to 2 is a big win for anyone waiting on that page to load. Looked through the diff to understand where the gain came from and it holds up.
+
+The main change is replacing the correlated subquery in the `SELECT` clause (the one computing `(SELECT COUNT(*) FROM order_items oi WHERE oi.order_id = o.id)` per row) with a pre-aggregated `LEFT JOIN` against a `GROUP BY order_id` subquery. That's the right fix — the old version was running once per row of `orders`, and at dashboard scale that's exactly the kind of thing that scales terribly. Rewriting it as a single aggregated join means the aggregation happens once over the whole set rather than once per outer row.
+
+Also good: adding the composite index on `(order_id, created_at)` to `order_items` to support the new join, and confirming via the `EXPLAIN ANALYZE` output pasted in the PR description that the plan now shows an index scan rather than the previous sequential scan. Appreciate that you included the before/after plans directly in the description — makes this easy to verify without having to pull the branch and re-run it myself.
+
+Only a minor suggestion, not a blocker: consider adding a short comment above the aggregated subquery explaining why it's structured this way, since a future reader unfamiliar with the correlated-subquery performance trap might "simplify" it back toward the original pattern without realizing the perf implications. Approving as is.

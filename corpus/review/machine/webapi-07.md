@@ -1,0 +1,9 @@
+Short review of a Python caching helper that wraps a Redis client: `get_or_set(key, fn, ttl=300)` checks Redis, and on a miss calls `fn()` and writes the result with `redis.set(key, value, ex=ttl)`.
+
+The logic is easy to follow, which is worth something, but as written this will cause a cache stampede under load. When a hot key expires, every concurrent request that misses at (roughly) the same instant will independently call `fn()` and hit whatever expensive resource it wraps — a slow query, an upstream API — all at once, defeating much of the point of caching during exactly the moment you need it most. The standard fixes are either a per-key lock (`SET key value NX PX <lock_ttl>` as a mutex so only one caller recomputes while others wait or serve stale) or, simpler to add here, jittering the TTL so keys don't all expire in lockstep: `ex=ttl + random.randint(0, ttl // 10)`. Jitter alone won't stop a stampede on a single very hot key, but it fixes the common case where many keys were set around the same time (e.g., a cache warm after a deploy) and then all expire together.
+
+Also worth adding: there's no handling for `fn()` raising — if the wrapped call throws, does the caller see the exception, or should this cache a "negative" result briefly to avoid hammering a failing backend? Right now an exception just propagates, which is probably fine, but a comment confirming that's intentional would help the next reader.
+
+Small thing: `redis.set(key, value, ex=ttl)` assumes `value` is already a string or bytes; if callers pass anything else you'll get a `DataError` from redis-py rather than a clear message — consider a `json.dumps`/`json.loads` layer at the boundary if the values are structured, or document that this only caches strings.
+
+Not a big change either way, but I'd fix the stampede risk before this sits in front of anything expensive in production.

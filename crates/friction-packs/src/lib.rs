@@ -141,7 +141,7 @@ pub use jargon_attest::{BuiltPack, JargonAttestPack, build_pack_bytes, normalize
 pub use register::{RegisterBand, RegisterPack};
 pub use registry::{
     ATTESTATION, DMS, FRAME, HUMAN_EVIDENCE, INVENTORY, JARGON, JARGON_ATTEST, LoadedPack,
-    REGISTER, load_dms_pack,
+    MACHINE_EVIDENCE, REGISTER, load_dms_pack,
 };
 pub use validate::{
     ClosureViolation, DisjointnessViolation, FrequencyHygieneReason, FrequencyHygieneViolation,

@@ -1,0 +1,13 @@
+This PR adds dark mode via CSS custom properties plus a `ThemeContext` and a toggle in the header — nice, focused scope. Approving with a couple of things worth addressing, none of which are hard blockers.
+
+The custom property setup in `theme.css` is well organized: `--color-bg`, `--color-text`, `--color-border` etc. defined once under `:root`, then overridden under `[data-theme="dark"]`, and components reference the variables rather than hardcoded colors throughout the diff. That's the right approach and scales well as more components adopt it.
+
+One functional gap: there's no handling of `prefers-color-scheme` for a first-time visitor. Right now the default theme is hardcoded to light regardless of the OS-level setting, and the theme only changes once a user explicitly clicks the toggle. Consider seeding the initial theme from `window.matchMedia('(prefers-color-scheme: dark)').matches` when there's no stored preference yet in `localStorage`, so users with a system-wide dark mode preference get a sensible default rather than a light flash.
+
+Speaking of flash: since the theme is applied via a `useEffect` in `ThemeProvider` that reads `localStorage` and sets `data-theme` on `<html>`, there's a brief flash of the light theme on every full page load before the effect runs and swaps the attribute, which is especially visible for a user who has dark mode selected. The standard fix is a small inline script in the document head (in `_document.tsx` for a Next.js pages-router app, which this looks like it is based on the file structure) that reads `localStorage` and sets the `data-theme` attribute synchronously before React hydrates, avoiding the flash entirely. This is a common pattern worth adding.
+
+Smaller note: the toggle button itself uses a sun/moon icon swap but doesn't announce the state change to assistive tech — there's no `aria-pressed` or `aria-label` reflecting current vs. next state, just a static `aria-label="Toggle theme"`. Consider `aria-label={theme === 'dark' ? 'Switch to light mode' : 'Switch to dark mode'}` so the label reflects the action that will actually happen.
+
+I also noticed a couple of components weren't touched by this PR and still use hardcoded hex colors directly (`ModalOverlay` and `ToastNotification`, from a quick grep) — not something to fix in this PR necessarily, but worth a tracked follow-up, since half-migrated theming is worse than no theming in some ways: those components will look broken in dark mode rather than simply not supporting it.
+
+None of this blocks the merge in my view — the flash-of-light-theme issue is the one I'd most want addressed, but it's also the kind of thing that's easy to fix in a fast follow-up rather than holding up this PR. Good first pass overall.

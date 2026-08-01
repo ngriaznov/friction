@@ -1,0 +1,11 @@
+This is a nice cleanup — replacing the dozen or so scattered try/catch blocks across `OrderController`, `PaymentController`, and `ShipmentController` with a single `GlobalExceptionHandler` and a proper exception hierarchy (`ApplicationException` as the base, with `NotFoundException`, `ValidationException`, and `ConflictException` as typed subclasses carrying their own HTTP status) is a real improvement to consistency. Every error response now goes through the same `ErrorResponse` shape with a code, message, and timestamp, which is exactly what API consumers want and didn't have before.
+
+A few things before merging:
+
+`GlobalExceptionHandler` has a catch-all `@ExceptionHandler(Exception.class)` at the bottom, which is correct to have as a last resort, but it returns the raw `ex.getMessage()` in the response body. For unexpected exceptions specifically — the ones that fall through to this handler precisely because they weren't anticipated — that risks leaking internal details (a SQL fragment from a `DataAccessException`, an internal class name from a `NullPointerException`) to API clients. I'd have the catch-all log the full exception internally and return a fixed, generic message to the client, reserving detailed messages for the typed `ApplicationException` subclasses where you control what's in them.
+
+`ValidationException` carries a `List<String>` of field errors, which is good, but I notice the handler for `MethodArgumentNotValidException` (Spring's own validation exception, thrown by `@Valid` on request bodies) is separate from your custom `ValidationException` handler and produces a differently-shaped error body — one uses `fieldErrors`, the other uses `errors`. Since both are conceptually "your request didn't pass validation," I'd unify these into the same response shape so API consumers don't need two different parsing paths depending on which validation mechanism happened to trigger.
+
+Good test coverage on the handler itself — `GlobalExceptionHandlerTest` covers each exception type mapping to the right status code, which is the right thing to unit test here in isolation from any particular controller.
+
+Approving with the two response-shape issues above as the things I'd actually want fixed before merge; everything else is a solid improvement over what was there.

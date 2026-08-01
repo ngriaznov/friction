@@ -1,0 +1,11 @@
+Functionally these tests pass and they do exercise the code path, but they're going to be a maintenance headache the first time someone touches `PricingService` for an unrelated reason, so I want to flag the pattern rather than any individual test.
+
+Nearly every test in `PricingServiceTest` mocks out `DiscountRepository`, `TaxCalculator`, and `CurrencyConverter`, then asserts via `verify(taxCalculator).calculate(any(), any())` that the method was called, without ever asserting on what it was called with or what the final result was. That's testing that a method got invoked, not that the pricing logic is correct. If someone refactors `calculatePrice` to call `taxCalculator.calculate` with the arguments in a different order, or inlines the tax logic, every one of these tests breaks even though behavior is unchanged — and conversely, a real bug in how the discount and tax interact wouldn't be caught by any of them, because nothing asserts on the combined output.
+
+I'd rework at least the core pricing tests to assert on the returned `PriceResult` against known inputs, with `TaxCalculator` and `CurrencyConverter` stubbed via `when(...).thenReturn(...)` rather than verified via `verify(...)`. Reserve `verify()` for genuine side effects — e.g., it's legitimate to verify that `auditLogRepository.save()` was called once when a discount over the approval threshold is applied, because that's a side effect with no return value to assert on instead.
+
+A few also use `verify(taxCalculator, times(1))` — `times(1)` is the default, so that's just noise; plain `verify(taxCalculator)` says the same thing.
+
+`@ExtendWith(MockitoExtension.class)` plus `@Mock` fields is the right setup, no complaints there. But `MockitoSettings(strictness = Strictness.LENIENT)` is applied at the class level in `BaseServiceTest`, which every test class here extends. That defeats the unused-stub detection Mockito's strict stubs give you by default, and it's very likely masking dead stubbing in a few of these tests already. I'd only apply leniency per-test where it's actually needed, not globally.
+
+Not blocking, but worth a follow-up: none of the discount edge cases (zero-price item, discount exceeding item price, expired discount code) have tests. The happy path is well covered; the boundary conditions that actually cause pricing bugs in production are not.

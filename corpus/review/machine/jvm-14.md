@@ -1,0 +1,11 @@
+Good refactor overall — extracting `PaymentService` as an interface with `StripePaymentService` as the concrete implementation, and switching the two call sites in `CheckoutController` and `SubscriptionRenewalJob` from a concrete class dependency to the interface via constructor injection, is exactly the right move if a second payment provider is coming, and even if it's not, it makes both call sites trivially mockable in tests without needing PowerMock or reflection tricks, which I see you've already taken advantage of in the updated `CheckoutControllerTest`.
+
+A couple of things worth a second look before merging:
+
+`PaymentServiceConfig` registers `StripePaymentService` as the sole `@Bean` for the `PaymentService` interface, which is fine while there's only one implementation, but I noticed `SubscriptionRenewalJob` autowires `PaymentService` directly rather than through a qualifier. If a second implementation gets added later without a `@Primary` or qualifier decision made at that time, this will fail to start with an ambiguous-bean error across the whole app rather than at the specific call site — not a problem today, just flagging it so whoever adds the second provider knows to check both call sites, not just wire up the new bean.
+
+`StripePaymentService.charge()` catches `StripeException` and wraps it in a generic `PaymentProcessingException`, which is good practice for keeping the Stripe SDK's exception types from leaking into callers, but the original exception's message and cause aren't preserved in the wrapping constructor call — `new PaymentProcessingException("Payment failed")` should be `new PaymentProcessingException("Payment failed", e)` so the root cause survives in stack traces. Minor but worth a one-line fix while this is fresh.
+
+The interface itself is clean — three methods (`charge`, `refund`, `getStatus`), each with a clear single responsibility, and the Javadoc on each explains the idempotency contract callers should expect, which is genuinely useful given this is payment code. Nice attention to detail there.
+
+Approving with the exception-cause fix as the one thing I'd actually want done before merge; the qualifier point can be a follow-up ticket for whenever the second provider work starts.

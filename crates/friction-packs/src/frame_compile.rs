@@ -309,6 +309,7 @@ pub struct CorpusEvidence {
     human_stream: Vec<u32>,
     machine_stream: Vec<u32>,
     external: Option<HumanEvidencePack>,
+    external_machine: Option<HumanEvidencePack>,
 }
 
 impl CorpusEvidence {
@@ -396,6 +397,7 @@ impl CorpusEvidence {
             human_stream,
             machine_stream,
             external: None,
+            external_machine: None,
         })
     }
 
@@ -406,6 +408,40 @@ impl CorpusEvidence {
     pub fn with_external(mut self, external: HumanEvidencePack) -> Self {
         self.external = Some(external);
         self
+    }
+
+    /// Attaches the machine half of the review-register evidence pair
+    /// (the `machine-evidence-v1` pack, built over the committed
+    /// LLM-generated review documents). Consulted only through
+    /// [`Self::review_pair_counts`] — never pooled into the human-side
+    /// accessors above.
+    #[must_use]
+    pub fn with_external_machine(mut self, machine: HumanEvidencePack) -> Self {
+        self.external_machine = Some(machine);
+        self
+    }
+
+    /// The review-register evidence pair for one anchor phrase:
+    /// `(machine_count, human_count, machine_total, human_total)` — the
+    /// machine side from the generated-review pack, the human side from
+    /// the external human pack's probe table.
+    ///
+    /// This is the second *register-matched* pair the two-sided fences
+    /// may consult (both sides are review-register prose), alongside the
+    /// DMS pair from [`Self::phrase_counts_register_matched`]. `None`
+    /// unless both packs are attached, both are non-empty, and both
+    /// probe tables measured the phrase — a pair with a missing side is
+    /// no pair at all.
+    #[must_use]
+    pub fn review_pair_counts(&self, words: &[&str]) -> Option<(u64, u64, u64, u64)> {
+        let machine = self.external_machine.as_ref()?;
+        let human = self.external.as_ref()?;
+        if machine.total_tokens() == 0 || human.total_tokens() == 0 {
+            return None;
+        }
+        let m = machine.probe_count(words)?;
+        let h = human.probe_count(words)?;
+        Some((m, h, machine.total_tokens(), human.total_tokens()))
     }
 
     /// A minimal evidence table for tests: the given words attested at
@@ -419,6 +455,7 @@ impl CorpusEvidence {
             human_stream: vec![0; 1],
             machine_stream: Vec::new(),
             external: None,
+            external_machine: None,
         }
     }
 
@@ -1037,6 +1074,20 @@ fn anchor_evidence_demotion(
             "anchor measured human-tilted on the shipped corpora ({m} machine vs {h} human occurrences)"
         ));
     }
+    // Second register-matched pair: generated-LLM review prose vs the
+    // external human review corpora. The machine side is small, so its
+    // count enters with a rule-of-three cushion (+3): absence from ~10^5
+    // generated tokens only bounds the machine rate, it does not
+    // establish "humans-only" — the verdict must hold even against the
+    // machine rate's plausible upper bound before it may demote.
+    if let Some((m2, h2, m2_total, h2_total)) = evidence.review_pair_counts(&words)
+        && h2 >= 3
+        && classify(RuleKind::Rewrite, m2 + 3, h2, m2_total, h2_total) == Verdict::DirectionError
+    {
+        return Some(format!(
+            "anchor measured human-tilted in the review register ({m2} machine vs {h2} human occurrences)"
+        ));
+    }
     // The ceiling is one-sided (human frequency alone), so it may pool
     // every human corpus we have — including external registers.
     let (_, pooled_h, _, pooled_h_total) = evidence.phrase_counts(&words);
@@ -1063,8 +1114,19 @@ fn machine_tilted_guard(
         .collect();
     // Guard confirmation is a two-sided verdict: register-matched
     // evidence only (see `CorpusEvidence::phrase_counts_register_matched`).
+    // Either matched pair may confirm — the DMS streams, or the
+    // review-register pair (whose machine counts are real occurrences,
+    // positive evidence needing no rule-of-three cushion).
     let (m, h, m_total, h_total) = evidence.phrase_counts_register_matched(&words);
-    (classify(RuleKind::Rewrite, m, h, m_total, h_total) == Verdict::Confirmed).then_some((m, h))
+    if classify(RuleKind::Rewrite, m, h, m_total, h_total) == Verdict::Confirmed {
+        return Some((m, h));
+    }
+    evidence
+        .review_pair_counts(&words)
+        .and_then(|(m2, h2, m2_total, h2_total)| {
+            (classify(RuleKind::Rewrite, m2, h2, m2_total, h2_total) == Verdict::Confirmed)
+                .then_some((m2, h2))
+        })
 }
 
 /// First class name referenced by the pattern that the set does not

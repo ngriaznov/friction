@@ -55,6 +55,13 @@ pub struct Args {
         default_value = "crates/friction-packs/packs/human-evidence-v1.bin"
     )]
     pub human_evidence: PathBuf,
+    /// Path to the vendored `machine-evidence-v1.bin` pack (the machine
+    /// half of the review-register evidence pair).
+    #[arg(
+        long,
+        default_value = "crates/friction-packs/packs/machine-evidence-v1.bin"
+    )]
+    pub machine_evidence: PathBuf,
     /// Path to write the derived binary artifact to.
     #[arg(long, default_value = "crates/friction-packs/packs/frame-pack-v1.bin")]
     pub out_bin: PathBuf,
@@ -79,9 +86,14 @@ pub fn run(args: &Args) -> anyhow::Result<()> {
         .map_err(|e| anyhow::anyhow!("{} did not parse: {e}", args.rules.display()))?;
     let external = HumanEvidencePack::load(&human_evidence_bytes)
         .map_err(|e| anyhow::anyhow!("{} did not load: {e}", args.human_evidence.display()))?;
+    let machine_evidence_bytes = std::fs::read(&args.machine_evidence)
+        .with_context(|| format!("reading {}", args.machine_evidence.display()))?;
+    let external_machine = HumanEvidencePack::load(&machine_evidence_bytes)
+        .map_err(|e| anyhow::anyhow!("{} did not load: {e}", args.machine_evidence.display()))?;
     let rates = CorpusEvidence::from_dms_toml(&dms_text)
         .map_err(|e| anyhow::anyhow!("{} evidence: {e}", args.dms_toml.display()))?
-        .with_external(external);
+        .with_external(external)
+        .with_external_machine(external_machine);
 
     let (pack, report) = compile(&set, &rates)
         .map_err(|e| anyhow::anyhow!("compiling {}: {e}", args.rules.display()))?;

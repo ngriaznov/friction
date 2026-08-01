@@ -1,0 +1,13 @@
+The stage layout (`build` → `test` → `package` → `deploy`) is conventional and easy to follow, and using the Maven `.m2` cache keyed on `pom.xml` hashes across all four jobs is the right call for a multi-module project this size.
+
+A couple of things I'd change before merging this into the default pipeline everyone inherits from:
+
+Your `test` stage runs `mvn test` but the `package` stage runs `mvn package -DskipTests`, which means you're building the jar twice — once implicitly during `mvn test` (compile + test-compile) and again from scratch in `package`. Since these are separate GitLab CI jobs with separate containers, none of the compiled output from `test` carries over unless you're passing `target/` as an artifact between stages, and I don't see that in the `artifacts:` block for the test job. If that's intentional to keep jobs isolated, fine, but it does mean you're compiling the whole module tree twice per pipeline run, which adds up on a project this size. Passing `target/classes` as a job artifact into `package` and using `mvn package -o -DskipTests` (offline, since dependencies are already resolved) would cut that down.
+
+The `deploy` job uses `only: - main`, which is the legacy syntax — GitLab's been steering people toward `rules:` for a while now since `only`/`except` don't compose well once you need more than one condition. Not urgent, but if you add a second condition later (like skipping deploy on `[skip-deploy]` commit messages) you'll want `rules:` anyway, so might as well switch now.
+
+More substantive: the deploy job authenticates to your artifact registry using a variable that appears to be a raw password (`$NEXUS_PASSWORD`) passed as a `-D` flag directly on the `mvn deploy` command line. Command-line arguments are visible via `ps aux` to any other process on the same runner host, and depending on your runner executor (shell executor especially, less so Docker-in-Docker) that's a real exposure. Prefer passing credentials via `settings.xml` with an encrypted master password, or at minimum via an environment variable rather than a CLI flag — env vars aren't fully safe either but they're not visible in `ps` output the same way.
+
+One more: no `SAST` or dependency scanning stage. Not a blocker for this specific pipeline's purpose, but if this file is meant to become the template other Java projects extend, it'd be worth including GitLab's built-in `Dependency-Scanning.gitlab-ci.yml` include now rather than retrofitting it into every downstream project later.
+
+Overall a solid, working pipeline — the credential-on-command-line issue is the one I'd actually block on; the rest are efficiency and consistency suggestions that can land as follow-ups.

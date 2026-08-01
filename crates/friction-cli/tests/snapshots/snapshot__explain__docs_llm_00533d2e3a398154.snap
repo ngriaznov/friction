@@ -4,7 +4,7 @@ expression: stdout
 ---
 pass 1: 1 operation(s) fired
   sub.apply                1980..1988  -> "uses"
-  24 held:
+  25 held:
     vguard.achieve         190..199  KEPT (frame vguard.achieve: measured 114.4/M machine vs 79.8/M human; report-only)
     adjg.robust            212..218  KEPT (frame adjg.robust: measured 349.2/M machine vs 30.7/M human; report-only)
     pilot.within           388..394  KEPT (frame pilot.within: report-only (see the frame-pack compile report))
@@ -18,6 +18,7 @@ pass 1: 1 operation(s) fired
     conng.finally          2512..2519  KEPT (frame conng.finally: measured 190.7/M machine vs 165.8/M human; report-only)
     lex.leverage-dl::employ 2957..2968  KEPT (frame lex.leverage-dl::employ: measured 143.8/M machine vs 17.7/M human; report-only)
     vguard.achieve         3269..3277  KEPT (frame vguard.achieve: measured 114.4/M machine vs 79.8/M human; report-only)
+    phg.by-default         3818..3828  KEPT (frame phg.by-default: measured 231.8/M machine vs 565.1/M human; report-only)
     pilot.instance         3922..3930  KEPT (frame pilot.instance: report-only (see the frame-pack compile report))
     lvc.make-a-request     3885..3900  KEPT (frame lvc.make-a-request held: left seam not attested)
     pilot.within           4020..4026  KEPT (frame pilot.within: report-only (see the frame-pack compile report))
@@ -30,7 +31,7 @@ pass 1: 1 operation(s) fired
     vsub.leverage          5445..5467  KEPT (frame vsub.leverage held: right seam not attested)
     conng.overall          5764..5771  KEPT (frame conng.overall: measured 208.3/M machine vs 49.1/M human; report-only)
 pass 2: 0 operation(s) fired — converged
-  23 held:
+  24 held:
     vguard.achieve         163..326  KEPT (frame vguard.achieve: measured 114.4/M machine vs 79.8/M human; report-only)
     adjg.robust            163..326  KEPT (frame adjg.robust: measured 349.2/M machine vs 30.7/M human; report-only)
     pilot.within           327..540  KEPT (frame pilot.within: report-only (see the frame-pack compile report))
@@ -43,6 +44,7 @@ pass 2: 0 operation(s) fired — converged
     conng.finally          2368..2537  KEPT (frame conng.finally: measured 190.7/M machine vs 165.8/M human; report-only)
     lex.leverage-dl::employ 2942..3007  KEPT (frame lex.leverage-dl::employ: measured 143.8/M machine vs 17.7/M human; report-only)
     vguard.achieve         3247..3320  KEPT (frame vguard.achieve: measured 114.4/M machine vs 79.8/M human; report-only)
+    phg.by-default         3764..3863  KEPT (frame phg.by-default: measured 231.8/M machine vs 565.1/M human; report-only)
     pilot.instance         3864..3964  KEPT (frame pilot.instance: report-only (see the frame-pack compile report))
     lvc.make-a-request     3864..3964  KEPT (frame lvc.make-a-request held: left seam not attested)
     pilot.within           3965..4065  KEPT (frame pilot.within: report-only (see the frame-pack compile report))
