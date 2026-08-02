@@ -258,6 +258,10 @@ deterministic — there is no inference engine here, only lookups. That
 accounts for the binary being around 59 MB (about a 27 MB compressed
 download).
 
+A typical README (3–7 KB) runs through `friction fix` in about 30 ms; a
+10 MB document takes about 2.4 s. <sub>Measured on an M-series MacBook
+Pro, process start included.</sub>
+
 ## Usage
 
 ### `friction fix` — repair a document
