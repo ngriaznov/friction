@@ -20,17 +20,17 @@ corpus/
 `<genre>` is one of `docs`, `blog`, `readme`, `email`, `forum` (a fixed
 set).
 
-A document's path is derived entirely from its manifest record — there
-is no separate "quarantined" field. A record is quarantined — CC-BY-SA
+A document's path is derived entirely from its manifest record. There
+is no separate "quarantined" field. A record is quarantined (CC-BY-SA
 StackExchange material, measured but never redistributed in the shipped
-pack — exactly when its `license` field names CC-BY-SA
-(case-insensitive, e.g. `"CC-BY-SA"` or `"CC-BY-SA-4.0"`); quarantined
+pack) exactly when its `license` field names CC-BY-SA
+(case-insensitive, e.g. `"CC-BY-SA"` or `"CC-BY-SA-4.0"`). Quarantined
 docs live under `quarantine/<genre>/<id>.md` regardless of `class`.
 Everything else lives under `<class>/<genre>/<id>.md`. See
 `src/corpus_layout.rs`.
 
 All subcommands default `--corpus-dir` to `corpus` (relative to the
-current directory), and are meant to be run from the repository root —
+current directory), and are meant to be run from the repository root,
 e.g. `cargo run -p corpus-tool -- validate`.
 
 ## Manifest schema
@@ -60,67 +60,69 @@ or `license` exactly equal to `"personal-attestation"`.
 
 ## Subcommands
 
-- **`validate`** — manifest parses strictly; every referenced
-  file exists and its sha256 matches; license is non-empty; `human` docs
-  carry provenance; `llm` docs carry
-  `model`/`prompt_id`/`gen_config`; ids are unique. Word counts outside
+- **`validate`**: manifest parses strictly. Every referenced
+  file exists and its sha256 matches. License is non-empty. `human` docs
+  carry provenance. `llm` docs carry
+  `model`/`prompt_id`/`gen_config`. Ids are unique. Word counts outside
   `[300, 2000]` are warned to stderr, not failed. Non-zero exit
   on any hard violation. An absent or empty corpus prints `"empty
   corpus"` and exits 0.
-- **`stats`** — per-`(class, genre)` doc counts, word-count
+- **`stats`**: per-`(class, genre)` doc counts, word-count
   summary stats (min/mean/max), and split counts, in deterministic
   order (`(class, genre)` sorted by declaration order in the enums, not
-  alphabetically — still fully deterministic). `--report <path>` writes
-  a markdown report; default is stdout.
-- **`split`** — deterministic stratified 70/15/15 split by
+  alphabetically, still fully deterministic). `--report <path>` writes
+  a markdown report. Default is stdout.
+- **`split`**: deterministic stratified 70/15/15 split by
   `(class, genre)`. Within each cell, candidates are ordered by
   `sha256(id)` hex (ascending, ordinary lexicographic order over the hex
-  string) and sliced at the 70%/85% boundaries — no RNG anywhere. Docs
-  already holding `split: "holdout"` are sealed and never reassigned;
-  the command errors out with a clear message if the freshly computed
+  string) and sliced at the 70%/85% boundaries, with no RNG anywhere. Docs
+  already holding `split: "holdout"` are sealed and never reassigned.
+  The command errors out with a clear message if the freshly computed
   holdout slice for a cell would move a sealed doc out (or a
   non-sealed doc in). `--dry-run` prints the computed split without
   writing the manifest.
-- **`seal`** — writes `<corpus_dir>/holdout.lock`: one
-  `id<TAB>sha256<TAB>relpath` line per holdout doc, sorted by id.
+- **`seal`**: writes `<corpus_dir>/holdout.lock` (one
+  `id<TAB>sha256<TAB>relpath` line per holdout doc, sorted by id).
   Refuses to overwrite an existing lock whose content would differ
   unless `--init` is passed.
-- **`holdout-check`** — verifies `<corpus_dir>/holdout.lock` against the
-  manifest and on-disk files; exits non-zero on drift. Semantics match
+- **`holdout-check`**: verifies `<corpus_dir>/holdout.lock` against the
+  manifest and on-disk files. Exits non-zero on drift. Semantics match
   `scripts/check-holdout.sh` (used by CI), plus a manifest cross-check
   (the manifest record for a locked id must still say
   `split: "holdout"` with a matching sha256, and every manifest
   `holdout` record must appear in the lock). `relpath` entries in the
-  lock are relative to the current working directory — run this (and
-  `seal`) from the repository root. An absent lock file is a no-op
-  success, so CI stays green before the holdout is sealed.
-- **`clean`** — `--incoming <dir> --out <dir>`: reads every
+  lock are relative to the current working directory, so run this (and
+  `seal`) while standing at the top of the repo checkout. An absent lock
+  file is a no-op success, so CI stays green before the holdout is
+  sealed.
+- **`clean`** (`--incoming <dir> --out <dir>`): reads every
   `.md` file under `--incoming` in sorted order, normalizes it to
   UTF-8 + LF, decodes raw HTML entities (`&amp;`, `&lt;`, `&gt;`,
   `&quot;`, `&apos;`, `&nbsp;`, `&mdash;`, `&ndash;`, `&hellip;`,
   `&rsquo;`, `&lsquo;`, `&rdquo;`, `&ldquo;`, and any decimal/hex numeric
-  character reference such as `&#39;`/`&#x27;`; double-encoded entities
-  like `&amp;#39;` fully decode via a small bounded fixpoint loop — see
+  character reference such as `&#39;`/`&#x27;`. Double-encoded entities
+  like `&amp;#39;` fully decode via a small bounded fixpoint loop (see
   `decode_entities` in `src/commands/clean.rs`), strips common README
-  boilerplate (badge-image walls; standalone HTML nav/footer/layout
+  boilerplate (badge-image walls, standalone HTML nav/footer/layout
   wrapper tag lines such as `<div align="center">`, `<p align="center">`,
   `<hr>`, bare `<img>`), and writes survivors under `--out`, mirroring the
   incoming directory's relative layout. Markdown structure (headings,
   lists, code fences) is left untouched. Docs under 300 words after
   cleaning are dropped (not written) and reported. This command does not
-  touch the manifest — it only produces cleaned `.md` files; adding
+  touch the manifest: it only produces cleaned `.md` files. Adding
   manifest entries for them is a separate, manual curation step.
-- **`ingest`** — `--incoming <dir> --corpus-dir <dir>`: folds
+- **`ingest`** (`--incoming <dir> --corpus-dir <dir>`): folds
   collector-supplied raw human-corpus candidates into the real corpus.
   Reads every `<dir>/<genre>/*.md` file plus its `<dir>/meta-*.jsonl`
-  metadata fragments (`file`, `genre`, `source`, `license`,
-  `license_evidence`, `provenance_evidence`, `title` — one JSON object per
-  doc), applies the identical cleaning transform as `clean`, drops docs
-  that fall under 300 words after cleaning (reported, not written),
+  metadata fragments (one JSON object per doc, with fields `file`,
+  `genre`, `source`, `license`, `license_evidence`,
+  `provenance_evidence`, `title`), applies the identical cleaning
+  transform as `clean`, drops docs that fall under 300 words after
+  cleaning (reported, not written),
   normalizes the license to a small canonical set (`MIT`, `Apache-2.0`,
   `BSD-2-Clause`, `BSD-3-Clause`, `CC-BY-4.0`, `CC-BY-3.0`, `CC0-1.0`,
   `PD`, `CC-BY-SA-3.0`, `CC-BY-SA-4.0`), and writes each survivor under
-  its layout-correct path (`class: human`; quarantined automatically when
+  its layout-correct path (`class: human`, quarantined automatically when
   the license is CC-BY-SA, per `corpus_layout`) with a full manifest
   record (`lang: "en"`, `split: null`, `style_prompted: false`,
   `provenance_evidence` from the fragment). A fragment is refused (listed
@@ -128,91 +130,91 @@ or `license` exactly equal to `"personal-attestation"`.
   `provenance_evidence` is missing/empty, its license doesn't normalize,
   its genre isn't one of the fixed five, its source `.md` file is
   missing, or another fragment already claims the same `file`. Each doc's
-  id is the first 16 hex characters of `sha256(source)` — stable across
-  reruns — with a deterministic fallback (mixing in the fragment's own
+  id is the first 16 hex characters of `sha256(source)` (stable across
+  reruns), with a deterministic fallback (mixing in the fragment's own
   file path) on the rare case where two fragments share one `source`
   (e.g. several essays pulled from one anthology page). Reruns are
   incremental: a fragment whose id is already in the manifest is skipped
-  without touching the filesystem again. Does not delete or move
-  `--incoming` — it's a read-only input.
-- **`generate`** — generates the `llm` corpus
+  without touching the filesystem again. It does not delete or move
+  `--incoming`, since it is a read-only input.
+- **`generate`**: generates the `llm` corpus
   against a local [Ollama](https://ollama.com) server. See "Generating
   the LLM corpus" below.
-- **`envelope`** — for every `train`-split document (both classes),
+- **`envelope`**: for every `train`-split document (both classes),
   computes its metric vector, groups by genre and class, and for each
   `(genre, metric)` pair estimates, all from the train split only: a
-  `[lo, hi]` human percentile band (nearest-rank method;
+  `[lo, hi]` human percentile band (nearest-rank method,
   `--lo-percentile`/`--hi-percentile`, default 10/90, from `human`-class
   train docs only), plus a `direction` (which class runs higher) and an
   `include` flag from a train-internal Mann-Whitney AUC of `human` vs
-  `llm` train docs — `include` is `true` iff that AUC reaches
-  `--auc-include-threshold` (default 0.55). `include` is the *only*
+  `llm` train docs (`include` is `true` iff that AUC reaches
+  `--auc-include-threshold`, default 0.55). `include` is the *only*
   mechanism that drops a metric from a genre's combined score: a
   train-derived rule, never a hand-picked override. Writes the result as
   a versioned TOML pack (`envelope-v2`) to `--out` (default
   `crates/friction-packs/packs/envelope-v2.toml`). Quarantined (CC-BY-SA)
-  docs are included in both estimates — quarantine restricts
-  redistributing document *text*, not aggregate statistics — and a genre
+  docs are included in both estimates (quarantine restricts
+  redistributing document *text*, not aggregate statistics), and a genre
   with zero train-split human docs is omitted from the pack (warning to
-  stderr) rather than emitting a degenerate band; a genre with human
+  stderr) rather than emitting a degenerate band. A genre with human
   train docs but no llm train docs still gets its percentile bands, but
   every metric defaults to `include = true` (no train evidence to
   exclude it on).
-- **`separate`** — on the dev split, measures how well the metric
+- **`separate`**: on the dev split, measures how well the metric
   vector separates `llm` docs from `human` docs, per genre and per
   metric (AUC via the Mann-Whitney U statistic, oriented so `AUC > 0.5`
   always means "separates llm from human"), plus a combined per-document
-  score (the mean, over that document's genre's *included* metrics — see
-  `envelope`'s `include` flag — of a per-metric normalized directional
+  score (the mean, over that document's genre's *included* metrics (see
+  `envelope`'s `include` flag) of a per-metric normalized directional
   exceedance beyond that metric's train-human envelope band: `0.0` inside
   the band, else the distance to the nearer edge over the band width,
-  capped at `1.0`; loaded from `--envelope`) and that score's own AUC.
+  capped at `1.0`, loaded from `--envelope`) and that score's own AUC.
   Writes a markdown report to `--report`, including, per genre, which
   metrics the envelope pack excluded and why. Like `envelope`, quarantined
   human docs are not excluded from the dev-split measurement. A genre
   missing data for one class (or missing from the envelope pack) is
   reported as `n/a` rather than a fabricated AUC.
-- **`mine`** — mines 1-, 2-, and 3-gram phrases from `train`-split
+- **`mine`**: mines 1-, 2-, and 3-gram phrases from `train`-split
   documents only (pooled across genres, both classes) and ranks them by
   the same log-odds ratio with an informative Dirichlet prior used
-  elsewhere (Monroe, Colaresi & Quinn 2008, eq. 16 — see
+  elsewhere (Monroe, Colaresi & Quinn 2008, eq. 16, see
   `src/commands/mine.rs`'s module doc comment for the exact formula and
   the punctuation-bounded tokenization rule). `--n` selects order(s)
-  (`1`, `2`, `3`, or `all`, default `all`); `--top` caps how many
-  llm-favored and human-favored entries are kept per order (default 50);
+  (`1`, `2`, `3`, or `all`, default `all`). `--top` caps how many
+  llm-favored and human-favored entries are kept per order (default 50).
   `--min-count` filters out n-grams below a combined occurrence
   threshold (default 5). Writes a markdown report to `--report`. Pure
   function of its inputs, so re-running against an unchanged corpus
-  reproduces a byte-identical report. This is a discovery tool only —
-  its output is hand-curated afterward into pack files such as
+  reproduces a byte-identical report. This is a discovery tool only: its
+  output is hand-curated afterward into pack files such as
   `crates/friction-packs/packs/mined-ngrams-v1.toml`, never consumed
   directly.
-- **`remove`** — `--id <id>` (repeatable): validates every requested id
+- **`remove`** (`--id <id>`, repeatable): validates every requested id
   is present in the manifest before touching anything, then for each
   deletes its corpus file (`<class>/<genre>/<id>.md`, or
   `quarantine/<genre>/<id>.md` when quarantined) and drops its manifest
   line. The raw doc under `corpus/incoming/` is never touched.
-- **`fix-entities`** — maintenance pass over already-ingested docs
-  (`human`, `llm`, and `quarantine`): for every manifest record, decodes
-  raw HTML entities in its on-disk file with the same transform `clean`
-  applies to newly-ingested docs. Only docs that actually contain
+- **`fix-entities`**: a maintenance pass over already-ingested docs
+  (`human`, `llm`, and `quarantine`) that, for every manifest record,
+  decodes raw HTML entities in its on-disk file with the same transform
+  `clean` applies to newly-ingested docs. Only docs that actually contain
   entities are rewritten (in place, same path) and get their manifest
-  `sha256` refreshed; every other field (id, class, genre, split,
+  `sha256` refreshed. Every other field (id, class, genre, split,
   license, path) is untouched, and a doc with nothing to decode is left
-  byte-identical. Deterministic and idempotent — rerunning after a clean
+  byte-identical. Deterministic and idempotent: rerunning after a clean
   pass finds nothing left to change. `--dry-run` reports what would
-  change without writing anything. Needed once, historically: to repair
-  corpus docs ingested before entity decoding was added to `clean`;
+  change without writing anything. Needed once, historically, to repair
+  corpus docs ingested before entity decoding was added to `clean`.
   `ingest` and `clean` decode entities on the way in going forward, so
   this should stay a no-op on a healthy corpus.
 
 ## Generating the LLM corpus (`generate`)
 
 `corpus-tool generate` reads `corpus/genconfig.toml` (model matrix,
-temperature/style-prompted slicing, per-genre targets — see the file
+temperature/style-prompted slicing, per-genre targets, see the file
 itself for the annotated schema) and `corpus/prompts/<genre>.toml`
 (`[[prompts]]` tables with `id`, `text`, `topic`), builds a
-deterministic job plan, and — unless `--dry-run` — executes it against
+deterministic job plan, and, unless `--dry-run`, executes it against
 Ollama's `/api/generate`, `/api/show`, and `/api/tags` endpoints.
 
 **Planning (deterministic, no RNG).** For each genre, prompts are
@@ -224,12 +226,12 @@ uses the low temperature instead of the default (this guarantees
 `>= low_fraction` of docs use it, for any job count), and the last slot
 of every `style_every`-sized block (`ceil(1 / style_prompted.fraction)`)
 is style-prompted (this guarantees `<= fraction`). A style-prompted
-job has `style_prompted.instruction` appended to its prompt text; every
+job has `style_prompted.instruction` appended to its prompt text. Every
 other job sends its prompt text verbatim, with no system or style prompt
 at all.
 
 **IDs and seeds.** A job's seed is `base_seed` plus a stable
-hash of `(model, prompt_id, slice)`; its doc id is the first 16 hex
+hash of `(model, prompt_id, slice)`. Its doc id is the first 16 hex
 characters of `sha256(model + prompt_id + seed + temperature)`. Both are
 pure functions of the job's own fields: no ambient RNG, no clock. This
 also makes reruns incremental: a job whose doc id is already in
@@ -242,7 +244,7 @@ currently pulled in the local Ollama is not an error: `generate` warns
 once per missing model, skips its jobs, and continues with the rest of
 the plan. If any model was skipped this way, the process exits with code
 `3` (not `0`) after printing its summary line, so automation can tell
-"ran clean" apart from "ran but under-generated"; any other failure
+"ran clean" apart from "ran but under-generated". Any other failure
 (bad config, a live Ollama request erroring outright) is a normal
 non-zero-exit error.
 
@@ -256,17 +258,17 @@ deterministic order, touching neither the network nor the corpus),
 `prompt_id`, `license: "generated"`, `style_prompted`, and `gen_config`
 (endpoint, model digest, temperature, seed, `num_predict`, a
 `reproducible` flag). The model digest is `/api/show`'s
-top-level `digest` field when present; some Ollama versions omit it, in
+top-level `digest` field when present. Some Ollama versions omit it, in
 which case a `sha256:`-prefixed hash computed over the response's
 `details` + `model_info` is recorded instead (still stable and
-content-derived, just not Ollama's own blob digest — see
+content-derived, just not Ollama's own blob digest, see
 `src/ollama.rs`).
 
 ## Adding a subcommand
 
 Each subcommand is a module under `src/commands/` exposing a
 clap-derived `Args` struct and a `pub fn run(&Args) -> anyhow::Result<()>`
-(`generate` is the one exception — see `src/commands/mod.rs` for why it
+(`generate` is the one exception, see `src/commands/mod.rs` for why it
 returns `anyhow::Result<generate::GenerateOutcome>` instead). To add a
 new subcommand:
 
@@ -294,7 +296,7 @@ No other file needs to change.
   corpora used in most tests.
 - `tests/generate.rs`'s live-Ollama smoke test only runs with
   `FRICTION_OLLAMA_TEST=1` set (and a local Ollama server reachable, with
-  `granite4.1:3b` pulled) — every other test, including the rest of
+  `granite4.1:3b` pulled). Every other test, including the rest of
   `generate.rs`, is fully offline. Run it with:
   `FRICTION_OLLAMA_TEST=1 cargo test -p corpus-tool --test generate`.
 - Test names describe the behavior they exercise, e.g.

@@ -12,10 +12,10 @@ and that two of the five proposed homing features are unusable here.
 ## Bottom line
 
 Three of the five homing features survive. They are the three the five
-implemented transducers already target, so nothing implemented is wasted —
+implemented transducers already target, so nothing implemented is wasted,
 but the plan's proposed transducers for phrasal coordination and
-`that`-subject extraposition target features that are dead on this corpus and
-should not be built.
+`that`-subject extraposition target features that are dead on this corpus
+and should not be built.
 
 | feature | verdict |
 |---|---|
@@ -41,7 +41,7 @@ this is a directional check rather than a replication.
 
 Direction replicates for three features; magnitude does not, in every case.
 `present_participial` is over-used by half the published factor. Bootstrapping
-`μ = v0 / 5.3` would therefore have aimed at roughly half the human rate —
+`μ = v0 / 5.3` would therefore have aimed at roughly half the human rate:
 overshooting the target rather than reaching it, which the objective would
 have reported as success.
 
@@ -59,7 +59,7 @@ evidence of the five:
 | llama3.2:3b | 0.72× |
 | qwen2.5:7b-instruct | 0.69× |
 
-All six under-use it. The effect is strongest in `docs` (d = −1.18) — the
+All six under-use it. The effect is strongest in `docs` (d = −1.18), the
 genre this module is scoped to. `present_participial` (1.6–2.6×) and
 `nominalization` (1.3–1.7×) are likewise consistent across all six.
 
@@ -79,7 +79,7 @@ Per-genre sample covariance, human train:
 | readme | 57 | 3.93e5 | 2.18 |
 
 The three singular genres are singular because `that_subj` has **exactly zero
-variance** there — 0 of 68, 30, and 51 documents contain one. A zero-variance
+variance** there: 0 of 68, 30, and 51 documents contain one. A zero-variance
 column makes the sample covariance exactly singular at any n. In the two
 genres where it is technically invertible, effective rank is 2–4 of 18.
 
@@ -130,10 +130,10 @@ half) is underpowered and its pass is weak evidence.
 
 All 58 human `docs` train documents come from distinct repositories, spanning
 conceptual guides, API reference pages, tutorials, and build-tool authoring
-guides — different sub-registers under one label. Syntactic density features
+guides: different sub-registers under one label. Syntactic density features
 are *less* variable within `docs` than corpus-wide (`nouns` CV 0.14 vs 0.26),
 but stance features are *more* variable (`first_person` CV 1.33 vs 1.22,
-`hedges` 1.16 vs 1.04) — the tutorial-voice/reference-voice split appearing
+`hedges` 1.16 vs 1.04), the tutorial-voice/reference-voice split appearing
 exactly where it should.
 
 A single per-genre μ remains defensible (Q3 holds), but genre-level Σ likely
@@ -158,8 +158,8 @@ worse rather than better.
 ## `docs` and `readme` do not pool
 
 Scoping the module to technical documentation and dropping the genre
-parameter makes `docs` + `readme` the natural target register — 115 human
-train documents instead of 58. They cannot be pooled.
+parameter makes `docs` + `readme` the natural target register (115 human
+train documents instead of 58). They cannot be pooled.
 
 | feature | docs (n=58) | readme (n=57) | CIs overlap? |
 |---|---|---|---|
@@ -176,12 +176,12 @@ for both.
 
 Pooling does not even buy conditioning. Pooled Ledoit-Wolf at n = 115 gives
 δ = 0.055 and condition 12.79, against docs-only at 11.97 and readme-only at
-9.16 — slightly *worse*, because the two correlation structures partly cancel
+9.16: slightly *worse*, because the two correlation structures partly cancel
 rather than reinforce. Doubling n lowers the required shrinkage; it does not
 improve the estimate.
 
 **LLM output collapses the distinction human writers maintain.** On the
-machine side, Box's M gives p = 0.669 — no covariance difference at all — and
+machine side, Box's M gives p = 0.669 (no covariance difference at all) and
 only `nominalization` differs by sub-genre (d = 0.45, p = 0.034). Human
 writers adapt register between reference documentation and READMEs; these
 models largely do not. That is a document-level property rather than a
@@ -198,7 +198,7 @@ cheaply.
 
 ## The χ² termination criterion is the wrong shape
 
-The plan terminates rewriting at `D² ≤ χ²(k, 0.5)`. Two problems, and the
+The plan ends rewriting at `D² ≤ χ²(k, 0.5)`. Two problems, and the
 second is fatal to that specific formula.
 
 **The distribution is not χ².** Human D² over docs+readme (n = 115): min
@@ -227,7 +227,7 @@ Empirical-quantile thresholds, taken from the human D² sample directly:
 documents pass through untouched; 34.8% of machine documents are caught. q =
 0.75 separates the classes best in raw terms but accepts a 25% false-edit rate
 on real human documentation, which an always-on module cannot justify. q =
-0.99 is useless — separation collapses to 7 points.
+0.99 is useless: separation collapses to 7 points.
 
 **The honest limitation:** no quantile achieves human-inside above 95% and
 llm-inside below 50% at the same time. The three-feature vector is not a clean
@@ -247,8 +247,8 @@ module ships on by default.
 
 Only two of the three surviving features have a transducer that can move
 them. The participial transducers were dropped because they select on `acl`
-and `advcl`, which the shipped parser resolves at 52–58% F1 — they would fire
-wrongly about half the time. `present_participial` therefore stays measured
+and `advcl`, which the shipped parser resolves at 52–58% F1, so they would
+fire wrongly about half the time. `present_participial` therefore stays measured
 and reported, but nothing acts on it.
 
 For the two that remain, per-document rate quantiles over the 58 human `docs`
@@ -260,8 +260,8 @@ train documents:
 | `agentless_passive` | 5.43 | 11.73 | 21.49 | **4.35** | increase |
 | `present_participial` | 2.00 | 4.86 | 8.91 | 7.89 | *(no transducer)* |
 
-The band is `[p10, p90]`, and a document inside it is done — the shell, not the
-centroid. Optimizing to the median would land every document on the same
+The band is `[p10, p90]`, and a document inside it is done: the shell, not
+the centroid. Optimizing to the median would land every document on the same
 coordinates, which is a tell in its own right.
 
 **This is where the module's value actually is, and it is lopsided:**

@@ -1,14 +1,14 @@
 # friction
 
 A deterministic engine that removes the machine layer from LLM-generated technical
-documentation — the ritual closers, filler spans, hedge phrases, and light-verb
-constructions that make text read as machine-written — without touching the
+documentation (the ritual closers, filler spans, hedge phrases, and light-verb
+constructions that make text read as machine-written) without touching the
 information.
 
 **English technical documentation only.** Both constraints are real, not
 aspirational, and neither is checked at runtime:
 
-- **English.** Every shipped artifact is English-trained — the tagger, the
+- **English.** Every shipped artifact is English-trained: the tagger, the
   dependency parser, the sentence segmenter, and every phrase in the tell
   inventory. There is no language detection and no other language pack. On
   non-English prose friction is inert rather than wrong (measured: zero edits on
@@ -17,13 +17,13 @@ aspirational, and neither is checked at runtime:
 - **Technical documentation.** Reference docs, READMEs, design notes,
   postmortems, migration guides. The inventory was mined from that kind of
   writing, and the register pass is calibrated against it specifically. It is
-  not a general-purpose editor and not for prose whose voice is the point —
+  not a general-purpose editor and not for prose whose voice is the point:
   fiction, marketing, personal writing.
 
 friction never invents content. Every content word it emits is already present in
 the input or derived from one through a static table ("performs validation of" →
 "validates"). It may introduce function words, but only from a fixed set declared
-per operation — `was`, `were`, `is`, `are`, and nothing else: never a word chosen
+per operation (`was`, `were`, `is`, `are`, and nothing else): never a word chosen
 by searching for one that fits. Where no safe edit exists, it reports instead of
 rewriting. No model runs at fix time; everything is offline, table-driven, and
 byte-deterministic.
@@ -81,8 +81,8 @@ your lockfile:
 ```
 
 `friction-cli` is the only package you name. The binary for your platform
-arrives as an optional dependency — one of `@mhriaznov/friction-darwin-arm64`,
-`-darwin-x64`, `-linux-x64`, `-linux-arm64`, `-win32-x64` — and npm picks it from
+arrives as an optional dependency (one of `@mhriaznov/friction-darwin-arm64`,
+`-darwin-x64`, `-linux-x64`, `-linux-arm64`, `-win32-x64`) and npm picks it from
 each one's `os`/`cpu` fields, skipping the rest.
 
 There is **no postinstall script and nothing is downloaded at install time**, so
@@ -91,7 +91,7 @@ air-gapped installs all work. Linux x64 gets the statically linked build, so
 Alpine and Debian are the same package.
 
 **It does not update itself, by design.** A tool your package manager installed
-should be updated by that package manager — a self-updating binary would fight
+should be updated by that package manager. A self-updating binary would fight
 npm over a file npm owns, break integrity checks, and fail outright on a
 read-only install. Pick whichever of these you want:
 
@@ -135,11 +135,11 @@ The binary lands at `target/release/friction`; MSRV is 1.96.
 
 Either way the result is self-contained: the part-of-speech tagger (1.4 MB),
 the dependency parser (6.5 MB), the matching-statistics automata
-(dms-index, 25.8 MB — per-family streams plus the pooled machine automaton
+(dms-index, 25.8 MB: per-family streams plus the pooled machine automaton
 the runtime scans), the compound-attestation filter (2.3 MB), and the
 evidence packs are all compiled into the binary, and nothing is downloaded
 at build or run time. Everything is fixed tables, so the runtime stays
-deterministic — there is no inference engine here, only lookups. That
+deterministic. There is no inference engine here, only lookups. That
 accounts for the binary being around 59 MB (about a 27 MB compressed
 download).
 
@@ -152,7 +152,7 @@ Pro, process start included.</sub>
 ### `friction fix` — repair a document
 
 **`fix` never modifies your file unless you pass `--in-place`.** The default
-run prints the fixed text to **stdout** and the summary to **stderr** — so the
+run prints the fixed text to **stdout** and the summary to **stderr**, so the
 summary can report applied patches while the file on disk stays byte-identical.
 That default is what makes piping safe and an original impossible to destroy
 unasked; when you want the file itself repaired, say so:
@@ -161,7 +161,7 @@ unasked; when you want the file itself repaired, say so:
 friction fix draft.md --in-place
 ```
 
-The two streams are separate, so no flag is needed to keep them apart —
+The two streams are separate, so no flag is needed to keep them apart:
 redirect stderr and you have clean text.
 
 ```bash
@@ -179,8 +179,8 @@ friction fix page.html                 # static HTML: text nodes edited, markup 
 
 A `.html`/`.htm` file (or stdin starting with a doctype or `<html>`) is read
 as a static HTML page instead of markdown: text runs between tags become the
-prose, and everything else — tags, attributes, comments, entities, and the
-entire contents of `head`, `script`, `style`, `pre`, and `code` — is
+prose, and everything else (tags, attributes, comments, entities, and the
+entire contents of `head`, `script`, `style`, `pre`, and `code`) is
 untouchable by construction, so the output differs from the input only inside
 text nodes. Headings and table cells follow the same rules as in markdown
 (detected against, never edited).
@@ -188,14 +188,14 @@ text nodes. Headings and table cells follow the same rules as in markdown
 JSON *data blocks* are prose too: a `<script>` whose `type` is
 `application/json` or any `+json` variant is inert data, not code, so the
 string **values** inside it (slide notes, embedded content) are extracted and
-edited — keys, structure, and every escape sequence stay untouchable, which
+edited: keys, structure, and every escape sequence stay untouchable, which
 keeps the document valid JSON by construction. Executable script content is
 never touched: prose inside real JavaScript string literals is code, and the
 right place for friction there is the source the page is generated from.
 
 Template expressions are another processor's bytes, not prose: `{{ ... }}`,
 `{% ... %}`, and `<% ... %>` (mustache, Jinja, Liquid, Hugo, ERB, EJS) are
-run boundaries wherever they appear — a `.html` file is often really a
+run boundaries wherever they appear. A `.html` file is often really a
 template, and no edit can alter or splice across an expression another tool
 will evaluate.
 
@@ -299,7 +299,7 @@ touched.
 Note what it kept: "conducts an analysis of" was a valid second pivot but the
 per-document budget held it, and "simply" stayed because deleting it would
 create a word seam unattested in human writing. Neither is forced, and both are
-named — by `friction explain`, which lists every hold with the gate that
+named by `friction explain`, which lists every hold with the gate that
 declined it. The `suggest:` line above counts a different thing: findings the
 detector surfaced that no operation claimed at all.
 
@@ -307,7 +307,7 @@ The `paraphrase:` line counts a third, unrelated thing: after fixing, `fix`
 also scans its own output with the DMS statistical channel against the
 pooled machine automaton, and with the contrast-frame
 template scan, and reports how many spans either flagged. It never touches
-them — there is no licensed rewrite for a DMS tell or for an `only`-marked
+them: there is no licensed rewrite for a DMS tell or for an `only`-marked
 question or a declarative correction frame, only a fixed set of literal
 edits, so a flagged span is left exactly as written for a human to
 paraphrase. `--suggest` lists each one on stderr: location, channel id, score, and
@@ -420,8 +420,8 @@ you the opposite.
 
 ### A CI gate that works
 
-Fail the build when friction would still change a committed document — i.e.
-treat "already clean" as the invariant:
+Fail the build when friction would still change a committed document (i.e.
+treat "already clean" as the invariant):
 
 ```bash
 #!/bin/sh
@@ -438,7 +438,7 @@ exit $rc
 
 Two practical notes. Use `rc`, not `status`: the latter is a read-only special
 variable in zsh and the loop aborts on assignment. And scope the glob to
-documents you actually author — pointing it at every tracked `*.md` will also
+documents you actually author: pointing it at every tracked `*.md` will also
 catch generated reports and vendored third-party text, which are not yours to
 rewrite and will fail the gate legitimately.
 
@@ -448,9 +448,9 @@ exhibits.
 
 ### Every edit, machine-readably
 
-`explain --format json` gives each edit's rule, byte range, and replacement —
-enough to build a diff, apply a subset, or show a human what would change
-before changing it:
+`explain --format json` gives each edit's rule, byte range, and replacement
+(enough to build a diff, apply a subset, or show a human what would change
+before changing it):
 
 ```bash
 $ friction explain draft.md --format json
@@ -470,27 +470,27 @@ $ friction explain draft.md --format json
 ```
 
 Ranges index the **original** bytes, so `text[start..end]` is exactly what the
-replacement replaces. Held candidates appear with the gate that
-declined them, which is the part worth surfacing to a reviewer: it says what
+replacement replaces. Held candidates appear with the gate that declined
+them, and that's what's worth showing a reviewer: it says what
 friction noticed and chose not to touch.
 
 ### Filtering to the operations you trust
 
-There is no flag to disable an individual operation. If you only want the five
-closed operations and not register rephrasing, read the edits from `explain
+There is no flag to disable an individual operation. To keep just the five
+closed operations and skip register rephrasing, read the edits from `explain
 --format json`, drop the `register.*` rules, and apply the rest yourself: the ranges are byte-exact against your input, so that is a mechanical splice.
 
 ## Guarantees
 
 - **Deterministic**: same input, same pack, same bytes. Always.
-- **Idempotent** — a second pass may clean up after first-pass deletions; a
+- **Idempotent**: a second pass may clean up after first-pass deletions; a
   third pass changes nothing (enforced by a CI canary over fixtures and real
   corpus documents).
-- **Near-no-op on human text** — edits per document on curated human writing
+- **Near-no-op on human text**: edits per document on curated human writing
   stay under a corpus-calibrated threshold (1.87 edits per 1000 words, ceiling),
   recalibrated whenever the packs are rebuilt and cross-checked against a
   held-out split that never feeds back into the threshold.
-- **Span-honest** — every reported range slices your original bytes to exactly
+- **Span-honest**: every reported range slices your original bytes to exactly
   the text the finding is about.
 - **Closed**: no code path can insert a *searched-for* word. Content words are
   always input-derived. Function words may be introduced only from a fixed set
@@ -503,10 +503,11 @@ closed operations and not register rephrasing, read the edits from `explain
 ## What it deliberately won't do
 
 friction removes machine framing surgically. It does not add ideas, voice, or
-fluency — its ceiling is a careful copy editor with a narrow brief, and an empty
-source stays empty. It is not for fiction. It is not a detector-beater. And
-the statistical channel only knows the model families its corpus was mined
-from: the pooled index covers qwen/gemma/llama/granite/claude-style output, so
+fluency. Its ceiling is a careful copy editor with a narrow brief, and an empty
+source stays empty. It has no place in fiction, and it won't help you beat a
+detector. And the statistical channel only knows the model families its
+corpus was mined from: the pooled index covers
+qwen/gemma/llama/granite/claude-style output, so
 prose from an unindexed family will largely pass that channel untouched (the
 literal inventory still applies). Growing coverage means growing the data, see
 below, not cleverer search.
@@ -532,7 +533,7 @@ Ce document décrit le setup. The cache is used.
 ```
 
 The French is untouched and the English sentence is repaired correctly. Whether
-that is what you want in a mixed-language document is your call — friction has
+that is what you want in a mixed-language document is your call. friction has
 no way to ask.
 
 Supporting another language is not a code change: it needs its own tagger,
@@ -541,13 +542,13 @@ all of the knowledge is in the data.
 
 Register rephrasing is scoped to **technical documentation**, and that scope is
 narrower than it sounds. The band was measured on reference documentation.
-READMEs measured as a *different* register — two of the three features differ
+READMEs measured as a *different* register (two of the three features differ
 with non-overlapping confidence intervals, and their correlation structure
-differs too — so pooling the two was rejected and the documentation target is
+differs too), so pooling the two was rejected and the documentation target is
 used for both. Running it on prose from another genre aims at the wrong target,
 and nothing at runtime will stop you.
 
-Separately, the gates check whether an edit preserves meaning and grammar — not
+Separately, the gates check whether an edit preserves meaning and grammar, not
 whether the result reads *better*. A rewrite can be licensed, correct, and
 still flatter than what it replaced. Only a reader catches that.
 
@@ -595,44 +596,44 @@ The packs under `crates/friction-packs/packs/` are versioned, sha256-recorded,
 and audited at load time (a substitution whose replacement re-triggers any
 detection frame, or introduces an unattested content word, fails the build):
 
-- `inventory-v1.toml` — the curated tell inventory: deletion spans,
+- `inventory-v1.toml`: the curated tell inventory of deletion spans,
   substitution pairs, ritual frames, licensed light-verb pairs, guard-token
   classes. Hand-reviewed; every mined entry carries its corpus counts.
-- `dms-index-v1.toml` — per-family machine/human token streams for the
+- `dms-index-v1.toml`: per-family machine/human token streams for the
   matching-statistics channel. The runtime embeds `dms-index-v1.bin`
   next to it: the same streams with their suffix automata pre-built by
   `corpus-tool dms-pack` and serialized flat, loaded as a zero-copy view
   so process start pays no parse or automaton construction (a test
   re-packs the TOML and fails if the two ever diverge).
-- `attestation-v1.toml` — human-corpus bigram seams, tag-skeleton sets, and the
+- `attestation-v1.toml`: human-corpus bigram seams, tag-skeleton sets, and the
   near-no-op calibration.
-- `register-v1.toml` — the per-feature bands register homes toward, as the 10th
+- `register-v1.toml`: the per-feature bands register homes toward, as the 10th
   and 90th percentiles of the per-document rate across 58 human documentation
   files. The band, not its centre, is the target.
-- `frame-rules-v1.toml` — the adjudicated frame-rewrite rule set: 3,388
+- `frame-rules-v1.toml`: the adjudicated frame-rewrite rule set: 3,388
   rules in seven evidence buckets (the delivered 3,333 plus corpus-mined
   arrivals), of which only the corpus-confirmed buckets ever compile;
   the rest are staged evidence for `corpus-tool adjudicate`, the referee
-  that re-derives every verdict from the corpora — from the DMS streams
+  that re-derives every verdict from the corpora, from the DMS streams
   first, then from the review-register evidence pair for rules whose
   register the DMS corpora do not carry. The runtime embeds
-  `frame-pack-v1.bin` (134 KB): the surviving rule program — 913 edits
-  and guards plus 127 report-only rules after the rejection gauntlet —
+  `frame-pack-v1.bin` (134 KB): the surviving rule program (913 edits
+  and guards plus 127 report-only rules after the rejection gauntlet),
   serialized flat by `corpus-tool frame-pack` and loaded zero-copy,
   with a drift test that recompiles the TOML and fails on any
   divergence.
-- `human-evidence-v1.bin` + `human-evidence-v1.toml` — external
+- `human-evidence-v1.bin` + `human-evidence-v1.toml`: external
   human-corpus evidence pooled into the frame-rewrite compile fences:
   unigram rates and per-word burst envelopes (the densest any single
-  human document used a word — what arms the `overuse.word` channel)
+  human document used a word, which is what arms the `overuse.word` channel)
   over ~50M tokens of pre-2022, human-written code-review prose, plus
   occurrence counts for every frame rule's literal probes,
   built offline by `corpus-tool human-evidence` from locally staged
-  corpora (the raw text never enters this repository — only these
+  corpora (the raw text never enters this repository, only these
   aggregate counts). External evidence feeds the one-sided fences only:
   target-word attestation (best single-corpus rate, so one register
   cannot dilute another's words) and the human-rate ceiling.
-  Direction verdicts stay register-matched on the DMS streams — a
+  Direction verdicts stay register-matched on the DMS streams. A
   machine-vs-human ratio over mismatched registers would measure
   register difference, not machine-ness. Shipped-pack inputs: the Code
   Review Stack Exchange data dump of 2022-03-07 (CC BY-SA,
@@ -641,33 +642,33 @@ detection frame, or introduces an unattested content word, fails the build):
   <https://doi.org/10.5281/zenodo.6900648>), both predating ChatGPT's
   release by construction. Input sha256s and per-bucket totals are in
   the `.toml` sidecar.
-- `machine-evidence-v1.bin` + `machine-evidence-v1.toml` — the machine
+- `machine-evidence-v1.bin` + `machine-evidence-v1.toml`: the machine
   half of the review-register evidence pair: the same tables, built by
   the same command over the 150 committed machine-written review
   documents in `corpus/review/machine/`. Register-matched against the
   human pack, it gives the two-sided fences (direction, guard
   confirmation) and the adjudication referee a review-register
   measurement the DMS streams cannot provide.
-- `jargon-v1.toml` — the curated metaphor-lexeme list `jargon.metaphor`
+- `jargon-v1.toml`: the curated metaphor-lexeme list `jargon.metaphor`
   matches against, and a small attested-exceptions allowlist of compounds it
   never flags regardless of what the filter below says. Each lexeme is
   `mined` (measured directly against this corpus) or `external` (documented
   LLM metaphor vocabulary); every entry, and every exception, carries its own
   provenance note.
-- `jargon-attest-v1.bin` + `jargon-attest-v1.toml` — the web-scale
+- `jargon-attest-v1.bin` + `jargon-attest-v1.toml`: the web-scale
   attestation oracle behind `jargon.metaphor`'s exception check: a
   `BinaryFuse8` filter (`xorf`) over ~2M normalized, multiword compound keys
   mined from Wikipedia article titles and OpenAlex Topics display names,
   built offline by `corpus-tool jargon-attest` and embedded in the binary.
   A compound in the filter is attested and never flagged; the filter's
-  false-positive direction is the safe one (~0.4%, no false negatives) — a
+  false-positive direction is the safe one (~0.4%, no false negatives). A
   spurious "attested" only ever suppresses a flag, never invents one. The
   TOML exception list above is now a near-empty override layer for what the
   filter misses, not the primary mechanism. Wikipedia titles are
   CC BY-SA 4.0 and GFDL (Wikipedia contributors,
   <https://en.wikipedia.org/>); OpenAlex Topics are CC0
-  (<https://openalex.org/>). Full provenance — input sha256s, normalization
-  and hash spec, build date — is in the `.toml` sidecar.
+  (<https://openalex.org/>). Full provenance (input sha256s, normalization
+  and hash spec, build date) is in the `.toml` sidecar.
 
 The contrast-frame templates (`frame.contrast.question`,
 `frame.contrast.correction`) are the one detection channel that is not
@@ -687,32 +688,32 @@ a sealed holdout is guarded by CI and never touched.
 Measurements live next to the data they describe, and each was produced by a
 command recorded in the file itself:
 
-- [`corpus/HOLDOUT_REPORT.md`](corpus/HOLDOUT_REPORT.md) — the sealed-holdout
+- [`corpus/HOLDOUT_REPORT.md`](corpus/HOLDOUT_REPORT.md): the sealed-holdout
   evaluation. Read once, report-only: no threshold, envelope, or rule was
   changed in response to anything on that page.
-- [`corpus/SEPARATION.md`](corpus/SEPARATION.md) — per-metric human-vs-machine
+- [`corpus/SEPARATION.md`](corpus/SEPARATION.md): per-metric human-vs-machine
   AUC on the dev split, with the combined score's own AUC.
-- [`corpus/NEARNOOP.md`](corpus/NEARNOOP.md) — what fraction of human corpus
+- [`corpus/NEARNOOP.md`](corpus/NEARNOOP.md): what fraction of human corpus
   sentences receive any edit, per genre.
-- [`corpus/MEANING_AUDIT.md`](corpus/MEANING_AUDIT.md) — a deterministic
+- [`corpus/MEANING_AUDIT.md`](corpus/MEANING_AUDIT.md): a deterministic
   50-document sample checked for meaning preservation.
 - [`corpus/MINE_INVENTORY.md`](corpus/MINE_INVENTORY.md),
   [`corpus/MINE_PAIRED.md`](corpus/MINE_PAIRED.md) and
-  [`corpus/OUTPUT_BANDS.md`](corpus/OUTPUT_BANDS.md) — the mining provenance the
+  [`corpus/OUTPUT_BANDS.md`](corpus/OUTPUT_BANDS.md): the mining provenance the
   inventory pack's own entries cite for their corpus counts.
-- [`corpus/STATS.md`](corpus/STATS.md) — corpus composition by class, genre and
+- [`corpus/STATS.md`](corpus/STATS.md): corpus composition by class, genre and
   split.
 
 The tagger and parser are trained from the same corpus, by a pipeline that
 drafts annotations with an offline tool and corrects them mechanically. That
 gold data is **not** committed: it is derived, no build reads it, and every
 retrain would add megabytes to history permanently. `tools/requirements.txt`
-pins the environment that reproduces it byte-for-byte — the pin matters, since
+pins the environment that reproduces it byte-for-byte. The pin matters, since
 a different model version parses differently and would silently produce
 different gold while every check still passed.
 
-For the algorithms themselves — the matching-statistics construction, mining
-thresholds, gate definitions, and the validated reference prototypes — see
+For the algorithms themselves (the matching-statistics construction, mining
+thresholds, gate definitions, and the validated reference prototypes), see
 [docs/research/ALGORITHMS.md](docs/research/ALGORITHMS.md) and
 [docs/research/ref/](docs/research/ref/). For how the register targets were
 measured, including what the corpus turned out not to support, see
@@ -734,7 +735,7 @@ binaries are not on the registry yet.
 
 A push whose version is already tagged is a no-op that still reports green, so
 ordinary commits neither fail the workflow nor publish duplicates. Nothing is
-tagged by hand — tagging is the pipeline's job, because a step a human has to
+tagged by hand. Tagging is the pipeline's job, because a step a human has to
 remember is a step that gets forgotten.
 
 ## Development
@@ -749,8 +750,8 @@ Two invariants are worth knowing before changing anything. A **sealed holdout
 split** is verified by CI and must never be read; all tuning uses the train
 split. And the register feature extractor is pinned against a **reference
 parity fixture** that carries both the reference parse and the counts derived
-from it, so a failure tells you whether the counting or the parsing broke —
-without that separation, a miscounted feature is invisible in the output.
+from it, so a failure tells you whether the counting or the parsing broke.
+Without that separation, a miscounted feature is invisible in the output.
 
 ## License
 
