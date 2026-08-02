@@ -18,11 +18,11 @@ a new kind of machinery. The literature validates exactly this shape: every
 mature rule-based rewriting system inserts connectives **only from a closed
 list, chosen deterministically by the discourse relation being preserved**
 (Siddharthan 2003/2006; DisSim, Niklaus et al. ACL 2019; DiscoFuse, Geva et
-al. NAACL 2019 — its published connective inventory is ~50 entries,
+al. NAACL 2019: its published connective inventory is ~50 entries,
 partitioned by syntactic role, composable only in pre-approved combinations).
 
 A realistic ceiling to plan around: the best deterministic systems top out at
-82–86% human-judged correctness overall — but with sharply better numbers for
+82–86% human-judged correctness overall, but with sharply better numbers for
 specific construct classes (DisSim: **99.1% on coordinate-clause splits**).
 The design consequence: adopt per-construct operations in descending safety
 order, never a general rewriter.
@@ -83,10 +83,10 @@ but both component operations do, with published safety conditions:
 
 ## 3. Contrast-frame foil deletion (friction would be first)
 
-The full repair — "is X just A, or B?" → "B?" / "It's not just X — it's Y."
+The full repair: "is X just A, or B?" → "B?" / "It's not just X — it's Y."
 → "It's Y." — is deletion-only (no synthesis) but drops the rhetorical foil,
 which names the rejected alternative. Boggia's paper confirms no published
-deterministic repair exists; all known mitigations are training-time
+deterministic repair exists. All known mitigations are training-time
 (fine-tuning, steering, prompting). Proposed path: ship as Suggest-tier
 finding first (the 0.82-on-machine-text detector), gather fixture evidence on
 which epanorthosis subtypes lose real content when the foil is deleted
@@ -103,7 +103,7 @@ mechanism (Frantzi & Ananiadou's C-value; Ahmad's weirdness ratio), and
 web-scale attestation licensing already runs at production precision
 elsewhere (real-word spell correction over Google Web 1T: ~99% on non-word,
 ~70% on context errors). No one has packaged it as an LLM pseudo-jargon
-flagger — the hallucination literature covers citations, not vocabulary.
+flagger. The hallucination literature covers citations, not vocabulary.
 
 Design (detection-only, Suggest tier, no auto-fix — there is no deterministic
 true replacement for an invented term):

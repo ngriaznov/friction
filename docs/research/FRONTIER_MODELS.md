@@ -1,6 +1,6 @@
 # Making friction work on frontier-model text (Sonnet/Opus/GPT-5 class)
 
-Research notes, 2026-07-26. No implementation — this documents why the current
+Research notes, 2026-07-26. No implementation: this documents why the current
 engine underperforms on frontier-model output, what that output actually looks
 like, and the corpus/mining options for closing the gap. The fixer constraint is
 treated as first-class throughout: friction rewrites, so every candidate pattern
@@ -171,7 +171,7 @@ Mapping frontier tics onto the five existing operations:
   fixture evidence.
 
 **Flag-only (Suggest tier / `check` report, no deterministic fix):**
-- Tricolon fragments (rewrite requires synthesis — banned by the closure rule).
+- Tricolon fragments (rewrite requires synthesis, banned by the closure rule).
 - Low burstiness / uniform sentence length (document-level; no local edit).
 - Structural markdown bloat (bold-lead-in bullets, header shape) — detectable
   cheaply from the existing block tree, but the fix is a rewrite-to-prose,
@@ -180,7 +180,7 @@ Mapping frontier tics onto the five existing operations:
 ## 5. Recommended sequence (when development resumes)
 
 1. **Frontier DMS index** — generate Claude/GPT corpora on the existing genre
-   battery, `corpus-tool index` with new families. Highest leverage, zero new
+   battery, `corpus-tool index` with new families. Highest use, zero new
    code, single-digit-dollar token cost. Immediately un-blinds `friction check
    --family claude`.
 2. **Re-mine** (`mine`, `mine-inventory`) frontier-vs-human; curate new
@@ -261,7 +261,7 @@ Findings, in order of confidence:
 - WikiProject AI Cleanup guide —
   https://en.wikipedia.org/wiki/Wikipedia:WikiProject_AI_Cleanup/Guide
 - stop-slop — https://github.com/hardikpandya/stop-slop
-- RAID benchmark — https://arxiv.org/abs/2405.07940 ; MAGE (Li et al.) —
+- RAID benchmark: https://arxiv.org/abs/2405.07940 ; MAGE (Li et al.) —
   https://arxiv.org/abs/2305.13242 ; M4 — https://arxiv.org/abs/2305.14902 ;
   M4GT-Bench — https://arxiv.org/abs/2402.11175
 - Prompted detector-evasion trade-off —

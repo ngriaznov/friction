@@ -1,6 +1,6 @@
 # friction v4.1 — algorithm reference
 
-Companion to the build spec. The spec says what and why; this file says exactly how.
+Companion to the build spec. The spec says what and why. This file says exactly how.
 Every procedure here is transcribed from the prototype that validated it (July 2026
 session, friction corpus). The reference scripts in `ref/` are those prototypes,
 runnable against the repo corpus. Where the prototype and production must differ,
@@ -21,7 +21,7 @@ engine must not. Every operation below identifies a token index range; translate
 it through the finditer span table into a byte range on the original source and
 emit a `Patch { range, replacement }`. Whitespace between retained tokens is
 preserved by construction because deletions and substitutions splice at token
-boundaries; the only synthesized whitespace is the single space around a
+boundaries. The only synthesized whitespace is the single space around a
 substituted or pivoted token.
 
 Coarse POS tag: full Penn tag from the tagger, truncated to its first two
@@ -99,7 +99,7 @@ N-gram ratio mining between machine corpus M and human corpus H, n = 2..4:
 Constraints that matter (both were validated the hard way): restrict to n-grams
 whose every token has human-corpus frequency >= 25 (drops topic vocabulary;
 without it the top hits are content like "handheld transceiver"), and prefer
-n >= 3 (higher-order phrases are genuinely stylistic). Minimum machine count
+n >= 3 (higher-order phrases are stylistic). Minimum machine count
 8/5/4 for n = 2/3/4. POS-skeleton mining (content nouns abstracted to slots)
 generalizes across topics; block-position-conditioned mining (what appears in
 the first block after H1, etc.) yields the ritual and preview frames.
@@ -135,7 +135,7 @@ where `bigram` is the human-corpus bigram table with `<s>` sentence-start
 tokens, AND the skeleton gate passes, AND the clause gate passes. No bridge of
 any kind: if plain deletion fails the gates, the span is KEPT and reported.
 (Bridge insertion was tried in three vocabulary regimes and failed in all
-three; the failures are fixtures.)
+three. The failures are fixtures.)
 
 ### 4.3 Paired substitution
 

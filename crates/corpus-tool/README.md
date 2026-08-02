@@ -231,7 +231,7 @@ at all.
 **IDs and seeds.** A job's seed is `base_seed` plus a stable
 hash of `(model, prompt_id, slice)`; its doc id is the first 16 hex
 characters of `sha256(model + prompt_id + seed + temperature)`. Both are
-pure functions of the job's own fields — no ambient RNG, no clock. This
+pure functions of the job's own fields: no ambient RNG, no clock. This
 also makes reruns incremental: a job whose doc id is already in
 the manifest is skipped without another Ollama call, so `generate` can be
 re-run end-to-end (e.g. after pulling another model) and only fills in

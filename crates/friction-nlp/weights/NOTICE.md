@@ -97,7 +97,7 @@ produces bit-identical `.bin` bytes (pinned by `friction-nlp`'s own
 artifact** (spaCy-drafted, 11x the token volume, a closed punctuation
 tagset). The first generation (nlprule-drafted, hand-curated, ~20K tokens)
 is described in this repository's git history rather than kept here
-alongside a scheme it no longer matches; the "Honest limits" section below
+alongside a scheme it no longer matches. The "Honest limits" section below
 still applies the same discipline of surfacing real numbers rather than a
 tuned target.
 
@@ -286,7 +286,7 @@ leave a fifth of the available signal on the table.
      must-have", "his last will", "the might of the empire"), so a blind
      lexeme override risks introducing exactly the class of error this pass
      exists to prevent; spaCy's own context-sensitive tagging is trusted
-     instead. `her` is excluded too (genuinely ambiguous `PRP`/`PRP$` by
+     instead. `her` is excluded too (ambiguous `PRP`/`PRP$` by
      context: "I see her" vs "her book"); `his` is kept despite the same
      surface shape, since English has no morphologically distinct absolute
      form for it the way it does for "hers".
@@ -316,8 +316,7 @@ blank line = sentence break) and adds exactly one new line per sentence: a
 sentence's tokens. This is additive, not a breaking format change:
 `parse_gold_file` already skips any line with no tab character without
 disturbing sentence boundaries (a comment line matches that exactly), so
-an unmodified reader recovers the identical sentences it always did, simply
-never seeing the marker. `parse_gold_file_split` is the new,
+an unmodified reader recovers the identical sentences it always did, never seeing the marker. `parse_gold_file_split` is the new,
 split-aware reader `examples/train_perceptron.rs` (train-split only) and
 `examples/eval_perceptron.rs` (test-split only) actually use — see
 `src/tag_perceptron.rs`'s `train_support` module.
@@ -424,7 +423,7 @@ parser's own weight artifact. Unlike `gold_pos_en.tsv` above, this file is
 **silver data**: it is spaCy's own parse of friction's own sentences, run
 once offline and mechanically corrected on a small, well-defined set of
 closed-class facts. No sentence in it was hand-annotated token by token,
-and no claim to the contrary should be read into it — see "Honest limits"
+and no claim to the contrary should be read into it. See "Honest limits"
 below.
 
 ## Source documents
@@ -496,7 +495,7 @@ genre mix exactly.
      judgement to inherit for it.
 
    Both directions are the same operation facing opposite ways, so both
-   are unconditional now; only genuinely irreconcilable spans are
+   are unconditional now; only irreconcilable spans are
    dropped, and a sentence where spaCy parsed more than one root (it
    decided the text was more than one sentence, where friction already
    segmented it as one) is dropped the same way.
@@ -533,7 +532,7 @@ genre mix exactly.
    unpredictably — IP-and-port-shaped strings, version numbers with
    several dots, `$PWD/../openssl/build/lib/pkgconfig`-style paths); 29
    are the mirror case for merging. None of these were special-cased
-   further; they are the genuinely irreconcilable remainder, not a gap
+   further; they are the irreconcilable remainder, not a gap
    left on purpose.
 4. **Bias check, twice.** Before projection or the merge generalization
    existed, sentences dropped for misalignment were checked against
@@ -593,7 +592,7 @@ genre mix exactly.
    error the correction was faithfully propagating: in "This endpoints
    sends Alt-Svc header field to clients if it is", friction's own
    tagger assigns `sends` the tag `MD` (modal) instead of `VBZ` — `sends`
-   is not a modal by any reading, this is simply a tagger mistake on an
+   is not a modal by any reading, this is a tagger mistake on an
    unusual sentence. The guard fixes the *symptom* (a root cannot bear
    `aux` regardless of why the correction fired), not the underlying
    tag; the same tagger error would still silently corrupt this token's
@@ -706,14 +705,14 @@ before revisiting the consumer.
 Separately: the alignment step is a source of measured, directional
 sampling bias (step 4, "Bias check, twice"), not just an efficiency
 loss. It under-represents exactly the sentence shapes technical
-documentation is made of — ones naming products, versions, and
+documentation is made of: ones naming products, versions, and
 code-adjacent identifiers. Generalizing the merge direction closed most
 of the letter+digit-boundary share of that gap; the identifier-shaped
 share (paths, version strings, command invocations — mid-token `/`,
 `::`, `.`, `_`) is essentially unchanged as a ratio, because what remains
 undropped needs actual internal parsing, not token-count reconciliation.
 A user of this file who cares about parser behavior on identifier-heavy
-prose specifically should weight that limitation accordingly, not treat
+prose specifically should weight that limitation, not treat
 the 96.28% headline figure as evenly distributed across sentence types.
 
 ## License

@@ -15,7 +15,7 @@ For the coding agent implementing the friction rewrite. Read in this order:
    ref_engine.py (combined pipeline). Run against the repo corpus:
    `python3 ref/ref_dms.py /path/to/friction/corpus`. They are string-level
    references; production emits byte-span patches.
-5. samples/ — chatspeak.md and good_docs.md, the rank-fixture documents.
+5. samples/: chatspeak.md and good_docs.md, the rank-fixture documents.
 
 The one sentence that governs everything: friction deletes, substitutes from a
 mined inventory, or derivationally pivots words already in the text; it never

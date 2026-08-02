@@ -115,7 +115,7 @@ is exactly where small n hurts most.
 
 Bootstrap, 2000 resamples, seeded. Ten (genre, feature) pairs have a 95% CI
 spanning ≥2× the point estimate. **None of the three surviving homing
-features appears among them** — all have CI spans under 2× in every genre.
+features appears among them**: all have CI spans under 2× in every genre.
 
 The flagged features are sparse lexical counts: `downtoners` (flagged in 4 of
 5 genres), `first_person`, `hedges`, `demon_sent_initial`, and `that_subj`
@@ -204,14 +204,14 @@ second is fatal to that specific formula.
 **The distribution is not χ².** Human D² over docs+readme (n = 115): min
 0.107, median 1.974, 90th percentile 5.062, max 13.389, against χ²(3)'s
 median 2.366 and 90th percentile 6.251. KS test versus χ²(3): D = 0.173,
-**p = 0.0018 — reject**. Docs-only alone also rejects (D = 0.210, p = 0.0099).
+**p = 0.0018: reject**. Docs-only alone also rejects (D = 0.210, p = 0.0099).
 The empirical distribution sits below the χ²(3) curve through most of its
 range, so χ²-derived thresholds systematically over-admit: at nominal
 q = 0.50, 60% of human documents fall inside, not 50%.
 
 **The median is untenable with the module on by default.** Even reading the
 nominal quantile generously, a median shell edits roughly 40% of genuine human
-technical documentation — 45.6% of README-genre documents specifically.
+technical documentation, 45.6% of README-genre documents specifically.
 
 Empirical-quantile thresholds, taken from the human D² sample directly:
 
@@ -238,7 +238,7 @@ not be described as the latter.
 **Open, and not measurable until the transducers exist:** how many edits a
 false-positive human document actually receives. A document just outside the
 shell needs few edits to get inside, so a 10.4% false-positive *rate* may
-still carry a small false-positive *magnitude* — which is what the near-no-op
+still carry a small false-positive *magnitude*. Which is what the near-no-op
 guarantee is actually stated in (edits per 1000 words, not documents
 touched). This must be measured against the existing calibration before the
 module ships on by default.
@@ -277,7 +277,7 @@ machine `agentless_passive` median sits *below* the human 10th percentile, so
 27 of 46 documents need the passive transducer.
 
 The value concentrates almost entirely in the one transducer that fires
-*upward* — which is also the feature with the strongest cross-model evidence,
+*upward*. Which is also the feature with the strongest cross-model evidence,
 under-used by all six models and most sharply in this genre. That is a
 coherent outcome rather than a lucky one: an under-use tell is exactly what a
 purely subtractive engine cannot address, and it is the reason this module
