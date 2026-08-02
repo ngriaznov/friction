@@ -65,7 +65,7 @@ pub enum BlockKind {
     /// A single list item within a [`BlockKind::List`].
     ListItem,
     /// A GFM table. The table's own structure (rows, cell boundaries) is
-    /// excluded from prose extraction; cell text is prose.
+    /// excluded from prose extraction. Cell text is prose.
     Table,
     /// A single row within a [`BlockKind::Table`].
     TableRow,

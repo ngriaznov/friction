@@ -16,7 +16,7 @@ fn args(corpus_dir: &std::path::Path, pack: std::path::PathBuf) -> Args {
 /// A tiny hermetic corpus: two train-split human docs, one train-split
 /// `qwen` doc, one `dev`-split doc (must be excluded), and one
 /// `holdout`-split doc (must be excluded, and its lock file must never be
-/// touched — see the test below).
+/// touched. See the test below).
 fn build_mini_corpus(dir: &std::path::Path) {
     let human_words = common::filler_words(60);
     let llm_words = "the system performs an initialization of the database quickly";
@@ -88,8 +88,8 @@ fn index_never_touches_holdout_lock() {
 }
 
 /// Running `index` twice against the same corpus directory produces
-/// byte-identical pack output — the strongest test of the fixed-
-/// traversal-order determinism design.
+/// byte-identical pack output, the strongest test of the
+/// fixed-traversal-order determinism design.
 #[test]
 fn index_is_deterministic_across_reruns() {
     let dir = tempfile::tempdir().unwrap();

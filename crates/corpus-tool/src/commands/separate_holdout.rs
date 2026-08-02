@@ -4,7 +4,7 @@
 //! holdout-check`), comparing three groups of documents per genre:
 //!
 //! - **human-holdout**: untouched human prose.
-//! - **llm-holdout**: untouched LLM prose — the baseline.
+//! - **llm-holdout**: untouched LLM prose: the baseline.
 //! - **fixed-llm-holdout**: the same LLM-holdout documents after being run
 //!   through `friction fix --genre <genre>`, using the release binary at
 //!   `--friction-bin` as a subprocess (never this crate's own copy of the
@@ -58,7 +58,7 @@ pub struct Args {
     pub envelope: PathBuf,
     /// Path to the release `friction` binary. Invoked as `<bin> fix
     /// <path> --genre <genre>`, one subprocess per llm-holdout doc, to
-    /// produce that doc's fixed text — the exact shipped artifact, never
+    /// produce that doc's fixed text: the exact shipped artifact, never
     /// this tool's own in-process copy of the fix engine.
     #[arg(long, default_value = "target/release/friction")]
     pub friction_bin: PathBuf,

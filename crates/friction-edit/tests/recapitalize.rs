@@ -13,7 +13,7 @@ fn engine() -> Engine {
 
 /// A document whose only lowercase sentence openers are deliberate
 /// (`mimalloc`, shown lowercase mid-sentence too) and which contains
-/// nothing else the engine would edit must round-trip byte-identically —
+/// nothing else the engine would edit must round-trip byte-identically,
 /// no recapitalization-only patches.
 #[test]
 fn untouched_lowercase_opener_passes_through_byte_identical() {

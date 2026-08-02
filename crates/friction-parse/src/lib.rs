@@ -110,7 +110,7 @@ pub fn parse(source: impl Into<Arc<str>>) -> Result<Document, ParseError> {
 /// # Errors
 /// Exactly [`parse`]'s: [`ParseError::Core`] on a span-honesty
 /// violation, [`ParseError::UnderlyingParserPanicked`] if
-/// `pulldown-cmark` panics (markdown only — the HTML extractor is this
+/// `pulldown-cmark` panics (markdown only: the HTML extractor is this
 /// crate's own single-pass tokenizer and has no panicking dependency to
 /// guard).
 pub fn parse_with(source: impl Into<Arc<str>>, syntax: Syntax) -> Result<Document, ParseError> {

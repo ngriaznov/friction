@@ -2,7 +2,7 @@
 //!
 //! Fixed order: ritual, paired substitution, derivational pivot (loop,
 //! max 2), gated span deletion, frame-gated `just`-deletion, frame
-//! rewriting — followed by a final recapitalization pass. Frame-rule
+//! rewriting: followed by a final recapitalization pass. Frame-rule
 //! *guards* constrain the frame channel itself (no frame rewrite may
 //! touch a guarded span, and a guarded sentence is never
 //! ritual-deleted whole); report-only frame rules emit their findings
@@ -117,7 +117,7 @@ pub struct SentencePosition {
     pub sole_content_of_ordered_list_item: bool,
 }
 
-/// The packs and tools every stage of [`edit_sentence`] shares —
+/// The packs and tools every stage of [`edit_sentence`] shares:
 /// bundled to keep its parameter count reasonable.
 pub struct EditContext<'a> {
     pub inventory: &'a InventoryPack,
@@ -129,15 +129,15 @@ pub struct EditContext<'a> {
 }
 
 /// Document-local evidence that a word's lowercase spelling is the
-/// author's deliberate choice, not a missing capital — collected from
+/// author's deliberate choice, not a missing capital, collected from
 /// every in-scope sentence's untouched text before any edit.
 ///
 /// The recapitalization guard consults it for a sentence whose own
 /// original lowercase opener survived editing: recurring lowercase
 /// mid-sentence, or opening ≥2 sentences lowercase, marks it deliberate
 /// (e.g. `mimalloc`) and holds the opener. A deletion-exposed opener
-/// skips this check — every ordinary word occurs lowercase somewhere,
-/// so it carries no authorial intent.
+/// skips this check: every ordinary word occurs lowercase somewhere, so
+/// it carries no authorial intent.
 #[derive(Debug, Default)]
 pub struct DocumentCasing {
     /// Words seen with a lowercase first letter anywhere but a genuine
@@ -308,7 +308,7 @@ impl GenerationKey {
 }
 
 /// One cached [`Patch`], in coordinates relative to its own sentence's
-/// start — rebased to the sentence's actual position on every use,
+/// start: rebased to the sentence's actual position on every use,
 /// including a cache hit from a different pass. Always `0..=len` (never
 /// negative, never past the sentence's own end): [`SentenceSplicer`]
 /// guarantees every one of these came from a `working_range` inside the
@@ -336,7 +336,7 @@ pub(crate) struct GeneratedHeld {
 /// in a form indexed by [`GenerationKey`] and safe to replay against a
 /// different sentence position (a cache hit is byte-identical to a fresh
 /// [`generate_sentence`] call only because [`GenerationKey`] already pins
-/// every input that could change the outcome — see its own docs).
+/// every input that could change the outcome. See its own docs).
 pub(crate) enum GeneratedOutcome {
     /// [`try_ritual_deletion`] fired: the sentence (plus, in general, part
     /// of its surrounding gap) is deleted whole. `rel_start` can be
@@ -373,7 +373,7 @@ impl GeneratedOutcome {
         if outcome.whole_sentence_deleted {
             // `try_ritual_deletion` returns exactly one patch and an
             // always-empty `held` (nothing is ever pushed to it before
-            // the early return — see that function's own docs).
+            // the early return. See that function's own docs).
             let patch = &outcome.patches[0];
             #[allow(clippy::cast_possible_wrap)]
             return Self::RitualDeleted {
@@ -651,7 +651,7 @@ fn generate_sentence(
 
     if let Some(outcome) = try_ritual_deletion(source, position, ctx, &mut held) {
         // A whole-sentence ritual deletion erases everything in the
-        // sentence — a guarded span included, which no evidence
+        // sentence: a guarded span included, which no evidence
         // licensed. Hold it instead when one exists.
         if !has_guarded_span {
             return outcome;
@@ -698,14 +698,14 @@ fn generate_sentence(
 }
 
 /// Operation 1 (ritual deletion). Returns `Some` (whole-sentence
-/// deletion) if a ritual frame matched with no hold, `None` otherwise —
+/// deletion) if a ritual frame matched with no hold, `None` otherwise:
 /// pushing a Suggest-tier hold when a frame matched but couldn't be
 /// acted on.
 ///
 /// Unconditional on an actionable match, mirroring `fix_sentence`'s
 /// ritual step: no discourse-binding check on the following sentence. (A
-/// block-level ritual — a whole preview paragraph gated on
-/// adjacent-structure coverage — is separate and unimplemented here, not
+/// block-level ritual, a whole preview paragraph gated on
+/// adjacent-structure coverage, is separate and unimplemented here, not
 /// license to hold an ordinary sentence-level match.) Two holds apply:
 /// - a frame matching only inside a double-quoted span is a mention, not
 ///   a use, of a ritual phrase ([`gates::in_quoted_span`]);
@@ -1049,7 +1049,7 @@ fn frame_kind(view: &FramePackView<'_>, m: &FrameMatch) -> CompiledKind {
 }
 
 /// Operation 6 (frame rewriting): applies the compiled frame-rule
-/// program — rewrites and deletions with corpus-adjudicated evidence —
+/// program, rewrites and deletions with corpus-adjudicated evidence,
 /// to the working text, after every other operation has had its turn.
 ///
 /// Each resolved candidate runs the full existing gate stack before it
@@ -1059,7 +1059,7 @@ fn frame_kind(view: &FramePackView<'_>, m: &FrameMatch) -> CompiledKind {
 /// instead of an excision. A gate failure demotes the candidate to a
 /// Suggest-tier finding naming the gate. Candidates are applied
 /// rightmost-first so earlier (left) working-text coordinates stay
-/// valid as the chunk chain reshapes; the splicer itself declines any
+/// valid as the chunk chain reshapes. The splicer itself declines any
 /// candidate overlapping a guard span.
 fn run_frame_rewrite(
     splicer: &mut SentenceSplicer<'_>,
@@ -1073,7 +1073,7 @@ fn run_frame_rewrite(
     let working = splicer.working_text();
     // Tagging and scanning are the expensive parts, and an unedited
     // sentence is byte-identical to the original the guard phase
-    // already tagged and scanned — reuse both; only an edited sentence
+    // already tagged and scanned. Reuse both. Only an edited sentence
     // pays for a fresh tag and scan.
     let owned_tags;
     let owned_matches;
@@ -1178,8 +1178,8 @@ fn apply_frame_candidate(
             // A bare verb+slot pattern encodes a TRANSITIVE
             // substitution ("utilize X" -> "use X"); when the slot
             // opens with a preposition or particle the sentence is
-            // a different construction — literal motion, a phrasal
-            // verb — whose direction the corpus never adjudicated
+            // a different construction (literal motion, a phrasal
+            // verb) whose direction the corpus never adjudicated
             // ("Navigate to the backups directory" must not become
             // "Handle to ..."). Held, not rejected: the evidence
             // still flags the verb itself.
@@ -1246,7 +1246,7 @@ fn apply_frame_candidate(
 }
 
 /// Whether `rule` is a bare verb+slot pattern whose matched slot opens
-/// with a preposition or particle (`IN`/`TO`/`RP`) — the transitive
+/// with a preposition or particle (`IN`/`TO`/`RP`): the transitive
 /// substitution the rule encodes does not cover that construction.
 fn bare_verb_slot_over_preposition(
     rule: &friction_packs::frame_bin::RuleView<'_>,
@@ -1371,8 +1371,8 @@ fn frame_element_to_op(pattern_ops: &[(PatOp, bool)], element: u8) -> Option<usi
 /// Slot copies re-emit the captured working-text bytes verbatim;
 /// inflected realizations go through [`friction_nlp::inflect`], with
 /// the bare lemma as the fallback when no inflection applies. Returns
-/// `None` when a copy references something the match did not capture —
-/// the candidate is then held rather than spliced half-formed.
+/// `None` when a copy references something the match did not capture.
+/// The candidate is then held rather than spliced half-formed.
 fn realize_template(
     view: &FramePackView<'_>,
     rule: &friction_packs::frame_bin::RuleView<'_>,

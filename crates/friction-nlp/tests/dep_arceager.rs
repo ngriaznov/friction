@@ -122,8 +122,8 @@ fn derive_round_trips_a_right_branching_chain() {
 #[test]
 fn derive_round_trips_left_dependents_of_the_root() {
     // "The old team shipped ." (without the trailing period, to keep this
-    // fixture to exactly the dependents under test) — shipped(3) is root;
-    // team(2) is its left (subject) dependent; The(0)/old(1) are in turn
+    // fixture to exactly the dependents under test): shipped(3) is root.
+    // Team(2) is its left (subject) dependent; The(0)/old(1) are in turn
     // team's own left dependents.
     let gold = gold(&[
         (Some(2), DepRelation::Det),

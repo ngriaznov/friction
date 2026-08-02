@@ -27,7 +27,7 @@ use friction_nlp::{DepParser, DepRelation, PerceptronParser, PosTag, TaggedToken
 /// epochs (numbers recorded in `NOTICE.md`, not re-derived here):
 /// full-sentence train-set match rises from 15 (65.3%) through 40 (92.9%)
 /// to 60 (97.1%) epochs, but test UAS/LAS *peaks* at 40 (76.74%/73.11%)
-/// and is already slightly *worse* at 60 (76.42%/72.81%) — the textbook
+/// and is already slightly *worse* at 60 (76.42%/72.81%): the textbook
 /// overfitting signature (train score still climbing, held-out score
 /// turning over). Kept as a fixed cap rather than a stopping rule that
 /// watches the test split during training, which would make the test
@@ -287,7 +287,7 @@ fn main() {
     check_derivability(&sentences);
 
     // Training only ever sees train-split sentences whose gold tree is
-    // actually derivable — see dep_perceptron's module docs for why a
+    // actually derivable. See dep_perceptron's module docs for why a
     // non-derivable sentence has to be dropped rather than trained on.
     let train: Vec<&GoldSentence> = sentences
         .iter()

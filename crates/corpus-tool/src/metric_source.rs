@@ -25,11 +25,11 @@ pub trait MetricSource {
 
 /// The [`MetricSource`] `envelope` and `separate` use by default.
 ///
-/// Computes [`friction_metrics::compute`] over the real segmentation/
-/// tagging pipeline (`friction-nlp`'s [`SrxSegmenter`] and
+/// Computes [`friction_metrics::compute`] over the real
+/// segmentation/tagging pipeline (`friction-nlp`'s [`SrxSegmenter`] and
 /// [`PerceptronTagger`]). Holds its [`PerceptronTagger`] (which loads the
 /// embedded English model) so that cost is paid once per corpus-scale run
-/// — [`FrictionMetricsSource::new`] — rather than once per document.
+/// ([`FrictionMetricsSource::new`]) rather than once per document.
 pub struct FrictionMetricsSource {
     segmenter: SrxSegmenter,
     tagger: PerceptronTagger,

@@ -8,7 +8,7 @@
 //! # Span honesty by construction, not by translation
 //!
 //! Every regex/automaton match this crate makes runs directly against the
-//! *original* source bytes of a prose region — never against a cleaned or
+//! *original* source bytes of a prose region, never against a cleaned or
 //! rewritten copy. Case-folding and curly-quote handling are done via
 //! case-insensitive matching and widened character classes at match time
 //! (see [`token::tokenize_str`], [`literal::LiteralAutomaton`]), not via a
@@ -21,11 +21,11 @@
 //! nothing in this crate depends on it at build time. This crate's own
 //! [`token`] module owns a tiny span-carrying tokenizer instead, pinned to
 //! `clean::tokenize`'s token-boundary convention by a dev-dependency
-//! equivalence test (`tests/token_convention.rs`), not by shared code —
-//! the two tokenizers solve the same boundary problem over different
-//! inputs (pre-lowercased whole-file text vs. raw, mixed-case,
-//! per-prose-block text), so sharing the regex object would be cosmetic,
-//! not real deduplication.
+//! equivalence test (`tests/token_convention.rs`), not by shared code: the
+//! two tokenizers solve the same boundary problem over different inputs
+//! (pre-lowercased whole-file text vs. raw, mixed-case, per-prose-block
+//! text), so sharing the regex object would be cosmetic, not real
+//! deduplication.
 //!
 //! # Prose-blocks-only, enforced exactly once
 //!
@@ -85,7 +85,7 @@ use crate::token::ScopedUnit;
 /// Built once (compiles the literal automaton once) and reused across
 /// every document scanned against the same pack/family/tagger/segmenter.
 ///
-/// This crate only detects and reports spans with frame ids — it never
+/// This crate only detects and reports spans with frame ids: it never
 /// rewrites text. A repair layer built on top of this crate's output is a
 /// separate concern.
 pub struct MatchEngine<'a> {
@@ -103,7 +103,7 @@ pub struct MatchEngine<'a> {
 impl<'a> MatchEngine<'a> {
     /// Builds an engine bound to `inventory`, `dms`, `jargon`,
     /// `jargon_attest`, `human_evidence`, `target_family`, `tagger`, and
-    /// `segmenter` for its whole lifetime — the literal automaton is
+    /// `segmenter` for its whole lifetime: the literal automaton is
     /// compiled exactly once here. `target_family` is validated against
     /// `dms` and stored on [`DocumentReport::dms`]'s
     /// [`span::DmsReport::target_family`] field, but no longer selects
@@ -115,7 +115,7 @@ impl<'a> MatchEngine<'a> {
     /// [`MatchError::FamilyNotInPack`] if `dms` has no stream for
     /// `target_family`; [`MatchError::Automaton`] if the inventory's
     /// literal-eligible patterns fail to compile (should not happen for
-    /// the embedded pack — covered by this crate's own tests).
+    /// the embedded pack, covered by this crate's own tests).
     #[allow(
         clippy::too_many_arguments,
         reason = "one parameter per embedded pack the engine is bound to; a builder would only rename the same eight bindings"
@@ -273,7 +273,7 @@ pub fn dms_spans_pooled(units: &[ScopedUnit<'_>], dms: &DmsIndexView<'_>) -> Vec
 ///
 /// `units` is already scoped by [`token::prose_scope`]; this scans `dms`'s
 /// per-family stream for `family` against the same pack's human baseline
-/// stream — a single-family, pre-pooling walk. `None` if `dms` has no
+/// stream: a single-family, pre-pooling walk. `None` if `dms` has no
 /// stream for `family` — a caller-supplied override pack may define fewer
 /// than [`ModelFamily::ALL`], and a caller checking every family already
 /// expects to skip the ones a given pack lacks rather than treat that as

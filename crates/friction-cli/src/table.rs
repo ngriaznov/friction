@@ -26,7 +26,7 @@ pub struct MetricTableRow<'a> {
 /// cell in each column (never fewer than its header's own width).
 ///
 /// A row with no band (`lo`/`hi`/`in_envelope` all `None`) prints `n/a`
-/// for both the band and status cells, rather than a blank — every cell
+/// for both the band and status cells, rather than a blank: every cell
 /// in the output is always non-empty.
 #[must_use]
 pub fn render_metric_table(rows: &[MetricTableRow<'_>]) -> String {

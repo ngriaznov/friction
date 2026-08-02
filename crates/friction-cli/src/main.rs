@@ -7,8 +7,8 @@
 //! per pass, instead of the fixed text).
 //!
 //! Every subcommand is offline and deterministic: no network access, no
-//! wall-clock timestamps, and no absolute filesystem paths in any output —
-//! see each subcommand's own module docs for its exact output contract.
+//! wall-clock timestamps, and no absolute filesystem paths in any output.
+//! See each subcommand's own module docs for its exact output contract.
 
 mod check;
 mod common;
@@ -22,7 +22,7 @@ mod table;
 use clap::{Parser, Subcommand};
 
 /// mimalloc as the global allocator: the fix pipeline is allocation-heavy
-/// (perceptron scratch, per-sentence strings — the malloc/free family
+/// (perceptron scratch, per-sentence strings: the malloc/free family
 /// measured ~10% of hot samples under glibc malloc), and mimalloc's
 /// small-allocation fast path buys a measured chunk of that back for one
 /// dependency line. Allocator choice cannot affect output bytes — nothing

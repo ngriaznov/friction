@@ -76,7 +76,7 @@ pub struct Args {
     /// Restrict generation to a single genre.
     #[arg(long)]
     pub genre: Option<String>,
-    /// Restrict generation to a single side (`stock` or `antislop`) —
+    /// Restrict generation to a single side (`stock` or `antislop`):
     /// lets one side top up alone without regenerating the other.
     #[arg(long)]
     pub side: Option<String>,
@@ -172,12 +172,12 @@ pub fn run(args: &Args) -> anyhow::Result<GeneratePairedOutcome> {
 /// Genres are walked in the frozen [`generate::ALL_GENRES`] order (or
 /// just the one requested by `genre_filter`). For each genre, the first
 /// `config.prompts_per_genre` prompts (already sorted ascending by id —
-/// see `crate::prompts::load`) are used; a genre with fewer prompts than
+/// see `crate::prompts::load`) are used. A genre with fewer prompts than
 /// that is a hard error, never a silent truncation, since the paired
-/// corpus's size guarantee depends on every genre contributing exactly
-/// N prompts. For each of those N prompts, one seed and one `pair_id`
-/// are derived (shared by both sides), and a stock job is emitted before
-/// an antislop job — a fixed order, so `--dry-run` output and
+/// corpus's size guarantee depends on every genre contributing exactly N
+/// prompts. For each of those N prompts, one seed and one `pair_id` are
+/// derived (shared by both sides), and a stock job is emitted before an
+/// antislop job — a fixed order, so `--dry-run` output and
 /// `outcome.planned` count side-jobs 1:1. `side_filter` restricts which
 /// of the two is emitted; `limit` truncates the flat side-job list
 /// afterward.
@@ -305,7 +305,7 @@ fn render_plan(plan: &[PlannedPairedJob]) -> String {
 /// manifest and jobs whose model isn't currently pulled (warn + skip,
 /// continue), fetches each needed model's digest once, generates, writes
 /// `corpus/paired/<side>/<genre>/<pair_id>.md`, and appends a manifest
-/// record per doc — incrementally, so a crash mid-run loses at most the
+/// record per doc: incrementally, so a crash mid-run loses at most the
 /// in-flight job.
 fn execute_paired_plan(
     args: &Args,
@@ -540,7 +540,7 @@ mod tests {
         );
     }
 
-    /// Seed and pair-id derivation are pure functions of their inputs —
+    /// Seed and pair-id derivation are pure functions of their inputs:
     /// same inputs, same outputs, every time.
     #[test]
     fn derive_paired_seed_is_deterministic() {
@@ -719,9 +719,9 @@ blog\tantislop\tantislop-model\tp002\t0.70\t874557933\t906c337b853c3018
     }
 
     /// `build_paired_record` records `reproducible: true` when a
-    /// same-config regeneration matches the first generation byte-for-
-    /// byte — the property the flag is supposed to certify, actually
-    /// checked rather than assumed.
+    /// same-config regeneration matches the first generation
+    /// byte-for-byte. The property the flag is supposed to certify,
+    /// actually checked rather than assumed.
     #[test]
     fn paired_record_marks_reproducible_true_when_outputs_match() {
         let record = build_paired_record(

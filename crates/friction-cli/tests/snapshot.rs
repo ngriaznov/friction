@@ -41,7 +41,7 @@
 //!
 //! `check --format text`'s diagnostics header and `check --format
 //! sarif`'s `artifactLocation.uri` both embed the input path verbatim
-//! (see `crate::common::display_path`) — never resolved to an absolute
+//! (see `crate::common::display_path`): never resolved to an absolute
 //! path. Running the binary with its working directory set to the
 //! workspace root and passing each document's already-relative
 //! `corpus/...` path keeps that embedded path identical regardless of
@@ -173,7 +173,7 @@ const SELECTED: &[SelectedDoc] = &[
 ];
 
 /// The workspace root, resolved once from this crate's own manifest
-/// directory (`crates/friction-cli`) two levels up — used only as the
+/// directory (`crates/friction-cli`) two levels up: used only as the
 /// spawned binary's working directory (see the module docs on why every
 /// command runs from here), never embedded in any snapshot itself.
 fn workspace_root() -> PathBuf {
@@ -258,7 +258,7 @@ fn check_text_no_color_snapshots() {
 }
 
 /// `explain` (default `--format text`), snapshotted for every selected
-/// document: which operations fired and which were held, per pass — never
+/// document: which operations fired and which were held, per pass, never
 /// the document text itself.
 #[test]
 fn explain_snapshots() {

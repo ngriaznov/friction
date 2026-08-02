@@ -1,6 +1,6 @@
 //! Trains the averaged-perceptron tagger's vendored weight artifact from a
 //! hand-curated gold-tag file, deterministically (fixed epoch count, fixed
-//! sentence order — no shuffling — trading a little convergence quality for
+//! sentence order, no shuffling, trading a little convergence quality for
 //! exact reproducibility).
 //!
 //! ```text

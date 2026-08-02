@@ -32,7 +32,7 @@ struct PromptFile {
 ///
 /// # Errors
 ///
-/// Returns a clear, contextual error — not a panic — if the file doesn't
+/// Returns a clear, contextual error, not a panic, if the file doesn't
 /// exist yet (prompt files may not be authored for every genre from day
 /// one) or fails to parse.
 pub fn load(prompts_dir: &Path, genre: Genre) -> anyhow::Result<Vec<Prompt>> {

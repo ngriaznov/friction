@@ -52,23 +52,23 @@
 //!
 //! A probe is a flattened word sequence: one `literal_probes` element can
 //! itself be a single multi-word quoted literal (e.g. `"is a testament
-//! to"`, kept as one string by the pattern lexer) or a run of
-//! single class-expanded words — flattening every probe on whitespace
-//! turns both shapes into one word per stream position before matching.
-//! Every probe across every rule is indexed once by its first word into a
-//! shared lookup table, so one left-to-right scan per sentence tests only
-//! the probes that could plausibly start at each position, never all of
-//! them. A probe's occurrences within one sentence are counted greedily,
-//! left to right, non-overlapping — the convention `str::matches` uses
-//! for a literal substring, generalized to a token sequence; matches
-//! never span two sentences because each sentence is scanned in
-//! isolation and per-probe match state is not carried between calls.
+//! to"`, kept as one string by the pattern lexer) or a run of single
+//! class-expanded words: flattening every probe on whitespace turns both
+//! shapes into one word per stream position before matching. Every probe
+//! across every rule is indexed once by its first word into a shared
+//! lookup table, so one left-to-right scan per sentence tests only the
+//! probes that could plausibly start at each position, never all of them.
+//! A probe's occurrences within one sentence are counted greedily, left
+//! to right, non-overlapping — the convention `str::matches` uses for a
+//! literal substring, generalized to a token sequence; matches never span
+//! two sentences because each sentence is scanned in isolation and
+//! per-probe match state is not carried between calls.
 //!
 //! # Split discipline
 //!
 //! TRAIN and DEV splits, both classes: the recorded verdicts were
 //! measured over roughly this token volume, and adjudication is an
-//! evidence census, not an evaluation — only the sealed HOLDOUT split
+//! evidence census, not an evaluation. Only the sealed HOLDOUT split
 //! stays untouched (it backs the near-no-op and holdout fixtures, which
 //! must never see tuning pressure from rule selection).
 
@@ -118,10 +118,10 @@ pub struct Args {
     /// the evidence supports: a quarantined/no-evidence/staged rule
     /// whose re-measured verdict is CONFIRMED (or guard-confirmed)
     /// moves into the matching compile-eligible bucket, with its
-    /// measured rates and verdict recorded. Promote-only — demotions
+    /// measured rates and verdict recorded. Promote-only: demotions
     /// stay the pack compiler's evidence fences, so a noisy
-    /// measurement can never silently eject a shipping rule.
-    /// **Re-run `corpus-tool frame-pack` afterwards.**
+    /// measurement can never silently eject a shipping rule. **Re-run
+    /// `corpus-tool frame-pack` afterwards.**
     #[arg(long)]
     pub regenerate: bool,
 }
@@ -242,7 +242,7 @@ const fn verdict_label(verdict: Verdict) -> &'static str {
 /// One rule's outcome after re-measurement.
 enum Measured {
     /// The pattern failed to parse, or extracted no literal content at
-    /// all — never scanned, never classified.
+    /// all: never scanned, never classified.
     Unprobeable,
     Evidence {
         verdict: Verdict,
@@ -961,7 +961,7 @@ pub fn run(args: &Args) -> anyhow::Result<()> {
 /// moves out here (the pack compiler's evidence fences demote at
 /// compile time instead, so measurement noise can never silently eject
 /// a shipping rule), and a staged rule moves only on the referee's own
-/// CONFIRMED bar — the same one the original buckets were built with.
+/// CONFIRMED bar. The same one the original buckets were built with.
 const fn promotion_target(bucket: Bucket, kind: RuleKind, verdict: Verdict) -> Option<Bucket> {
     let stays = matches!(
         bucket,
@@ -1043,7 +1043,7 @@ fn promotion_moves<'a>(
 
 /// Serializes the rule set back to the pack TOML with every promotion
 /// applied: promoted rules leave their evidence bucket, append to the
-/// end of their target bucket (stable — existing rows keep their
+/// end of their target bucket (stable: existing rows keep their
 /// order), and record their measured rates and verdict. Returns the
 /// TOML text and one human-readable line per promotion.
 fn regenerate_rule_set(
@@ -1271,7 +1271,7 @@ mod tests {
     #[test]
     fn scan_sentence_matches_on_either_lemma_or_surface() {
         // Probe "utilizing" is an inflected surface: the lemma stream
-        // holds "utilize" and cannot match it, the surface stream can —
+        // holds "utilize" and cannot match it, the surface stream can:
         // one occurrence, counted once, not twice.
         let probes = vec![probe(0, &["utilizing"]), probe(1, &["utilize"])];
         let index = build_index(&probes);

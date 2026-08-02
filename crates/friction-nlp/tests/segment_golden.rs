@@ -137,7 +137,7 @@ fn golden_set_segmentation_is_deterministic_across_runs() {
 }
 
 /// A non-zero `base_offset` shifts every range by exactly that amount,
-/// for the whole golden set at once — proving the offset is applied
+/// for the whole golden set at once: proving the offset is applied
 /// uniformly rather than only in the small hand-written unit tests.
 #[test]
 fn golden_set_respects_base_offset() {

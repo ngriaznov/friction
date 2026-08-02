@@ -64,10 +64,10 @@ pub const fn contains_range(outer: &Range<usize>, inner: &Range<usize>) -> bool 
 /// when they sit at the exact same offset — two insertions at the same
 /// point conflict (a rule must pick which comes first), but an insertion at
 /// the boundary immediately after a non-empty range does not overlap it.
-// Each arm intentionally checks whether a single point falls in a
-// half-open range (`x.start >= other.start && x.start < other.end`), not a
-// symmetric pairwise comparison of both ranges' starts and ends — clippy's
-// heuristic misreads that as a copy-paste bug.
+/// Each arm intentionally checks whether a single point falls in a
+/// half-open range (`x.start >= other.start && x.start < other.end`), not a
+/// symmetric pairwise comparison of both ranges' starts and ends, clippy's
+/// heuristic misreads that as a copy-paste bug.
 #[must_use]
 #[allow(clippy::suspicious_operation_groupings)]
 pub fn ranges_overlap(a: &Range<usize>, b: &Range<usize>) -> bool {

@@ -53,9 +53,9 @@ fn attest_respects_train_human_only_data_protocol() {
     let text = std::fs::read_to_string(&pack_path).unwrap();
 
     assert!(text.contains("train_human_doc_count = 2"));
-    // The llm doc's own distinctive word ("performs") never leaks in —
-    // the dev/holdout docs share h001's text, so they contribute no
-    // distinctive vocabulary of their own to check against; the doc-count
+    // The llm doc's own distinctive word ("performs") never leaks in. The
+    // dev/holdout docs share h001's text, so they contribute no
+    // distinctive vocabulary of their own to check against. The doc-count
     // assertion above is what actually proves they were excluded.
     assert!(!text.contains("\"performs\""));
     // h002 (train-split human) is legitimately included: its distinctive

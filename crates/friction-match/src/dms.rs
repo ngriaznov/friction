@@ -3,15 +3,15 @@
 //!
 //! The span-extraction algorithm and its scoring are specified in
 //! `docs/research/ALGORITHMS.md` §1.2-1.3. One difference from a naive
-//! whole-file walk: a raw byte stream has no prose/non-prose
-//! distinction, so a single automaton walk over it would never need to
-//! reset mid-document. Once non-prose tokens are dropped (this crate's
+//! whole-file walk: a raw byte stream has no prose/non-prose distinction,
+//! so a single automaton walk over it would never need to reset
+//! mid-document. Once non-prose tokens are dropped (this crate's
 //! prose-only guarantee), "the token stream" is no longer contiguous in
 //! the source, so [`scan_units`]/[`document_report`] reset the walk (state
-//! `v=0, l=0`) and run independently for each in-scope
-//! [`ScopedUnit`] — a span's left-extension or continuation run can never
-//! bridge across a heading/table gap into a byte range that slices
-//! through excluded content.
+//! `v=0, l=0`) and run independently for each in-scope [`ScopedUnit`]: a
+//! span's left-extension or continuation run can never bridge across a
+//! heading/table gap into a byte range that slices through excluded
+//! content.
 //!
 //! # One pooled machine automaton, not five per-family ones
 //!
@@ -49,7 +49,7 @@ use crate::token::ScopedUnit;
 /// automaton [`friction_packs::DmsIndex::pooled_machine_sam`] builds (see
 /// that method's own docs for why an unchanged threshold applied to a
 /// pooled max-over-families walk can only flag a superset of what any
-/// single family's walk flagged — the intended semantics this round).
+/// single family's walk flagged, the intended semantics this round).
 const MACHINE_FRAME_ID: &str = "dms.machine";
 
 /// The validated thresholds: a span starts where
@@ -60,7 +60,7 @@ const CONT_THRESH: i64 = 2;
 const MIN_LEN: usize = 2;
 
 /// One extracted run in TOKEN-INDEX space (unit-local), before byte
-/// translation — the raw algorithmic result, hand-verifiable against
+/// translation: the raw algorithmic result, hand-verifiable against
 /// the worked examples in this module's tests.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct DmsRun {
@@ -77,9 +77,9 @@ pub struct DmsRun {
 /// the CONTINUE region only, NOT including the left-extension prefix.
 /// Runs are returned sorted descending over `(score, left, end)`
 /// tuples, so ties break by `left` then `end`, descending.
-// `m`/`h`/`d`/`i`/`j` mirror the algorithm write-up's own variable
-// names (docs/research/ALGORITHMS.md §1.2) — kept identical so this
-// function stays hand-verifiable against its worked examples.
+/// `m`/`h`/`d`/`i`/`j` mirror the algorithm write-up's own variable
+/// names (docs/research/ALGORITHMS.md §1.2): kept identical so this
+/// function stays hand-verifiable against its worked examples.
 #[allow(clippy::many_single_char_names)]
 pub fn spans_from_curve(
     m: &[u32],

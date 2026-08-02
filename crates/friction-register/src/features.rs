@@ -742,7 +742,7 @@ mod semicolon_tests {
     }
 
     /// Nonzero is the common case in human technical prose, unlike
-    /// `em_dashes` -- this feature's band is genuinely nonzero (see
+    /// `em_dashes` -- this feature's band is nonzero (see
     /// `register-v1.toml`'s `[features.semicolon]`).
     #[test]
     fn semicolons_counts_ordinary_prose_usage() {

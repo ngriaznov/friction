@@ -3,10 +3,10 @@
 //! whole document or per paragraph.
 //!
 //! [`compute`] and [`compute_by_paragraph`] take a [`Document`] from
-//! `friction-parse::parse` (structure extracted, not yet sentence-
-//! segmented) plus a [`Segmenter`] and a [`Tagger`], and return a complete
-//! vector — callers never segment manually or track which field belongs to
-//! which family.
+//! `friction-parse::parse` (structure extracted, not yet
+//! sentence-segmented) plus a [`Segmenter`] and a [`Tagger`], and return a
+//! complete vector: callers never segment manually or track which field
+//! belongs to which family.
 
 use friction_core::{Block, Document, MetricVector, ProseUnit};
 use friction_nlp::{Segmenter, Tagger, segment_document};
@@ -57,7 +57,7 @@ pub fn compute(
 ///
 /// Each vector is [`compute_segmented`] run on a single-paragraph
 /// sub-document, so every family's document-wide definition also serves,
-/// unmodified, as its paragraph-scoped one — no separate per-paragraph
+/// unmodified, as its paragraph-scoped one, no separate per-paragraph
 /// implementation to keep in sync. `paragraph_shape_mean`/`_cv` degenerate
 /// accordingly: one paragraph-shape observation, so mean is that
 /// paragraph's sentence count and cv is `0.0` (the single-observation
@@ -191,7 +191,7 @@ mod tests {
         }
     }
 
-    /// `compute` reaches all twenty-one fields, wired to the right family —
+    /// `compute` reaches all twenty-one fields, wired to the right family:
     /// hand-computed against one single-sentence, single-paragraph document
     /// under the stub segmenter/tagger above.
     ///
@@ -263,7 +263,7 @@ mod tests {
         }
     }
 
-    /// One vector per non-empty paragraph, in source order — skips a
+    /// One vector per non-empty paragraph, in source order: skips a
     /// heading-only unit that segments to zero sentences.
     #[test]
     fn compute_by_paragraph_returns_one_vector_per_sentence_bearing_paragraph() {

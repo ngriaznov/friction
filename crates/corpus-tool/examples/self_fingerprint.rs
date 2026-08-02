@@ -30,14 +30,13 @@
 //!    from each n-gram's own before/after z-score, not a guess.
 //! 5. Quantifies a small set of *candidate* fixer-introduced tics named
 //!    up front, from what each rule's own source is documented to
-//!    produce: sentence-initial
-//!    "And"/"But"/"So" (`connective.surgery`'s swap strategy),
-//!    sentence-initial "This <verb>" (`symmetry.participial_closer`'s
-//!    promote strategy), and doubled spaces (a generic patch-splicing
-//!    hazard, not attributed to one rule) — each as a rate per 1000
-//!    tokens across all three corpora, plus the rule's own aggregate
-//!    patch count over the whole run (ground truth for whether it fired
-//!    at all).
+//!    produce: sentence-initial "And"/"But"/"So"
+//!    (`connective.surgery`'s swap strategy), sentence-initial "This
+//!    <verb>" (`symmetry.participial_closer`'s promote strategy), and
+//!    doubled spaces (a generic patch-splicing hazard, not attributed
+//!    to one rule): each as a rate per 1000 tokens across all three
+//!    corpora, plus the rule's own aggregate patch count over the whole
+//!    run (ground truth for whether it fired at all).
 //!
 //! Writes `corpus/FINGERPRINT.md` with every table above and an honest
 //! conclusion. Run with `cargo run --release --example self_fingerprint -p
@@ -77,7 +76,7 @@ use serde::Deserialize;
 const MIN_COUNT: u64 = 5;
 
 /// How many llm-favored n-grams to report, pooled across n=1,2,3 and
-/// re-sorted by z (not 30 *per order*) — the flat "top 30 n-grams" the
+/// re-sorted by z (not 30 *per order*): the flat "top 30 n-grams" the
 /// task asks for.
 const TOP_N: usize = 30;
 
@@ -187,8 +186,8 @@ struct Corpus {
     /// produces.
     this_closer_initial: u64,
     /// Occurrences of two consecutive ASCII spaces in prose text (overlapping
-    /// windows, so a run of 3 spaces counts as 2 — applied identically
-    /// across every corpus, so the comparison is still apples to apples).
+    /// windows, so a run of 3 spaces counts as 2: applied identically across
+    /// every corpus, so the comparison is still apples to apples).
     double_space: u64,
     ngram_counts: OrderedCounts,
 }
@@ -249,7 +248,7 @@ fn repo_root() -> PathBuf {
 
 /// Ensures `target/release/friction` exists, building it (`cargo build
 /// --release -p friction-cli`) if not, and returns its path. Always
-/// re-checked, never rebuilt unconditionally — a stale, already-fresh
+/// re-checked, never rebuilt unconditionally: a stale, already-fresh
 /// release binary from a previous run of this example is reused as-is.
 fn ensure_release_binary(repo_root: &Path) -> anyhow::Result<PathBuf> {
     let bin = repo_root.join("target/release/friction");
@@ -277,8 +276,8 @@ fn ensure_release_binary(repo_root: &Path) -> anyhow::Result<PathBuf> {
 /// `friction fix --format json`'s summary, read from stderr. Only
 /// `patches_by_rule` is used here; every other field in the real
 /// `FixSummary` (`friction-cli/src/fix.rs`, not itself a public type) is
-/// simply ignored by `serde_json` rather than mirrored, since this report
-/// never needs it.
+/// ignored by `serde_json` rather than mirrored, since this report never
+/// needs it.
 #[derive(Debug, Deserialize)]
 struct FixSummary {
     patches_by_rule: BTreeMap<String, usize>,
@@ -326,7 +325,7 @@ fn fix_via_release_cli(
 /// whitespace, by every [`friction_nlp::Segmenter`]'s contract) opens with
 /// the bare coordinator `connective.surgery`'s **swap** strategy produces:
 /// `"And "`, `"But "`, or `"So "`, capitalized, followed directly by a
-/// space (never a comma — see that rule's own module docs).
+/// space (never a comma: see that rule's own module docs).
 fn is_and_but_so_initial(sentence_text: &str) -> bool {
     sentence_text.starts_with("And ")
         || sentence_text.starts_with("But ")
@@ -824,7 +823,7 @@ struct Verdict {
     /// what "clears the bar" means for that tic before computing it.
     concerning: bool,
     /// The numbers behind `concerning`, always shown regardless of its
-    /// value — an honest report shows its work for a "no" as much as a
+    /// value: an honest report shows its work for a "no" as much as a
     /// "yes".
     detail: String,
 }

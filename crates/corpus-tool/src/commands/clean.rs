@@ -95,9 +95,9 @@ pub(crate) fn normalize(raw: &[u8]) -> String {
 }
 
 /// Named HTML entities `decode_entities` recognizes, mapped to their
-/// literal replacement text. Deliberately a small, fixed set — the
+/// literal replacement text. Deliberately a small, fixed set, the
 /// entities actually observed in this corpus's StackExchange-sourced
-/// source markup — rather than the full HTML5 named-entity table.
+/// source markup, rather than the full HTML5 named-entity table.
 const NAMED_ENTITIES: &[(&str, &str)] = &[
     ("amp", "&"),
     ("lt", "<"),
@@ -241,7 +241,7 @@ pub(crate) fn strip_boilerplate(text: &str) -> String {
 }
 
 /// A bare markdown image, a linked ("shield") badge image, or a raw HTML
-/// `<img>` tag, alone on its line — the atoms of a typical README badge
+/// `<img>` tag, alone on its line: the atoms of a typical README badge
 /// wall.
 fn is_badge_line(line: &str) -> bool {
     let line = line.trim();
@@ -417,7 +417,7 @@ mod tests {
         assert_eq!(decode_entities(input), decode_entities(input));
     }
 
-    /// Already-decoded text (no entities at all) round-trips unchanged —
+    /// Already-decoded text (no entities at all) round-trips unchanged:
     /// running the maintenance pass on an already-clean doc is a no-op.
     #[test]
     fn decode_entities_is_idempotent_on_clean_text() {

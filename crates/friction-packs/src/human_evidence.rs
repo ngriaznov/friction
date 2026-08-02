@@ -19,10 +19,10 @@
 //!
 //! The unigram table only keeps a word once it has been seen at least
 //! five times (`corpus-tool human-evidence`'s own floor, to bound the
-//! table and keep single-document noise out) — so a word's *absence*
-//! from this table is itself real information ("fewer than five
-//! occurrences"), not "never measured". [`Self::unigram_count`] returns a
-//! plain `u64`, `0` for an absent word, reflecting that.
+//! table and keep single-document noise out): so a word's *absence* from
+//! this table is itself real information ("fewer than five occurrences"),
+//! not "never measured". [`Self::unigram_count`] returns a plain `u64`,
+//! `0` for an absent word, reflecting that.
 //!
 //! The probe table has no such floor: it always contains exactly the
 //! literal probes `frame-rules-v1.toml` produced when the pack was
@@ -54,7 +54,7 @@ use crate::PackError;
 /// The 8-byte magic every `human-evidence-v1` `.bin` starts with.
 const MAGIC: &[u8; 8] = b"HUMANEV1";
 
-/// On-disk format version — bumped only if the layout changes shape.
+/// On-disk format version: bumped only if the layout changes shape.
 /// Version 2 added the per-unigram burst envelope (the highest
 /// per-document rate any contributing document sustained for that word
 /// — see [`HumanEvidencePack::burst_envelope_per_million`]).
@@ -104,11 +104,11 @@ struct ViewRepr {
     word_offsets: &'static [u8],
     word_pool: &'static str,
     /// [`UNIGRAM_ENTRY_LEN`]-byte `(id, count, burst)` entries, written
-    /// in unigram-key order — id-ascending, because the interner's
+    /// in unigram-key order: id-ascending, because the interner's
     /// byte-ascending id assignment makes interner order and key order
     /// the same order.
     unigrams: &'static [u8],
-    /// Byte offset of each probe entry into `probes`, entry order —
+    /// Byte offset of each probe entry into `probes`, entry order:
     /// entries are variable-stride, so binary search needs this index.
     probe_index: Box<[u32]>,
     probes: &'static [u8],
@@ -314,7 +314,7 @@ impl HumanEvidencePack {
         }
     }
 
-    /// `word`'s external occurrence count, `0` if absent — absence
+    /// `word`'s external occurrence count, `0` if absent: absence
     /// genuinely means "fewer than the builder's five-occurrence floor",
     /// a real (if imprecise) zero, never "not measured" (see this
     /// module's own docs).
@@ -343,13 +343,13 @@ impl HumanEvidencePack {
 
     /// `words`' external non-overlapping occurrence count, if `words` was
     /// one of `frame-rules-v1.toml`'s own literal probes when this pack
-    /// was built. `None` means exactly that it was not — "never
-    /// measured", not "measured zero" (see this module's own docs).
+    /// was built. `None` means exactly that it was not: "never measured",
+    /// not "measured zero" (see this module's own docs).
     #[must_use]
     pub fn probe_count(&self, words: &[&str]) -> Option<u64> {
         // Hyphens split exactly as the builder splits probe keys (and as
         // `friction_harness::clean::tokenize` splits the streams they
-        // were counted against) — a caller quoting "double-checking"
+        // were counted against). A caller quoting "double-checking"
         // means the same two stream tokens the pack measured.
         let key: Vec<String> = words
             .iter()
@@ -425,7 +425,7 @@ impl ViewRepr {
         }
 
         // Interner ids ascend in word order, so lexicographic id-sequence
-        // order IS the owned `BTreeMap<Vec<String>>` key order — binary
+        // order IS the owned `BTreeMap<Vec<String>>` key order: binary
         // search over the load-built entry offsets.
         let mut lo: usize = 0;
         let mut hi: usize = self.probe_index.len();

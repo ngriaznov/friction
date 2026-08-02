@@ -125,7 +125,7 @@ fn report_feature(name: &str, mut rates: Vec<f64>) {
 /// module, no cross-imports between sibling `commands::*` files).
 ///
 /// # Panics
-/// Panics (via `debug_assert`) if `sorted_values` is empty; the callers
+/// Panics (via `debug_assert`) if `sorted_values` is empty. The callers
 /// here only invoke this after checking the population is non-empty.
 fn nearest_rank_percentile(sorted_values: &[f64], percentile: f64) -> f64 {
     debug_assert!(

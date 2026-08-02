@@ -81,11 +81,11 @@ pub struct Args {
 /// pack still gets its percentile bands, but every metric defaults to
 /// `include = true` (there's no train-split evidence to justify
 /// excluding it) with a placeholder `direction` and no `train_auc`
-/// recorded — a warning is printed to stderr.
+/// recorded: a warning is printed to stderr.
 ///
 /// Writes the result as a versioned TOML pack (`envelope-v2`) to `--out`.
 ///
-/// Quarantined (CC-BY-SA) docs are included in both estimates — the
+/// Quarantined (CC-BY-SA) docs are included in both estimates. The
 /// quarantine restriction is about never redistributing the *document
 /// text* itself in a shipped pack, not about excluding its aggregate
 /// statistics from one.
@@ -235,7 +235,7 @@ struct GenreVectors {
 /// bit-for-bit on every platform.
 ///
 /// # Panics
-/// Panics (via `debug_assert`) if `sorted_values` is empty; every caller
+/// Panics (via `debug_assert`) if `sorted_values` is empty. Every caller
 /// here only invokes this on a non-empty per-genre vector.
 fn nearest_rank_percentile(sorted_values: &[f64], percentile: f64) -> f64 {
     debug_assert!(
@@ -314,7 +314,7 @@ fn estimate_bands(
                 Some((auc, direction)) => (direction, auc >= auc_include_threshold, Some(auc)),
                 // No train-split llm docs for this genre: the
                 // train-internal comparison is undefined, so there is
-                // no train evidence to exclude this metric on —
+                // no train evidence to exclude this metric on,
                 // default to keeping it. `direction` here is an
                 // arbitrary placeholder; `train_auc: None` is the
                 // signal callers must check before trusting it.

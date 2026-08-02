@@ -39,9 +39,9 @@ pub struct Args {
 }
 
 /// One collector-supplied metadata record, one per incoming doc. Required
-/// fields absent from a line are simply missing Rust values (not a parse
-/// error) so a business-rule refusal can be reported instead of a hard
-/// crash on one bad fragment.
+/// fields absent from a line are missing Rust values (not a parse error)
+/// so a business-rule refusal can be reported instead of a hard crash on
+/// one bad fragment.
 #[derive(Debug, Deserialize)]
 struct MetaFragment {
     file: String,
@@ -231,14 +231,14 @@ fn normalize_license(raw: &str) -> Option<&'static str> {
 /// Assigns each of `fragments` its deterministic doc id, one-to-one and in
 /// the same order: normally the first 16 hex chars of `sha256(source)`.
 ///
-/// A pure function of the fragment list itself — never of the manifest's
-/// current contents — so the same incoming fragment set always gets the
+/// A pure function of the fragment list itself, never of the manifest's
+/// current contents, so the same incoming fragment set always gets the
 /// same id assignment, whether this is the first run or the tenth,
 /// regardless of how much of it has already been ingested (that's decided
 /// separately, by checking each assigned id against the manifest).
 ///
 /// Two fragments occasionally share one `source` (e.g. several essays
-/// pulled from the same anthology page) — an id collision would either
+/// pulled from the same anthology page): an id collision would either
 /// violate the manifest's uniqueness invariant or silently overwrite one
 /// doc's file with another's. `fragments` is assumed already sorted by
 /// `file` (as `load_fragments` returns it): the first fragment (in that

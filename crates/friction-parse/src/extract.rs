@@ -37,15 +37,15 @@
 //! table pipe `\|`, ...) is the same story at a single-byte scale:
 //! `pulldown-cmark` emits a `Text` event for the escaped character alone,
 //! starting *after* the backslash, so the backslash byte is covered by no
-//! event either — but it's still one literal prose character (`\*` means
-//! a literal `*`), not structure. [`Session::extend_touching`] therefore
+//! event either — but it's still one literal prose character (`\*` means a
+//! literal `*`), not structure. [`Session::extend_touching`] therefore
 //! special-cases exactly a one-byte gap whose sole byte is `\`: it bridges
 //! across it instead of closing the run. Inline code, raw/inline HTML,
 //! footnote references, and task-list checkboxes are genuinely excluded:
 //! [`Session::close_current`] ends the run without extending across them.
 //! Links and images are excluded structurally (`[`, `](url)`) but their
 //! label *is* prose, so their `Start`/`End` force a real break on both
-//! sides rather than bridging — the label becomes its own separate run.
+//! sides rather than bridging: the label becomes its own separate run.
 //!
 //! A leading YAML frontmatter block (see [`frontmatter_len`]) is carved
 //! off *before* `pulldown-cmark` ever sees the document — its own
@@ -134,7 +134,7 @@ impl Session {
 
     /// Extends the current run by `range` if it starts exactly where the
     /// current run ends, or if the single byte separating them is a
-    /// backslash escaping `range`'s leading character (see module docs) —
+    /// backslash escaping `range`'s leading character (see module docs):
     /// in which case the backslash is folded into the run too, since it's
     /// ordinary prose bytes, not structure. Otherwise closes the current
     /// run (if non-empty) and starts a new one at `range`.
@@ -583,7 +583,7 @@ mod tests {
         }
     }
 
-    /// Table cell text is prose; table structure is not. Header
+    /// Table cell text is prose. Table structure is not. Header
     /// cells are flagged.
     #[test]
     fn table_cells_are_prose_with_header_flag() {
@@ -617,7 +617,7 @@ mod tests {
         assert_eq!(prose.len(), 2);
     }
 
-    /// A footnote reference marker is excluded; the footnote
+    /// A footnote reference marker is excluded. The footnote
     /// definition's own text is prose via its nested paragraph.
     #[test]
     fn footnote_reference_excluded_definition_is_prose() {
@@ -766,7 +766,7 @@ mod tests {
         assert_eq!(texts, vec!["Real prose."]);
     }
 
-    /// An opening `---` with no closing fence is NOT frontmatter — it
+    /// An opening `---` with no closing fence is NOT frontmatter. It
     /// stays an ordinary thematic break and the rest stays prose.
     #[test]
     fn unclosed_leading_dashes_are_not_frontmatter() {

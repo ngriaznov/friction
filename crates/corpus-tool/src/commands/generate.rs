@@ -313,9 +313,9 @@ fn wrap_style_prompt(prompt_text: &str, instruction: &str) -> String {
 }
 
 /// Executes `plan` against Ollama: skips jobs already in the manifest
-/// and jobs whose model isn't currently pulled (warn + skip,
-/// continue), fetches each needed model's digest once, generates, writes
-/// `corpus/llm/<genre>/<id>.md`, and appends a manifest record per doc —
+/// and jobs whose model isn't currently pulled (warn + skip, continue),
+/// fetches each needed model's digest once, generates, writes
+/// `corpus/llm/<genre>/<id>.md`, and appends a manifest record per doc:
 /// incrementally, so a crash mid-run loses at most the in-flight job.
 fn execute_plan(
     args: &Args,
@@ -573,7 +573,7 @@ mod tests {
     }
 
     /// Seed and doc id derivation are pure functions of their
-    /// inputs — same inputs, same outputs, every time.
+    /// inputs: same inputs, same outputs, every time.
     #[test]
     fn derive_functions_are_deterministic() {
         assert_eq!(
@@ -734,10 +734,10 @@ mod tests {
         assert!(parse_genre("essay").is_err());
     }
 
-    /// `build_gen_config` records `reproducible: true` when a
-    /// same-config regeneration matches the first generation byte-for-byte
-    /// — the property the flag is supposed to certify, actually checked
-    /// rather than assumed.
+    /// `build_gen_config` records `reproducible: true` when a same-config
+    /// regeneration matches the first generation byte-for-byte. The
+    /// property the flag is supposed to certify, actually checked rather
+    /// than assumed.
     #[test]
     fn build_gen_config_marks_reproducible_true_when_outputs_match() {
         let cfg = build_gen_config(
@@ -783,7 +783,7 @@ mod tests {
         assert_eq!(cfg["num_predict"], serde_json::json!(256));
     }
 
-    /// `wrap_style_prompt` appends the instruction; it never mutates the
+    /// `wrap_style_prompt` appends the instruction. It never mutates the
     /// base prompt text used for non-style-prompted jobs.
     #[test]
     fn wrap_style_prompt_appends_instruction() {

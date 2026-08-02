@@ -105,10 +105,10 @@ static IRREGULAR_VERB_BASES: std::sync::LazyLock<
             if form != base {
                 let displaced = map.insert(form, base);
                 // [`lemmatize`]'s linear scan returns the FIRST matching
-                // row; a map keeps the LAST insert. The two agree only
+                // row. A map keeps the LAST insert. The two agree only
                 // while every inflected form is a distinct key, so a new
-                // table row that breaks that silently changes lemmas —
-                // fail loudly instead.
+                // table row that breaks that silently changes lemmas.
+                // Fail loudly instead.
                 assert!(
                     displaced.is_none_or(|prev| prev == base),
                     "IRREGULAR_VERBS: form {form:?} maps to two bases"
@@ -166,11 +166,10 @@ pub fn irregular_verb_base(lower: &str) -> Option<&'static str> {
 /// Given its surface text and a coarse Penn tag, guesses the base-form
 /// lemma by generating candidate stems and keeping the one that
 /// round-trips back to `surface` through [`inflect`]'s own forward
-/// generation — so this never duplicates a suffix/irregular rule, only
+/// generation: so this never duplicates a suffix/irregular rule, only
 /// reuses the forward direction's tables and logic in reverse. Falls
 /// back to the lowercased `surface` when no candidate round-trips,
-/// matching
-/// [`crate::TaggedToken::lemma`]'s documented fallback.
+/// matching [`crate::TaggedToken::lemma`]'s documented fallback.
 ///
 /// `pos` only picks which suffix family to try (`VBG` gerunds,
 /// `VBD`/`VBN` past forms, `VBZ`/`NNS` "-s" forms); any other tag returns
@@ -343,7 +342,7 @@ pub fn inflect(surface: &str, target_lemma: &str) -> Option<String> {
 enum Form {
     /// Uninflected: singular noun, verb infinitive/plural-agreement form.
     Base,
-    /// Third-person-singular present verb, or plural noun — both formed
+    /// Third-person-singular present verb, or plural noun: both formed
     /// the same way in English ("-s"/"-es"/consonant-y -> "-ies").
     SuffixS,
     /// Gerund / present participle ("-ing").
@@ -428,7 +427,7 @@ const IRREGULAR_NOUNS: &[(&str, &str)] = &[
 /// Multi-syllable common words whose final consonant looks like it should
 /// double under the naive consonant-vowel-consonant heuristic (see
 /// [`should_double_final_consonant`]) but doesn't, because English
-/// doubling depends on which syllable is stressed — information this
+/// doubling depends on which syllable is stressed: information this
 /// heuristic deliberately lacks, to stay dependency-free.
 const NO_DOUBLE_EXCEPTIONS: &[&str] = &[
     "open",

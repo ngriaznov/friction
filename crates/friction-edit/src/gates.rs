@@ -22,7 +22,7 @@ use friction_packs::AttestationPack;
 /// on its own: a finite verb somewhere, or an imperative-initial `VB`.
 ///
 /// Falls back to [`has_ambiguous_s_verb`] alongside the strict Penn-tag
-/// check — a measured compensation for the tagger's own weakness here,
+/// check: a measured compensation for the tagger's own weakness here,
 /// not a loosening of what counts as a clause.
 #[must_use]
 pub fn clause_ok(tokens: &[TaggedToken], text: &str) -> bool {
@@ -35,10 +35,10 @@ pub fn clause_ok(tokens: &[TaggedToken], text: &str) -> bool {
 /// An `-s`-suffixed word immediately followed by an infinitival `to VB`
 /// complement (`"needs to be placed"`-shaped) is unambiguous evidence of
 /// a finite verb regardless of the token's own tag — English's `-s` is
-/// genuinely ambiguous between plural noun and third-person-singular
-/// verb, and this tagger resolves it wrong in this shape (measured:
-/// `"the configuration file needs to be placed"` tags `needs` as `RB`,
-/// not `VBZ`, in every context tried).
+/// ambiguous between plural noun and third-person-singular verb, and
+/// this tagger resolves it wrong in this shape (measured: `"the
+/// configuration file needs to be placed"` tags `needs` as `RB`, not
+/// `VBZ`, in every context tried).
 ///
 /// Deliberately narrow: a bare "ends in s, tagged NN/NNS/RB" check would
 /// open a much larger false-positive class (`"a place to go"`, `"nothing
@@ -170,7 +170,7 @@ pub fn check_deletion_gates(
 
     // Deliberately unshifted: `lo`/`hi` are indices into the UNWRAPPED
     // token list, reused unshifted as indices into the `<S>`-prefixed
-    // WRAPPED sequence — never corrected for the sentinel's leading
+    // WRAPPED sequence: never corrected for the sentinel's leading
     // slot. Kept, not "fixed": the accept fixtures were validated
     // against this exact window placement, so shifting it is a
     // recalibration of the whole deletion gate.
@@ -242,8 +242,8 @@ pub fn capitalize(text: &str) -> String {
 /// `true` if `range` falls inside (or crosses the boundary of) a
 /// double-quoted span of `text`.
 ///
-/// Quoted text is a mention — an example, a citation, someone else's
-/// words — not the author's own register, so no operation may rewrite it.
+/// Quoted text is a mention (an example, a citation, someone else's
+/// words) not the author's own register, so no operation may rewrite it.
 ///
 /// Straight `"` marks are tracked by parity: an odd count before
 /// `range.start` means the range starts inside a quotation. Curly

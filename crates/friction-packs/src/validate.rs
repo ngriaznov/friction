@@ -1,10 +1,10 @@
 //! Build-time pack audits over an [`InventoryPack`]: disjointness,
 //! closure, output-frequency hygiene, and guard-token exposure.
 //!
-//! Distinct from and consistent with `friction-harness::closure`'s
-//! existing *per-input runtime* check (which licenses `tokenize(replacement)`
-//! wholesale for a hit that actually fired against real input text) — rule
-//! 2 here vets the pack's replacements up front, at build time, which is
+//! Distinct from and consistent with `friction-harness::closure`'s existing
+//! *per-input runtime* check (which licenses `tokenize(replacement)`
+//! wholesale for a hit that actually fired against real input text): rule 2
+//! here vets the pack's replacements up front, at build time, which is
 //! exactly what makes the runtime check trustworthy rather than vacuous.
 
 use std::collections::BTreeSet;
@@ -43,7 +43,7 @@ impl fmt::Display for Violation {
 }
 
 /// A `substitution_pairs` entry whose `replacement` string matches
-/// another (or its own) candidate pattern — rule 1.
+/// another (or its own) candidate pattern: rule 1.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct DisjointnessViolation {
     pub pair_id: Box<str>,
@@ -62,7 +62,7 @@ impl fmt::Display for DisjointnessViolation {
     }
 }
 
-/// A `substitution_pairs` entry with an unattested content word — rule 2.
+/// A `substitution_pairs` entry with an unattested content word: rule 2.
 ///
 /// Its `replacement` contains a content word not traceable to the
 /// pattern, `declared_literal_tokens`, the closure function-word
@@ -86,7 +86,7 @@ impl fmt::Display for ClosureViolation {
 }
 
 /// Why an [`OutputFrequencyBand`](crate::OutputFrequencyBand) failed
-/// hygiene — rule 3.
+/// hygiene: rule 3.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum FrequencyHygieneReason {
     NoFiniteNonNegativeMax,
@@ -117,8 +117,8 @@ impl fmt::Display for FrequencyHygieneViolation {
 }
 
 /// A `deletion_spans`/`substitution_pairs`/`ritual_frames`/`preview_frames`
-/// entry whose entire literal-token content is drawn from
-/// `guard_tokens` (negation/quantifiers/modals/connectives) — rule 4.
+/// entry whose entire literal-token content is drawn from `guard_tokens`
+/// (negation/quantifiers/modals/connectives): rule 4.
 ///
 /// A pattern that reduces to nothing but a guard token (e.g. a bare
 /// `\bnever\b`) edits a closed syntactic class the rest of the pack
@@ -167,7 +167,7 @@ pub fn validate(pack: &InventoryPack) -> Vec<Violation> {
     violations
 }
 
-/// Rule 1 — disjointness.
+/// Rule 1: disjointness.
 ///
 /// No `substitution_pairs` replacement may match any
 /// `deletion_spans`/`substitution_pairs`/`ritual_frames`/`preview_frames`
@@ -254,12 +254,12 @@ fn literal_tokens_from_pattern(pattern_source: &str) -> BTreeSet<String> {
         .collect()
 }
 
-/// Rule 2 — closure.
+/// Rule 2: closure.
 ///
-/// Every content-word token in a `substitution_pairs` entry's
-/// `replacement` must be traceable to its own pattern (heuristically),
+/// Every content-word token in a `substitution_pairs` entry's `replacement`
+/// must be traceable to its own pattern (heuristically),
 /// `declared_literal_tokens`, the pack's `closure_function_word_allowance`,
-/// or `attested_replacement_tokens` (only when `notes` is non-empty — the
+/// or `attested_replacement_tokens` (only when `notes` is non-empty, the
 /// honesty requirement).
 #[must_use]
 pub fn check_closure(pack: &InventoryPack) -> Vec<ClosureViolation> {
@@ -307,13 +307,13 @@ pub fn check_closure(pack: &InventoryPack) -> Vec<ClosureViolation> {
     violations
 }
 
-/// Rule 3 — output-frequency hygiene.
+/// Rule 3: output-frequency hygiene.
 ///
 /// For every `substitution_pairs` replacement that a band names
 /// (case-insensitively), the band's `max` must be finite, non-negative,
 /// based on at least one sample doc, and no lower than the band's own
 /// `observed_rate`. A replacement with no band at all is a documented
-/// coverage gap, not a violation — see this module's docs.
+/// coverage gap, not a violation. See this module's docs.
 #[must_use]
 pub fn check_frequency_hygiene(pack: &InventoryPack) -> Vec<FrequencyHygieneViolation> {
     let referenced: BTreeSet<String> = pack
@@ -346,7 +346,7 @@ pub fn check_frequency_hygiene(pack: &InventoryPack) -> Vec<FrequencyHygieneViol
     violations
 }
 
-/// Rule 4 — guard-token exposure.
+/// Rule 4: guard-token exposure.
 ///
 /// No `deletion_spans`/`substitution_pairs`/`ritual_frames`/
 /// `preview_frames` pattern may have a (non-empty) literal-token content
@@ -530,7 +530,7 @@ mod tests {
     fn check_disjointness_flags_a_replacement_matching_a_leading_anchored_span_only_once_embedded()
     {
         // "target please" is not, in isolation, matched by a pattern that
-        // requires a trailing `\s+` after "target please" — but it would
+        // requires a trailing `\s+` after "target please": but it would
         // be once this replacement lands back in running text, which is
         // exactly the idempotence break this check exists to catch.
         let toml = format!(

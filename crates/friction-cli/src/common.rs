@@ -547,7 +547,7 @@ mod tests {
 
     #[test]
     fn offset_to_line_col_counts_chars_not_bytes() {
-        // 'é' is 2 bytes; the offset just past it is byte 3, but that is
+        // 'é' is 2 bytes. The offset just past it is byte 3, but that is
         // still column 2 (one character consumed).
         let source = "é x";
         let e_byte_len = 'é'.len_utf8();

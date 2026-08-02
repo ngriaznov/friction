@@ -14,19 +14,19 @@
 //!
 //! `--titles` is expected to already be pre-filtered to multiword (2-4
 //! underscore-separated segments), concept-shaped `MediaWiki` page titles
-//! (one raw title per line, e.g. `Data_fabric`) — this command does not
+//! (one raw title per line, e.g. `Data_fabric`): this command does not
 //! re-derive that shape from a raw Wikipedia dump. It does apply one
-//! additional structural filter of its own: a line whose first character
-//! is a lowercase ASCII letter is dropped. `MediaWiki` always capitalizes a
-//! page title's first character (a raw dump title never legitimately
-//! starts lowercase), so a lowercase-initial line is necessarily a
-//! non-title artifact of however `--titles` was produced — in practice,
-//! the raw `enwiki-latest-all-titles-in-ns0.gz` dump's own `page_title`
-//! TSV header line, which survives naive "2-4 underscore segments"
-//! pre-filtering (`page_title` -> `page`, `title`, two segments) because
-//! that filter never checked capitalization. This command's own
-//! word-count filter (after normalization, independent of the input
-//! file's own pre-filtering) still applies on top of this.
+//! additional structural filter of its own: a line whose first character is
+//! a lowercase ASCII letter is dropped. `MediaWiki` always capitalizes a
+//! page title's first character (a raw dump title never legitimately starts
+//! lowercase), so a lowercase-initial line is necessarily a non-title
+//! artifact of however `--titles` was produced — in practice, the raw
+//! `enwiki-latest-all-titles-in-ns0.gz` dump's own `page_title` TSV header
+//! line, which survives naive "2-4 underscore segments" pre-filtering
+//! (`page_title` -> `page`, `title`, two segments) because that filter
+//! never checked capitalization. This command's own word-count filter
+//! (after normalization, independent of the input file's own pre-filtering)
+//! still applies on top of this.
 //!
 //! # `OpenAlex` topic candidate extraction
 //!
@@ -47,13 +47,13 @@ use crate::hashing::sha256_hex;
 #[derive(Debug, ClapArgs)]
 pub struct Args {
     /// Path to the newline-separated, pre-filtered Wikipedia title corpus
-    /// (raw `MediaWiki` titles, underscores as word separators — e.g.
+    /// (raw `MediaWiki` titles, underscores as word separators: e.g.
     /// `Data_fabric`). Required: this pack always needs a real input
     /// corpus, never a network fetch.
     #[arg(long)]
     pub titles: PathBuf,
     /// Path to the newline-separated `OpenAlex` Topics display-name corpus
-    /// (mixed case, space-separated — e.g. `Magnetic confinement fusion
+    /// (mixed case, space-separated: e.g. `Magnetic confinement fusion
     /// research`).
     #[arg(long)]
     pub openalex: PathBuf,
@@ -193,7 +193,7 @@ fn is_concept_shaped(title: &str) -> bool {
 /// Folds every qualifying line of `text` (raw Wikipedia titles) into
 /// `keys`, applying the lowercase-initial-line drop (see module docs)
 /// before normalization, then the shared 2-4-word range after it. With
-/// `raw`, the concept-shape extraction runs first — the caller handed
+/// `raw`, the concept-shape extraction runs first: the caller handed
 /// over the full dump, not a pre-filtered corpus.
 fn fold_wikipedia_titles(text: &str, keys: &mut BTreeSet<String>, raw: bool) -> SourceStats {
     let mut lines_read = 0usize;
@@ -249,7 +249,7 @@ fn fold_openalex_topics(text: &str, keys: &mut BTreeSet<String>) -> SourceStats 
 }
 
 /// `path`'s file name only (falling back to its full display form if it
-/// has none) — the sidecar records provenance for humans reading a
+/// has none). The sidecar records provenance for humans reading a
 /// checked-in file, not the ephemeral absolute path the builder happened
 /// to run against.
 fn input_basename(path: &Path) -> String {

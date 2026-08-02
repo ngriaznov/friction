@@ -15,7 +15,7 @@
 //!
 //! # Selection: greedy and re-evaluated
 //!
-//! Candidates are scored by how far their delta moves the feature's *rate* — count over prose
+//! Candidates are scored by how far their delta moves the feature's *rate*: count over prose
 //! word total, not raw count. The best is applied, both totals updated from that pick's
 //! measured effect, and the pool re-scored: a transducer's `delta` gives the count change
 //! directly, but the word-count change is only known by measuring it, shifting the denominator
@@ -33,7 +33,7 @@
 //!
 //! # Closure is structural
 //!
-//! Every candidate passes [`closure_violation`] before entering the pool — no path from
+//! Every candidate passes [`closure_violation`] before entering the pool: no path from
 //! candidate to patch skips it. A content word must already appear in the matched span or be
 //! reachable through the transducer's own inflection table; a function word must be one of the
 //! four permitted (see [`friction_register::transduce::PERMITTED_FUNCTION_WORDS`]). A candidate
@@ -71,7 +71,7 @@ const fn rule_for(kind: CandidateKind) -> RuleId {
     }
 }
 
-/// One in-scope sentence's text range, tags, and dependency parse —
+/// One in-scope sentence's text range, tags, and dependency parse:
 /// computed once and reused by every stage below (counting, candidate
 /// generation, closure checking, conflict checking) so none re-tag or
 /// re-parse.
@@ -206,7 +206,7 @@ fn build_sentence_contexts(
 /// (never expected — `range` always comes from this same `source`'s own
 /// segmentation), its trimmed text is empty, or the parse fails (allowed
 /// by [`DepParser::parse`]'s contract, never expected from the shipped
-/// perceptron parser) — the four operations already ran and aren't rolled
+/// perceptron parser): the four operations already ran and aren't rolled
 /// back for a register-only problem, so a dropped sentence is silently
 /// excluded rather than failing the whole document.
 fn build_sentence_ctx(
@@ -405,7 +405,7 @@ pub fn measure_semicolon_rate(
 
 /// Runs the register pass once over `source`.
 ///
-/// `source` is expected to already be the five-operation pipeline's converged output; register
+/// `source` is expected to already be the five-operation pipeline's converged output. Register
 /// never interleaves with those passes.
 ///
 /// The third element is [`ReusableScan`]'s reuse-or-rebuild handoff:
@@ -611,7 +611,7 @@ fn feature_plan(
 /// Runs [`collect_candidates`] for exactly the features that need fixing
 /// -- split out of [`run_register`] itself only to keep that function's
 /// own line count down; `needed` is the kinds whose feature sits outside
-/// its band, in application order — this helper never needs the bands
+/// its band, in application order. This helper never needs the bands
 /// themselves, only which kinds to gather.
 fn collect_needed_candidates(
     sentences: &[SentenceCtx],
@@ -646,7 +646,7 @@ fn rate(count: i64, words: i64) -> f64 {
     count / words * 1000.0
 }
 
-/// The z-score both Wilson bounds are computed at — 1.96, the
+/// The z-score both Wilson bounds are computed at: 1.96, the
 /// conventional 95% figure.
 ///
 /// The point of the bounds is evidence-proportional arming: a 58-word
@@ -1027,7 +1027,7 @@ mod tests {
     // --- Wilson bounds: evidence-proportional arming ---
 
     /// The motivating case: a 58-word comment with 4 nominalizations has
-    /// a point rate of 68.97/1000 — above the 50.56 band — but its lower
+    /// a point rate of 68.97/1000, above the 50.56 band, but its lower
     /// bound (~27/1000) is not, so the feature must stay quiet. Seven
     /// instances in the same 58 words (~121/1000 point rate, lower bound
     /// ~60/1000) is real evidence and must arm.
@@ -1054,7 +1054,7 @@ mod tests {
     }
 
     /// The semicolon band (high 3.66/1000): one semicolon in 40 words is
-    /// a strong density signal and arms; one in 200 words is consistent
+    /// a strong density signal and arms. One in 200 words is consistent
     /// with human use and doesn't.
     #[test]
     fn wilson_lower_separates_dense_from_incidental_semicolons() {
@@ -1178,7 +1178,7 @@ mod tests {
     /// finite verb at all.
     #[test]
     fn governing_finite_verb_walks_up_to_the_nearest_finite_verb() {
-        // "We deployed the change." -- deployed(1) is root/finite;
+        // "We deployed the change." -- deployed(1) is root/finite.
         // We(0) is nsubj of 1; the(2) is det of change(3); change(3) is
         // dobj of 1.
         let edges = vec![

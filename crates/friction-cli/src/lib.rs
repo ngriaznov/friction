@@ -10,17 +10,17 @@
 //! `common.rs` is compiled twice (once into this library, once into the
 //! `friction` binary target): an ordinary consequence of a package
 //! sharing one module's source file between a `[lib]` and a `[[bin]]`,
-//! not a functional difference between the two copies. It stays a
-//! private module here (`mod`, not `pub mod`) so its own doc comments
-//! — written for a binary crate's internal module, not a published
-//! library's public API — don't have to satisfy public-API doc lints;
+//! not a functional difference between the two copies. It stays a private
+//! module here (`mod`, not `pub mod`) so its own doc comments — written
+//! for a binary crate's internal module, not a published library's public
+//! API — don't have to satisfy public-API doc lints;
 //! [`offset_to_line_col`] below is the one function this crate exports.
 //! `#[allow(dead_code)]`: this library target only ever calls
 //! `offset_to_line_col`, so every other item `common.rs` defines (used by
-//! the `friction` binary target, which compiles the same file
-//! separately) is legitimately unreachable dead code from *this* crate's
-//! point of view — a property of splitting one source file across two
-//! crate targets, not a real defect in either.
+//! the `friction` binary target, which compiles the same file separately)
+//! is legitimately unreachable dead code from *this* crate's point of
+//! view: a property of splitting one source file across two crate
+//! targets, not a real defect in either.
 #[allow(dead_code)]
 mod common;
 

@@ -24,7 +24,7 @@ pub enum Gate {
     /// No content word may be inserted, full stop.
     ClosureContentWord,
     /// No token may be inserted even from an inert (function-word)
-    /// vocabulary; deletion fires only when the seam attests.
+    /// vocabulary. Deletion fires only when the seam attests.
     ClosureInertVocabulary,
     /// Open, search-chosen synthesis is banned entirely.
     OpenSynthesisBanned,

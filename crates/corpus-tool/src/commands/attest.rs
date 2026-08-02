@@ -11,21 +11,21 @@
 //! reads each doc's raw whole-file text directly — no `friction-parse`
 //! block-tree prose extraction. `friction_harness::clean::clean` is run
 //! once over the whole document, `friction_harness::clean::split_sentences`
-//! splits the cleaned text into sentences, and each sentence's word/
-//! punctuation tokens come from `friction_harness::clean::tokenize` (which
-//! re-applies `clean` to its input — a no-op on already-cleaned text, so
-//! this costs nothing and keeps every call site using the same one
+//! splits the cleaned text into sentences, and each sentence's
+//! word/punctuation tokens come from `friction_harness::clean::tokenize`
+//! (which re-applies `clean` to its input: a no-op on already-cleaned text,
+//! so this costs nothing and keeps every call site using the same one
 //! public function rather than a hand-rolled variant).
 //!
 //! # Two independent per-sentence passes, not one paired stream
 //!
 //! Each sentence contributes to the bigram table via
 //! `friction_harness::clean::tokenize` and to the skeleton set via the
-//! shipped [`friction_nlp::PerceptronTagger`]'s own tokenization —
+//! shipped [`friction_nlp::PerceptronTagger`]'s own tokenization:
 //! **independently**, not positionally paired token-for-token. See
 //! `friction_packs::attestation`'s module doc for why forcing positional
-//! correspondence between the two tokenizations is a correctness trap
-//! (a run of `"..."` is three tokens on the bigram side and one on the
+//! correspondence between the two tokenizations is a correctness trap (a
+//! run of `"..."` is three tokens on the bigram side and one on the
 //! skeleton side; digits are silently dropped on the bigram side but
 //! tagged `CD` on the skeleton side) that this design avoids by
 //! construction: a sentence with an empty word-token list is simply
@@ -46,7 +46,7 @@
 //! # Two-stage build
 //!
 //! This command builds stage 1 only (the bigram/skeleton tables
-//! themselves, from TRAIN human docs alone — no engine dependency). Stage
+//! themselves, from TRAIN human docs alone, no engine dependency). Stage
 //! 2 (near-no-op pivot-rate calibration, which needs a real repair engine
 //! to run against) is a distinct, later tool; a stage-1-only pack simply
 //! has no `[near_noop]` table, which
@@ -173,8 +173,8 @@ fn calibrate_near_noop(
     // should not sit exactly at the noisiest single document's own rate.
     let threshold_per_1000_words = (train_max_rate * 1.15 * 100.0).ceil() / 100.0;
 
-    // DEV-SPLIT CALIBRATION CHECK — READ ONCE, NEVER TUNED AGAINST.
-    // This value is recorded for the printed report and the pack's own
+    // DEV-SPLIT CALIBRATION CHECK: READ ONCE, NEVER TUNED AGAINST. This
+    // value is recorded for the printed report and the pack's own
     // `dev_check_max_per_1000_words` field only; nothing above this line
     // is allowed to read it, and nothing below adjusts
     // `threshold_per_1000_words` in response to it.
@@ -588,8 +588,8 @@ mod tests {
 
     #[test]
     fn build_skeleton_produces_one_5gram_for_a_3tag_sentence() {
-        // <S> DT NN <E> is only 4 long, so windows(5) produces nothing;
-        // windows(4) produces exactly one window.
+        // <S> DT NN <E> is only 4 long, so windows(5) produces nothing.
+        // Windows(4) produces exactly one window.
         let (_, tag5, tag4) = build_skeleton(&[sentence(&[], &["DT", "NN"])]);
         assert!(tag5.is_empty());
         assert_eq!(tag4.len(), 1);

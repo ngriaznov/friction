@@ -65,7 +65,7 @@
 //! little-endian `u64` key count, `xorf`'s own fixed-length filter
 //! descriptor, then the raw fingerprint bytes. At load time
 //! [`xorf::FilterRef::from_dma`] reconstructs a zero-copy
-//! [`xorf::BinaryFuse8Ref`] directly over the `include_bytes!`'d slice —
+//! [`xorf::BinaryFuse8Ref`] directly over the `include_bytes!`'d slice:
 //! no parsing pass, no allocation beyond the filter's own descriptor.
 
 use std::collections::BTreeSet;
@@ -80,7 +80,7 @@ use crate::PackError;
 /// ([`JargonAttestPack::is_attested`]). `b"FRICTION"` read as a
 /// big-endian `u64` — arbitrary, but fixed and documented, unlike std's
 /// randomized-per-process `SipHash` default (which this module explicitly
-/// does not use — see the module header's determinism discussion).
+/// does not use. See the module header's determinism discussion).
 pub const HASH_SEED: u64 = 0x4652_4943_5449_4F4E;
 
 /// A normalized compound key is kept only with this many space-separated
@@ -88,7 +88,7 @@ pub const HASH_SEED: u64 = 0x4652_4943_5449_4F4E;
 ///
 /// This is the builder's inclusion filter (`corpus-tool`'s
 /// `jargon-attest` subcommand). Documented here but not re-checked by
-/// [`JargonAttestPack::is_attested`] itself — see that method's own docs
+/// [`JargonAttestPack::is_attested`] itself: see that method's own docs
 /// for why the runtime doesn't re-apply it.
 pub const MIN_WORDS: usize = 2;
 /// See [`MIN_WORDS`].
@@ -104,8 +104,8 @@ pub const MAX_WORDS: usize = 4;
 /// This is the ONE normalization both the builder (over raw
 /// underscore-separated Wikipedia titles and mixed-case `OpenAlex` topic
 /// names) and [`crate::jargon`]'s `jargon.metaphor` channel (over a raw
-/// source-text compound span, hyphens intact) run their input through —
-/// see this module's header for why sharing the function itself, not
+/// source-text compound span, hyphens intact) run their input through.
+/// See this module's header for why sharing the function itself, not
 /// just the rule in prose, is what makes the two sides impossible to
 /// drift apart.
 ///
@@ -193,7 +193,7 @@ pub struct BuiltPack {
 ///
 /// # Errors
 /// [`PackError::JargonAttestConstructionFailed`] if `xorf`'s bounded
-/// retry loop never finds a working seed arrangement — see that variant's
+/// retry loop never finds a working seed arrangement. See that variant's
 /// own docs for how unlikely this is in practice.
 pub fn build_pack_bytes(normalized_keys: &BTreeSet<String>) -> Result<BuiltPack, PackError> {
     let mut seen_hashes: BTreeSet<u64> = BTreeSet::new();
@@ -257,8 +257,7 @@ impl JargonAttestPack {
     /// # Errors
     /// [`PackError::JargonAttestTruncated`], [`PackError::JargonAttestBadMagic`],
     /// [`PackError::Toml`], [`PackError::JargonAttestVersionMismatch`], or
-    /// [`PackError::JargonAttestKeyCountMismatch`] — see each variant's
-    /// own docs.
+    /// [`PackError::JargonAttestKeyCountMismatch`]: see each variant's own docs.
     pub fn load(bin: &'static [u8], sidecar_toml: &str) -> Result<Self, PackError> {
         if bin.len() < HEADER_LEN {
             return Err(PackError::JargonAttestTruncated {
@@ -311,13 +310,13 @@ impl JargonAttestPack {
         &self.version
     }
 
-    /// `true` if `normalized_compound` — already run through
+    /// `true` if `normalized_compound`, already run through
     /// [`normalize_compound`] by the caller (see [`crate::jargon`]'s call
-    /// site) — hashes into this filter.
+    /// site), hashes into this filter.
     ///
     /// No word-count check here: a compound outside
     /// [`MIN_WORDS`]..=[`MAX_WORDS`] words was never inserted at build
-    /// time, so it simply won't be found (modulo the filter's own ~0.4%
+    /// time, so it won't be found (modulo the filter's own ~0.4%
     /// false-positive rate, which is the collision direction this
     /// module's header already establishes as safe) — re-checking the
     /// range here would only reject that tiny false-positive slice, at

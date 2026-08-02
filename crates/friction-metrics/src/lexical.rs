@@ -12,7 +12,7 @@
 //!
 //! - **Case**: phrase lists are ASCII; case-folds ASCII-only, not
 //!   locale-aware, since there's no ambient locale to vary by.
-//! - **Apostrophes**: a `'` also matches `’` (`U+2019`) — markdown and
+//! - **Apostrophes**: a `'` also matches `’` (`U+2019`): markdown and
 //!   LLM output commonly use "smart" quotes.
 //! - **Word boundaries**: a marker must be followed by a non-alphanumeric
 //!   character or nothing: `"However"` matches `"However, it..."`, not
@@ -81,7 +81,7 @@ const DISCOURSE_MARKERS: [&str; 32] = [
 /// paragraph's first or last sentence.
 ///
 /// Overlaps `DISCOURSE_MARKERS` on a few entries (`"Overall"`, `"To
-/// summarize"`) by design — both hedges and bookends, tracked
+/// summarize"`) by design: both hedges and bookends, tracked
 /// independently.
 const RITUAL_MARKERS: [&str; 15] = [
     "As we can see",
@@ -230,7 +230,7 @@ const CONTRACTION_PAIRS: [ContractionPair; 28] = [
 
 /// Matches `"not just/only X but (also) Y"`, case- and
 /// newline-insensitive (`(?i)` folds case, `(?s)` lets `.` cross soft
-/// line breaks in a markdown-source sentence). Built once, lazily —
+/// line breaks in a markdown-source sentence). Built once, lazily:
 /// compiling a regex isn't free and this runs repeatedly.
 static NOT_JUST_BUT_RE: LazyLock<Regex> = LazyLock::new(|| {
     Regex::new(r"(?is)\bnot\s+(?:just|only)\b.*?\bbut\b(?:\s+also\b)?")
@@ -498,7 +498,7 @@ mod tests {
 
     use super::*;
 
-    /// `DISCOURSE_MARKERS` is sorted (ASCII byte order), no duplicates —
+    /// `DISCOURSE_MARKERS` is sorted (ASCII byte order), no duplicates,
     /// documents its own invariant rather than relying on the author's
     /// eye.
     #[test]
@@ -529,7 +529,7 @@ mod tests {
     }
 
     /// `contraction_pairs` hands back [`CONTRACTION_PAIRS`], same order,
-    /// unwrapped into plain tuples — the accessor other crates (e.g.
+    /// unwrapped into plain tuples: the accessor other crates (e.g.
     /// `friction-rules`) reuse instead of keeping their own copy.
     #[test]
     fn contraction_pairs_matches_internal_table() {

@@ -14,18 +14,18 @@
 //!
 //! # The gauntlet, in check order
 //!
-//! 1. **Parseability** — pattern and target must parse (hard failure).
+//! 1. **Parseability**: pattern and target must parse (hard failure).
 //! 2. **Guard shape** — a guard whose target is not `"="` is rejected.
-//! 3. **Defined classes** — a pattern class position naming a class the
+//! 3. **Defined classes**: a pattern class position naming a class the
 //!    set does not define can never match; rejected.
 //! 4. **Authored target** — `t="REVIEW"` and `VB[?]` placeholders mark
-//!    targets that were never authored; the rule demotes to
+//!    targets that were never authored. The rule demotes to
 //!    report-only (it still surfaces findings, it just never edits).
-//! 5. **Shadowing** — a surface rule whose pattern is an inflection of
+//! 5. **Shadowing**: a surface rule whose pattern is an inflection of
 //!    its own compiling parent's pattern is dead weight at runtime
 //!    (literal matching is lemma-level, so the parent already covers
 //!    it); rejected.
-//! 6. **Anchor** — every compiling rule needs at least one obligatory
+//! 6. **Anchor**: every compiling rule needs at least one obligatory
 //!    literal token to anchor the scan; rejected otherwise.
 //! 7. **Attestation** — every static content word a rewrite target can
 //!    emit must clear the human-corpus frequency floor
@@ -33,7 +33,7 @@
 //!    function-word set. Inflected realizations are exempt (their
 //!    surface comes from the inflection tables); the lemma being
 //!    realized is not.
-//! 8. **Closure** — a rewrite/delete target that can emit another
+//! 8. **Closure**: a rewrite/delete target that can emit another
 //!    compiling rewrite/delete rule's anchor sequence would re-match on
 //!    a second pass; rejected. Guard sources are exempt: a guard
 //!    produces no output, so re-matching one is a no-op, and the
@@ -45,9 +45,9 @@
 //! compiles that leading target literal as an *agreeing inflection*
 //! ([`CTpl::Inflect`]): literal pattern tokens match at lemma level, so
 //! "notify X" matches "notified X", and a plain literal "tell" would
-//! break tense — the runtime realizes "tell" in the matched token's
-//! form ("told") through the inflection tables, falling back to the
-//! bare lemma when no inflection applies.
+//! break tense: the runtime realizes "tell" in the matched token's form
+//! ("told") through the inflection tables, falling back to the bare
+//! lemma when no inflection applies.
 
 use std::collections::{BTreeMap, BTreeSet};
 
@@ -74,7 +74,7 @@ pub enum CompiledKind {
     Delete,
     /// Protect the match from all edits this pass.
     Guard,
-    /// Emit a suggestion finding only — never edit. Flip-bucket guards
+    /// Emit a suggestion finding only: never edit. Flip-bucket guards
     /// and unauthored-target rules land here.
     Report,
 }
@@ -170,7 +170,7 @@ pub struct CompiledRule {
     /// Conflict tie-break weight (higher wins after leftmost-longest).
     pub support: u32,
     /// Whether literals match lowercased surface forms instead of
-    /// lemmas (pilot rules — their phrases are inflected surfaces).
+    /// lemmas (pilot rules. Their phrases are inflected surfaces).
     pub surface_match: bool,
     /// Measured machine per-million rate (explain output).
     pub m_pm: f64,
@@ -271,7 +271,7 @@ pub enum FrameCompileError {
 /// concatenated).
 ///
 /// Optionally strengthened with a `corpus-tool human-evidence` pack
-/// ([`Self::with_external`]) — additional human-side unigram and
+/// ([`Self::with_external`]): additional human-side unigram and
 /// literal-probe counts mined from staged external human corpora. Every
 /// accessor below pools the external pack in automatically when one is
 /// attached, so every fence that reads this struct (the attestation
@@ -287,7 +287,7 @@ pub enum FrameCompileError {
 /// (see [`crate::human_evidence`]'s own docs for why each table means
 /// what it means): a unigram absent from the external pack is folded in
 /// as a real `0` count *with* the external total still added to the
-/// denominator (its absence is itself evidence — fewer than the
+/// denominator (its absence is itself evidence, fewer than the
 /// builder's five-occurrence floor). A phrase absent from the external
 /// pack's probe table is left out of the pooled count *and* its total
 /// entirely — that absence means the phrase was never one of
@@ -413,7 +413,7 @@ impl CorpusEvidence {
     /// Attaches the machine half of the review-register evidence pair
     /// (the `machine-evidence-v1` pack, built over the committed
     /// LLM-generated review documents). Consulted only through
-    /// [`Self::review_pair_counts`] — never pooled into the human-side
+    /// [`Self::review_pair_counts`]: never pooled into the human-side
     /// accessors above.
     #[must_use]
     pub fn with_external_machine(mut self, machine: HumanEvidencePack) -> Self {
@@ -427,11 +427,11 @@ impl CorpusEvidence {
     /// the external human pack's probe table.
     ///
     /// This is the second *register-matched* pair the two-sided fences
-    /// may consult (both sides are review-register prose), alongside the
-    /// DMS pair from [`Self::phrase_counts_register_matched`]. `None`
-    /// unless both packs are attached, both are non-empty, and both
-    /// probe tables measured the phrase — a pair with a missing side is
-    /// no pair at all.
+    /// may consult (both sides are review-register prose), with the DMS
+    /// pair from [`Self::phrase_counts_register_matched`]. `None` unless
+    /// both packs are attached, both are non-empty, and both probe
+    /// tables measured the phrase — a pair with a missing side is no
+    /// pair at all.
     #[must_use]
     pub fn review_pair_counts(&self, words: &[&str]) -> Option<(u64, u64, u64, u64)> {
         let machine = self.external_machine.as_ref()?;
@@ -461,7 +461,7 @@ impl CorpusEvidence {
 
     /// The pooled human-corpus per-million rate for one word: the DMS
     /// human stream's own count, plus the external pack's unigram count
-    /// when one is attached, over the sum of both totals — see this
+    /// when one is attached, over the sum of both totals. See this
     /// struct's own docs for the pooling formula and why a unigram
     /// absent from the external pack still folds its total in (unlike a
     /// probe).
@@ -540,7 +540,7 @@ impl CorpusEvidence {
     /// Register-matched phrase evidence: `(machine_count, human_count,
     /// machine_total, human_total)`, both sides DMS-only.
     ///
-    /// Two-sided verdicts — direction errors and guard confirmation —
+    /// Two-sided verdicts, direction errors and guard confirmation,
     /// compare a machine rate against a human rate, which is only
     /// meaningful when both sides sample the same register mix. The DMS
     /// streams do (their genres were paired by construction); an
@@ -654,8 +654,8 @@ pub fn compile(
         .filter_map(|r| Some((r.id.as_str(), parse_pattern(&r.p).ok()?)))
         .collect();
 
-    // Individual fences. Each draft either compiles, demotes, or falls;
-    // the closure fence needs every survivor's anchor, so anchors are
+    // Individual fences. Each draft either compiles, demotes, or falls.
+    // The closure fence needs every survivor's anchor, so anchors are
     // resolved first and closure runs as a second pass.
     let mut survivors: Vec<CompiledRule> = Vec::new();
     for draft in drafts {
@@ -673,7 +673,7 @@ pub fn compile(
 
     // Closure fence: no rewrite/delete target may be able to emit any
     // compiling rewrite/delete rule's anchor sequence (guards produce
-    // no output and report rules never edit — both exempt, see the
+    // no output and report rules never edit: both exempt, see the
     // module docs).
     let anchors: Vec<(String, Vec<u32>)> = survivors
         .iter()
@@ -718,7 +718,7 @@ pub fn compile(
 }
 
 /// Parses every fenced rule into a draft, soft-rejecting duplicated
-/// ids (first occurrence wins — the shipped surface bucket carries a
+/// ids (first occurrence wins. The shipped surface bucket carries a
 /// handful of duplicated rows). A parse failure here is structural:
 /// the fenced buckets were verified parseable when adjudicated.
 fn collect_drafts(
@@ -883,8 +883,8 @@ fn compile_one(
     // literal matching is lemma-level, so the parent already covers
     // every such match. A surface with a *different* structure (extra
     // sentinels, groups, tags) is a refinement, not a shadow, and
-    // compiles alongside its parent; overlaps resolve by
-    // leftmost-longest at runtime.
+    // compiles with its parent; overlaps resolve by leftmost-longest
+    // at runtime.
     if draft.bucket == Bucket::Surface
         && let Some(parent) = draft
             .id
@@ -903,7 +903,7 @@ fn compile_one(
     };
 
     // Demotions to report-only: flip-bucket guards (measured
-    // machine-tilted — protecting them would shelter machine-leaning
+    // machine-tilted: protecting them would shelter machine-leaning
     // text) and unauthored targets.
     let demotion = if draft.bucket == Bucket::Flip {
         Some("guard measured machine-tilted; reports instead of protecting".to_string())
@@ -921,7 +921,7 @@ fn compile_one(
             machine_tilted_guard(&draft.pattern, anchor_start, anchor_len, evidence)
     {
         // A guard whose own anchor measures machine-tilted would
-        // shelter machine-leaning text — the flip bucket's exact
+        // shelter machine-leaning text: the flip bucket's exact
         // definition, applied to every guard at compile time rather
         // than only to the rows the original referee caught.
         Some(format!(
@@ -1089,7 +1089,7 @@ fn anchor_evidence_demotion(
         ));
     }
     // The ceiling is one-sided (human frequency alone), so it may pool
-    // every human corpus we have — including external registers.
+    // every human corpus we have, including external registers.
     let (_, pooled_h, _, pooled_h_total) = evidence.phrase_counts(&words);
     let h_rate = rate(pooled_h, pooled_h_total);
     (h_rate >= HUMAN_RATE_CEILING_PER_MILLION).then(|| {
@@ -1157,7 +1157,7 @@ fn compile_template(draft: &Draft, interner: &mut Interner, classes: &ClassTable
     let Target::Template(elems) = &draft.target else {
         return Vec::new();
     };
-    // Sentence sentinels are positional constraints, not emissions —
+    // Sentence sentinels are positional constraints, not emissions,
     // they simply drop out of the template.
     let mut ops = Vec::new();
     let mut group_ordinal: u8 = 0;
@@ -1326,8 +1326,8 @@ fn compile_pat(elem: &PatElem, interner: &mut Interner, classes: &mut ClassTable
 /// The static lemma-id runs a template can emit: consecutive literal
 /// emissions, broken by any input-derived element (which can be
 /// anything, so it conservatively breaks adjacency rather than
-/// wildcarding it). Inflected realizations contribute their lemma id —
-/// the closure check compares lemma-level anchors, and the realization
+/// wildcarding it). Inflected realizations contribute their lemma id.
+/// The closure check compares lemma-level anchors, and the realization
 /// of a lemma matches that lemma at lemma level.
 fn static_emission_runs(template: &[CTpl]) -> Vec<Vec<u32>> {
     let mut runs = vec![Vec::new()];
@@ -1690,8 +1690,9 @@ words = ["a", "an", "the", "to", "of"]
         let evidence = CorpusEvidence::from_dms_toml(SMALL_DMS_TOML)
             .expect("small pack parses")
             .with_external(external);
-        // "use" was never one of this pack's probes (only "please" was)
-        // — dms-only on both sides: 2 human over 5, 0 machine over 2.
+        // "use" was never one of this pack's probes (only "please"
+        // was): dms-only on both sides: 2 human over 5, 0 machine over
+        // 2.
         assert_eq!(evidence.phrase_counts(&["use"]), (0, 2, 2, 5));
     }
 

@@ -7,7 +7,7 @@
 //! This module is the read side only: [`InventoryPack::parse`] turns the
 //! pack's TOML shape into typed, validated, deterministically-sorted
 //! in-memory tables. `crates/friction-packs/packs/inventory-v1.toml`
-//! itself is hand-edited, not generated — see that file's own header
+//! itself is hand-edited, not generated. See that file's own header
 //! comment for the curation discipline.
 
 use std::collections::{BTreeMap, BTreeSet};
@@ -117,17 +117,17 @@ pub struct SubstitutionPair {
     pub notes: Option<Box<str>>,
     /// Content-word tokens [`crate::validate::literal_tokens_from_pattern`]'s
     /// heuristic can't recover from `pattern_source` cleanly (e.g.
-    /// alternation) — the closure check's escape hatch for a pattern the
+    /// alternation): the closure check's escape hatch for a pattern the
     /// heuristic can't parse.
     pub declared_literal_tokens: Vec<Box<str>>,
     /// Content-word tokens in `replacement` a curator hand-attests are
-    /// licensed, alongside a non-empty `notes` explaining why — see
+    /// licensed, with a non-empty `notes` explaining why — see
     /// [`crate::validate::check_closure`].
     pub attested_replacement_tokens: Vec<Box<str>>,
 }
 
-/// A whole-sentence ritual frame: deleted whole, or — for a
-/// `diagnostic_only` entry — recorded without a rewrite because none is
+/// A whole-sentence ritual frame: deleted whole, or, for a
+/// `diagnostic_only` entry, recorded without a rewrite because none is
 /// safe.
 #[derive(Debug, Clone)]
 pub struct RitualFrame {
@@ -223,7 +223,7 @@ impl InventoryPack {
     /// # Errors
     /// Returns [`PackError::Toml`] if `toml` is not valid TOML in the
     /// expected shape. Returns one of the `Inventory*` [`PackError`]
-    /// variants for a structural violation this parse enforces — see each
+    /// variants for a structural violation this parse enforces. See each
     /// variant's own docs.
     pub fn parse(toml: &str) -> Result<Self, PackError> {
         let raw: RawPack = toml::from_str(toml).map_err(PackError::from)?;
@@ -234,7 +234,7 @@ impl InventoryPack {
         // Determinism: an indexed `into_par_iter().map(..).collect()`
         // yields the same Vec<Result> in declaration order regardless of
         // thread count, and `first_error` then picks the winning error
-        // sequentially — same value AND same error selection as the old
+        // sequentially: same value AND same error selection as the old
         // serial loop, byte for byte.
         fn first_error<T: Send>(results: Vec<Result<T, PackError>>) -> Result<Vec<T>, PackError> {
             results.into_iter().collect()
@@ -743,7 +743,7 @@ mod tests {
     /// A minimal, hermetic, valid `inventory-v1`-shaped pack: one entry
     /// per family (deletion span, substitution pair, ritual frame, lvc
     /// pair), guard tokens, and no preview frames or output-frequency
-    /// bands — every field this module's own structural checks care
+    /// bands: every field this module's own structural checks care
     /// about, nothing from the real shipped pack.
     const MINIMAL_PACK: &str = r#"
         closure_function_word_allowance = ["a", "an", "the", "to", "of"]

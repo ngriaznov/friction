@@ -159,7 +159,7 @@ fn mine_paired_respects_min_antislop_token_freq_gate() {
     let dir = tempfile::tempdir().unwrap();
     let paired_dir = dir.path().join("paired");
 
-    // "alpha"/"beta" occur 7 times each on the antislop side — one short
+    // "alpha"/"beta" occur 7 times each on the antislop side, one short
     // of the default gate of 8.
     let antislop_text = "Alpha beta filler sentence here. \n".repeat(7);
     let stock_text = "Alpha beta combo appears often here. \n".repeat(10);

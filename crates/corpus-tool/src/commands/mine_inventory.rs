@@ -12,20 +12,21 @@
 //! # Tokenization convention — a deliberate split from `index`
 //!
 //! This command extracts prose via `friction-parse` (`document.prose()`,
-//! like the existing `mine` command) rather than running `clean()`/
-//! `tokenize()` over raw file bytes, for two reasons: block-position-
-//! conditioned mining (see [`preview_candidate_block_indices`]) structurally
-//! needs the real block tree — there is no way to recover "first block
-//! after H1" from a flat regex-cleaned stream — and staying consistent
-//! with the convention `mine.rs` already uses is one less inconsistency
-//! for a reader to reconcile. Within each prose unit, sentences come from
+//! like the existing `mine` command) rather than running
+//! `clean()`/`tokenize()` over raw file bytes, for two reasons:
+//! block-position-conditioned mining (see
+//! [`preview_candidate_block_indices`]) structurally needs the real block
+//! tree — there is no way to recover "first block after H1" from a flat
+//! regex-cleaned stream — and staying consistent with the convention
+//! `mine.rs` already uses is one less inconsistency for a reader to
+//! reconcile. Within each prose unit, sentences come from
 //! `friction_harness::clean::split_sentences`, and each sentence's tokens
 //! from `friction_harness::clean::tokenize` — the canonical shared
 //! primitive, used here in place of `mine.rs`'s own hand-rolled
-//! `word_segments` (that module is left untouched). `corpus-tool index`,
-//! by contrast, tokenizes raw whole-file text with no block-tree
-//! extraction at all — see that module's own doc comment for why the
-//! two commands deliberately do not share one convention.
+//! `word_segments` (that module is left untouched). `corpus-tool index`, by
+//! contrast, tokenizes raw whole-file text with no block-tree extraction at
+//! all. See that module's own doc comment for why the two commands
+//! deliberately do not share one convention.
 
 use std::collections::{BTreeMap, BTreeSet};
 use std::fmt::Write as _;
@@ -52,7 +53,7 @@ pub struct Args {
     #[arg(long)]
     pub report: PathBuf,
     /// The `eps` smoothing constant in the ratio-mining score. Documented
-    /// and overridable for calibration only — the shipped default is the
+    /// and overridable for calibration only: the shipped default is the
     /// one the algorithm reference validated.
     #[arg(long, default_value_t = 0.4)]
     pub eps: f64,
@@ -127,7 +128,7 @@ pub fn run(args: &Args) -> anyhow::Result<()> {
     // Per-order (1..=4), per-class literal n-gram counts. Order 1 is the
     // human/machine per-token frequency table used to gate every other
     // order, and (for the LVC section) the bare-verb-form occurrence
-    // table — never itself reported as its own mined section.
+    // table, never itself reported as its own mined section.
     let counts = accumulate_by_order(&data.sentences, word_runs);
     let literal_orders: Vec<OrderReport> = [2, 3, 4]
         .into_iter()
@@ -239,7 +240,7 @@ fn collect_corpus_data(
 }
 
 /// Accumulates per-order (1..=4), per-class n-gram counts over `sentences`,
-/// using `runs_for` to turn each sentence's text into word-runs — shared by
+/// using `runs_for` to turn each sentence's text into word-runs: shared by
 /// the literal (§3.3) and POS-skeleton (§3.4) mining passes, which differ
 /// only in that one function.
 fn accumulate_by_order(
@@ -280,7 +281,7 @@ struct BlockCandidate {
 }
 
 /// One preview-frame candidate's content-lemma overlap with its own
-/// document's header text — supporting evidence only, never auto-gated.
+/// document's header text: supporting evidence only, never auto-gated.
 struct PreviewOverlapEvidence {
     doc_id: String,
     overlap_lemma_count: usize,
@@ -381,7 +382,7 @@ struct OrderReport {
 ///
 /// A thin wrapper over `ngram_mining::build_ratio_order_report`
 /// (`counts.llm` = "a" = machine, `counts.human` = "b" = human, per
-/// that module's own documented generic-reuse contract) — pure
+/// that module's own documented generic-reuse contract): pure
 /// extraction, so this produces byte-identical output to the original
 /// inline implementation.
 fn build_literal_order_report(
@@ -434,7 +435,7 @@ fn build_literal_order_report(
 // --- block-position-conditioned mining ---
 
 /// For each `Heading { level: 1 }` block, the index of the nearest
-/// following `Paragraph` block in source order — skipped if no paragraph
+/// following `Paragraph` block in source order: skipped if no paragraph
 /// appears before the next heading (of any level) or before the document
 /// ends.
 fn preview_candidate_block_indices(blocks: &[Block]) -> Vec<usize> {
@@ -494,7 +495,7 @@ fn prose_text_for_block(document: &Document, block_index: usize) -> String {
 }
 
 /// Content lemmas of `text`: the lemma of every tagged token whose coarse
-/// tag starts with `N`, `V`, `J`, or `R` (noun/verb/adjective/adverb) —
+/// tag starts with `N`, `V`, `J`, or `R` (noun/verb/adjective/adverb):
 /// this module's operationalization of "content word" for the header
 /// lemma-overlap supporting evidence.
 fn content_lemmas(text: &str, tagger: &dyn Tagger) -> BTreeSet<String> {
@@ -569,7 +570,7 @@ struct RawCountEntry {
 }
 
 /// One block-position family's (preview or closing) raw top-by-count
-/// n-gram lists, per order — no frequency or machine-count gate: the
+/// n-gram lists, per order: no frequency or machine-count gate: the
 /// candidate pool is small enough that the report states raw counts and
 /// leaves gating to the human curator (see the module docs).
 struct BlockFamilyReport {

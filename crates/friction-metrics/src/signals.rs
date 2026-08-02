@@ -3,7 +3,7 @@
 //! New-metric candidates the train-split error-analysis brief argued for:
 //! the other families ([`crate::rhythm`], [`crate::lexical`],
 //! [`crate::symmetry`]) don't look at document *structure* or
-//! discriminative *n-gram* register mined from the train corpus — a
+//! discriminative *n-gram* register mined from the train corpus, a
 //! qualitative read found those the most visually obvious llm/human tell.
 //!
 //! Every public function is a pure function of a
@@ -179,7 +179,7 @@ fn phrase_rate(document: &Document, phrases: &[Vec<String>]) -> f64 {
 /// Rate of llm-favored n-grams, per 1000 word tokens.
 ///
 /// From `crates/friction-packs/packs/mined-ngrams-v1.toml`'s
-/// `llm_favored` list, matched case-insensitively at word boundaries — a
+/// `llm_favored` list, matched case-insensitively at word boundaries: a
 /// phrase never matches inside a longer word.
 #[must_use]
 pub fn llm_favored_phrase_rate(document: &Document) -> f64 {
@@ -235,12 +235,12 @@ pub fn list_item_density(document: &Document) -> f64 {
 }
 
 /// Counts bold/strong-emphasis spans in `text` by counting delimiters
-/// and halving — each span contributes two delimiter occurrences.
+/// and halving: each span contributes two delimiter occurrences.
 ///
 /// An approximation, not a structural parse: `friction-parse` deliberately
 /// *bridges* emphasis delimiter bytes into sentence text rather than
 /// stripping them, so this can't distinguish `**bold**` from a stray
-/// unpaired `**` (e.g. split across sentences by segmentation) — an odd
+/// unpaired `**` (e.g. split across sentences by segmentation): an odd
 /// count drops its last occurrence via integer division rather than
 /// mis-counting a whole span.
 fn count_strong_delimiter_spans(text: &str) -> usize {
@@ -270,7 +270,7 @@ pub fn bold_span_density(document: &Document) -> f64 {
 // ---------------------------------------------------------------------
 
 /// The leading unigram of `text`: its first [`word_tokens`] entry
-/// (lowercase), or `None` if `text` has no alphabetic word — e.g. pure
+/// (lowercase), or `None` if `text` has no alphabetic word, e.g. pure
 /// punctuation.
 fn leading_unigram(text: &str) -> Option<String> {
     word_tokens(text).into_iter().next()

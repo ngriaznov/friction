@@ -8,7 +8,7 @@
 //! into `(configuration, correct transition)` training pairs;
 //! [`Configuration::is_allowed`]/[`Configuration::apply`] let a trainer
 //! (or, later, a trained model) drive the system at inference. Every
-//! function is pure — no RNG, no order-dependent hashing — so a gold tree
+//! function is pure (no RNG, no order-dependent hashing) so a gold tree
 //! always derives the identical sequence.
 //!
 //! # Why arc-eager
@@ -121,7 +121,7 @@ impl Configuration {
     /// - [`Transition::RightArc`]: stack and buffer non-empty. No
     ///   head-check: a token fresh out of the buffer can't have a head.
     /// - [`Transition::Reduce`]: stack non-empty, top already headed
-    ///   (popping a headless token strands it — nothing can attach below
+    ///   (popping a headless token strands it: nothing can attach below
     ///   the stack top again).
     #[must_use]
     pub fn is_allowed(&self, transition: Transition) -> bool {
@@ -180,7 +180,7 @@ impl Configuration {
 
     /// Whether no further transition is legal: buffer exhausted and the
     /// stack empty or stuck on a headless top ([`Transition::Reduce`]
-    /// refuses that; everything else needs a non-empty buffer).
+    /// refuses that. Everything else needs a non-empty buffer).
     #[must_use]
     pub fn is_terminal(&self) -> bool {
         self.buffer >= self.len
@@ -306,7 +306,7 @@ pub struct DeriveError;
 ///
 /// # Errors
 /// Returns [`DeriveError`] if replaying the transitions doesn't reproduce
-/// `gold`'s arcs exactly — see that type's docs for why.
+/// `gold`'s arcs exactly: see that type's docs for why.
 pub fn derive(gold: &SentenceParse) -> Result<Vec<Transition>, DeriveError> {
     let mut config = Configuration::new(gold.edges().len());
     let mut transitions = Vec::new();

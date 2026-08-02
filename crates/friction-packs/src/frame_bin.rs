@@ -53,7 +53,7 @@ use crate::frame_rules::{Clitic, Slot, Tag};
 /// The 8-byte magic every frame pack starts with.
 const MAGIC: [u8; 8] = *b"FRFRMPCK";
 
-/// On-disk format version — bumped if the layout changes shape.
+/// On-disk format version: bumped if the layout changes shape.
 const FORMAT_VERSION: u16 = 1;
 
 /// Length of the lowercase-hex sha256 recorded in the header.
@@ -74,7 +74,7 @@ const RULE_RECORD_LEN: usize = 42;
 
 /// One decoded pattern op. Group structure is delimiter-encoded
 /// ([`Self::GroupStart`]/[`Self::AltSep`]/[`Self::GroupEnd`]) so the
-/// blob stays flat; the matcher walks it with a cursor.
+/// blob stays flat. The matcher walks it with a cursor.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum PatOp {
     /// Lemma-matched literal (interner id).
@@ -145,7 +145,7 @@ pub enum TplOp {
 }
 
 /// Errors reading a frame pack artifact. Never expected for the
-/// vendored artifact (covered by round-trip and drift tests) — only
+/// vendored artifact (covered by round-trip and drift tests): only
 /// for corrupted or hand-edited input.
 #[derive(Debug, thiserror::Error)]
 #[non_exhaustive]
@@ -654,7 +654,7 @@ impl<'a> Reader<'a> {
 }
 
 impl<'a> FramePackView<'a> {
-    /// Parses the artifact's sections into a view — slice splits only.
+    /// Parses the artifact's sections into a view, slice splits only.
     ///
     /// # Errors
     /// Returns [`FrameBinError`] on truncation, bad magic, an

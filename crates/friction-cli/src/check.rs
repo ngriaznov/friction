@@ -58,7 +58,7 @@ pub struct CheckArgs {
     format: Format,
 
     /// After the report, list every DMS-flagged span that no compiled
-    /// frame rule covers — the work queue for the next rule-generation
+    /// frame rule covers: the work queue for the next rule-generation
     /// batch (a span the statistical channel flags but no adjudicated
     /// rule can explain or rewrite).
     #[arg(long)]
@@ -336,7 +336,7 @@ struct ResidualSpan<'a> {
 }
 
 /// The DMS spans of `spans` that overlap no frame-rule match anywhere
-/// in the document — the statistical channel sees a machine tell
+/// in the document: the statistical channel sees a machine tell
 /// there, but no adjudicated rule can explain or rewrite it, so it is
 /// exactly the evidence queue the next rule batch should be generated
 /// from.
@@ -398,7 +398,7 @@ mod tests {
     use super::*;
 
     /// `metric_rows` looks up a band for every metric the pack has one
-    /// for, and reports `None` for the rest — hand-checked against a tiny
+    /// for, and reports `None` for the rest: hand-checked against a tiny
     /// pack with exactly one banded metric.
     #[test]
     fn metric_rows_looks_up_bands_and_reports_containment() {

@@ -19,7 +19,7 @@ fn write_fixture(dir: &Path, name: &str, contents: &str) -> PathBuf {
 }
 
 /// The `composed_four_operation_paragraph` fixture from
-/// `docs/research/fixtures.json`, copied here verbatim — reliably
+/// `docs/research/fixtures.json`, copied here verbatim: reliably
 /// produces detection spans across multiple channels.
 const MESSY_BLOG: &str = "This guide will walk you through configuring the backup agent for \
                            your staging environment. It is important to note that the agent \
@@ -31,7 +31,7 @@ const MESSY_BLOG: &str = "This guide will walk you through configuring the backu
                            please reach out to our support team.";
 
 /// The `near_noop_clean_text` fixture from `docs/research/fixtures.json`,
-/// copied here verbatim — produces zero detection spans against every
+/// copied here verbatim: produces zero detection spans against every
 /// generator family.
 const CLEAN: &str = "Run the scanner from the project root. Results stream in as they are \
                       found, and nothing is deleted without confirmation.";
@@ -67,8 +67,8 @@ fn sarif_output_with_spans_validates_against_the_schema() {
     );
 }
 
-/// SARIF output for a document with zero detected spans — the empty-
-/// `results` shape — also validates against the schema.
+/// SARIF output for a document with zero detected spans (the
+/// empty-`results` shape) also validates against the schema.
 #[test]
 fn sarif_output_with_no_spans_validates_against_the_schema() {
     let dir = tempfile::tempdir().expect("tempdir");

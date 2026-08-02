@@ -69,8 +69,8 @@ fn scanning_a_real_document_against_the_embedded_packs_runs_to_completion() {
 }
 
 /// `"color harmony"` is a real Wikipedia article title (verified against
-/// the raw `jargon-attest-v1` input data), and — since jargon-v1.toml's
-/// `attested_exceptions` pruning — is no longer in the hand-curated TOML
+/// the raw `jargon-attest-v1` input data), and, since jargon-v1.toml's
+/// `attested_exceptions` pruning, is no longer in the hand-curated TOML
 /// list either. Suppression here can only be the embedded
 /// `jargon-attest-v1` `BinaryFuse8` filter (SYNTHESIS.md §4), not the
 /// TOML override layer.
@@ -102,8 +102,8 @@ fn color_harmony_is_suppressed_by_the_embedded_attestation_filter() {
 }
 
 /// A genuinely invented pseudo-jargon compound — never a Wikipedia title,
-/// never an `OpenAlex` topic, never a TOML exception — still fires. The
-/// filter only ever suppresses; it never invents a suppression for a
+/// never an `OpenAlex` topic, never a TOML exception: still fires. The
+/// filter only ever suppresses. It never invents a suppression for a
 /// compound that isn't actually attested anywhere.
 #[test]
 fn celestial_tapestry_is_not_a_title_so_it_still_fires() {

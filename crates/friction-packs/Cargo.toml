@@ -39,7 +39,7 @@ xxhash-rust = { workspace = true }
 # tables this crate's inventory pack now owns instead).
 regex = "1"
 # `InventoryPack::parse` compiles its ~31 patterns in parallel (regex
-# construction is the pack's whole startup cost — see that function's
+# construction is the pack's whole startup cost. See that function's
 # docs). Ordered `par_iter().collect()` only, per the workspace
 # determinism doctrine.
 rayon = { workspace = true }

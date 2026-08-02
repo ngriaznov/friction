@@ -18,16 +18,16 @@
 //! open with this word"). [`SkeletonSet`] answers a similar boolean
 //! question one level more abstract: has this exact run of coarse
 //! part-of-speech tags (`<S>`/`<E>` sentinels included) been observed as
-//! a human sentence's skeleton. Both are membership-only — no counts, no
-//! frequencies — attestation is a question of existence, and a
-//! frequency threshold would just be a second, hidden calibration knob.
+//! a human sentence's skeleton. Both are membership-only (no counts, no
+//! frequencies) attestation is a question of existence, and a frequency
+//! threshold would just be a second, hidden calibration knob.
 //!
 //! # Independent tokenizations, on purpose
 //!
 //! The bigram table's tokens and the skeleton set's tags are built from
-//! two genuinely different tokenizations of the same sentence text, and
-//! this module does not try to force them into positional correspondence
-//! with each other:
+//! two different tokenizations of the same sentence text, and this
+//! module does not try to force them into positional correspondence with
+//! each other:
 //!
 //! - the bigram side uses `friction_harness::clean::tokenize`'s
 //!   convention (`[a-z']+` word runs, single-character `.,;:!?`
@@ -110,9 +110,9 @@ impl TokenVocab {
 // single largest slice of `friction`'s fixed startup cost. This is the
 // same cure the DMS index already received (`crate::dms_bin`): do the
 // work once, offline, in `corpus-tool attest-pack`, and serialize the
-// finished tables in a layout the runtime reads as a zero-copy view
-// over the `include_bytes!`'d static — header validation plus slice
-// splits at load, no per-entry work.
+// finished tables in a layout the runtime reads as a zero-copy view over
+// the `include_bytes!`'d static: header validation plus slice splits at
+// load, no per-entry work.
 //
 // Layout (all integers little-endian; every multi-byte field is read via
 // `from_le_bytes` on a byte slice — alignment-free by construction, so
@@ -120,7 +120,7 @@ impl TokenVocab {
 //
 // - **Header**: 8-byte magic `FRATTEST`, `u16` format version, 64-byte
 //   lowercase-hex sha256 of the source TOML (the same staleness guard
-//   `dms_bin` records — the registry drift test re-packs the TOML and
+//   `dms_bin` records: the registry drift test re-packs the TOML and
 //   compares bytes).
 // - **Near-no-op calibration**: `u8` presence flag; when present, the
 //   threshold's `f64` bits, `u32` sample doc count, `u8` dev-check flag
@@ -152,7 +152,7 @@ impl TokenVocab {
 /// The 8-byte magic every attestation binary artifact starts with.
 const BIN_MAGIC: [u8; 8] = *b"FRATTEST";
 
-/// The artifact's on-disk format version — bumped if the layout above
+/// The artifact's on-disk format version: bumped if the layout above
 /// ever changes shape.
 const BIN_FORMAT_VERSION: u16 = 1;
 
@@ -315,7 +315,7 @@ impl VocabView {
 /// [`AttestationPack::parse`] builds from the source TOML (the offline
 /// `corpus-tool` path), `View` is what [`AttestationPack::from_bin`]
 /// splits zero-copy out of the embedded derived artifact (the runtime
-/// path). Every query answers identically from either — the view's
+/// path). Every query answers identically from either: the view's
 /// binary searches walk the same sorted content the owned B-trees hold.
 #[derive(Debug, Clone)]
 pub struct BigramTable {
@@ -349,7 +349,7 @@ impl BigramTable {
     ///
     /// `false` for a `left` or `right` outside this pack's own vocabulary
     /// (an out-of-vocabulary word can never have been attested, by
-    /// definition) — not an error, mirroring the mining algorithm's own
+    /// definition): not an error, mirroring the mining algorithm's own
     /// boolean membership test.
     #[must_use]
     pub fn attests(&self, left: &str, right: &str) -> bool {
@@ -413,7 +413,7 @@ impl BigramTable {
 /// tags (`<S>`/`<E>` sentinels included) been observed as (part of) a
 /// TRAIN human sentence's skeleton.
 ///
-/// Same two-representation shape as [`BigramTable`] — see its own docs.
+/// Same two-representation shape as [`BigramTable`]: see its own docs.
 #[derive(Debug, Clone)]
 pub struct SkeletonSet {
     repr: SkeletonRepr,
@@ -661,8 +661,8 @@ impl AttestationPack {
     }
 
     /// Loads a [`pack_attestation_bin`]-written derived artifact as a
-    /// zero-copy view — header/section validation plus slice splits, no
-    /// per-entry materialization — returning the pack alongside the
+    /// zero-copy view (header/section validation plus slice splits, no
+    /// per-entry materialization) returning the pack alongside the
     /// source TOML's sha256 hex recorded in the artifact header.
     ///
     /// `bytes` is `&'static` because the view borrows it for the life of
@@ -673,7 +673,7 @@ impl AttestationPack {
     /// Returns [`PackError::AttestationBinMalformed`] for any structural
     /// inconsistency (bad magic/version, a section running past the end,
     /// a lookup table or code array out of order). Never expected for
-    /// the vendored embedded artifact — covered by this module's
+    /// the vendored embedded artifact: covered by this module's
     /// round-trip tests and the registry's drift test.
     pub fn from_bin(bytes: &'static [u8]) -> Result<(Self, &'static str), PackError> {
         let mut cursor = BinCursor::new(bytes);
@@ -793,7 +793,7 @@ pub fn pack_attestation_bin(toml_text: &str) -> Result<Vec<u8>, PackError> {
     Ok(out)
 }
 
-/// Serializes one vocab section — see the artifact layout docs above.
+/// Serializes one vocab section: see the artifact layout docs above.
 fn write_vocab(out: &mut Vec<u8>, vocab: &TokenVocab) {
     write_u32(out, u32_from(vocab.tokens.len()));
     let mut pool: Vec<u8> = Vec::new();
@@ -1014,7 +1014,7 @@ fn parse_bigram(raw: &RawBigram, vocab: TokenVocab) -> Result<BigramTable, PackE
 
 /// Parses `rights` (the `;`-delimited, per-left comma-joined id groups)
 /// into one `Vec<u32>` per group. An entirely empty field (both `lefts`
-/// and `rights` empty — a degenerate, zero-bigram pack) parses to zero
+/// and `rights` empty: a degenerate, zero-bigram pack) parses to zero
 /// groups rather than one spurious empty group.
 fn parse_bigram_rights(rights: &str) -> Result<Vec<Vec<u32>>, PackError> {
     let trimmed = rights.trim();
@@ -1095,8 +1095,8 @@ struct RawNearNoop {
 
 /// The TOML shape of an `attestation-v1` pack as a whole. `[pack]`'s
 /// metadata fields (`version`, `corpus_manifest_sha256`,
-/// `train_human_doc_count`) are not named here — nothing in this module
-/// needs them to build a working [`AttestationPack`] — and are simply
+/// `train_human_doc_count`) are not named here (nothing in this module
+/// needs them to build a working [`AttestationPack`]) and are simply
 /// ignored by serde rather than rejected.
 #[derive(Debug, Deserialize)]
 struct RawPack {

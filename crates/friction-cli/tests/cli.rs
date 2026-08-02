@@ -37,16 +37,15 @@ const CLEAN: &str = "Run the scanner from the project root. Results stream in as
 
 /// Two paragraphs, copied from `corpus/llm/docs/57397cc503b594ba.md`, that
 /// the DMS channel reliably flags one span in each of (originally verified
-/// against the `claude` family stream with
-/// `friction check --family claude --genre docs`, back when the channel
-/// was still per-family; the pooled machine automaton the channel now
-/// scans against subsumes that stream, so the same two spans still fire —
-/// see this module's own `dms.machine` assertions): confirms `fix`'s
-/// paraphrase report actually fires on real corpus text, not only on
-/// synthetic unit-test spans. Zero-patch fixture on purpose (`fix` applies
-/// no repair-engine edit to either paragraph) so the fixed output is
-/// byte-identical to the input — isolating the paraphrase report from the
-/// repair engine's own output.
+/// against the `claude` family stream with `friction check --family claude
+/// --genre docs`, back when the channel was still per-family; the pooled
+/// machine automaton the channel now scans against subsumes that stream,
+/// so the same two spans still fire — see this module's own `dms.machine`
+/// assertions): confirms `fix`'s paraphrase report actually fires on real
+/// corpus text, not only on synthetic unit-test spans. Zero-patch fixture
+/// on purpose (`fix` applies no repair-engine edit to either paragraph) so
+/// the fixed output is byte-identical to the input, isolating the
+/// paraphrase report from the repair engine's own output.
 ///
 /// One byte differs from the corpus source: the original's em dash before
 /// "including" is a plain comma here. Register's em-dash operation
@@ -152,7 +151,7 @@ fn check_requires_family() {
 }
 
 /// `check --format json` never fails to parse as JSON, and two runs over
-/// the same input produce byte-identical stdout — the JSON
+/// the same input produce byte-identical stdout, the JSON
 /// shape-stability guarantee.
 #[test]
 fn check_json_output_is_byte_identical_across_runs() {
@@ -365,8 +364,8 @@ fn fix_json_paraphrase_array_is_byte_identical_across_runs() {
     assert_eq!(first.stdout, second.stdout);
     assert_eq!(first.stderr, second.stderr);
 
-    // stderr in `--format json` mode is ONE JSON document — the summary
-    // with the `suggestions` and `paraphrase` arrays embedded — so an
+    // stderr in `--format json` mode is ONE JSON document (the summary
+    // with the `suggestions` and `paraphrase` arrays embedded), so an
     // agent consumes the whole stream with a single parse.
     let stderr = String::from_utf8(first.stderr).expect("valid UTF-8");
     let value: serde_json::Value = serde_json::from_str(&stderr)

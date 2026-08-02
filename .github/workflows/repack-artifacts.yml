@@ -11,11 +11,11 @@
 # Runs the regeneration unconditionally (not path-filtered): a stale
 # artifact can come from a source TOML edit OR from a serializer/format
 # change in friction-packs itself, and the regeneration is a pure,
-# byte-idempotent function of committed bytes — a fresh tree ends the job
+# byte-idempotent function of committed bytes. A fresh tree ends the job
 # green with no commit.
 #
 # Fork PRs: the token can't push to a fork, so the job fails with the
-# one-command local fix instead — the same signal, manual apply.
+# one-command local fix instead: the same signal, manual apply.
 name: Repack artifacts
 
 on:
@@ -39,7 +39,7 @@ jobs:
       - uses: actions/checkout@v4
         with:
           # For pull_request events check out the PR's real head branch,
-          # not the detached merge ref — a repack commit must land on the
+          # not the detached merge ref: a repack commit must land on the
           # branch itself.
           ref: ${{ github.head_ref || github.ref_name }}
       - uses: dtolnay/rust-toolchain@stable

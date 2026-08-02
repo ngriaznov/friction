@@ -30,7 +30,7 @@ fn rewrite_agrees_with_a_third_singular_match() {
 /// A sentence-initial match rewrites with the capitalization
 /// transferred, keeping a multi-word target's particle. (Mid-sentence
 /// inflected variants of this rule mostly hold at the seam-bigram
-/// gate — the corpus is too small to attest most (context, new-word)
+/// gate. The corpus is too small to attest most (context, new-word)
 /// pairs, and holding is the designed fail-closed behavior; the
 /// irregular realization itself is pinned in friction-nlp's inflect
 /// tests.)
@@ -42,7 +42,7 @@ fn sentence_initial_rewrite_transfers_capitalization() {
     assert_eq!(fixed, "Speed up the rollout now.\n");
 }
 
-/// A report-only rule (unauthored target) never edits itself — it
+/// A report-only rule (unauthored target) never edits itself. It
 /// surfaces a finding carrying its measured evidence. A separate
 /// rewrite rule over the same span may still edit (here the
 /// adjudicated adjective deletion), and the report documents the

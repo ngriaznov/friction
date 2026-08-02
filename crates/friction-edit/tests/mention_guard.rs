@@ -32,7 +32,7 @@ fn quoted_substitution_and_deletion_mentions_are_left_verbatim() {
     );
 }
 
-/// A quoted light-verb construction is not pivoted; the same construction
+/// A quoted light-verb construction is not pivoted. The same construction
 /// unquoted in the same document still is.
 #[test]
 fn quoted_pivot_mention_is_left_verbatim_while_unquoted_use_is_pivoted() {

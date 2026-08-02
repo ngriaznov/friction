@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# check-holdout.sh — verify the sealed holdout split hasn't drifted.
+# check-holdout.sh: verify the sealed holdout split hasn't drifted.
 #
 # corpus/holdout.lock is written once when the holdout split is frozen.
 # Each line is tab-separated: id, sha256, relative path

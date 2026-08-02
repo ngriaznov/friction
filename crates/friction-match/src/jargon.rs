@@ -81,10 +81,10 @@ fn modifier_run_start(tokens: &[TaggedToken], head_idx: usize) -> Option<usize> 
     (start < head_idx).then_some(start)
 }
 
-/// `true` if no token in `tokens[start..=head_idx]` is capitalized mid-
-/// sentence — the proper-noun/product-name guard. Index 0 (a genuinely
-/// sentence-initial token) is exempt: capitalization there is a sentence-
-/// case artifact, not a signal about the word itself.
+/// `true` if no token in `tokens[start..=head_idx]` is capitalized
+/// mid-sentence, the proper-noun/product-name guard. Index 0 (a genuinely
+/// sentence-initial token) is exempt: capitalization there is a
+/// sentence-case artifact, not a signal about the word itself.
 fn compound_is_clean(
     tokens: &[TaggedToken],
     document_text: &str,
@@ -101,7 +101,7 @@ fn compound_is_clean(
 /// Wikipedia/OpenAlex source string with, so this channel's lookup key
 /// and the embedded filter's own keys can never drift apart (see that
 /// function's own docs). Folds case, underscores, and hyphens, and
-/// collapses whitespace — "cross-domain resonance" -> "cross domain
+/// collapses whitespace: "cross-domain resonance" -> "cross domain
 /// resonance".
 fn normalized_compound(
     tokens: &[TaggedToken],
@@ -136,9 +136,9 @@ fn jargon_span_at(
     }
 
     // The exception check: a hand-curated TOML override (kept for the
-    // cases the filter misses but a human reason still applies — see
+    // cases the filter misses but a human reason still applies, see
     // jargon-v1.toml's own header) OR the web-scale attestation filter
-    // (the real oracle now — SYNTHESIS.md §4). Either suppresses the
+    // (the real oracle now, SYNTHESIS.md §4). Either suppresses the
     // flag; neither is authoritative over the other.
     let normalized = normalized_compound(tokens, document_text, start, head_idx);
     if pack.is_attested_exception(&normalized) || attest.is_attested(&normalized) {
@@ -155,7 +155,7 @@ fn jargon_span_at(
     })
 }
 
-/// `true` if `unit`'s range is bracket-delimited in the raw source — a
+/// `true` if `unit`'s range is bracket-delimited in the raw source, a
 /// markdown link (or image) label. A label names its target the way a
 /// heading names its section: the same product concept a document guards
 /// by capitalization in prose ("Inference Fabric") routinely appears

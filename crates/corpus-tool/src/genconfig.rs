@@ -15,10 +15,10 @@ use serde::Deserialize;
 #[serde(deny_unknown_fields)]
 pub struct GenConfig {
     pub ollama: OllamaConfig,
-    /// Fixed additive seed base. Combined with a stable
-    /// hash of `(model, prompt_id, slice)` to derive each job's seed —
-    /// changing this after docs have been generated changes every
-    /// derived doc id and seed.
+    /// Fixed additive seed base. Combined with a stable hash of
+    /// `(model, prompt_id, slice)` to derive each job's seed: changing
+    /// this after docs have been generated changes every derived doc
+    /// id and seed.
     pub base_seed: u64,
     /// Model matrix. Order is significant: it is the deterministic
     /// round-robin order jobs are assigned to models within a genre (see

@@ -214,8 +214,8 @@ pub fn run(args: &Args) -> anyhow::Result<()> {
 ///
 /// Each segment is a maximal run of lowercase word tokens with no
 /// intervening punctuation (only whitespace between tokens). Punctuation
-/// of any kind — sentence-enders, commas, dashes, parens, quotes — ends
-/// the current segment, so n-grams built from a segment never cross it; a
+/// of any kind (sentence-enders, commas, dashes, parens, quotes) ends the
+/// current segment, so n-grams built from a segment never cross it; a
 /// digit or symbol does the same (this tool mines word phrases, not
 /// numbers or code-like tokens).
 ///
@@ -402,8 +402,8 @@ pub fn top_llm_favored(entries: &[Entry], top_n: usize) -> Vec<Entry> {
 }
 
 /// The top `top_n` human-favored entries: sorted by `z` ascending (most
-/// negative — most strongly human-favored — first), ties broken by
-/// n-gram text ascending.
+/// negative, most strongly human-favored, first), ties broken by n-gram
+/// text ascending.
 ///
 /// `pub` — see [`ClassCounts`]'s doc comment for why.
 #[must_use]
@@ -593,7 +593,7 @@ mod tests {
     }
 
     /// Swapping which class is `llm` and which is `human` (with the same
-    /// counts) negates both `delta` and `z` exactly — the scoring is
+    /// counts) negates both `delta` and `z` exactly: the scoring is
     /// antisymmetric in the two classes, as the formula's structure
     /// requires.
     #[test]
@@ -672,7 +672,7 @@ mod tests {
     }
 
     /// Re-scoring and re-sorting the same input twice is byte-identical
-    /// (deterministic ordering) — checked by comparing the rendered
+    /// (deterministic ordering): checked by comparing the rendered
     /// ngram-order sequence, not just set membership.
     #[test]
     fn top_llm_favored_ordering_is_deterministic() {

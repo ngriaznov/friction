@@ -1,5 +1,5 @@
 //! The unified pack-registry entry point: loads a pack's TOML bytes into
-//! its typed, parsed form, alongside its declared version and a recorded
+//! its typed, parsed form, with its declared version and a recorded
 //! sha256 of the exact source bytes it was parsed from.
 
 use std::sync::LazyLock;
@@ -16,8 +16,8 @@ use crate::register::RegisterPack;
 use crate::validate::validate;
 use crate::{PackError, Sha256};
 
-/// A parsed pack, alongside its declared version string and the sha256 of
-/// the exact source bytes it was parsed from.
+/// A parsed pack, with its declared version string and the sha256 of the
+/// exact source bytes it was parsed from.
 #[derive(Debug, Clone)]
 pub struct LoadedPack<T> {
     pub pack: T,
@@ -161,7 +161,7 @@ const ATTESTATION_V1_BIN: &[u8] = include_bytes!("../packs/attestation-v1.bin");
 /// [`DMS`] and [`FRAME`].
 ///
 /// # Panics
-/// Panics if the embedded artifact fails to parse — a bug in this
+/// Panics if the embedded artifact fails to parse: a bug in this
 /// crate's own vendored data (covered by this crate's attestation
 /// round-trip and drift tests), not a runtime condition.
 pub static ATTESTATION: LazyLock<LoadedPack<AttestationPack>> = LazyLock::new(|| {
@@ -268,7 +268,7 @@ const MACHINE_EVIDENCE_V1_BIN: &[u8] = include_bytes!("../packs/machine-evidence
 /// Parsed once from the embedded `human-evidence-v1.bin` and reused for
 /// the life of the process.
 /// `crate::frame_compile::CorpusEvidence::with_external` pools it into
-/// every frame-rewrite compile fence — see that method's own docs.
+/// every frame-rewrite compile fence: see that method's own docs.
 ///
 /// # Panics
 /// Panics if the embedded `human-evidence-v1.bin` fails to parse — a bug
@@ -481,7 +481,7 @@ mod tests {
         );
     }
 
-    /// The embedded view and a fresh TOML parse answer identically —
+    /// The embedded view and a fresh TOML parse answer identically:
     /// spot-checked over real vocabulary the fix pipeline queries.
     #[test]
     fn attestation_view_agrees_with_a_fresh_toml_parse() {
@@ -618,7 +618,7 @@ mod tests {
     }
 
     /// The shipped pack carries the staged code-review corpora (see the
-    /// `human-evidence-v1.toml` sidecar for buckets and input hashes) —
+    /// `human-evidence-v1.toml` sidecar for buckets and input hashes):
     /// the total is pinned exactly so a staged-corpora refresh is a
     /// deliberate, visible change to this test, not a silent drift.
     #[test]

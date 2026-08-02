@@ -67,7 +67,7 @@ fn reject_fixture_pivot_trap_subject_genitive() {
     let fixture = find_reject("pivot_trap_subject_genitive");
     assert_eq!(gate_for_fixture_id(&fixture.id), Gate::PairLicensing);
     // "Obtain" is not a light verb at all, so the pivot machinery never
-    // fires; the bad output's inserted "approve" is caught by closure.
+    // fires. The bad output's inserted "approve" is caught by closure.
     assert_bad_outputs_flagged(fixture, &[is_closure_violated]);
 }
 
@@ -107,7 +107,7 @@ fn reject_fixture_pivot_trap_artifact_noun() {
     assert_eq!(gate_for_fixture_id(&fixture.id), Gate::PairLicensing);
     // "Create" is not a light verb, so no pivot fires and closure alone
     // cannot catch the bad output either ("index" already appears in the
-    // input as a noun) — this one is caught by the fragment-rate tier:
+    // input as a noun). This one is caught by the fragment-rate tier:
     // "Index the most common queries." loses its imperative reading once
     // "Create" is gone, so it scores strictly worse, not better.
     assert_bad_outputs_flagged(fixture, &[is_score_not_better]);
@@ -245,8 +245,8 @@ fn reject_fixture_bridge_inert_insertion() {
 fn reject_fixture_word_salad_synthesis() {
     let fixture = find_reject("word_salad_synthesis");
     assert_eq!(gate_for_fixture_id(&fixture.id), Gate::OpenSynthesisBanned);
-    // Open synthesis inserts a flood of tokens absent from the input;
-    // closure catches it immediately.
+    // Open synthesis inserts a flood of tokens absent from the input.
+    // Closure catches it immediately.
     assert_bad_outputs_flagged(fixture, &[is_closure_violated]);
 }
 

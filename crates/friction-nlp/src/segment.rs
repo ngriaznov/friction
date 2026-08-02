@@ -1,8 +1,8 @@
 //! Sentence segmentation: splitting prose text into sentence byte ranges.
 //!
 //! [`Segmenter`] is the boundary between this crate and its
-//! implementation(s) — currently a single SRX-rule-based one, in
-//! [`crate::segment_srx`] — so other crates and future implementations
+//! implementation(s) (currently a single SRX-rule-based one, in
+//! [`crate::segment_srx`]), so other crates and future implementations
 //! only ever need to depend on the trait. [`segment_document`] wires a
 //! [`Segmenter`] up to [`friction_core::Document`], filling in each
 //! [`ProseUnit`]'s sentences with absolute byte ranges into the document's
@@ -54,7 +54,7 @@ pub enum SegmentError {
 ///
 /// Returns a new [`Document`] whose prose units have their `sentences`
 /// filled in with absolute byte ranges into the original source. Sentence
-/// `tokens` are left empty; tokenization is a later, separate pass. This
+/// `tokens` are left empty. Tokenization is a later, separate pass. This
 /// is a pure function of `document` and `segmenter`'s behavior: identical
 /// inputs always produce an identical result.
 ///

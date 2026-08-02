@@ -4,13 +4,13 @@
 //! crate's own top-level docs:
 //!
 //! - [`tokenize_str`]: a tiny word/punctuation tokenizer that runs
-//!   directly against original, mixed-case source bytes and folds case
-//!   and curly quotes at match time, so every returned range is already a
-//!   valid range into the original source — never a range into some
-//!   cleaned or rewritten copy. It is *behaviorally* pinned to
+//!   directly against original, mixed-case source bytes and folds case and
+//!   curly quotes at match time, so every returned range is already a
+//!   valid range into the original source, never a range into some cleaned
+//!   or rewritten copy. It is *behaviorally* pinned to
 //!   `friction_harness::clean::tokenize`'s token-boundary convention by a
 //!   dev-dependency equivalence test (`tests/token_convention.rs`), not by
-//!   sharing that function's regex object — the two operate on different
+//!   sharing that function's regex object: the two operate on different
 //!   inputs (pre-lowercased whole-file text vs. raw, mixed-case,
 //!   per-prose-block text) and are solving the same boundary problem for
 //!   different callers.
@@ -95,7 +95,7 @@ fn is_punctuation_match(raw: &str) -> bool {
 /// Matches every match boundary `friction_harness::clean::tokenize` would
 /// produce for the same prose content — see `tests/token_convention.rs`
 /// for the pinned equivalence. `text` is assumed already prose-extracted
-/// (no fenced/inline code, no raw link URLs — friction-parse's contract).
+/// (no fenced/inline code, no raw link URLs, friction-parse's contract).
 /// Every returned range is shifted by `base_offset`.
 #[must_use]
 pub fn tokenize_str(text: &str, base_offset: usize) -> Vec<AnalysisToken> {

@@ -1,5 +1,5 @@
 //! Real cases for the four rewrite transducers, each with an asserted
-//! output string — not smoke tests.
+//! output string: not smoke tests.
 //!
 //! Every parse is built by hand, not run through the shipped tagger/parser,
 //! so a failure can only mean the transducer is wrong, never that the
@@ -435,7 +435,7 @@ fn t4_does_not_fire_across_markdown_structural_syntax() {
 }
 
 // 5 (continued). A personal pronoun is never promoted into subject
-// position; no candidate is produced.
+// position. No candidate is produced.
 //
 // Replaces an earlier test asserting "You are encouraged" and "Them are
 // plucked" -- grammatically right but "Them are plucked" is not a
@@ -1191,8 +1191,8 @@ fn t7_fires_when_both_sides_are_independent_clauses() {
     );
 }
 
-// 24. An elliptical right side (no finite clause of its own) declines —
-// a decline, not a comma or any other substitute.
+// 24. An elliptical right side (no finite clause of its own) declines:
+//     a decline, not a comma or any other substitute.
 #[test]
 fn t7_declines_when_the_right_side_is_elliptical() {
     let shapes = [
@@ -1219,11 +1219,12 @@ fn t7_declines_when_the_right_side_is_elliptical() {
     assert!(t7_semicolon(&source, &tokens, &parse).is_empty());
 }
 
-// 25. A serial "super-comma" list — two semicolons, one segment (the
-// last) verbless — produces no candidate for either semicolon: with a
-// verbless segment present, there is no principled way to tell which
-// semicolon (if any) is a genuine clause boundary rather than a list
-// separator, so this declines the whole sentence.
+// 25. A serial "super-comma" list (two semicolons, one segment (the
+//     last) verbless) produces no candidate for either semicolon:
+//     with a verbless segment present, there is no principled way to
+//     tell which semicolon (if any) is a genuine clause boundary
+//     rather than a list separator, so this declines the whole
+//     sentence.
 #[test]
 fn t7_declines_every_semicolon_in_a_serial_list_with_a_verbless_segment() {
     let shapes = [
@@ -1313,8 +1314,8 @@ fn t7_declines_when_the_following_word_cannot_be_capitalized() {
 }
 
 // 28. A semicolon immediately followed by a backtick-flanked span never
-// produces a candidate, even when every other condition holds — the
-// inline-code guard takes priority.
+//     produces a candidate, even when every other condition holds. The
+//     inline-code guard takes priority.
 #[test]
 fn t7_declines_when_the_span_would_cross_an_inline_code_boundary() {
     let shapes = [
@@ -1462,9 +1463,9 @@ fn t6_uses_a_colon_before_a_comma_bearing_fragment() {
 }
 
 // 26. A colon-introduced enumeration keeps its semicolons even when every
-// item carries its own finite clause — the semicolons are the
-// construction's correct separators, and splitting any of them breaks
-// the enumeration's symmetry.
+//     item carries its own finite clause. The semicolons are the
+//     construction's correct separators, and splitting any of them breaks
+//     the enumeration's symmetry.
 #[test]
 fn t7_declines_every_semicolon_in_a_colon_introduced_enumeration() {
     let shapes = [

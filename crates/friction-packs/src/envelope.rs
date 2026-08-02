@@ -1,5 +1,5 @@
-//! [`EnvelopePack`]: a parsed `corpus-tool envelope` pack — per-`(genre,
-//! metric)` human percentile bands — as an in-memory lookup table.
+//! [`EnvelopePack`]: a parsed `corpus-tool envelope` pack (per-`(genre,
+//! metric)` human percentile bands) as an in-memory lookup table.
 //!
 //! `corpus-tool envelope` estimates, from the train split, a `[lo, hi]`
 //! human percentile band for every `(genre, metric)` pair and writes it
@@ -14,7 +14,7 @@
 //! out-of-envelope score at all. [`EnvelopePack`] keeps `include`
 //! alongside each `[lo, hi]` band (exposed via [`EnvelopePack::
 //! combined_score`]) but not `direction`, which no consumer of this pack
-//! needs today; it's present in the source TOML but simply never named in
+//! needs today; it's present in the source TOML but never named in
 //! [`RawBand`], so serde ignores it rather than this module duplicating
 //! data it has no use for.
 
@@ -43,9 +43,9 @@ pub static ENVELOPE_V2: LazyLock<EnvelopePack> = LazyLock::new(|| {
         .expect("embedded envelope-v2.toml must parse: see this crate's envelope tests")
 });
 
-/// The TOML shape of one `[<genre>.<metric>]` table, before the
-/// `lo <= hi` and finiteness check. `direction`/`train_auc` also appear
-/// in the file but are not named here — see the module docs.
+/// The TOML shape of one `[<genre>.<metric>]` table, before the `lo <=
+/// hi` and finiteness check. `direction`/`train_auc` also appear in the
+/// file but are not named here. See the module docs.
 #[derive(Debug, Deserialize)]
 struct RawBand {
     lo: f64,

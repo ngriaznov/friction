@@ -44,14 +44,14 @@
 //! [`Configuration`], scoring each step with the model's live (unaveraged)
 //! weights masked to [`Configuration::is_allowed`]. The instant the masked
 //! argmax disagrees with [`crate::dep_arceager::oracle`], the oracle's
-//! action is promoted and the wrong pick demoted for every feature of
-//! that step, and the sentence is abandoned there — the rest contributes
-//! no signal, since the model never saw it. A sentence the model gets
+//! action is promoted and the wrong pick demoted for every feature of that
+//! step, and the sentence is abandoned there. The rest contributes no
+//! signal, since the model never saw it. A sentence the model gets
 //! entirely right contributes a full walk of updates that never fire.
 //! Final weights use the standard lazy-averaged perceptron (see
-//! [`train_support::AveragedPerceptron`]), the same accumulate-by-
-//! timestamp trick [`crate::tag_perceptron`]'s trainer uses, adapted to a
-//! fixed `u8` action index.
+//! [`train_support::AveragedPerceptron`]), the same
+//! accumulate-by-timestamp trick [`crate::tag_perceptron`]'s trainer uses,
+//! adapted to a fixed `u8` action index.
 //!
 //! Only sentences [`crate::dep_arceager::derive`] can actually reproduce
 //! reach training — a non-derivable (in practice non-projective) gold
@@ -64,7 +64,7 @@
 //! `weights/gold_dep_en.conllu` in its own on-disk order (no shuffling),
 //! matching `examples/train_perceptron.rs`. At inference,
 //! [`best_allowed_action`] breaks ties toward the lowest action index,
-//! and feature order is fixed, so summation — and the resulting scores —
+//! and feature order is fixed, so summation, and the resulting scores,
 //! is identical every run.
 //!
 //! # Two loading paths, one inference surface
@@ -118,7 +118,7 @@ use crate::dep::{DepParseError, DepParser, DepRelation, SentenceParse};
 use crate::dep_arceager::{Configuration, Transition};
 use crate::tag::TaggedToken;
 
-/// The vendored, gzip-compressed dependency-parser weight artifact — the
+/// The vendored, gzip-compressed dependency-parser weight artifact: the
 /// audited interchange format from the training pipeline. See
 /// `weights/NOTICE.md` for provenance and the reproduction command;
 /// `examples/train_parser.rs` (behind the `train-tooling` feature)
@@ -145,7 +145,7 @@ static WEIGHTS_JSON_GZ: &[u8] = include_bytes!("../weights/parser_en.json.gz");
 static WEIGHTS_BIN: &[u8] = include_bytes!("../weights/parser_en.bin");
 
 /// This artifact's 8-byte magic, distinct from [`crate::tag_perceptron`]'s
-/// own — so one can never be silently loaded in place of the other.
+/// own: so one can never be silently loaded in place of the other.
 const ARTIFACT_MAGIC: [u8; 8] = *b"FRPARWT1";
 
 /// The sha256 (lowercase hex) of the `WEIGHTS_JSON_GZ` bytes currently
@@ -160,7 +160,7 @@ const SOURCE_JSON_GZ_SHA256: &str =
     "60e3c2ebcc98474769c07747ce7a297dc1c0c6ad120fe287cfc6e132ce3d4b08";
 
 /// Sentinel for an absent stack/buffer position, dependent, or distance
-/// bucket — distinct from any real lowercased word or Penn tag, so a
+/// bucket: distinct from any real lowercased word or Penn tag, so a
 /// feature built from it is never confused with a genuine one.
 const NONE: &str = "<none>";
 
@@ -198,8 +198,8 @@ const NUM_ACTIONS: usize = 2 + 2 * RELATIONS.len();
 
 /// `rel`'s position in [`RELATIONS`].
 ///
-/// Only [`action_index`] calls this, for training and round-trip tests —
-/// inference only goes index-to-transition via [`action_at`] — so it's
+/// Only [`action_index`] calls this, for training and round-trip tests
+/// (inference only goes index-to-transition via [`action_at`]), so it's
 /// gated the same way.
 ///
 /// # Panics
@@ -216,7 +216,7 @@ fn relation_index(rel: DepRelation) -> usize {
 
 /// `transition`'s position in the fixed 42-way action enumeration —
 /// [`action_at`]'s exact inverse. Only training and round-trip tests need
-/// this direction; inference only goes index -> transition.
+/// this direction. Inference only goes index -> transition.
 #[cfg(any(test, feature = "train-tooling"))]
 fn action_index(transition: Transition) -> usize {
     match transition {
@@ -924,7 +924,7 @@ pub mod train_support {
     /// `0` for root), with a blank line ending each sentence.
     ///
     /// # Errors
-    /// The first [`GoldParseError`] encountered — malformed row, unparseable
+    /// The first [`GoldParseError`] encountered: malformed row, unparseable
     /// head index, unrecognized relation, or an inconsistent edge list
     /// (self-head, out-of-bounds head).
     pub fn parse_gold_file(text: &str) -> Result<Vec<GoldSentence>, GoldParseError> {
@@ -1059,7 +1059,7 @@ pub mod train_support {
                 .unwrap_or(0.0);
             let last_ts = self.timestamps.get(&key).copied().unwrap_or(0);
             // A handful of epochs over a few thousand sentences never gets
-            // `iterations` near 2^52 — no meaningful precision lost here.
+            // `iterations` near 2^52: no meaningful precision lost here.
             #[allow(clippy::cast_precision_loss)]
             let held = (self.iterations - last_ts) as f64;
             let total = self.totals.entry(key.clone()).or_insert(0.0);
@@ -1137,7 +1137,7 @@ pub mod train_support {
     }
 
     /// Runs one sentence through greedy oracle-guided decoding with early
-    /// update — see the module docs' "Training" section.
+    /// update. See the module docs' "Training" section.
     ///
     /// Stops the instant `model`'s masked prediction disagrees with the
     /// oracle, having already applied that step's update. Returns whether

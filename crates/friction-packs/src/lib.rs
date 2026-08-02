@@ -28,8 +28,8 @@
 //! more: [`DmsIndex::pooled_machine_sam`], every present family stream
 //! concatenated in a fixed order. That last one is what a fix-time
 //! detection pass actually scans against (`friction-match`'s `dms`
-//! module) — family attribution is not a product surface, only "does
-//! this read machine-generated" is, so the per-family automata exist for
+//! module): family attribution is not a product surface, only "does this
+//! read machine-generated" is, so the per-family automata exist for
 //! artifact compatibility, not for the runtime walk. That TOML path is
 //! the audited source, used offline; the runtime pass reads [`DMS`]
 //! instead — a zero-copy [`DmsIndexView`] over the derived artifact
@@ -43,12 +43,12 @@
 //!
 //! [`InventoryPack`] parses the curated tell-span inventory
 //! (`packs/inventory-v1.toml`, embedded and exposed pre-parsed as
-//! [`INVENTORY`]) into typed, deterministically-sorted tables:
-//! deletion spans, substitution pairs, ritual frames, a (currently empty)
+//! [`INVENTORY`]) into typed, deterministically-sorted tables: deletion
+//! spans, substitution pairs, ritual frames, a (currently empty)
 //! preview-frame family, licensed light-verb-construction pairs, guard
 //! tokens, a closure function-word allowance, and output-frequency
 //! hygiene bands. [`validate`] runs three build-time audits over a parsed
-//! pack — disjointness, closure, and output-frequency hygiene — see that
+//! pack (disjointness, closure, and output-frequency hygiene) see that
 //! function's own docs. [`load_dms_pack`] and [`INVENTORY`] both go
 //! through [`LoadedPack`], this crate's one unified pack-registry shape.
 //!
@@ -79,11 +79,11 @@
 //! # Jargon pack
 //!
 //! [`JargonPack`] parses the curated metaphor-lexeme pack
-//! (`packs/jargon-v1.toml`, embedded and exposed pre-parsed as
-//! [`JARGON`]) `friction-match`'s `jargon.metaphor` channel flags against:
-//! a lexeme list (each with `source`/`notes` provenance) and a small
+//! (`packs/jargon-v1.toml`, embedded and exposed pre-parsed as [`JARGON`])
+//! `friction-match`'s `jargon.metaphor` channel flags against: a lexeme
+//! list (each with `source`/`notes` provenance) and a small
 //! attested-exceptions allowlist of established compounds never flagged.
-//! Detection-only — see that module's own doc comment.
+//! Detection-only: see that module's own doc comment.
 //!
 //! # Jargon attestation pack
 //!
@@ -113,7 +113,7 @@
 //! Every pack parses into sorted or declaration-ordered collections, so
 //! iterating any of them gives identical results on every run and every
 //! machine. [`Sam`]'s internal `next` table is a `HashMap` for
-//! point-lookup performance, not iteration order — see that type's own
+//! point-lookup performance, not iteration order: see that type's own
 //! doc comment for why this does not compromise determinism.
 
 mod artifact;

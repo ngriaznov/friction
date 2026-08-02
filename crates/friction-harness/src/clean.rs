@@ -6,11 +6,10 @@
 //!
 //! This is the *string-level* half of the harness: [`tellspan`](crate::tellspan),
 //! [`pivot`](crate::pivot), and [`closure`](crate::closure) all analyze text
-//! through this module rather than through `friction-parse`'s real block
-//! tree — the fixtures are string-level contracts, deliberately
-//! independent of any one Markdown parser. [`fragment`](crate::fragment)
-//! is the one module in this crate that deliberately does *not* use it —
-//! see that module's own docs.
+//! through this module rather than through `friction-parse`'s real block tree:
+//! the fixtures are string-level contracts, deliberately independent of any one
+//! Markdown parser. [`fragment`](crate::fragment) is the one module in this crate
+//! that deliberately does *not* use it. See that module's own docs.
 
 use std::sync::LazyLock;
 
@@ -43,7 +42,7 @@ static TOKEN: LazyLock<Regex> =
 /// leftover markdown syntax characters `#>*_|` stripped.
 ///
 /// Normalizes only curly *single* quotes (`'`, `'`), not curly double
-/// quotes — the fixture expectations were produced under exactly that
+/// quotes: the fixture expectations were produced under exactly that
 /// asymmetry, so "fixing" it here would silently invalidate them.
 #[must_use]
 pub fn clean(text: &str) -> String {

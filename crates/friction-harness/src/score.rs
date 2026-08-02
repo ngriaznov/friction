@@ -17,12 +17,12 @@ use crate::{fragment, tellspan};
 ///
 /// 1. `tell_span_density_ppm`: seed tell-span hits per 1000 word tokens,
 ///    scaled to parts-per-million and rounded to a `u32` so the whole type
-///    can derive `Ord` without float-comparison pitfalls — the named
+///    can derive `Ord` without float-comparison pitfalls: the named
 ///    objective (tell-span count reduction). For every accept fixture this
 ///    alone already decides the comparison, so tagger noise in the lower
 ///    tiers can never flip an accept-fixture result.
 /// 2. `fragment_rate_ppm`: the clause-completeness guardrail from
-///    [`crate::fragment`], scaled to parts-per-million — stands in for
+///    [`crate::fragment`], scaled to parts-per-million: stands in for
 ///    "subject to all gates" until a real gate-enforcing engine exists.
 ///    Only ever consulted on a tier-1 tie.
 /// 3. `secondary_ppm`: the reused human-vs-LLM combined-score classifier
@@ -30,18 +30,18 @@ use crate::{fragment, tellspan};
 ///    every genre `ENVELOPE_V2` defines and scaled to parts-per-million —
 ///    the "capped secondary signal": capped in *magnitude* (already
 ///    bounded to `[0, 1]` by [`friction_packs::exceedance`]'s own cap) and
-///    capped in *influence* (lowest tier — it can only break a tie both
+///    capped in *influence* (lowest tier: it can only break a tie both
 ///    tier 1 and tier 2 leave standing, never overturn either). Known
 ///    limitation, verified empirically and left as-is by this crate's
 ///    scope: this signal alone gets the chat-speak-vs-human-prose and
 ///    dumb-human-collapse-vs-conservative-rewrite orderings backwards on
 ///    several individual genres (rewarding band conformance a deliberately
-///    gamed text was optimized for) — it is never the sole decider for
-///    either ordering in this harness.
-// The shared `_ppm` postfix is intentional and load-bearing here: it names
-// the common unit (parts-per-million) every tier is scaled to so the type
-// can derive `Ord` without float-comparison pitfalls, not an accidental
-// naming collision `struct_field_names` should flag.
+///    gamed text was optimized for). It is never the sole decider for
+///    either ordering in this harness. The shared `_ppm` postfix is
+///    intentional and load-bearing here: it names the common unit
+///    (parts-per-million) every tier is scaled to so the type can derive
+///    `Ord` without float-comparison pitfalls, not an accidental naming
+///    collision `struct_field_names` should flag.
 #[allow(clippy::struct_field_names)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
 pub struct Score {

@@ -42,8 +42,8 @@ pub struct ModelDigest {
     /// `digest` field when present; if the running Ollama version omits
     /// it (observed on Ollama 0.32.x), falls back to a `sha256:`-prefixed
     /// hash computed over the response's `details` + `model_info`
-    /// objects — still a stable, content-derived identifier for the
-    /// exact model, just not Ollama's own blob digest.
+    /// objects: still a stable, content-derived identifier for the exact
+    /// model, just not Ollama's own blob digest.
     pub digest: String,
     /// `details.quantization_level` (e.g. `"Q4_K_M"`), or `"unknown"`.
     pub quantization: String,
