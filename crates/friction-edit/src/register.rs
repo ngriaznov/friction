@@ -83,6 +83,15 @@ struct SentenceCtx {
     /// This sentence's dependency parse, indexed the same way as
     /// `tokens`.
     parse: SentenceParse,
+    /// This "sentence" opens a prose run split off mid-sentence by an
+    /// excluded construct (same-block predecessor run with no
+    /// sentence-terminal punctuation — the `crate::document` rule the
+    /// four operations use for recapitalization). Its text is the tail
+    /// of a clause, not a clause: a paired em-dash aside cut at an
+    /// inline-code span leaves exactly one dash visible here, and
+    /// rewriting it splits the pair ("run — [`code`]: rather than", a
+    /// real defect measured on this repository's own comments).
+    continues_previous: bool,
 }
 
 /// One sentence's byte range and part-of-speech tags, exposed via
@@ -192,13 +201,40 @@ fn build_sentence_contexts(
     tagger: &dyn Tagger,
     parser: &dyn DepParser,
 ) -> Vec<SentenceCtx> {
-    let ranges: Vec<Range<usize>> = units
+    let ranges: Vec<(Range<usize>, bool)> = units
         .iter()
-        .flat_map(|unit| unit.sentences.iter().cloned())
+        .enumerate()
+        .flat_map(|(unit_index, unit)| {
+            // A unit sharing its predecessor's block index is a later
+            // run of the same prose session, split off by an excluded
+            // construct (`friction_parse::extract`'s guarantee). Its
+            // first "sentence" is a genuine sentence only if that
+            // predecessor ended with sentence-terminal punctuation —
+            // the same rule `crate::document` applies for
+            // recapitalization. Same-block runs share a block kind, so
+            // scope filtering never separates them and the scoped
+            // predecessor is the true one.
+            let continues_previous =
+                unit_index
+                    .checked_sub(1)
+                    .map(|i| &units[i])
+                    .is_some_and(|prev| {
+                        prev.unit.block == unit.unit.block
+                            && !ends_with_sentence_terminal_punctuation(prev.text)
+                    });
+            unit.sentences
+                .iter()
+                .enumerate()
+                .map(move |(sentence_index, range)| {
+                    (range.clone(), sentence_index == 0 && continues_previous)
+                })
+        })
         .collect();
     ranges
         .par_iter()
-        .filter_map(|range| build_sentence_ctx(source, range, tagger, parser))
+        .filter_map(|(range, continues_previous)| {
+            build_sentence_ctx(source, range, tagger, parser, *continues_previous)
+        })
         .collect()
 }
 
@@ -214,6 +250,7 @@ fn build_sentence_ctx(
     range: &Range<usize>,
     tagger: &dyn Tagger,
     parser: &dyn DepParser,
+    continues_previous: bool,
 ) -> Option<SentenceCtx> {
     let text = source.get(range.clone())?;
     if text.trim().is_empty() {
@@ -225,6 +262,7 @@ fn build_sentence_ctx(
         range: range.clone(),
         tokens,
         parse,
+        continues_previous,
     })
 }
 
@@ -721,6 +759,16 @@ fn collect_candidates(
         // register's rewrites are clause-sized, so only a complete
         // sentence is safe input.
         if !ends_with_sentence_terminal_punctuation(text) {
+            continue;
+        }
+        // The symmetric guard at the start: a "sentence" opening a run
+        // that was split off mid-clause by an excluded construct is the
+        // tail of a sentence, not a sentence (see
+        // `SentenceCtx::continues_previous`). Register's rewrites are
+        // clause-sized; a dash or semicolon here is missing its left
+        // context — most concretely, the opening dash of a paired
+        // aside — so decline rather than rewrite half a construction.
+        if ctx.continues_previous {
             continue;
         }
         let candidates = match kind {
@@ -1238,6 +1286,7 @@ mod tests {
                 confidence: Confidence::CERTAIN,
             }])
             .unwrap(),
+            continues_previous: false,
         };
         let a = candidate_at(0, 0..5, 0..5);
         let b = candidate_at(0, 3..8, 3..8);
@@ -1266,6 +1315,7 @@ mod tests {
                 confidence: Confidence::CERTAIN,
             }])
             .unwrap(),
+            continues_previous: false,
         }
     }
 

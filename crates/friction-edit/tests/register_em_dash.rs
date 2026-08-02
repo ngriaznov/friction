@@ -102,3 +102,53 @@ fn a_document_with_zero_em_dashes_is_untouched() {
         );
     }
 }
+
+/// A paired em-dash aside whose interior is an inline-code span. The
+/// prose extractor splits the sentence into two runs at the code span,
+/// so T6 sees each dash alone: the second run ("] — rather than …")
+/// reads as a verbless lead-in and, before the continuation guard,
+/// was rewritten to ":" — splitting the pair ("run — [`X`]: rather
+/// than", a real defect measured on this repository's own comments).
+/// A pair must never be split: both dashes stay, and the instances
+/// surface as report-only findings instead.
+#[test]
+fn a_paired_aside_around_inline_code_is_never_split() {
+    let engine = Engine::new().expect("engine must load");
+    let source = "That cost is paid once per corpus-scale run — [`FrictionMetricsSource::new`] \
+                  — rather than once per document.\n";
+    let (fixed, _) = engine.fix_document(source).expect("engine runs");
+    assert_eq!(fixed, source, "the dash pair must survive intact");
+}
+
+/// The same shape with the code span inside a parenthetical interior:
+/// the closing dash previously became ":" while the opening dash
+/// dangled ("band — nonzero, unlike … (see …): by turning").
+#[test]
+fn a_paired_aside_with_code_and_parens_inside_is_never_split() {
+    let engine = Engine::new().expect("engine must load");
+    let source = "Homes the `semicolon` feature toward its human band — nonzero, unlike T6's \
+                  em-dash band (see `register-v1.toml`'s `[features.semicolon]`) — by turning \
+                  a semicolon that joins two independent clauses into a sentence break.\n";
+    let (fixed, _) = engine.fix_document(source).expect("engine runs");
+    assert_eq!(
+        count_em_dashes(&fixed),
+        2,
+        "both dashes must survive: {fixed:?}"
+    );
+}
+
+/// The continuation guard must not suppress rewrites in LATER
+/// sentences of a run that begins mid-clause: only the fragment
+/// "sentence" itself is clause-unsafe.
+#[test]
+fn a_complete_sentence_after_an_inline_code_split_still_rewrites() {
+    let engine = Engine::new().expect("engine must load");
+    let source = "The reader wraps `BufReader` — buffered on purpose. The service reads its \
+                  config from a mounted volume — not from environment variables — before \
+                  startup completes.\n";
+    let (fixed, _) = engine.fix_document(source).expect("engine runs");
+    assert!(
+        fixed.contains(", not from environment variables, "),
+        "the later complete sentence's paired aside must still rewrite: {fixed:?}"
+    );
+}
