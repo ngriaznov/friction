@@ -1,0 +1,25 @@
+#!/usr/bin/env bash
+# Auto-repacks derived binary artifacts when a staged change touches
+# their committed sources, and stages the regenerated binaries into the
+# same commit — so a pack-source edit can never land without its
+# derived artifacts.
+#
+# Opt-in: installed by scripts/install-hooks.sh. Costs nothing on
+# commits that don't touch a pack source (one grep over the staged file
+# list); on ones that do, it runs scripts/repack-artifacts.sh (a release
+# corpus-tool build the first time, cached after).
+#
+# Deliberately source-triggered only: a serializer/format change in
+# friction-packs also stales the binaries but is caught by the
+# repack-artifacts.yml workflow (which regenerates unconditionally) and
+# by the friction-packs drift tests — this hook covers the common
+# edit-a-TOML flow at the moment it happens.
+set -euo pipefail
+
+sources='^(crates/friction-packs/packs/(dms-index-v1|attestation-v1|frame-rules-v1)\.toml|crates/friction-nlp/weights/(parser_en|perceptron_en)\.json\.gz)$'
+
+if git diff --cached --name-only | grep -qE "$sources"; then
+    echo "pre-commit: derived-artifact sources staged — regenerating (see scripts/repack-artifacts.sh)"
+    ./scripts/repack-artifacts.sh
+    git add crates/friction-packs/packs/*.bin crates/friction-nlp/weights/*.bin
+fi
