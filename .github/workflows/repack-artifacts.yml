@@ -1,0 +1,85 @@
+# Derived-artifact automation: whenever a branch's committed sources and
+# committed derived binaries disagree, regenerate the binaries and push
+# the repack as its own commit — so editing a pack TOML (or a serializer)
+# never requires remembering `./scripts/repack-artifacts.sh` by hand.
+#
+# Same commit-from-workflow pattern as attest-refresh.yml. The push is
+# made with the workflow's own token, which never fires push-triggered
+# workflows — so CI is re-dispatched explicitly on the repacked head, the
+# same way attest-refresh invokes the release pipeline.
+#
+# Runs the regeneration unconditionally (not path-filtered): a stale
+# artifact can come from a source TOML edit OR from a serializer/format
+# change in friction-packs itself, and the regeneration is a pure,
+# byte-idempotent function of committed bytes — a fresh tree ends the job
+# green with no commit.
+#
+# Fork PRs: the token can't push to a fork, so the job fails with the
+# one-command local fix instead — the same signal, manual apply.
+name: Repack artifacts
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  actions: write
+
+concurrency:
+  group: repack-${{ github.head_ref || github.ref_name }}
+  cancel-in-progress: true
+
+jobs:
+  repack:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          # For pull_request events check out the PR's real head branch,
+          # not the detached merge ref — a repack commit must land on the
+          # branch itself.
+          ref: ${{ github.head_ref || github.ref_name }}
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+
+      - name: Regenerate derived artifacts
+        run: ./scripts/repack-artifacts.sh
+
+      - name: Detect drift
+        id: drift
+        run: |
+          if git diff --quiet crates/friction-packs/packs crates/friction-nlp/weights; then
+            echo "changed=false" >> "$GITHUB_OUTPUT"
+            echo "derived artifacts are fresh; nothing to do"
+          else
+            echo "changed=true" >> "$GITHUB_OUTPUT"
+            git diff --stat crates/friction-packs/packs crates/friction-nlp/weights
+          fi
+
+      - name: Fail on fork PRs (cannot push the fix)
+        if: >-
+          steps.drift.outputs.changed == 'true' &&
+          github.event_name == 'pull_request' &&
+          github.event.pull_request.head.repo.full_name != github.repository
+        run: |
+          echo "::error::derived artifacts are stale and this PR comes from a fork, so the repack cannot be pushed automatically — run ./scripts/repack-artifacts.sh locally and commit the result"
+          exit 1
+
+      - name: Commit and push the repack
+        if: steps.drift.outputs.changed == 'true'
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add crates/friction-packs/packs crates/friction-nlp/weights
+          git commit -m "Repack derived artifacts" \
+            -m "Unattended regeneration by .github/workflows/repack-artifacts.yml: the committed derived binaries disagreed with their committed sources. Every builder is a deterministic pure function of committed bytes (see scripts/repack-artifacts.sh)."
+          git push
+
+      - name: Re-run CI on the repacked head
+        if: steps.drift.outputs.changed == 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh workflow run ci.yml --ref "${{ github.head_ref || github.ref_name }}"
