@@ -16,7 +16,7 @@ use crate::token::ScopedUnit;
 /// boundary-delimited literal phrase: optional leading `(?i)`, optional
 /// leading `\b`, one or more ASCII-letter/apostrophe words separated by
 /// single literal spaces, then EITHER a trailing `\b` OR a trailing
-/// `\s+` (the `deletion_spans` "consume trailing whitespace" shape) —
+/// `\s+` (the `deletion_spans` "consume trailing whitespace" shape):
 /// nothing else. Returns the lowercased phrase, or `None` for any
 /// pattern using a regex feature this heuristic doesn't recognize as
 /// trivially literal (alternation, character classes, `^`/`$`,
@@ -55,7 +55,7 @@ pub struct LiteralAutomaton {
     automaton: AhoCorasick,
     /// Parallel to the automaton's own pattern ids.
     frame_ids: Vec<Box<str>>,
-    /// The inventory entry ids this automaton covers — the regex
+    /// The inventory entry ids this automaton covers, the regex
     /// fallback's own exclusion set.
     ac_covered_ids: BTreeSet<Box<str>>,
 }

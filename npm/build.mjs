@@ -23,7 +23,7 @@ if (!version || !distDir || !outDir) {
 // package matching the host and silently skips the others, so the wrapper's
 // five optional dependencies resolve to exactly one download.
 //
-// Linux x64 takes the statically linked musl build deliberately — it runs on
+// Linux x64 takes the statically linked musl build deliberately. It runs on
 // glibc and musl hosts alike, so Alpine and Debian are one package rather than
 // two, and npm never has to tell them apart.
 const PLATFORMS = [

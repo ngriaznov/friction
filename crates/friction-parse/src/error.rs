@@ -20,16 +20,16 @@ pub enum ParseError {
     #[error(transparent)]
     Core(#[from] CoreError),
     /// `pulldown-cmark`'s own event-stream construction panicked while
-    /// parsing `source` — an upstream parser-internal invariant
-    /// violation on adversarial input (`friction-parse`'s own fuzz suite,
+    /// parsing `source` — an upstream parser-internal invariant violation
+    /// on adversarial input (`friction-parse`'s own fuzz suite,
     /// `fuzz/fuzz_targets/fuzz_parse.rs`, found and minimized a 19-byte
     /// repro of one such case: a heading-attribute-style `{...}` span
     /// nested inside a loose list item, which trips a `tree.rs` internal
     /// assertion in `pulldown-cmark` 0.13.4). [`crate::parse`] catches
     /// this panic at the `pulldown-cmark` boundary via
     /// `std::panic::catch_unwind` and surfaces it here instead, so a
-    /// single pathological document can never abort a caller's process —
-    /// see that function's own doc comment.
+    /// single pathological document can never abort a caller's process.
+    /// See that function's own doc comment.
     #[error("the underlying markdown parser panicked while parsing this input: {0}")]
     UnderlyingParserPanicked(String),
 }

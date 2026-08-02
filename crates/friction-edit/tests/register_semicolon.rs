@@ -5,8 +5,8 @@
 //! controlled parse; this file checks the whole pass fires, converges,
 //! and leaves grammatical output on realistic input.
 //!
-//! Unlike `register_em_dash.rs`, the semicolon band is genuinely nonzero
-//! (see `register-v1.toml`'s `[features.semicolon]`), so this file also
+//! Unlike `register_em_dash.rs`, the semicolon band is nonzero (see
+//! `register-v1.toml`'s `[features.semicolon]`), so this file also
 //! covers the case em-dash's own `[0, 0]` band couldn't have: a document
 //! whose semicolon rate already sits *inside* the band must come back
 //! byte-identical, proving the register pass stops at the band's edge

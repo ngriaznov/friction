@@ -5,13 +5,13 @@
 //!
 //! Detection-only (SYNTHESIS.md §4): there is no deterministic true
 //! replacement for an invented term, so unlike [`crate::InventoryPack`]
-//! this pack carries no repair machinery at all — no pattern, no
+//! this pack carries no repair machinery at all: no pattern, no
 //! replacement text, just the lexeme list and its exceptions.
 //!
 //! This module is the read side only: [`JargonPack::parse`] turns the
 //! pack's TOML shape into typed, validated, deterministically-sorted
 //! in-memory tables. `crates/friction-packs/packs/jargon-v1.toml` itself
-//! is hand-curated — see that file's own header comment.
+//! is hand-curated. See that file's own header comment.
 
 use std::collections::BTreeSet;
 
@@ -52,7 +52,7 @@ pub struct Lexeme {
     /// Lowercase plural form, when listed.
     pub plural: Option<Box<str>>,
     pub source: LexemeSource,
-    /// Provenance — mandatory, non-empty for every entry.
+    /// Provenance: mandatory, non-empty for every entry.
     pub notes: Box<str>,
 }
 
@@ -77,7 +77,7 @@ impl Lexeme {
 pub struct AttestedException {
     /// Lowercase, space-separated (hyphens already normalized).
     pub compound: Box<str>,
-    /// Why this compound is exempt — mandatory, non-empty.
+    /// Why this compound is exempt: mandatory, non-empty.
     pub notes: Box<str>,
 }
 

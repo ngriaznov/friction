@@ -157,7 +157,7 @@ jobs:
 
       # The data artifacts compiled into every binary, published standalone
       # so they can be fetched, cached, and verified independently (the
-      # sidecars and headers already carry source sha256 provenance) — the
+      # sidecars and headers already carry source sha256 provenance), the
       # groundwork for non-embedded consumers such as a wasm build.
       - name: Stage data artifacts
         run: |

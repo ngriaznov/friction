@@ -25,7 +25,7 @@ pub struct MetricVector {
     pub sentence_length_mean: f64,
     /// Standard deviation of sentence length, in tokens.
     pub sentence_length_stddev: f64,
-    /// Coefficient of variation (`stddev / mean`) of sentence length —
+    /// Coefficient of variation (`stddev / mean`) of sentence length:
     /// burstiness.
     pub sentence_length_cv: f64,
     /// Sentence-initial discourse-marker density, per 1000 tokens.

@@ -16,7 +16,7 @@
 //! (`friction-nlp`'s `weights_bin`, format version 2): do the expensive
 //! construction **once, offline**, in `corpus-tool dms-pack`, and
 //! serialize the finished automata in a layout the runtime can use as a
-//! zero-copy view over the `include_bytes!`'d static — a handful of
+//! zero-copy view over the `include_bytes!`'d static: a handful of
 //! slice splits at load, no per-state work at all.
 //!
 //! # Layout
@@ -57,12 +57,12 @@
 //! present family stream's ids concatenated in fixed alphabetical order
 //! with the document separator between streams (see that method's own
 //! docs). The five per-family sections from version 1 are unchanged and
-//! still written — kept for `family_sam`/`--family` compatibility — the
-//! pooled stream is additive, not a replacement. A version-1 artifact
-//! (no pooled section) is rejected by [`DmsIndexView::parse`] as a
+//! still written — kept for `family_sam`/`--family` compatibility: the
+//! pooled stream is additive, not a replacement. A version-1 artifact (no
+//! pooled section) is rejected by [`DmsIndexView::parse`] as a
 //! [`DmsBinError::VersionMismatch`]; there is no reader that accepts
-//! both, since every producer (`corpus-tool dms-pack`) and consumer
-//! (this crate's embedded artifact) ship together.
+//! both, since every producer (`corpus-tool dms-pack`) and consumer (this
+//! crate's embedded artifact) ship together.
 //!
 //! # Determinism
 //!
@@ -71,7 +71,7 @@
 //! only `HashMap` iteration is explicitly sorted
 //! (`Sam::sorted_transitions`), the vocab's duplicate collapse follows
 //! `BTreeMap` order, and streams are written human-first, then
-//! [`ModelFamily::ALL`] order, then the pooled machine stream last —
+//! [`ModelFamily::ALL`] order, then the pooled machine stream last:
 //! packing the same TOML twice produces bit-identical bytes (pinned by
 //! this module's own determinism test).
 //!
@@ -90,7 +90,7 @@ use crate::{PackError, Sha256};
 /// The 8-byte magic every DMS binary artifact starts with.
 const MAGIC: [u8; 8] = *b"FRDMSIDX";
 
-/// This module's on-disk format version — bumped if the layout above ever
+/// This module's on-disk format version: bumped if the layout above ever
 /// changes shape. Bumped to `2` when [`POOLED_MACHINE_TAG`]'s stream was
 /// added (see the module docs' "Format version 2" section).
 const FORMAT_VERSION: u16 = 2;
@@ -126,11 +126,11 @@ const TRANS_ENTRY_LEN: usize = 8;
 /// Errors reading a DMS binary artifact.
 ///
 /// Never expected for the vendored artifact (covered by this crate's own
-/// round-trip and drift tests) — only for corrupted or hand-edited input.
+/// round-trip and drift tests): only for corrupted or hand-edited input.
 #[derive(Debug, thiserror::Error)]
 #[non_exhaustive]
 pub enum DmsBinError {
-    /// Shorter than the fixed header — not an artifact this module wrote.
+    /// Shorter than the fixed header: not an artifact this module wrote.
     #[error("DMS artifact truncated: {len} byte(s), need at least {min}")]
     Truncated { len: usize, min: usize },
     /// The first 8 bytes are not `FRDMSIDX`.
@@ -191,7 +191,7 @@ pub fn pack_dms_index_bin(toml_text: &str) -> Result<Vec<u8>, PackError> {
     Ok(out)
 }
 
-/// Serializes the vocab section — see the module docs for the layout.
+/// Serializes the vocab section: see the module docs for the layout.
 fn write_vocab(out: &mut Vec<u8>, index: &DmsIndex) {
     let vocab = index.vocab();
     let n = vocab.len();
@@ -229,7 +229,7 @@ fn write_vocab(out: &mut Vec<u8>, index: &DmsIndex) {
     }
 }
 
-/// Serializes one automaton — see the module docs for the layout.
+/// Serializes one automaton: see the module docs for the layout.
 fn write_sam(out: &mut Vec<u8>, sam: &Sam) {
     let state_count = sam.state_count();
     write_u32(out, u32_from(state_count));
@@ -498,11 +498,11 @@ pub struct DmsIndexView<'a> {
 }
 
 impl<'a> DmsIndexView<'a> {
-    /// Parses a [`pack_dms_index_bin`]-written artifact into a view —
+    /// Parses a [`pack_dms_index_bin`]-written artifact into a view:
     /// header validation plus section slicing, no per-state work.
     ///
     /// # Errors
-    /// Any [`DmsBinError`] variant — see each variant's own docs. Never
+    /// Any [`DmsBinError`] variant: see each variant's own docs. Never
     /// expected for the vendored embedded artifact.
     pub fn parse(bytes: &'a [u8]) -> Result<Self, DmsBinError> {
         if bytes.len() < HEADER_LEN {

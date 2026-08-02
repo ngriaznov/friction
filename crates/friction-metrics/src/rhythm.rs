@@ -4,7 +4,7 @@
 //! # Token definition
 //!
 //! Every token count here uses the same definition — a maximal run of
-//! non-whitespace characters, what [`str::split_whitespace`] yields —
+//! non-whitespace characters, what [`str::split_whitespace`] yields,
 //! independent of any tagger or parser (a pure function of source text).
 //!
 //! # Determinism
@@ -181,7 +181,7 @@ pub fn paragraph_shape(document: &Document) -> RhythmStats {
 ///
 /// Counts as one occurrence: the literal em dash (`—`, U+2014), or a
 /// double-hyphen surrogate (`--`, exactly two ASCII hyphens, no more or
-/// fewer) between two words — the nearest non-space character on each
+/// fewer) between two words: the nearest non-space character on each
 /// side (skipping at most one flanking space) must be alphanumeric.
 /// Covers `"word -- word"` / `"word--word"`, excludes a leading/trailing
 /// `--` and a `---` run.

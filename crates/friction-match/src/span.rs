@@ -5,10 +5,10 @@
 //! unlike [`friction_core::Patch`] conflicts (where two patches genuinely
 //! can't both apply, hence [`friction_core::find_overlaps`]), two
 //! overlapping `MatchSpan`s from different channels are just two
-//! independent, simultaneously-true observations about the same text —
-//! there's nothing to arbitrate. [`merge_spans`] reflects that: it only
+//! independent, simultaneously-true observations about the same text.
+//! There's nothing to arbitrate. [`merge_spans`] reflects that: it only
 //! ever drops exact-duplicate `(range, channel, frame_id)` tuples
-//! (defensive — two channels should never coincide exactly, but nothing
+//! (defensive: two channels should never coincide exactly, but nothing
 //! stops it structurally), and keeps every other overlap.
 
 use std::ops::Range;
@@ -43,7 +43,7 @@ pub enum Channel {
 /// A [`MatchSpan`]'s score.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum MatchScore {
-    /// DMS: `sum(d)` over the differential run's CONTINUE region —
+    /// DMS: `sum(d)` over the differential run's CONTINUE region:
     /// always positive.
     Differential(i64),
     /// Literal / LVC: presence is the whole signal; neither channel
@@ -73,7 +73,7 @@ pub struct MatchSpan {
     /// enough information on its own. [`crate::overuse`] is the one
     /// channel that needs this today: every `overuse.word` span shares
     /// the same constant `frame_id` (mirroring
-    /// [`crate::jargon::JARGON_METAPHOR_ID`]'s own reasoning — see that
+    /// [`crate::jargon::JARGON_METAPHOR_ID`]'s own reasoning: see that
     /// const's docs), so the flagged word and its measured rates have
     /// nowhere else to live. `None` for every other channel.
     pub message: Option<Box<str>>,

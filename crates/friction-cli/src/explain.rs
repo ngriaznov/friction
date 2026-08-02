@@ -1,8 +1,8 @@
 //! `friction explain`: runs the five-operation repair engine internally
 //! (exactly like `friction fix`) but never prints the fixed text. Instead
-//! it prints, per pass, every operation that actually fired (rule,
-//! range, and — for a substitution/pivot — what it changed to) and every
-//! candidate a gate held back, followed by a short convergence summary.
+//! it prints, per pass, every operation that actually fired (rule, range,
+//! and, for a substitution/pivot, what it changed to) and every candidate
+//! a gate held back, followed by a short convergence summary.
 //!
 //! No `--genre`/`--pack`: same reasoning as `friction fix` — the engine's
 //! five operations are never gated by a metric or genre envelope.

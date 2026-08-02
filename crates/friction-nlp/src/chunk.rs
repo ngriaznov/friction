@@ -19,7 +19,7 @@
 //!
 //! [`opens_with_binding_cue`] answers a third question (does this
 //! sentence open with something a neighboring deletion could leave
-//! dangling) but takes its "connective" word list as a parameter — this
+//! dangling) but takes its "connective" word list as a parameter. This
 //! crate sits below the pack layer and must not curate that closed class.
 
 use std::collections::{BTreeMap, BTreeSet};
@@ -57,7 +57,7 @@ const SUBORDINATORS: &[&str] = &[
     "when", "whereas", "as",
 ];
 
-/// `true` if `token` is a single `;`/`.`/`!`/`?` punctuation mark — a
+/// `true` if `token` is a single `;`/`.`/`!`/`?` punctuation mark: a
 /// strong boundary a clause never crosses.
 fn is_strong_boundary(token: &TaggedToken) -> bool {
     token.token.kind == TokenKind::Punctuation

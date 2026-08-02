@@ -12,7 +12,7 @@ use crate::segment::Segmenter;
 /// See `data/friction-en.srx` (in this crate) for the ruleset itself, its
 /// rule-by-rule rationale, and its license header. Embedding it via
 /// `include_str!` means parsing it needs no file or network access at
-/// build or run time — the bytes are baked into the compiled binary.
+/// build or run time. The bytes are baked into the compiled binary.
 const RULESET_XML: &str = include_str!("../data/friction-en.srx");
 
 /// Parses [`RULESET_XML`] and extracts its English rules, once, caching

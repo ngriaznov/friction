@@ -3,7 +3,7 @@
 //!
 //! These tests exercise the shipped `weights/parser_en.json.gz` artifact
 //! through the real [`Tagger`] + [`DepParser`] pipeline (never a synthetic
-//! shortcut) — the same path any real caller in this workspace uses.
+//! shortcut): the same path any real caller in this workspace uses.
 
 use friction_nlp::{DepParser, PerceptronParser, PerceptronTagger, Tagger};
 
@@ -19,7 +19,7 @@ fn tagger() -> &'static PerceptronTagger {
     TAGGER.get_or_init(|| PerceptronTagger::new().expect("embedded weights must load"))
 }
 
-/// The shipped, embedded artifact decompresses and parses as valid JSON —
+/// The shipped, embedded artifact decompresses and parses as valid JSON:
 /// covers the gunzip/deserialize round trip independent of how accurate
 /// the resulting model is.
 #[test]
@@ -52,7 +52,7 @@ fn parse_produces_one_edge_per_token_and_exactly_one_root() {
 
 /// Parsing the same sentence repeatedly, including across fresh
 /// [`PerceptronParser`] instances, produces byte-for-byte (structurally)
-/// identical output every time — no RNG anywhere in the inference path.
+/// identical output every time, no RNG anywhere in the inference path.
 #[test]
 fn parsing_is_deterministic_across_repeated_calls_and_fresh_instances() {
     let text = "Engineers reviewed the code carefully before the release shipped.";

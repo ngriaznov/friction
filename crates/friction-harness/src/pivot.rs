@@ -81,7 +81,7 @@ pub struct LicensedPivot {
 /// `Passive`, `ModifiedNominal`, and `PluralNominal` stop the scan
 /// immediately and reject, but a candidate that runs out of following
 /// tokens or whose nominalization isn't a licensed pair is *not* a
-/// final answer for the sentence — the loop continues past it to the
+/// final answer for the sentence. The loop continues past it to the
 /// next light-verb-table token. Only once every light-verb token in the
 /// sentence has been tried without a reject or a license does this
 /// return `Unlicensed` (or `NoLightVerb` if the sentence never
@@ -238,7 +238,7 @@ mod tests {
     fn match_pivot_continues_past_an_unlicensed_candidate_to_a_later_licensed_one() {
         // "performs setup" is a candidate light-verb construction whose
         // nominalization ("setup") is not a licensed pair; the scan must
-        // not stop there and report `Unlicensed` for the whole sentence —
+        // not stop there and report `Unlicensed` for the whole sentence:
         // it has to keep going and find the later, genuinely licensed
         // "made a decision".
         let sentence = "The wizard performs setup and the team made a decision to ship.";

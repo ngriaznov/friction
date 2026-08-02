@@ -12,18 +12,18 @@
 //! documented root cause rather than silently passing or being deleted:
 //! see `regression1_by_following_these_steps_residue` and
 //! `composed_by_following_these_steps_residue` below. Both stem from a
-//! verified (not guessed) fact: this engine's `check_deletion_gates`
-//! runs the exact window-index algorithm the fixture expectations were
-//! validated under (checked position-for-position), but the
-//! *attestation data* itself — this workspace's own `corpus-tool attest`
-//! output, mined by the shipped `PerceptronTagger` over this repository's
-//! real TRAIN-split corpus — is not byte-identical to the nltk-tagged,
-//! ad hoc 8-document-holdout corpus subset the fixtures' original
-//! validation session measured against. The gate and its
-//! data are both real and load-bearing; they just don't reproduce this
-//! one specific held-vs-applied residue decision from a different
-//! tagger's mining run. See each ignored test's own doc comment for the
-//! measured bigram/skeleton facts behind it.
+//! verified (not guessed) fact: this engine's `check_deletion_gates` runs
+//! the exact window-index algorithm the fixture expectations were
+//! validated under (checked position-for-position), but the *attestation
+//! data* itself (this workspace's own `corpus-tool attest` output, mined
+//! by the shipped `PerceptronTagger` over this repository's real
+//! TRAIN-split corpus) is not byte-identical to the nltk-tagged, ad hoc
+//! 8-document-holdout corpus subset the fixtures' original validation
+//! session measured against. The gate and its data are both real and
+//! load-bearing; they just don't reproduce this one specific
+//! held-vs-applied residue decision from a different tagger's mining run.
+//! See each ignored test's own doc comment for the measured
+//! bigram/skeleton facts behind it.
 
 use friction_edit::Engine;
 use friction_harness::fixtures::FIXTURES;
@@ -128,9 +128,10 @@ fn assert_engine_good_output(id: &str) {
 // Accept fixtures
 // ---------------------------------------------------------------------
 
-/// `regression1_getting_started`'s two paired-substitution / gated-
-/// deletion edits are byte-exact; only the `by_following_these_steps`
-/// residue behavior diverges — see the ignored test below for why.
+/// `regression1_getting_started`'s two paired-substitution /
+/// gated-deletion edits are byte-exact; only the
+/// `by_following_these_steps` residue behavior diverges: see the
+/// ignored test below for why.
 #[test]
 fn accept_regression1_getting_started_substitution_and_deletion() {
     let (input, _) = accept("regression1_getting_started");
@@ -178,7 +179,7 @@ fn accept_regression1_getting_started() {
 }
 
 /// Every edit in `composed_four_operation_paragraph` except the same
-/// `by_following_these_steps` residue (see the ignored test below) — and
+/// `by_following_these_steps` residue (see the ignored test below): and
 /// except the *second* pivot ("conducts an analysis of" -> "analyzes"),
 /// which the near-no-op pivot budget now legitimately holds once
 /// calibrated (see below).
@@ -188,16 +189,15 @@ fn accept_regression1_getting_started() {
 /// `threshold_per_1000_words = 1.84`, measured from this repository's
 /// real TRAIN-split corpus), this ~80-word paragraph's own two pivots in
 /// one document exceed that rate (2 pivots / 80 words = 25/1000 words,
-/// far above any real corpus document's own natural rate — this
-/// fixture deliberately concentrates all four operations into one short
-/// paragraph as a stress test, which is exactly the shape a *per-rate*
-/// budget calibrated against realistic document lengths (train mean
-/// ~960 words/doc) cannot help but constrain). The budget is a
-/// production-only addition (§B.5) the fixtures predate, which is
-/// why the fixture's own documented output assumes both pivots fire
-/// unconstrained — a second, independent reason (beyond the skeleton-gate
-/// divergence) the full byte-exact assertion below is `#[ignore]`d rather
-/// than asserted here.
+/// far above any real corpus document's own natural rate: this fixture
+/// deliberately concentrates all four operations into one short paragraph
+/// as a stress test, which is exactly the shape a *per-rate* budget
+/// calibrated against realistic document lengths (train mean ~960
+/// words/doc) cannot help but constrain). The budget is a production-only
+/// addition (§B.5) the fixtures predate, which is why the fixture's own
+/// documented output assumes both pivots fire unconstrained — a second,
+/// independent reason (beyond the skeleton-gate divergence) the full
+/// byte-exact assertion below is `#[ignore]`d rather than asserted here.
 #[test]
 fn accept_composed_four_operation_paragraph_operations() {
     let (input, _) = accept("composed_four_operation_paragraph");
@@ -331,15 +331,16 @@ fn reject_bridge_modal_insertion() {
     assert_engine_identity("bridge_modal_insertion");
 }
 
-/// This fixture also documents a `good_output` (the correct, non-
-/// insertion sentence-initial deletion). The negative "never produces a
-/// `bad_output`" half is a real, passing, unconditional assertion here;
-/// the positive "produces exactly `good_output`" half is verified
-/// separately (see `reject_bridge_connective_insertion_good_output`,
-/// `#[ignore]`d for the same documented corpus/tagger-dependent seam/
-/// skeleton-gate reason as the two accept-fixture residues above — this
-/// specific sentence-initial deletion's seam or skeleton window is not
-/// attested in this workspace's own mined pack).
+/// This fixture also documents a `good_output` (the correct,
+/// non-insertion sentence-initial deletion). The negative "never
+/// produces a `bad_output`" half is a real, passing, unconditional
+/// assertion here; the positive "produces exactly `good_output`" half
+/// is verified separately (see
+/// `reject_bridge_connective_insertion_good_output`, `#[ignore]`d for
+/// the same documented corpus/tagger-dependent seam/skeleton-gate
+/// reason as the two accept-fixture residues above: this specific
+/// sentence-initial deletion's seam or skeleton window is not attested
+/// in this workspace's own mined pack).
 #[test]
 fn reject_bridge_connective_insertion() {
     assert_engine_identity("bridge_connective_insertion");
@@ -383,7 +384,7 @@ fn reject_word_salad_synthesis() {
 /// The real, load-bearing assertion behind `dejust_guard_just_as`: "just
 /// as fast" is the comparison sense, guarded out of
 /// `find_contrast_question`'s marker search, so `frame.dejust` never
-/// fires and the whole document — not just the marker — comes back
+/// fires and the whole document, not just the marker, comes back
 /// untouched.
 #[test]
 fn reject_dejust_guard_just_as() {

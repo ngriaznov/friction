@@ -10,8 +10,8 @@
 //! # Precision-first: the dismissive marker carries the whole gate
 //!
 //! A plain either-or question ("is it A or B?") is ordinary legitimate
-//! writing; only the dismissive-foil asymmetry — a marker word planted in
-//! the first disjunct to make it sound unworthy of consideration — is the
+//! writing; only the dismissive-foil asymmetry, a marker word planted in
+//! the first disjunct to make it sound unworthy of consideration, is the
 //! tell. [`marker_is_guarded`] is the one guard-token check both
 //! templates and `friction-edit`'s own dejust gate share: a marker
 //! immediately preceded by `not` or followed by
@@ -73,7 +73,7 @@ pub struct ContrastQuestion {
 }
 
 /// `true` if the token at `idx` is a guarded (non-dismissive) use of a
-/// marker word — see this module's own docs.
+/// marker word. See this module's own docs.
 fn marker_is_guarded(tokens: &[AnalysisToken], idx: usize) -> bool {
     let prev_not = idx > 0
         && tokens[idx - 1].kind == AnalysisTokenKind::Word
@@ -132,7 +132,7 @@ pub fn find_contrast_question(tokens: &[AnalysisToken]) -> Option<ContrastQuesti
 /// NOT sufficient: `not only X but also Y` is the standard additive
 /// correlative of ordinary human prose (it fired on a human corpus doc
 /// when it was accepted here), not the corrective restatement this
-/// template targets — the anchor is what separates epanorthosis from
+/// template targets. The anchor is what separates epanorthosis from
 /// coordination.
 ///
 /// The alternation is lazy (`.*?`) so a long sentence's closest anchor
@@ -362,7 +362,7 @@ mod tests {
 
     #[test]
     fn contrast_correction_additive_correlative_is_not_matched() {
-        // The standard additive correlative of ordinary human prose —
+        // The standard additive correlative of ordinary human prose:
         // this exact shape appears in a human corpus document and must
         // never be flagged: coordination, not corrective restatement.
         let source = "NASA invests not only in space exploration but also in developing \

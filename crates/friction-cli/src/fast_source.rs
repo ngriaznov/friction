@@ -2,14 +2,14 @@
 //! as scanning the whole document per span, but sub-linear in document
 //! size: `friction check --format text` builds one [`FindingDiagnostic`]
 //! (`crate::diagnostics`) per detected span and calls `render_report` on
-//! each — and `miette`'s own built-in [`SourceCode`] impls for `str`/
-//! `Arc<str>` (`context_info` in `miette::source_impls`) scan from byte 0
-//! of the WHOLE source up to every span's offset to find its line/column
-//! and surrounding context lines. That makes one `check` run's total
-//! rendering cost `O(spans * document_size)`: measured on a 10 MB, 244-span
-//! document, `render_spans` alone took 3.2s of `check`'s ~11s total — by
-//! far its most severe scaling defect (spans grew 8.4x from the 1 MB
-//! fixture, render time grew 83x).
+//! each — and `miette`'s own built-in [`SourceCode`] impls for
+//! `str`/`Arc<str>` (`context_info` in `miette::source_impls`) scan from
+//! byte 0 of the WHOLE source up to every span's offset to find its
+//! line/column and surrounding context lines. That makes one `check` run's
+//! total rendering cost `O(spans * document_size)`: measured on a 10 MB,
+//! 244-span document, `render_spans` alone took 3.2s of `check`'s ~11s
+//! total: by far its most severe scaling defect (spans grew 8.4x from the 1
+//! MB fixture, render time grew 83x).
 //!
 //! [`LineIndexedSource`] fixes this the safe way: it does not reimplement
 //! `miette`'s line-scanning logic (`context_info`'s CRLF handling, sliding
@@ -154,7 +154,7 @@ impl SourceCode for LineIndexedSource {
 /// function is private to that crate.
 ///
 /// `#[allow(clippy::collapsible_if)]`: kept byte-for-byte identical to the
-/// vendored original rather than restructured to satisfy the lint —
+/// vendored original rather than restructured to satisfy the lint:
 /// deliberately, since this function's whole reason to exist is to be an
 /// unmodified, independently-already-tested (upstream) reference the
 /// windowed-scan tests above diff against.
@@ -249,7 +249,7 @@ mod tests {
     /// Runs `str`'s own (whole-document-scanning) `SourceCode` impl and
     /// [`LineIndexedSource`]'s windowed one over the same `(source, span,
     /// context_lines_before, context_lines_after)` and asserts every
-    /// [`SpanContents`] field agrees — the correctness oracle for the
+    /// [`SpanContents`] field agrees: the correctness oracle for the
     /// window-selection logic this module adds. `str`'s own impl is
     /// exactly [`context_info`] called with `window_start == 0`, so this
     /// is a direct differential test against the unmodified algorithm.
@@ -350,7 +350,7 @@ mod tests {
 
     #[test]
     fn matches_whole_document_scan_for_every_span_over_a_realistic_sample() {
-        // Every word in SAMPLE, every (before, after) pair in 0..=3 — a
+        // Every word in SAMPLE, every (before, after) pair in 0..=3: a
         // broad sweep rather than a handful of hand-picked offsets.
         for (start, _) in SAMPLE.char_indices() {
             for before in 0..=3 {

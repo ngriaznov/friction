@@ -25,7 +25,7 @@ use crate::PackError;
 ///
 /// Per this workspace's model-manifest convention. A sixth family showing
 /// up in the corpus manifest is a hard error at index-build time
-/// (`corpus-tool index`'s own `family_of`), not a silent gap here — this
+/// (`corpus-tool index`'s own `family_of`), not a silent gap here: this
 /// enum is exhaustive by design.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub enum ModelFamily {
@@ -133,17 +133,17 @@ impl Vocab {
 /// link) is `None`; every other state's link is always `Some`.
 ///
 /// `next` is a `HashMap` per state rather than a `BTreeMap`: unlike every
-/// other collection in this codebase that is *iterated* to produce
-/// output (documented explicitly in `friction-parse`'s extraction code
-/// and elsewhere, where a `HashMap` would make output order
+/// other collection in this codebase that is *iterated* to produce output
+/// (documented explicitly in `friction-parse`'s extraction code and
+/// elsewhere, where a `HashMap` would make output order
 /// machine-dependent), `Sam::next` is only ever **point-queried**
-/// (`next[v].get(&c)`) during both construction and matching — its
+/// (`next[v].get(&c)`) during both construction and matching: its
 /// internal bucket order is never observed by any caller. The automaton
 /// built from a fixed, ordered `ids` sequence is therefore bit-for-bit
 /// reproducible regardless of the map's internal layout, while a
 /// `HashMap` gives the point-lookup performance the "tens of MB/s per
 /// core" throughput target needs. Do not "fix" this to a `BTreeMap` for
-/// consistency with the rest of the codebase — that consistency does not
+/// consistency with the rest of the codebase: that consistency does not
 /// apply here, and it would cost real throughput for no benefit.
 #[derive(Debug, Clone)]
 pub struct Sam {
@@ -500,7 +500,7 @@ impl DmsIndex {
     /// The pooled machine-side automaton: every family stream this pack
     /// defines, concatenated in fixed alphabetical order with the
     /// document separator between streams (see
-    /// [`Self::build_pooled_machine`]) — the single "does this read
+    /// [`Self::build_pooled_machine`]): the single "does this read
     /// machine-generated" automaton the runtime detection pass scans
     /// against. Family attribution is a retired concept for the fix-time
     /// product surface: an unchanged threshold applied to a pooled

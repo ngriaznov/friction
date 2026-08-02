@@ -35,9 +35,9 @@ pub struct Args {
 /// file and decodes raw HTML entities with the exact transform `clean`
 /// applies to newly-ingested docs. Only when decoding actually changes the
 /// bytes does this rewrite the file (in place, same path) and update that
-/// record's `sha256` field. Every other manifest field — id, class, genre,
-/// split, license, path — is left untouched, and records whose file
-/// already has no entities to decode are not written at all.
+/// record's `sha256` field. Every other manifest field (id, class, genre,
+/// split, license, path) is left untouched, and records whose file already
+/// has no entities to decode are not written at all.
 ///
 /// Deterministic and idempotent: decoding is a pure function of the
 /// file's bytes, so running this twice in a row leaves the second run
@@ -128,7 +128,7 @@ mod tests {
     }
 
     /// A doc containing entities is rewritten in place with them decoded,
-    /// and its manifest `sha256` is updated to match the new bytes; every
+    /// and its manifest `sha256` is updated to match the new bytes. Every
     /// other field is untouched.
     #[test]
     fn fix_entities_decodes_file_and_updates_sha256() {

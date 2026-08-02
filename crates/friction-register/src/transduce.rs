@@ -8,21 +8,21 @@
 //! [`t4_activize_to_passive`]/[`t5_nominalization`] depend on
 //! `nsubj`/`dobj`/`det`/`prep`/`pobj`, resolved at 82-96% accuracy. The
 //! other three candidates would depend on `acl`/`advcl`, resolved at
-//! only 52-58% — firing wrongly half the time is worse than not firing,
+//! only 52-58%: firing wrongly half the time is worse than not firing,
 //! so they don't exist.
 //!
-//! [`t6_em_dash`]/[`t7_semicolon`] are later additions: neither
-//! em dashes nor semicolon splices came up in the research phase's
+//! [`t6_em_dash`]/[`t7_semicolon`] are later additions: neither em
+//! dashes nor semicolon splices came up in the research phase's
 //! Biber-feature work, only later as measured Claude-family tells (see
 //! `register-v1.toml`'s `[features.em_dash]`/`[features.semicolon]` and
 //! `docs/research/FRONTIER_MODELS.md`). [`t7_semicolon`] reuses
 //! [`independent_clause_follows`], T6's own subtree-anchored
-//! independent-clause check, unchanged — the two features license the
+//! independent-clause check, unchanged: the two features license the
 //! same rewrite shape on the same evidence, just for different
 //! punctuation.
 //!
 //! Functions here only propose candidates; none mutate `source`, choose
-//! between overlaps, or apply anything — a caller's decision.
+//! between overlaps, or apply anything: a caller's decision.
 
 use std::collections::BTreeMap;
 use std::ops::Range;
@@ -52,7 +52,7 @@ pub struct Candidate {
     /// a fixed, meaningful order, which this workspace always prefers.
     pub delta: BTreeMap<&'static str, i32>,
     /// Hand-set trust in this rewrite class, `[0.0, 1.0]`. A plain
-    /// `f32`, not [`friction_nlp::Confidence`] — that type means a
+    /// `f32`, not [`friction_nlp::Confidence`]: that type means a
     /// parse edge's margin over its alternative, not a fixed
     /// per-transducer level.
     pub confidence: f32,
@@ -206,7 +206,7 @@ const NEGATED_AUX_CONTRACTIONS: &[&str] = &[
 ];
 
 /// Token `index`'s surface, case-folded with curly apostrophes
-/// straightened — the shape both contraction lists are written in.
+/// straightened: the shape both contraction lists are written in.
 fn folded_token_text(source: &str, tokens: &[TaggedToken], index: usize) -> String {
     token_text(source, tokens, index)
         .to_lowercase()
@@ -215,8 +215,8 @@ fn folded_token_text(source: &str, tokens: &[TaggedToken], index: usize) -> Stri
 
 /// [`has_finite_verb`] plus contraction awareness: `true` if any token is
 /// tag-finite OR is a contraction that embeds a finite auxiliary. The
-/// widening is deliberately local to this module's transducers — the
-/// edit gates keep the strict tag-based check they were calibrated with.
+/// widening is deliberately local to this module's transducers. The edit
+/// gates keep the strict tag-based check they were calibrated with.
 fn has_finite_verb_cx(source: &str, all: &[TaggedToken], range: Range<usize>) -> bool {
     has_finite_verb(&all[range.clone()])
         || range.into_iter().any(|i| {
@@ -279,7 +279,7 @@ const GENERIC_SUBJ: &[&str] = &["we", "i", "you", "one", "the team", "our team"]
 ///
 /// "I ... tore myself away" promotes to "Myself was torn away" —
 /// ungrammatical, since a reflexive has no referent independent of the
-/// subject the passive deletes. No table can paper over this; the
+/// subject the passive deletes. No table can paper over this. The
 /// transducer refuses to fire. Personal pronouns are never a licensed
 /// object to promote.
 ///
@@ -367,7 +367,7 @@ fn within_bracketed_aside(source: &str, tokens: &[TaggedToken], first: usize, la
 /// "Want"/"wish"/"prefer"/"need" differ: ordinary transitive verbs, so
 /// the transform is legal, but a passive of a desire reads bureaucratic
 /// and loses who wanted it ("the surprising benefits we've found were
-/// wanted", "Postgres' fine-grained control was preferred" — both
+/// wanted", "Postgres' fine-grained control was preferred": both
 /// grammatical, both worse).
 ///
 /// The distinction matters if revisited: the first group cannot be
@@ -430,7 +430,7 @@ fn verb_is_licensable(
         // would cost); a lemma that does is almost always an unreduced
         // surface form ("pinpointed", "absorbed") the tagger failed to
         // lemmatize. Suffixing it again produced "pinpointeded" and
-        // "absorbeded" against real prose — a made-up word, not merely
+        // "absorbeded" against real prose: a made-up word, not merely
         // awkward. Refusing beats compounding a known upstream
         // inaccuracy.
         return false;
@@ -538,7 +538,7 @@ fn object_is_licensable(
     // Particles (`RP`) are rejected too: `"we continue down this path"`
     // and `"we gave up the plan"` tag identically (`RP`, `dobj`), so no
     // structural rule separates them. Cost: the good phrasal passive
-    // (`"the server was set up"`) — measured at three rewrites over the
+    // (`"the server was set up"`): measured at three rewrites over the
     // corpus, all the stilted case this guard removes.
     let preposition_before_object = (verb_token + 1..obj_first).any(|index| {
         tokens
@@ -665,7 +665,7 @@ pub fn t4_activize_to_passive(
         };
 
         // Recapitalize only when this candidate's range opens the
-        // sentence — unconditional recapitalization was a real bug:
+        // sentence. Unconditional recapitalization was a real bug:
         // most firings passivize a subordinate clause ("... when I
         // found an exception" -> "... when An exception was found").
         let promoted = if subj_first == 0 {
@@ -945,7 +945,7 @@ fn independent_clause_follows(tokens: &[TaggedToken], parse: &SentenceParse, nex
 }
 
 /// Case (a): a paired `" — X — "` interpolation where `X` (the tokens
-/// strictly between the two dashes) carries no finite verb of its own —
+/// strictly between the two dashes) carries no finite verb of its own:
 /// a true parenthetical aside, not a second clause. Replaces the whole
 /// span, dashes and their flanking spaces included, with `", X, "`.
 ///
@@ -1019,13 +1019,13 @@ fn lead_in_candidate(source: &str, tokens: &[TaggedToken], dash: usize) -> Optio
 }
 
 /// Case (b): a single em dash with no finite verb between it and the
-/// sentence's end — an appositive/elaboration fragment, not a second
+/// sentence's end: an appositive/elaboration fragment, not a second
 /// clause. Replaces the dash and its flanking spaces with `", "` — or
 /// with `": "` when the fragment carries commas of its own: a bare comma
 /// delimiter in front of a comma-bearing fragment flattens it into one
 /// long false list ("pushing React core forward, faster, simpler, and
-/// easier to work with" — measured on real prose), the same collision
-/// the paired case escapes with parentheses.
+/// easier to work with": measured on real prose), the same collision the
+/// paired case escapes with parentheses.
 fn fragment_candidate(source: &str, tokens: &[TaggedToken], dash: usize) -> Option<Candidate> {
     let range = tokens[dash - 1].token.range.end..tokens[dash + 1].token.range.start;
     if spans_inline_code(&source[range.clone()]) {
@@ -1146,7 +1146,7 @@ pub fn t6_em_dash(source: &str, tokens: &[TaggedToken], parse: &SentenceParse) -
                 // wrong whatever follows: it either splices a clause onto
                 // a bare noun phrase or misreads the lead as apposition.
                 // The colon is the rewrite for this pattern, and it needs
-                // no read on the right side at all — which also shields
+                // no read on the right side at all. Which also shields
                 // this case from tagger noise on the right side's verb.
                 lead_in_candidate(source, tokens, dash)
                     .into_iter()
@@ -1267,15 +1267,15 @@ fn semicolon_candidate(
 
 /// Semicolon-splice reduction (T7).
 ///
-/// Homes the `semicolon` feature toward its human band — genuinely
-/// nonzero, unlike T6's em-dash band (see `register-v1.toml`'s
-/// `[features.semicolon]`) — by turning a semicolon that joins two
+/// Homes the `semicolon` feature toward its human band, nonzero
+/// unlike T6's em-dash band (see `register-v1.toml`'s
+/// `[features.semicolon]`), by turning a semicolon that joins two
 /// independent clauses into a sentence break.
 ///
 /// One rewrite shape only, unlike T6's four: a semicolon splicing two
 /// independent clauses is the one construction this module can act on
-/// with confidence. Every other established use — a serial-comma list's
-/// own separator, an elliptical continuation with no clause of its own —
+/// with confidence. Every other established use (a serial-comma list's
+/// own separator, an elliptical continuation with no clause of its own)
 /// is left alone; declining rather than guessing at those is this
 /// function's entire job.
 ///
@@ -1335,10 +1335,10 @@ pub fn t7_semicolon(source: &str, tokens: &[TaggedToken], parse: &SentenceParse)
 
 // ---------------------------------------------------------------------
 // Inflection. `third_sg` is unused by either transducer (T5's
-// `NOMINAL_VERB` spells out its own forms), but ships alongside
-// `past`/`past_participle` since the three were audited as one unit —
-// a participial transducer would need it, and splitting it out now
-// would only fragment that audit.
+// `NOMINAL_VERB` spells out its own forms), but ships with
+// `past`/`past_participle` since the three were audited as one unit — a
+// participial transducer would need it, and splitting it out now would
+// only fragment that audit.
 // ---------------------------------------------------------------------
 
 /// Endings after which the regular third-person-singular suffix is
@@ -1347,7 +1347,7 @@ pub fn t7_semicolon(source: &str, tokens: &[TaggedToken], parse: &SentenceParse)
 /// to a trailing `"o"`, not because it's phonetically a sibilant.
 const SIBILANT_ENDINGS: &[&str] = &["s", "x", "z", "ch", "sh", "o"];
 
-/// Irregular past-tense forms (53 entries — the original 44 plus 9
+/// Irregular past-tense forms (53 entries: the original 44 plus 9
 /// invariant verbs missed initially: "hit", "cost", "cast", "shut",
 /// "spread", "hurt", "quit", "burst", "shed", caught producing
 /// "hited"). `lemma + "ed"` produces real-looking but wrong words often

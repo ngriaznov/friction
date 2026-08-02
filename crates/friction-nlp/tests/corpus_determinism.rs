@@ -14,10 +14,10 @@
 //!   cargo test -p friction-nlp --test corpus_determinism -- --ignored --nocapture
 //!   ```
 //!
-//!   which prints the resulting hash. To confirm stability across
-//!   separate process invocations, run that command a few times and
-//!   compare the printed hash by eye — each invocation already hashes the
-//!   corpus three times in-process on top of that.
+//! which prints the resulting hash. To confirm stability across separate
+//! process invocations, run that command a few times and compare the
+//! printed hash by eye: each invocation already hashes the corpus three
+//! times in-process on top of that.
 
 use std::fmt::Write as _;
 use std::fs;

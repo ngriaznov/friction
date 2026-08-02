@@ -5,15 +5,14 @@
 //! [`Tagger`]: identical inputs produce identical output on any machine, on
 //! any run. A [`Document`]'s prose is segmented into sentences elsewhere
 //! (`friction-nlp`'s `segment_document`) but is not yet part-of-speech
-//! tagged — tokenization and tagging are one pass, done on demand by a
-//! [`Tagger`] — so these functions tag each sentence's text themselves,
+//! tagged (tokenization and tagging are one pass, done on demand by a
+//! [`Tagger`]), so these functions tag each sentence's text themselves,
 //! walking the document's prose units and their sentences in source order,
 //! and never reach for a dependency parser: the patterns below are shallow
 //! surface patterns over a part-of-speech tag sequence, precise enough on
-//! their own that layering a dependency parse's clause-structure guesses
-//! on top would only add another source of error without sharpening what
-//! "same broad class" or "present participle" already mean directly from
-//! tags.
+//! their own that layering a dependency parse's clause-structure guesses on
+//! top would only add another source of error without sharpening what "same
+//! broad class" or "present participle" already mean directly from tags.
 
 use std::ops::Range;
 
@@ -99,7 +98,7 @@ fn is_strong_boundary(token: &TaggedToken, source: &str) -> bool {
 
 /// A listy coordinator: exactly `"and"` or `"or"` (case-insensitive),
 /// tagged as a coordinating conjunction. Deliberately excludes `"but"`,
-/// `"nor"`, and any other coordinator — the pattern these metrics target is
+/// `"nor"`, and any other coordinator: the pattern these metrics target is
 /// a parallel *list*, not clause coordination in general.
 fn is_list_coordinator(token: &TaggedToken, source: &str) -> bool {
     token.pos.as_str().starts_with("CC")
@@ -192,7 +191,7 @@ fn segment_head_class(tokens: &[TaggedToken], range: Range<usize>) -> Option<Bro
 ///   item with no content word at all (e.g. only a determiner) disqualifies
 ///   the whole pattern.
 ///
-/// The three heads must fold to the *same* [`BroadClass`] — three nouns,
+/// The three heads must fold to the *same* [`BroadClass`]: three nouns,
 /// three verbs, three adjectives, or three adverbs. A mixed-class
 /// three-part list ("fast, quiet, and it works") is ordinary coordination,
 /// not the parallel-triad tic this metric targets.
@@ -334,7 +333,7 @@ pub fn participial_closer_rate(document: &Document, tagger: &dyn Tagger) -> f64 
 /// This is a plain containment stack, correct because of what
 /// `friction-parse` already guarantees about `blocks`: it is pre-order
 /// (non-decreasing start), sibling ranges never overlap, and a child's
-/// range is always fully contained in its parent's — this function derives
+/// range is always fully contained in its parent's. This function derives
 /// nothing beyond that guarantee.
 fn block_parents(blocks: &[Block]) -> Vec<Option<usize>> {
     let mut parents = vec![None; blocks.len()];
@@ -384,7 +383,7 @@ fn innermost_list_item(
 /// One `O(blocks)` pass, computed once for the whole document: this used
 /// to be a fresh `O(blocks)` `filter` re-run per list
 /// (`list_index`-parameterized), which made [`bullet_parallelism`]
-/// `O(lists * blocks)` over a document — quadratic-ish on a document with
+/// `O(lists * blocks)` over a document: quadratic-ish on a document with
 /// many lists, since both grow with document size.
 fn list_children(blocks: &[Block], parents: &[Option<usize>]) -> Vec<Vec<usize>> {
     let mut children = vec![Vec::new(); blocks.len()];
@@ -682,7 +681,7 @@ mod tests {
         assert_eq!(count_triads(&tokens, &source), 0);
     }
 
-    /// `"but"` is a coordinator but not a listy one — no triad, even with
+    /// `"but"` is a coordinator but not a listy one: no triad, even with
     /// an otherwise-matching comma-comma shape.
     #[test]
     fn count_triads_rejects_non_listy_coordinator() {
@@ -713,7 +712,7 @@ mod tests {
     }
 
     /// Three adjectives coordinated ("fast, quiet, and reliable") count as
-    /// a triad too — the same-class rule is not noun-only.
+    /// a triad too: the same-class rule is not noun-only.
     #[test]
     fn count_triads_matches_same_class_adjective_triad() {
         let (source, tokens) = build_tokens(&[
@@ -940,7 +939,7 @@ mod tests {
     }
 
     /// Two sibling lists (a top-level list and, inside one of its items, a
-    /// nested sublist) each contribute their own score to the mean — the
+    /// nested sublist) each contribute their own score to the mean: the
     /// nested sublist's items are not folded into the outer list's tally.
     #[test]
     fn bullet_parallelism_aggregates_nested_lists_separately() {

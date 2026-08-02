@@ -8,12 +8,12 @@
 //! and re-tags *that* with the real, public [`PerceptronTagger::tag`] API
 //! rather than the original text. This is exact, not approximate:
 //! `tokenize()` (see `src/tag_perceptron.rs`) splits purely on character
-//! class and never merges tokens across whitespace, so inserting one
-//! space between two gold words can never change how many tokens result
-//! or where they split — the reconstructed text retokenizes to the exact
-//! same token sequence every time. A per-sentence length/order mismatch
-//! therefore means a real bug, so this tool asserts against it rather
-//! than silently dropping the sentence.
+//! class and never merges tokens across whitespace, so inserting one space
+//! between two gold words can never change how many tokens result or where
+//! they split. The reconstructed text retokenizes to the exact same token
+//! sequence every time. A per-sentence length/order mismatch therefore
+//! means a real bug, so this tool asserts against it rather than silently
+//! dropping the sentence.
 //!
 //! ```text
 //! cargo run -p friction-nlp --example eval_perceptron --features train-tooling -- \

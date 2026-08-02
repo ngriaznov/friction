@@ -52,7 +52,7 @@ miette = { version = "7", features = ["fancy"] }
 
 [dev-dependencies]
 # Drives the built `friction` binary as a subprocess for the integration
-# tests (exit codes, stdin mode, JSON/SARIF shape) — not yet covered by
+# tests (exit codes, stdin mode, JSON/SARIF shape): not yet covered by
 # [workspace.dependencies]; pinned here per crate-local convention.
 assert_cmd = "2"
 predicates = "3"

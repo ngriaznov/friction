@@ -7,11 +7,11 @@
 //! `friction-match`, and `friction-cli::fix`'s own docs) actually runs
 //! on.
 //!
-//! Each combination below is a genuinely fresh child process (via
-//! `assert_cmd`), not an in-process thread-pool rebuild: rayon's global
-//! pool reads `RAYON_NUM_THREADS` once, lazily, on its first use, and a
-//! single `cargo test` binary runs every `#[test]` in one process — a
-//! pool some earlier test already initialized would make a later
+//! Each combination below is a fresh child process (via `assert_cmd`),
+//! not an in-process thread-pool rebuild: rayon's global pool reads
+//! `RAYON_NUM_THREADS` once, lazily, on its first use, and a single
+//! `cargo test` binary runs every `#[test]` in one process — a pool some
+//! earlier test already initialized would make a later
 //! `std::env::set_var` a no-op. A fresh process per combination sidesteps
 //! that entirely and is also the most literal reading of "run with
 //! `RAYON_NUM_THREADS=1,2,8`": the real thing a user sets before invoking
@@ -65,7 +65,7 @@ fn friction(threads: &str) -> Command {
 /// Runs `friction <args...> DOC_RELPATH` under `threads` worker threads,
 /// returning raw stdout+stderr bytes concatenated (stdout carries the
 /// fixed/reported text, stderr carries `fix`'s pass/paraphrase summary
-/// and `--suggest` detail — both are downstream of the parallelized scans
+/// and `--suggest` detail: both are downstream of the parallelized scans
 /// this test guards, so both must hold byte-identical too).
 fn run(threads: &str, args: &[&str]) -> Vec<u8> {
     let output: Output = friction(threads)

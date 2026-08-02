@@ -11,7 +11,7 @@ use friction_packs::ModelFamily;
 /// Builds a `MatchEngine` bound to the embedded inventory and DMS packs,
 /// targeting `ModelFamily::Qwen` (the pack defines every family, so the
 /// choice here is arbitrary — nothing in this crate decides *which*
-/// family to scan against for a given input document; that is a caller
+/// family to scan against for a given input document. That is a caller
 /// concern).
 #[allow(dead_code)]
 pub fn engine() -> MatchEngine<'static> {

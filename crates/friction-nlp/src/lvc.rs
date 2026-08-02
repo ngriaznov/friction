@@ -15,7 +15,7 @@
 //! (formerly `LV`), [`BE_FORMS`] (formerly `BE`),
 //! [`DERIVATIONAL_LEXICON`] (formerly `DERIV`), and [`conjugate`]
 //! (formerly a private `inflect`, renamed to avoid colliding with
-//! [`crate::inflect`] — a different, already public,
+//! [`crate::inflect`]: a different, already public,
 //! surface-shape-based inflector this crate ships; the two must not
 //! share a name).
 
@@ -161,7 +161,7 @@ pub struct LicensedConstruction {
     /// (if present) or the nominalization (if not).
     pub range: Range<usize>,
     /// Index one past the construction's last token (`of`'s index + 1,
-    /// or the nominalization's index + 1) — lets a caller scanning for
+    /// or the nominalization's index + 1): lets a caller scanning for
     /// every match in a sentence resume immediately after this one
     /// without rescanning tokens already consumed by it.
     pub end_token_index: usize,
@@ -295,7 +295,7 @@ pub struct ConstructionMatch {
 /// `candidate` is looked up in `candidate_noms` rather than
 /// [`DERIVATIONAL_LEXICON`], and skips the passive/`JJ`/plural gates
 /// `friction-harness::pivot`'s runtime `match_pivot` applies before
-/// licensing — the same left-to-right walk, stripped down for offline
+/// licensing: the same left-to-right walk, stripped down for offline
 /// measurement so it can probe nominalizations that aren't (yet)
 /// licensed at all.
 ///

@@ -21,7 +21,7 @@ serde_json = { workspace = true }
 thiserror = { workspace = true }
 # Not yet in [workspace.dependencies]; added directly here per this
 # workspace's existing crate-local convention (see friction-metrics's own
-# Cargo.toml) — used only for the seed tell-span/pivot pattern tables. No
+# Cargo.toml): used only for the seed tell-span/pivot pattern tables. No
 # lookaround is required by any pattern transcribed into src/tellspan.rs or
 # src/pivot.rs.
 regex = "1"

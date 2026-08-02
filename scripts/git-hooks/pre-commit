@@ -12,7 +12,7 @@
 # Deliberately source-triggered only: a serializer/format change in
 # friction-packs also stales the binaries but is caught by the
 # repack-artifacts.yml workflow (which regenerates unconditionally) and
-# by the friction-packs drift tests — this hook covers the common
+# by the friction-packs drift tests. This hook covers the common
 # edit-a-TOML flow at the moment it happens.
 set -euo pipefail
 

@@ -134,7 +134,7 @@ struct RawPack {
 #[cfg(test)]
 // Every comparison below is against an exact hand-written literal (a
 // value parsed straight out of `SAMPLE`'s own TOML text), matching
-// `envelope.rs`'s own precedent for this exact situation — exact
+// `envelope.rs`'s own precedent for this exact situation: exact
 // equality is the correct check here, not an epsilon comparison.
 #[allow(clippy::float_cmp)]
 mod tests {

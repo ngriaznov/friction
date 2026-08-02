@@ -43,9 +43,9 @@
 //! # Determinism
 //!
 //! The feature list is a fixed-order `Vec<Box<str>>` built from a fixed
-//! code path, not iterated out of a hash collection, so summation order
-//! — and the resulting scores — is identical run to run. Scoring indexes
-//! a plain array by each class's load-time sorted position and picks the
+//! code path, not iterated out of a hash collection, so summation order,
+//! and the resulting scores, is identical run to run. Scoring indexes a
+//! plain array by each class's load-time sorted position and picks the
 //! argmax by strict `>` in that fixed order, so ties always resolve to
 //! the lexicographically earliest tag, never hash-map iteration order.
 //!
@@ -116,7 +116,7 @@ use serde::{Deserialize, Serialize};
 
 use crate::tag::{PosTag, TaggedToken, Tagger, classify_token_kind, is_prose_punctuation};
 
-/// The vendored, gzip-compressed perceptron weight artifact — the
+/// The vendored, gzip-compressed perceptron weight artifact: the
 /// audited interchange format from the training pipeline. See
 /// `weights/NOTICE.md` for provenance and the reproduction command;
 /// `examples/train_perceptron.rs` (behind the `train-tooling` feature)
@@ -143,7 +143,7 @@ static WEIGHTS_JSON_GZ: &[u8] = include_bytes!("../weights/perceptron_en.json.gz
 static WEIGHTS_BIN: &[u8] = include_bytes!("../weights/perceptron_en.bin");
 
 /// This artifact's 8-byte magic, distinct from [`crate::dep_perceptron`]'s
-/// own — so one can never be silently loaded in place of the other.
+/// own: so one can never be silently loaded in place of the other.
 const ARTIFACT_MAGIC: [u8; 8] = *b"FRTAGWT1";
 
 /// The sha256 (lowercase hex) of the `WEIGHTS_JSON_GZ` bytes currently
@@ -244,7 +244,7 @@ fn sort_classes_with_index_map(file_classes: &[Box<str>]) -> (Vec<Box<str>>, Vec
 
 /// Runtime weight table: one dense per-class weight vector per feature
 /// string, indexed by each class's position in the freshly sorted
-/// `classes` list [`sort_classes_with_index_map`] returns — never by
+/// `classes` list [`sort_classes_with_index_map`] returns, never by
 /// whatever order the on-disk file happened to use.
 struct WeightTable {
     by_feature: HashMap<Box<str>, Vec<f32>>,
@@ -277,7 +277,7 @@ impl WeightTable {
     /// `scores` — [`Backend::accumulate`]'s single-feature step, driven
     /// once per feature straight out of [`build_features`]'s reused
     /// scratch buffer (no owned `Vec<Box<str>>` of features is built on
-    /// this path). Summation order — and so the resulting scores — is
+    /// this path). Summation order, and so the resulting scores, is
     /// identical across runs since it's fixed by the caller's fixed
     /// feature-template order, never by hash-map iteration.
     fn accumulate_one(&self, feature: &str, scores: &mut [f32]) {
@@ -474,9 +474,9 @@ fn build_view_payload(file: WeightFile) -> Vec<u8> {
 /// Shared inference surface both loading paths implement identically:
 /// [`PerceptronTagger::new`]'s zero-copy [`ViewBackend`] and
 /// [`PerceptronTagger::from_json_gz`]'s owned [`OwnedBackend`]. Everything
-/// [`PerceptronTagger::tag_word`] needs — the tagdict short-circuit,
+/// [`PerceptronTagger::tag_word`] needs (the tagdict short-circuit,
 /// feature scoring, and resolving a winning class index back to its tag
-/// string — goes through here, so the per-token tagging algorithm is
+/// string) goes through here, so the per-token tagging algorithm is
 /// written exactly once and both backends are provably running the same
 /// one.
 trait Backend {
@@ -605,7 +605,7 @@ fn normalize_word_identity(word_lower: &str) -> &str {
 }
 
 /// The last (up to) three characters of `word_lower`, by `char` count, not
-/// byte count — a short word's own full text if it has three characters or
+/// byte count: a short word's own full text if it has three characters or
 /// fewer.
 fn suffix3(word_lower: &str) -> &str {
     let byte_start = word_lower
@@ -682,7 +682,7 @@ fn first_char(word_lower: &str) -> &str {
 }
 
 /// `surfaces[idx]`'s lowercased text, or a start-/end-of-sequence sentinel
-/// when `idx` looks past either edge — shared by every "word two back" /
+/// when `idx` looks past either edge, shared by every "word two back" /
 /// "previous word" / "next word" / "word two forward" feature.
 fn context_word(surfaces: &[Box<str>], idx: isize) -> &str {
     if idx < 0 {
@@ -723,7 +723,7 @@ fn context_word(surfaces: &[Box<str>], idx: isize) -> &str {
 /// and tests use instead.
 ///
 /// `surfaces` is every token's lowercased surface text for the whole
-/// `tag()` call (punctuation included — it legitimately participates in
+/// `tag()` call (punctuation included. It legitimately participates in
 /// word context, as in genuine Penn-Treebank tagging). `raw_current` is
 /// token `i`'s text in its *original* case: NLTK's `_get_features`
 /// computes `word[-3:]`/`word[0]` from the raw token, not the normalized
@@ -1009,7 +1009,7 @@ impl PerceptronTagger {
     /// [`PerceptronTagError::Header`] if the embedded `.bin`'s header or
     /// payload is malformed; [`PerceptronTagError::StaleBin`] if its
     /// recorded source sha256 doesn't match the currently embedded
-    /// `json.gz`. Neither should happen for the vendored artifact —
+    /// `json.gz`. Neither should happen for the vendored artifact,
     /// covered by this module's own tests.
     pub fn new() -> Result<Self, PerceptronTagError> {
         let (source_sha256, payload) =
@@ -1178,7 +1178,7 @@ pub mod train_support {
     /// Parses a hand-rolled tab-separated gold file.
     ///
     /// `word<TAB>tag` per line, a blank line marking a sentence break. No
-    /// external CoNLL-U crate or corpus dependency — the file is entirely
+    /// external CoNLL-U crate or corpus dependency: the file is entirely
     /// this project's own hand-curated data.
     #[must_use]
     pub fn parse_gold_file(text: &str) -> Vec<GoldSentence> {
@@ -1281,7 +1281,7 @@ pub mod train_support {
     ///
     /// The loop must call it once per token, interleaved with the model's
     /// own live prediction feeding `prev1_tag`/`prev2_tag` for the *next*
-    /// token — the perceptron-tagger convention this module's inference
+    /// token: the perceptron-tagger convention this module's inference
     /// path follows (the model's guess, not the gold tag, becomes
     /// tag-history context), so training and inference never disagree
     /// about "previous tag". `raw_word` must be token `i`'s original-case
@@ -1363,7 +1363,7 @@ pub mod train_support {
                 .unwrap_or(0.0);
             let last_ts = self.timestamps.get(&key).copied().unwrap_or(0);
             // A handful of epochs over a small gold corpus never gets
-            // `iterations` near 2^52 — no meaningful precision lost here.
+            // `iterations` near 2^52: no meaningful precision lost here.
             #[allow(clippy::cast_precision_loss)]
             let held = (self.iterations - last_ts) as f64;
             let total = self.totals.entry(key.clone()).or_insert(0.0);
@@ -1703,7 +1703,7 @@ mod tests {
 
     /// A constructed near-tie input (an out-of-vocabulary word with no
     /// informative feature weights) still resolves to the same tag every
-    /// run — the tie-break is deterministic by construction (lowest
+    /// run. The tie-break is deterministic by construction (lowest
     /// sorted-class index wins), not by luck.
     #[test]
     fn tag_tie_break_is_stable_across_repeated_runs() {

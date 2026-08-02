@@ -184,7 +184,7 @@ pub enum PackError {
 
     /// An `attestation-v1.bin` derived artifact failed structural
     /// validation (see [`crate::AttestationPack::from_bin`]). Never
-    /// expected for the vendored embedded artifact — covered by this
+    /// expected for the vendored embedded artifact: covered by this
     /// crate's round-trip and drift tests.
     #[error("attestation artifact is malformed: {0}")]
     AttestationBinMalformed(&'static str),
@@ -243,9 +243,9 @@ pub enum PackError {
     },
 
     /// `xorf::BinaryFuse8::try_from` exhausted its bounded retry loop
-    /// (see [`crate::jargon_attest::build_pack_bytes`]) — in measured
+    /// (see [`crate::jargon_attest::build_pack_bytes`]): in measured
     /// practice this needs a pathological key set (near-total hash
-    /// collision), not simply a large one.
+    /// collision), not a large one.
     #[error("jargon-attest-v1: BinaryFuse8 construction failed: {message}")]
     JargonAttestConstructionFailed {
         /// `xorf`'s own error message.
@@ -276,7 +276,7 @@ pub enum PackError {
     },
 
     /// A `jargon-attest-v1` sidecar's `[pack].key_count` doesn't match the
-    /// key count embedded in the `.bin`'s own header — the two files
+    /// key count embedded in the `.bin`'s own header: the two files
     /// describe different builds.
     #[error(
         "jargon-attest-v1: sidecar [pack].key_count={sidecar} does not match the {embedded} \

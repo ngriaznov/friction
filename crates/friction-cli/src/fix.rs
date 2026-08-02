@@ -12,7 +12,7 @@
 //! A summary (passes run, patches applied per operation, how many
 //! `Suggest`-tier candidates remain held, how many DMS paraphrase spans
 //! were flagged) is always printed to stderr, so stdout stays exactly the
-//! fixed document — safe to pipe or redirect. `--suggest` additionally
+//! fixed document, safe to pipe or redirect. `--suggest` additionally
 //! lists every remaining held candidate (rule, span, reason) and every
 //! flagged paraphrase span (frame id, score, snippet) on stderr.
 //!
@@ -172,8 +172,8 @@ fn run_inner(args: &FixArgs) -> Result<ExitCode, CliError> {
     // pure function of embedded bytes, so where (and on which thread) the
     // first force happens can never change output: later touchers block
     // on the same completed value. Plain `std::thread`, not the rayon
-    // pool — these must not occupy pool workers the engine may want.
-    // The threads are deliberately detached: every pack forced below is
+    // pool: these must not occupy pool workers the engine may want. The
+    // threads are deliberately detached: every pack forced below is
     // consumed later in this function, so the process never exits with
     // one of them still mid-parse on the success path.
     let _ = std::thread::spawn(|| {
@@ -566,7 +566,7 @@ const fn dms_score(span: &MatchSpan) -> i64 {
 /// already carried by the running region, since ties are resolved by not
 /// overwriting), so the result never depends on scan order. Because
 /// starts only grow across the sorted input, the merged spans come out
-/// already sorted the same way — no second sort is needed.
+/// already sorted the same way. No second sort is needed.
 fn union_paraphrase_spans(mut spans: Vec<MatchSpan>) -> Vec<ParaphraseSpan> {
     spans.sort_by(|a, b| {
         a.range

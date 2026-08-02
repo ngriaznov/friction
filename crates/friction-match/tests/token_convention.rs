@@ -5,9 +5,9 @@
 //! un-cleaned bytes and `clean::tokenize` runs on `clean(text)`
 //! lowercased.
 //!
-//! This is a dev-dependency behavioral equivalence test, not shared code
-//! — see this crate's own top-level docs for why the two tokenizers stay
-//! separate implementations.
+//! This is a dev-dependency behavioral equivalence test, not shared
+//! code. See this crate's own top-level docs for why the two tokenizers
+//! stay separate implementations.
 
 use friction_harness::clean;
 use friction_harness::fixtures::FIXTURES;

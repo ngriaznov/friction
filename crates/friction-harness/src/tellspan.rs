@@ -280,8 +280,8 @@ mod tests {
 
     #[test]
     fn tell_span_hits_fires_on_a_pack_only_ritual_entry_absent_from_the_old_hardcoded_static() {
-        // `ritual.would_you_like_me_to_elaborate` is a genuinely new,
-        // mined pack entry (never part of the prior hardcoded RITUAL
+        // `ritual.would_you_like_me_to_elaborate` is a new, mined
+        // pack entry (never part of the prior hardcoded RITUAL
         // static) — proves the swap to `friction_packs::INVENTORY` is
         // real, not a no-op refactor.
         let text = "Would you like me to elaborate on any specific aspect of this setup?";

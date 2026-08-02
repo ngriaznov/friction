@@ -1,15 +1,15 @@
 //! Per-document word-overuse detection (a real user complaint: "pin" used
 //! constantly in one review).
 //!
-//! An LLM document can hammer a single verb or adverb — a word the
-//! writer keeps reaching for — at a rate no individual human
-//! review ever sustains, even though the word itself is unremarkable
-//! (unlike [`crate::jargon`]'s invented compounds, there is nothing wrong
-//! with "pin" as a word). This channel catches that: it compares each
+//! An LLM document can hammer a single verb or adverb — a word the writer
+//! keeps reaching for — at a rate no individual human review ever
+//! sustains, even though the word itself is unremarkable (unlike
+//! [`crate::jargon`]'s invented compounds, there is nothing wrong with
+//! "pin" as a word). This channel catches that: it compares each
 //! candidate word's rate WITHIN THIS ONE DOCUMENT against that word's
 //! burst envelope — the densest any single human document in
 //! [`friction_packs::HUMAN_EVIDENCE`]'s 49.7M-token corpus ever used it
-//! ([`HumanEvidencePack::burst_envelope_per_million`]) — and flags only
+//! ([`HumanEvidencePack::burst_envelope_per_million`]), and flags only
 //! when the document's own confidence interval exceeds what any human
 //! document ever sustained.
 //!
@@ -95,15 +95,15 @@ const MIN_OCCURRENCES: u64 = 4;
 /// The factor a document's Wilson-lower-bound rate must exceed a word's
 /// burst envelope by before this channel flags it. The envelope is
 /// already the most extreme per-document rate any human document in the
-/// reference corpus sustained — an observed maximum, not a typical
-/// value — so the headroom is thin: the claim being made is "denser
-/// than any human document ever", and 1.2x keeps sampling wobble on
-/// both sides of that comparison from deciding it.
+/// reference corpus sustained (an observed maximum, not a typical
+/// value) so the headroom is thin: the claim being made is "denser than
+/// any human document ever", and 1.2x keeps sampling wobble on both
+/// sides of that comparison from deciding it.
 const ENVELOPE_HEADROOM: f64 = 1.2;
 
 /// The z-score [`wilson_lower_bound_per_million`] computes at — 1.96, the
 /// conventional 95% figure, matching `friction_edit::register::WILSON_Z`
-/// (duplicated, not imported — see this module's own docs on the
+/// (duplicated, not imported: see this module's own docs on the
 /// dependency direction).
 const WILSON_Z: f64 = 1.96;
 
@@ -112,9 +112,9 @@ const WILSON_Z: f64 = 1.96;
 /// source slice arrives cased; [`tally`] folds it for the tally key). A
 /// contraction like "don't" is excluded here rather than by the
 /// tokenizer, since a contraction is not a lexical choice comparable to
-/// [`friction_packs::HumanEvidencePack`]'s own unigram entries — it is
-/// exactly the kind of high-frequency grammatical glue this channel's
-/// whole point is to exclude.
+/// [`friction_packs::HumanEvidencePack`]'s own unigram entries: it is
+/// the kind of high-frequency grammatical glue this channel's whole
+/// point is to exclude.
 fn is_candidate_shape(text: &str) -> bool {
     text.len() >= MIN_WORD_LEN && text.bytes().all(|b| b.is_ascii_alphabetic())
 }
@@ -185,7 +185,7 @@ const MIN_DOC_TOKENS: u64 = 120;
 
 /// `true` for the part-of-speech tags whose words this channel judges:
 /// finite/base/participial verbs (`VB`, `VBD`, `VBN`, `VBP`, `VBZ`) and
-/// adverbs (`RB*`) — the words style chooses and no topic dictates.
+/// adverbs (`RB*`): the words style chooses and no topic dictates.
 /// Every excluded class fell to the human-corpus evidence gate, not to
 /// taste: nouns because a human email about Haskell says "haskell" at
 /// hundreds of times its corpus-wide rate (a topic, not a tic);
@@ -212,7 +212,7 @@ type Occurrences = BTreeMap<Box<str>, Vec<Range<usize>>>;
 /// words-and-punctuation token basis).
 ///
 /// A word qualifies only when EVERY one of its occurrences carries a
-/// lexical-choice tag — unanimity, not majority. The tagger guesses at
+/// lexical-choice tag: unanimity, not majority. The tagger guesses at
 /// words outside its dictionary from context, and its guesses for tech
 /// vocabulary drift between noun and adjective readings ("nodejs" as
 /// `JJ` before "runtime", `NN` elsewhere); a word the tagger cannot
@@ -240,10 +240,10 @@ fn tally(tagged: &[TaggedSentence], source: &str) -> (Occurrences, u64) {
     // Reused across every candidate token instead of allocating a fresh
     // lowercased `String` per occurrence: `to_ascii_lowercase` output
     // is written into this buffer once per token, and only turned into
-    // an owned `Box<str>` key on a genuinely new word — the common case
-    // (a repeated word) looks the existing entry up by the borrowed
-    // buffer contents and pushes into its `Vec` without allocating at
-    // all. `is_candidate_shape` already restricts a candidate to ASCII
+    // an owned `Box<str>` key on a new word — the common case (a
+    // repeated word) looks the existing entry up by the borrowed buffer
+    // contents and pushes into its `Vec` without allocating at all.
+    // `is_candidate_shape` already restricts a candidate to ASCII
     // letters, so ASCII case-folding here is exactly `to_lowercase`'s
     // result for every string this function ever sees.
     let mut lower = String::new();
@@ -287,9 +287,9 @@ fn tally(tagged: &[TaggedSentence], source: &str) -> (Occurrences, u64) {
 /// Pass one tallies every candidate word's occurrences and the document's
 /// total prose token count `T` (word AND punctuation tokens both count,
 /// matching [`friction_packs::HumanEvidencePack::total_tokens`]'s own
-/// `friction_harness::clean::tokenize` convention — see that pack's
-/// module docs — so a document rate and a human rate are computed on the
-/// same basis). Pass two arms each candidate against
+/// `friction_harness::clean::tokenize` convention, see that pack's module
+/// docs, so a document rate and a human rate are computed on the same
+/// basis). Pass two arms each candidate against
 /// [`OVERUSE_RATIO_MULTIPLIER`] and, for every word that arms, emits one
 /// span per occurrence with a shared [`overuse_message`].
 ///
@@ -354,7 +354,7 @@ mod tests {
     use super::*;
 
     /// The real embedded tagger, shared across tests exactly as
-    /// `jargon.rs`'s own tests share theirs — the POS gate is part of the
+    /// `jargon.rs`'s own tests share theirs. The POS gate is part of the
     /// detection rule, so these tests run real tags, not hand-picked ones.
     fn tagger() -> &'static PerceptronTagger {
         static TAGGER: OnceLock<PerceptronTagger> = OnceLock::new();
@@ -370,7 +370,7 @@ mod tests {
     fn synthetic_evidence() -> HumanEvidencePack {
         let total = 1_000_000u64;
         // Burst envelopes: what the densest human document ever did with
-        // each word — low for the style words the positive tests hammer,
+        // each word. Low for the style words the positive tests hammer,
         // high for "really"/"the" (documents repeat glue words freely).
         let unigrams = BTreeMap::from([
             ("pin".to_string(), (210, 3_000)),
@@ -489,7 +489,7 @@ mod tests {
     fn positive_spans_are_sorted_by_position_not_word() {
         // Two distinct low-rate verbs, interleaved in the source, whose
         // BTreeMap (alphabetical) visitation order disagrees with their
-        // document order — "tweak" is visited last internally but its
+        // document order: "tweak" is visited last internally but its
         // first occurrence comes before "adjust"'s later ones.
         let evidence = synthetic_evidence();
         let source = format!(
@@ -535,8 +535,8 @@ mod tests {
         assert!(spans_for(&source, &evidence).is_empty());
     }
 
-    /// A word at or above [`HUMAN_RATE_CEILING_PER_MILLION`] — however
-    /// lexical its tag — never flags: at that frequency it is
+    /// A word at or above [`HUMAN_RATE_CEILING_PER_MILLION`], however
+    /// lexical its tag, never flags: at that frequency it is
     /// structural glue, and every document repeats it.
     #[test]
     fn negative_ceiling_tier_word_never_flags() {
@@ -578,7 +578,7 @@ mod tests {
     /// [`MIN_OCCURRENCES`]: `HUMAN_EVIDENCE` is itself pooled FROM this
     /// same corpus (see that pack's own module docs), so a human document
     /// flagging here would mean the constants are miscalibrated against
-    /// the very data that defines "human rate" — a true near-no-op canary,
+    /// the very data that defines "human rate": a true near-no-op canary,
     /// not just a spot check. Skips a document that fails to parse rather
     /// than failing the gate on an unrelated parser issue (never expected
     /// for the corpus's own markdown, but not this test's concern either
@@ -672,7 +672,7 @@ mod tests {
     }
 
     /// Every `.md` file under `root`, recursively, in a stable
-    /// (directory-walk) order — good enough for a test that only needs
+    /// (directory-walk) order: good enough for a test that only needs
     /// "every file", not a specific order.
     fn walk_markdown_files(root: &Path) -> Vec<std::path::PathBuf> {
         let mut out = Vec::new();

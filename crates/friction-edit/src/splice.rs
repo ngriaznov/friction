@@ -20,9 +20,9 @@ use friction_core::{Patch, RuleId, Tier};
 /// One piece of a sentence's working text.
 #[derive(Debug, Clone)]
 enum Chunk {
-    /// An untouched slice of the original source — still byte-addressable.
+    /// An untouched slice of the original source: still byte-addressable.
     Original(Range<usize>),
-    /// A fixed replacement string from an already-applied edit — no
+    /// A fixed replacement string from an already-applied edit: no
     /// original-byte correspondence.
     Replaced(Box<str>),
 }
@@ -85,10 +85,10 @@ impl<'src> SentenceSplicer<'src> {
     /// original bytes and reshaping the chunk chain.
     ///
     /// `working_range` must fall entirely within a single
-    /// [`Chunk::Original`] piece — guaranteed by pack disjointness (an
+    /// [`Chunk::Original`] piece: guaranteed by pack disjointness (an
     /// operation never matches text an earlier operation just introduced).
-    /// Returns `false` without mutating anything if violated; debug
-    /// builds additionally assert.
+    /// Returns `false` without mutating anything if violated; debug builds
+    /// additionally assert.
     pub fn apply(
         &mut self,
         working_range: Range<usize>,
@@ -189,7 +189,7 @@ impl<'src> SentenceSplicer<'src> {
 
     /// `true` if the working text's very first chunk is an untouched
     /// [`Chunk::Original`] slice (as opposed to an earlier edit's
-    /// replacement text) — used by the recapitalization step to avoid
+    /// replacement text): used by the recapitalization step to avoid
     /// splicing into replacement text a stage already capitalized itself.
     #[must_use]
     pub fn starts_with_original(&self) -> bool {

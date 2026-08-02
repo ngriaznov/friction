@@ -65,7 +65,7 @@ pub struct Args {
 /// "Included" is entirely a property of the envelope pack, not this
 /// command: `corpus-tool envelope` decides, per `(genre, metric)`, from a
 /// train-internal AUC comparison, whether that metric counts toward its
-/// genre's combined score at all (see the pack's `include` field) — a
+/// genre's combined score at all (see the pack's `include` field): a
 /// metric the diagnosis judged non-discriminative for a genre (e.g.
 /// `ritual_marker_rate` before its detector fix) is dropped from that
 /// genre's combined score this way, never by a hand-picked override here.
@@ -76,7 +76,7 @@ pub struct Args {
 ///
 /// The report ends with a "Combined-score gate" section: how many of the
 /// five genres reach a combined-score AUC of 0.85 or higher, against a
-/// target of at least three, with an explicit `MET`/`NOT MET` verdict —
+/// target of at least three, with an explicit `MET`/`NOT MET` verdict:
 /// so the report always states plainly whether the metrics layer is
 /// separating llm from human well enough yet, instead of leaving a
 /// reader to eyeball five AUC numbers and guess.
@@ -413,7 +413,7 @@ fn exceedance(value: f64, envelope: Envelope) -> f64 {
 /// this averages over without any code change here.
 ///
 /// `None` if `bands` has no entry at all for one of `metrics`'s fields
-/// (an incomplete/absent per-genre envelope — distinct from a field
+/// (an incomplete/absent per-genre envelope: distinct from a field
 /// present but excluded), or if every field was excluded (no basis for a
 /// score).
 ///
@@ -709,7 +709,7 @@ mod tests {
     }
 
     /// Fully overlapping identical distributions: every pair ties, so the
-    /// raw AUC is exactly 0.5 (already oriented — no class dominates).
+    /// raw AUC is exactly 0.5 (already oriented, no class dominates).
     #[test]
     fn mann_whitney_auc_identical_distributions_is_one_half() {
         let (auc, _direction) = mann_whitney_auc(&[5.0, 5.0, 5.0], &[5.0, 5.0, 5.0]).unwrap();

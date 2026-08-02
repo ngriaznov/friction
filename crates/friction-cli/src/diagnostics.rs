@@ -57,8 +57,8 @@ struct FindingDiagnostic {
     /// bump, not a copy — [`LineIndexedSource`] sits behind the `Arc` so
     /// cloning it per span never re-copies the source or its line-start
     /// index). [`LineIndexedSource`] (not a plain `Arc<str>`) is what
-    /// keeps each `render_report` call cheap regardless of document size
-    /// — see its own module docs.
+    /// keeps each `render_report` call cheap regardless of document
+    /// size: see its own module docs.
     src: NamedSource<Arc<LineIndexedSource>>,
 }
 

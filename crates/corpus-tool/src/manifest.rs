@@ -276,7 +276,7 @@ mod tests {
         assert!(lines[1].contains("\"zzz\""));
     }
 
-    /// A missing manifest file is `Ok(None)`, not an error — an
+    /// A missing manifest file is `Ok(None)`, not an error: an
     /// absent corpus is a valid (empty) state.
     #[test]
     fn read_manifest_missing_file_returns_none() {

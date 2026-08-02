@@ -138,7 +138,7 @@ pub fn extract_html(source: &str) -> (Vec<Block>, Vec<ProseUnit>) {
 
     let mut pos = 0;
     let mut run_start: Option<PendingRun> = None;
-    // Whether text encountered NEXT continues an interrupted block —
+    // Whether text encountered NEXT continues an interrupted block:
     // set by inline boundaries (an inline tag, an entity, a template
     // expression), cleared by block-level ones.
     let mut continues = false;
@@ -210,7 +210,7 @@ pub fn extract_html(source: &str) -> (Vec<Block>, Vec<ProseUnit>) {
 }
 
 /// The [`BlockKind`] for a text run, from the innermost relevant open
-/// element — see the module docs for the mapping and why it reuses
+/// element: see the module docs for the mapping and why it reuses
 /// markdown's kinds.
 fn kind_for_context(stack: &[OpenElement]) -> BlockKind {
     for element in stack.iter().rev() {
@@ -350,7 +350,7 @@ fn is_inline_element(name: &str) -> bool {
 }
 
 /// Pops the stack down through the innermost element named `name`, if
-/// one is open — standard mis-nesting recovery. A close tag with no
+/// one is open, standard mis-nesting recovery. A close tag with no
 /// matching open element is ignored.
 fn close_element(name: &str, stack: &mut Vec<OpenElement>, excluded_depth: &mut usize) {
     let Some(position) = stack.iter().rposition(|e| e.name == name) else {
@@ -408,9 +408,9 @@ fn consume_attributes(bytes: &[u8], at: usize) -> (usize, bool) {
 }
 
 /// The position where `</name` begins for a raw-text element whose
-/// content starts at `content_start`, scanning case-insensitively —
-/// i.e. the end of the element's content. Unterminated raw text runs to
-/// the end of the input.
+/// content starts at `content_start`, scanning case-insensitively: i.e.
+/// the end of the element's content. Unterminated raw text runs to the
+/// end of the input.
 fn close_tag_start(source: &str, content_start: usize, name: &str) -> usize {
     let lower = source.to_ascii_lowercase();
     let needle = format!("</{name}");
@@ -544,10 +544,10 @@ fn scan_json_data_block(
         // expressions alike. Every run of one value shares one block
         // (the same convention [`flush`] applies to an interrupted HTML
         // block), so the engine's own previous-run-ended-a-sentence
-        // check decides which fragments genuinely start sentences. A
-        // run after `\n`/`\r` additionally starts trimmed (a fresh
-        // line); every other delimiter interrupts mid-sentence, so the
-        // following run keeps its leading whitespace.
+        // check decides which fragments start sentences. A run after
+        // `\n`/`\r` additionally starts trimmed (a fresh line); every
+        // other delimiter interrupts mid-sentence, so the following run
+        // keeps its leading whitespace.
         let mut value_block: Option<usize> = None;
         let mut run_start = content_start;
         let mut continues = false;
@@ -576,7 +576,7 @@ fn scan_json_data_block(
                     prose,
                 );
                 continues = !matches!(bytes.get(scan + 1), Some(&b'n' | &b'r'));
-                // `\uXXXX` is six bytes; every other escape is two.
+                // `\uXXXX` is six bytes. Every other escape is two.
                 scan += if bytes.get(scan + 1) == Some(&b'u') {
                     6
                 } else {
@@ -673,7 +673,7 @@ fn template_expression_end(bytes: &[u8], at: usize) -> Option<usize> {
 
 /// The end position (past the `;`) of a character reference starting at
 /// the `&` at `at`, or `None` if the bytes there don't form one.
-/// Recognizes `&name;`, `&#123;`, and `&#x1F;` shapes — the same three
+/// Recognizes `&name;`, `&#123;`, and `&#x1F;` shapes: the same three
 /// the HTML spec defines.
 fn character_reference_end(bytes: &[u8], at: usize) -> Option<usize> {
     let rest = &bytes[at + 1..];
@@ -700,7 +700,7 @@ fn character_reference_end(bytes: &[u8], at: usize) -> Option<usize> {
         .then(|| at + 1 + body_len + 1)
 }
 
-/// Elements whose entire content is never prose — see the module docs.
+/// Elements whose entire content is never prose. See the module docs.
 fn is_excluded_element(name: &str) -> bool {
     matches!(
         name,
@@ -920,7 +920,7 @@ mod tests {
         let runs = prose_ranges(source);
         let texts: Vec<&str> = runs.iter().map(|(_, t)| t.as_str()).collect();
         // Keys ("title", "notes", ...) never appear; single-token values
-        // ("cover", "single") are skipped; executable-script strings are
+        // ("cover", "single") are skipped. Executable-script strings are
         // untouchable.
         assert_eq!(
             texts,

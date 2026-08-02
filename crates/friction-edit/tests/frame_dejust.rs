@@ -87,7 +87,7 @@ fn dejust_fires_on_a_merely_case() {
 }
 
 /// `only` licenses detection (`Channel::Frame` fires) but is never
-/// dejusted — it often carries real quantity meaning ("is it only one
+/// dejusted. It often carries real quantity meaning ("is it only one
 /// replica, or...").
 #[test]
 fn dejust_declines_the_only_marker() {
@@ -141,7 +141,7 @@ fn dejust_declines_the_not_just_guard() {
     assert!(!frame_dejust_fired(&report));
 }
 
-/// A plain either-or question with no marker at all is untouched — the
+/// A plain either-or question with no marker at all is untouched, the
 /// precision-first design's own baseline case.
 #[test]
 fn dejust_never_fires_without_a_marker() {

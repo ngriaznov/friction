@@ -11,13 +11,13 @@
 # Deliberately NOT covered: jargon-attest-v1.bin (rebuilt from external
 # source dumps by .github/workflows/attest-refresh.yml) and the
 # human/machine evidence bins (rebuilt from locally staged external
-# corpora by `corpus-tool human-evidence`) — neither is a function of
+# corpora by `corpus-tool human-evidence`): neither is a function of
 # committed bytes alone.
 #
 # Run this after editing any source pack TOML or weight artifact; the
 # friction-packs drift tests (and CI's artifact-freshness job) fail
 # until the derived artifacts match the sources again. Re-running on
-# unchanged sources is byte-idempotent — every builder is deterministic.
+# unchanged sources is byte-idempotent. Every builder is deterministic.
 set -euo pipefail
 cd "$(dirname "$0")/.."
 

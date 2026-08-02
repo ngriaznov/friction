@@ -156,10 +156,10 @@ pub fn edit_document(
             // A prose unit sharing its predecessor's block index is a
             // later run of the same prose session, split off by an
             // excluded construct or gap (`friction_parse::extract`'s
-            // guarantee) — not a real end-of-block boundary. Its first
-            // sentence is genuinely new only if the predecessor ended
-            // with sentence-terminal punctuation; otherwise the
-            // segmenter manufactured a "sentence" from a fragment.
+            // guarantee): not a real end-of-block boundary. Its first
+            // sentence is new only if the predecessor ended with
+            // sentence-terminal punctuation; otherwise the segmenter
+            // manufactured a "sentence" from a fragment.
             let unit_starts_new_sentence = match unit_index.checked_sub(1).map(|i| &prose_units[i])
             {
                 Some(prev) if prev.block == unit.block => with_sentences
@@ -303,11 +303,11 @@ pub(crate) fn ends_with_sentence_terminal_punctuation(text: &str) -> bool {
 }
 
 /// Validates and resolves candidate patches into the disjoint,
-/// applicable subset — leftmost-first, dropping anything overlapping an
+/// applicable subset: leftmost-first, dropping anything overlapping an
 /// already-accepted patch. Sentence-level patches should never overlap
 /// in practice (ranges are disjoint by construction; splices stay
 /// within their own sentence except a ritual deletion's separator
-/// extension into already-consumed whitespace) — a safety net, not the
+/// extension into already-consumed whitespace): a safety net, not the
 /// primary correctness mechanism.
 ///
 /// `pub(crate)`: `crate::register` reuses this same safety net rather

@@ -31,7 +31,7 @@
 //! deterministic policy everywhere the grammar allows choice:
 //!
 //! - **Optionals are greedy**: an optional element consumes its token
-//!   when it matches there, and is skipped otherwise (never both — no
+//!   when it matches there, and is skipped otherwise (never both, no
 //!   optional-driven backtracking).
 //! - **Alternatives are first-match**: a group tries its alternatives
 //!   in written order and commits to the first that matches.
@@ -165,7 +165,7 @@ impl FrameIndex {
 
 /// One sentence token resolved against the pack's interner.
 struct ResolvedToken {
-    /// Interner id of the lowercased surface, if interned — the only
+    /// Interner id of the lowercased surface, if interned: the only
     /// id surface-matched (pilot) rules may use: their targets are
     /// literal inflected forms, so a lemma-level match would splice a
     /// wrong tense.
@@ -320,7 +320,7 @@ pub fn scan_sentence(
 ///
 /// Leftmost, then longest, then support descending, then rule id
 /// ascending; survivors are non-overlapping, committed left to right.
-/// Only edit-capable kinds should compete — callers filter guards and
+/// Only edit-capable kinds should compete. Callers filter guards and
 /// report-only rules first.
 #[must_use]
 pub fn resolve(view: &FramePackView<'_>, mut matches: Vec<FrameMatch>) -> Vec<FrameMatch> {
@@ -439,7 +439,7 @@ fn for_each_suffix_reduction(surface: &str, buf: &mut String, mut f: impl FnMut(
 ///
 /// Covers `-ied`/`-ed`/`-ing` (with doubled-consonant undoubling and
 /// `-e` restoration) and `-ies`/`-es`/`-s`. Deliberately
-/// over-generates — callers keep only candidates a dictionary knows
+/// over-generates: callers keep only candidates a dictionary knows
 /// (the pack's interner at match time; the probe vocabulary in the
 /// adjudication referee, which shares this function so referee and
 /// runtime can never disagree about what counts as an occurrence).
@@ -730,7 +730,7 @@ impl Verifier<'_> {
     }
 
     /// Matches one group alternative's ops as a consecutive run (no
-    /// slots or nested groups inside alternatives — the grammar
+    /// slots or nested groups inside alternatives. The grammar
     /// forbids them).
     fn match_alt_run(
         &self,
@@ -897,7 +897,7 @@ mod tests {
     /// Sentence sentinels hold: the sentinelled `::lit` refinement
     /// fires only in its sentence-initial shape, while its ship parent
     /// (the bare phrase, authored without sentinels) may match
-    /// anywhere — the edit-time gates arbitrate the parent's matches.
+    /// anywhere. The edit-time gates arbitrate the parent's matches.
     #[test]
     fn sentence_initial_rule_respects_the_sentinel() {
         // rit.look-no-further::lit: <S> "look" "no" "further" ("than" X)? PUNCT </S>
@@ -917,7 +917,7 @@ mod tests {
 
     /// The conflict policy keeps the leftmost-longest non-overlapping
     /// set and orders deterministically. Only edit-capable rules
-    /// compete — the engine hands guards and report-only rules to
+    /// compete. The engine hands guards and report-only rules to
     /// their own channels before resolving, since a report rule must
     /// never shadow a rewrite out of its edit.
     #[test]
@@ -1029,7 +1029,7 @@ mod tests {
     }
 
     /// A pilot (surface-matched) two-word anchor discriminates by
-    /// surface id, mirroring the verifier's own pilot semantics —
+    /// surface id, mirroring the verifier's own pilot semantics:
     /// never a lemma-level identity, since pilot targets are exact
     /// inflected forms.
     #[test]

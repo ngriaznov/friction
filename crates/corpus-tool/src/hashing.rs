@@ -8,7 +8,7 @@ use sha2::{Digest, Sha256};
 ///
 /// Used both for manifest `sha256` verification and, applied to
 /// document ids, as the deterministic ordering key for the stratified
-/// split — never as an ambient RNG seed.
+/// split, never as an ambient RNG seed.
 pub fn sha256_hex(bytes: &[u8]) -> String {
     let digest = Sha256::digest(bytes);
     digest
@@ -93,7 +93,7 @@ mod tests {
         assert_eq!(stable_hash_u64(b"friction"), stable_hash_u64(b"friction"));
     }
 
-    /// Different inputs (almost certainly) hash differently —
+    /// Different inputs (almost certainly) hash differently:
     /// guards against an accidental constant-function regression.
     #[test]
     fn stable_hash_u64_differs_for_different_inputs() {

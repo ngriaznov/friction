@@ -36,7 +36,7 @@ pub struct Args {
 /// # Errors
 ///
 /// Returns an error summarizing the violation count if any hard rule is
-/// violated; every individual violation is printed to stderr first.
+/// violated. Every individual violation is printed to stderr first.
 pub fn run(args: &Args) -> anyhow::Result<()> {
     let manifest_path = args.corpus_dir.join("manifest.jsonl");
     let records = match manifest::read_manifest(&manifest_path)? {

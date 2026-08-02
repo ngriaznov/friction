@@ -78,7 +78,7 @@ missing_errors_doc = "allow"
 missing_panics_doc = "allow"
 
 # Thin LTO + single codegen unit: measured ~10% off fix's runtime for
-# slower release builds — the right trade for a shipped CLI. panic stays
+# slower release builds, the right trade for a shipped CLI. panic stays
 # "unwind": friction-parse's catch_unwind guard around pulldown-cmark's
 # known panic (see its module docs) must keep working.
 [profile.release]

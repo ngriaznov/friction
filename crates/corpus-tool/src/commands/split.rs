@@ -23,7 +23,7 @@ pub struct Args {
 ///
 /// Assigns `train`/`dev`/`holdout` per `(class, genre)` cell. Within each
 /// cell, candidates are ordered by `sha256(id)` hex (ascending) and
-/// sliced at the 70%/85% boundaries — fully deterministic, no RNG.
+/// sliced at the 70%/85% boundaries: fully deterministic, no RNG.
 ///
 /// Docs already sealed as `holdout` are never reassigned: if the freshly
 /// computed holdout slice for a cell would move any doc into or out of an

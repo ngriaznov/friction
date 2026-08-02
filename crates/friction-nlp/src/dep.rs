@@ -31,12 +31,13 @@ use crate::tag::TaggedToken;
 /// head.
 ///
 /// These are ClearNLP/OntoNotes relation names, not Universal Dependencies
-/// v2 — deliberate. UD spells several differently (`obj` for
-/// [`Self::Dobj`], `obl` for what this folds into [`Self::Prep`]/
-/// [`Self::Pobj`], `case` for a plain adposition, `aux:pass` for
-/// [`Self::AuxPass`], `nsubj:pass` for [`Self::NsubjPass`]), but every
-/// [`SentenceParse`] consumer here matches `ClearNLP` spellings — swapping
-/// in UD names wouldn't fail loudly, it would silently match nothing.
+/// v2, deliberate. UD spells several differently (`obj` for
+/// [`Self::Dobj`], `obl` for what this folds into
+/// [`Self::Prep`]/[`Self::Pobj`], `case` for a plain adposition,
+/// `aux:pass` for [`Self::AuxPass`], `nsubj:pass` for
+/// [`Self::NsubjPass`]), but every [`SentenceParse`] consumer here matches
+/// `ClearNLP` spellings: swapping in UD names wouldn't fail loudly, it
+/// would silently match nothing.
 ///
 /// [`Self::Root`] isn't itself an arc label: a root's [`DepEdge`] carries
 /// `head: None`, so there's no head to describe. It exists purely so a
@@ -50,7 +51,7 @@ use crate::tag::TaggedToken;
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 #[non_exhaustive]
 pub enum DepRelation {
-    /// The sentence's syntactic root. Not an arc label — see the enum
+    /// The sentence's syntactic root. Not an arc label: see the enum
     /// docs.
     Root,
     /// A clausal modifier of a noun (a relative or reduced-relative
@@ -348,7 +349,7 @@ pub enum DepParseError {
     },
 }
 
-/// Produces dependency structure — head indices and dependency relations —
+/// Produces dependency structure, head indices and dependency relations,
 /// for a part-of-speech-tagged sentence.
 ///
 /// See the module docs for the input contract and the confidence contract
@@ -447,7 +448,7 @@ mod tests {
 
     /// Every [`DepRelation`] variant's canonical name round-trips through
     /// [`DepRelation::as_str`] then [`DepRelation::from_str`] back to the
-    /// same variant — the property a gold file's text labels depend on.
+    /// same variant: the property a gold file's text labels depend on.
     #[test]
     fn dep_relation_round_trips_every_variant() {
         const ALL: [DepRelation; 21] = [
@@ -484,7 +485,7 @@ mod tests {
     }
 
     /// An unrecognized name is rejected rather than silently coerced to
-    /// [`DepRelation::Other`] — a gold file's typo should surface as a
+    /// [`DepRelation::Other`]: a gold file's typo should surface as a
     /// load-time error, not disappear into the catch-all bucket.
     #[test]
     fn dep_relation_from_str_rejects_unknown_names() {

@@ -45,7 +45,7 @@
 //! back to real human text. Per the project's own rule that the human
 //! side of any substitution pair or frequency-band judgment must come
 //! exclusively from the real human corpus, antislop output is never
-//! treated as human text or as a source of replacement text — see the
+//! treated as human text or as a source of replacement text. See the
 //! banner on the antislop-favored table.
 
 use std::collections::BTreeMap;
@@ -64,7 +64,7 @@ use crate::paired_manifest::{self, PairedManifestRecord, Side};
 /// Arguments for `corpus-tool mine-paired`.
 #[derive(Debug, ClapArgs)]
 pub struct Args {
-    /// Corpus root directory — read-only, for the human-train
+    /// Corpus root directory: read-only, for the human-train
     /// cross-check pass only (see the module docs).
     #[arg(long, default_value = "corpus")]
     pub corpus_dir: PathBuf,
@@ -79,7 +79,7 @@ pub struct Args {
     #[arg(long, default_value_t = 0.4)]
     pub eps: f64,
     /// Minimum antislop-side per-token frequency every token of a
-    /// candidate n-gram must reach to be scored at all. Provisional —
+    /// candidate n-gram must reach to be scored at all. Provisional:
     /// see the module docs.
     #[arg(long, default_value_t = 8)]
     pub min_antislop_token_freq: u64,
@@ -151,7 +151,7 @@ struct SentenceRecord {
 
 /// Reads and parses every doc in `records` (stock side fully, in
 /// `(genre, pair_id)` order, then antislop side fully, in the same
-/// order — deterministic traversal), pooling their sentences.
+/// order: deterministic traversal), pooling their sentences.
 ///
 /// Returns `(stock_doc_count, antislop_doc_count, sentences)`.
 fn collect_paired_sentences(
@@ -222,7 +222,7 @@ fn accumulate_by_order(sentences: &[SentenceRecord]) -> BTreeMap<usize, ClassCou
 
 /// Read-only pass over `corpus/manifest.jsonl`, restricted to
 /// `Class::Human && Split::Train` docs, producing per-order (2..=4)
-/// n-gram counts — the human-train cross-check reference (see the
+/// n-gram counts: the human-train cross-check reference (see the
 /// module docs). Never touches `corpus/llm`.
 ///
 /// Returns per-order empty maps (not an error) if `corpus_dir` has no
@@ -376,7 +376,7 @@ struct ReportHeader {
     args: ArgsSnapshot,
 }
 
-/// The banner over every antislop-favored table — never a source of
+/// The banner over every antislop-favored table: never a source of
 /// substitution-pair replacement text, only diagnostic (see the module
 /// docs).
 const ANTISLOP_FAVORED_BANNER: &str = "antislop-favored entries are diagnostic only — they show \

@@ -24,19 +24,19 @@
 //! (`friction_harness::clean::clean(text).to_lowercase()` before the
 //! `[a-z']+|[.,;:!?]` token regex runs), so every id `corpus-tool index`
 //! interns into `dms-index-v1`'s vocabulary is already a plain lowercase
-//! surface form — never a lemma, never a stem. Reading through both this
+//! surface form: never a lemma, never a stem. Reading through both this
 //! module and `frame_compile::CorpusEvidence::from_dms_toml` end to end
 //! confirms it: the fences this pack ultimately feeds
 //! (`ATTESTATION_FLOOR_PER_MILLION`, the direction fence, the human-rate
 //! ceiling) all consult that same plain-surface DMS stream, not
 //! `corpus-tool adjudicate`'s separate lemma/surface/reduction referee
-//! pipeline (see that command's own module docs — it exists to
-//! re-derive rule verdicts against tagged prose, a different consumer
-//! entirely, and was never the thing this pack's counts need to agree
-//! with). Matching `index`'s tokenizer, word for word, is therefore both
-//! the simplest choice available and the only one under which a pooled
-//! count means the same thing on both sides of `CorpusEvidence`'s
-//! pooling formula.
+//! pipeline (see that command's own module docs: it exists to re-derive
+//! rule verdicts against tagged prose, a different consumer entirely,
+//! and was never the thing this pack's counts need to agree with).
+//! Matching `index`'s tokenizer, word for word, is therefore both the
+//! simplest choice available and the only one under which a pooled count
+//! means the same thing on both sides of `CorpusEvidence`'s pooling
+//! formula.
 //!
 //! # Phrase-counting semantics
 //!
@@ -56,7 +56,7 @@
 //! # Two floors, deliberately different
 //!
 //! The unigram table keeps a lowercased token surface only once it has
-//! been seen at least five times across every staged bucket — noise
+//! been seen at least five times across every staged bucket, noise
 //! control for a table with no natural upper bound. The probe table
 //! carries no such floor: probes come from a small, fixed source
 //! (`frame-rules-v1.toml`'s own literal probes and pilot phrases), so
@@ -72,7 +72,7 @@
 //! placeholder pack (`packs/human-evidence-v1.bin` as shipped today —
 //! see `friction_packs::human_evidence`'s own docs): no buckets means no
 //! documents to tokenize, so this command does not even attempt to
-//! derive probes from `--rules` in that case — there is nothing to count
+//! derive probes from `--rules` in that case: there is nothing to count
 //! them against, and an all-zero probe table built from zero documents
 //! would carry no more information than an empty one.
 
@@ -102,7 +102,7 @@ pub struct Args {
     /// omit entirely to build the empty placeholder pack.
     #[arg(long = "input")]
     pub input: Vec<PathBuf>,
-    /// Version string recorded in the TOML sidecar — the pack's
+    /// Version string recorded in the TOML sidecar: the pack's
     /// identity, not its on-disk format (the binary layout is shared).
     /// The default builds the human-side pack; the machine-review pack
     /// is built with `--pack-name machine-evidence-v1` and its own
@@ -381,7 +381,7 @@ pub fn run(args: &Args) -> anyhow::Result<()> {
             }
             // Burst envelopes: the highest per-document rate observed
             // for each word, over documents long enough for a rate to
-            // mean anything — the same 120-token floor the overuse
+            // mean anything: the same 120-token floor the overuse
             // channel refuses to judge below, so the envelope and the
             // documents later compared against it come from the same
             // population of "long enough" documents.
@@ -454,7 +454,7 @@ pub fn run(args: &Args) -> anyhow::Result<()> {
 }
 
 /// TOML-escapes `text` for a basic string literal (backslash and quote
-/// only — every value this command writes is plain ASCII).
+/// only: every value this command writes is plain ASCII).
 fn toml_escape(text: &str) -> String {
     text.replace('\\', "\\\\").replace('"', "\\\"")
 }

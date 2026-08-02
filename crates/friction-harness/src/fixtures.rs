@@ -39,8 +39,8 @@ pub static FIXTURES: LazyLock<Fixtures> = LazyLock::new(|| {
 /// relative to `docs/research/`, e.g. `"samples/chatspeak.md"`) to its
 /// embedded text.
 ///
-/// Centralizing this mapping — rather than re-authoring or re-reading
-/// either sample file anywhere else in this crate — is what keeps the
+/// Centralizing this mapping, rather than re-authoring or re-reading
+/// either sample file anywhere else in this crate, is what keeps the
 /// sample docs loaded exactly once, verbatim.
 #[must_use]
 pub fn sample_by_path(relative: &str) -> Option<&'static str> {
@@ -174,7 +174,7 @@ pub struct RankFixture {
     pub notes: Option<String>,
 }
 
-/// The manifest's own record of known inventory misses — data only, never
+/// The manifest's own record of known inventory misses: data only, never
 /// asserted against by this crate's tests.
 #[derive(Debug, Clone, Deserialize)]
 #[serde(deny_unknown_fields)]

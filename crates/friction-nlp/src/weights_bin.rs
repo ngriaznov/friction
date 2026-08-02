@@ -28,16 +28,16 @@
 //!
 //! # Format version 2: a serialized hash table, not a serialized `HashMap`
 //!
-//! Version 1's payload was a `postcard`-encoded [`crate::tag_perceptron::WeightFile`]/
-//! [`crate::dep_perceptron::WeightFile`]: loading it still meant building a
-//! real `std::collections::HashMap` from scratch — hashing and inserting
-//! every one of tens to hundreds of thousands of feature-string keys, each
-//! carrying its own heap allocation. That construction, not the postcard
+//! Version 1's payload was a `postcard`-encoded
+//! [`crate::tag_perceptron::WeightFile`]/[`crate::dep_perceptron::WeightFile`]:
+//! loading it still meant building a real `std::collections::HashMap` from scratch:
+//! hashing and inserting every one of tens to hundreds of thousands of feature-string
+//! keys, each carrying its own heap allocation. That construction, not the postcard
 //! decode itself, dominated startup cost.
 //!
 //! Version 2's payload instead serializes the hash table's own on-disk
 //! representation, so loading it is a handful of slices over the
-//! `include_bytes!`'d static — zero per-key work. This module provides the
+//! `include_bytes!`'d static: zero per-key work. This module provides the
 //! shared primitive both [`crate::tag_perceptron`] and
 //! [`crate::dep_perceptron`] build their own payload layout from (each
 //! documents its exact byte layout in its own module docs):
@@ -99,7 +99,7 @@ pub const HEADER_LEN: usize = 8 + 2 + SHA256_HEX_LEN;
 #[derive(Debug, thiserror::Error)]
 #[non_exhaustive]
 pub enum WeightsBinError {
-    /// Shorter than [`HEADER_LEN`] — not a header this module wrote.
+    /// Shorter than [`HEADER_LEN`]: not a header this module wrote.
     #[error("weight artifact truncated: {len} byte(s), need at least {min}")]
     Truncated { len: usize, min: usize },
     /// The first 8 bytes didn't match the caller's expected magic.
@@ -126,7 +126,7 @@ pub enum WeightsBinError {
 /// lowercase hex — exactly [`SHA256_HEX_LEN`] characters).
 ///
 /// # Panics
-/// Panics if `source_sha256_hex` isn't exactly [`SHA256_HEX_LEN`] bytes —
+/// Panics if `source_sha256_hex` isn't exactly [`SHA256_HEX_LEN`] bytes:
 /// a caller bug (every sha256 hex digest is exactly 64 characters), never
 /// a runtime condition.
 pub fn write_header(magic: [u8; 8], source_sha256_hex: &str) -> Vec<u8> {
@@ -144,13 +144,13 @@ pub fn write_header(magic: [u8; 8], source_sha256_hex: &str) -> Vec<u8> {
 
 /// Validates `bytes`'s header against `magic` and splits it into
 /// `(source_sha256_hex, payload)`. Does not check `source_sha256_hex`
-/// against any expected value — the caller compares it against its own
+/// against any expected value: the caller compares it against its own
 /// compile-time constant (see this module's docs for why).
 ///
 /// # Errors
 /// [`WeightsBinError::Truncated`], [`WeightsBinError::BadMagic`],
-/// [`WeightsBinError::VersionMismatch`], or [`WeightsBinError::BadSha256`]
-/// — see each variant's own docs.
+/// [`WeightsBinError::VersionMismatch`], or
+/// [`WeightsBinError::BadSha256`]: see each variant's own docs.
 pub fn split_header(bytes: &[u8], magic: [u8; 8]) -> Result<(&str, &[u8]), WeightsBinError> {
     if bytes.len() < HEADER_LEN {
         return Err(WeightsBinError::Truncated {
@@ -363,7 +363,7 @@ impl<'a> HashView<'a> {
 /// A dense fixed-width row (one `f32` per class/action, always) was
 /// rejected: most features only carry a handful of nonzero weights out of
 /// the full class/action space, so a dense row would multiply artifact
-/// size by roughly the class/action count for no benefit — see each
+/// size by roughly the class/action count for no benefit. See each
 /// artifact module's own docs for the measured sparsity.
 ///
 /// # Panics

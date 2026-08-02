@@ -130,7 +130,7 @@ fn assert_document_round_trips(doc: &Document, source: &str) {
 /// characters (accented Latin, CJK, an astral-plane emoji, a combining
 /// mark, and CRLF) used to generate "markdown-ish" documents. Includes `\`
 /// so backslash-escaped punctuation (`\*`, `\_`, `` \` ``, `\|`, ...) is
-/// exercised — its absence previously let a whole class of prose-run
+/// exercised, its absence previously let a whole class of prose-run
 /// fragmentation bugs through the fuzzer untested.
 fn markdown_ish_char() -> impl Strategy<Value = char> {
     prop::sample::select(

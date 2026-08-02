@@ -30,13 +30,13 @@ fn separate_args(
 /// Builds a small corpus: one train-split human `docs` doc (feeds the
 /// envelope pack), plus dev-split human and llm `docs` docs (feed the
 /// separation report). Every doc has identical filler content, so every
-/// `MetricVector` field is identical across all of them — every dev-split
+/// `MetricVector` field is identical across all of them. Every dev-split
 /// metric AUC is tied at the oriented value 0.5, and every dev-split
 /// value sits exactly on its (zero-width, since there's only one
-/// train-human doc) envelope band, so every combined score is exactly
-/// 0.0 and the combined-score AUC is tied at 0.5 too. There's no
-/// train-split llm doc for `docs` at all, so every metric defaults to
-/// `include = true` (see `envelope`'s docs).
+/// train-human doc) envelope band, so every combined score is exactly 0.0
+/// and the combined-score AUC is tied at 0.5 too. There's no train-split
+/// llm doc for `docs` at all, so every metric defaults to `include =
+/// true` (see `envelope`'s docs).
 fn build_corpus(dir: &std::path::Path) {
     let words = common::filler_words(320);
 

@@ -21,7 +21,7 @@ pub enum ClosureVerdict {
     /// Every token in the output is accounted for.
     Holds,
     /// Every token whose output count exceeds its input count, and which
-    /// is not licensed by a real tell-span hit found in `input` itself —
+    /// is not licensed by a real tell-span hit found in `input` itself:
     /// this is what catches an inserted word that happens to already
     /// appear elsewhere in the input, e.g. `bridge_inert_insertion`'s
     /// extra `"to"`.
@@ -37,7 +37,7 @@ pub enum ClosureVerdict {
 ///
 /// "Pack-derivable" means one of the tokens a real
 /// `tellspan::tell_span_hits` scan of `input` actually licenses *for this
-/// input* — not the whole static SUBS/DERIV tables in the abstract. A
+/// input*, not the whole static SUBS/DERIV tables in the abstract. A
 /// token derivable from some *other* light verb than the one actually
 /// present is not pack-derivable here: this is what correctly rejects
 /// `pivot_trap_non_light_verb`'s `"integrates"`, a real `DERIV` value but

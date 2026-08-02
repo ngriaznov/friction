@@ -19,8 +19,8 @@
 //! candidates for pack compilation. `quarantine`, `no_evidence`, and
 //! `staged_surface` are adjudication evidence: they exist so the referee
 //! can re-derive every verdict from the corpora, and so a rule whose
-//! evidence improves can be promoted by re-running the referee — never
-//! by hand-editing a bucket.
+//! evidence improves can be promoted by re-running the referee, never by
+//! hand-editing a bucket.
 //!
 //! # Verdict policy
 //!
@@ -81,7 +81,7 @@ pub struct FrameRuleSet {
     /// Corpus-confirmed knowledge rules (compile).
     pub rules_ship: Vec<FrameRule>,
     /// Authored as guards, measured machine-tilted (compile as
-    /// report-only — never as guards, never as rewrites).
+    /// report-only: never as guards, never as rewrites).
     pub rules_flip: Vec<FrameRule>,
     /// Materialized surfaces of confirmed frames (compile).
     pub rules_surface: Vec<FrameRule>,
@@ -416,7 +416,7 @@ pub enum TplElem {
     TagCopy(Tag),
     /// `TAG[arg]` — realize `arg` in this tag's form. Whether `arg` is
     /// a lemma, a class name, or an unauthored placeholder (`?`) is
-    /// resolved by the compiler against the class tables; the parser
+    /// resolved by the compiler against the class tables. The parser
     /// records it verbatim.
     TagArg {
         /// The form to realize.
@@ -742,7 +742,7 @@ fn target_elem(elem: PatElem) -> Result<TplElem, FrameRulesError> {
 /// class positions expanded to their members.
 ///
 /// Optional elements, groups, tags, slots, and sentinels all break a
-/// run — they make the tokens around them non-adjacent in at least one
+/// run. They make the tokens around them non-adjacent in at least one
 /// realization. Returns one probe (a lemma sequence) per class-member
 /// combination of the winning run, leftmost run winning ties; the
 /// expansion is capped at `max_probes` (further members are dropped
@@ -789,8 +789,8 @@ pub fn literal_probes(
                     .flat_map(|probe| {
                         members.iter().map(move |member| {
                             let mut extended = probe.clone();
-                            // Multi-word members are stored hyphenated;
-                            // they match as phrases.
+                            // Multi-word members are stored hyphenated.
+                            // They match as phrases.
                             extended.extend(member.split('-').map(str::to_string));
                             extended
                         })
@@ -811,15 +811,16 @@ pub enum Verdict {
     /// Machine-tilted at ratio ≥ 2 with ≥ 2 machine occurrences.
     Confirmed,
     /// A guard whose human side is at least as dense as its machine
-    /// side — the protection is warranted.
+    /// side. The protection is warranted.
     GuardConfirmed,
     /// A guard measured machine-tilted: protecting it would shelter
     /// machine-tilted text. Compiles as report-only, never as a guard.
     GuardWrong,
-    /// Human-tilted at ratio ≤ 0.67 — rewriting away from it would push
+    /// Human-tilted at ratio ≤ 0.67: rewriting away from it would push
     /// text toward the machine register.
     DirectionError,
-    /// Differential too small (or a single unmatched machine hit).
+    /// Differential too small (or a single unmatched
+    /// machine hit).
     Weak,
     /// Unobserved on both corpus sides.
     NoEvidence,
@@ -900,7 +901,7 @@ mod tests {
     }
 
     /// Every pattern and target in the four compiling buckets parses.
-    /// (Staged buckets are allowed to carry unparseable rows — those
+    /// (Staged buckets are allowed to carry unparseable rows: those
     /// become per-rule rejections, not load failures.)
     #[test]
     fn every_compiling_bucket_pattern_and_target_parses() {

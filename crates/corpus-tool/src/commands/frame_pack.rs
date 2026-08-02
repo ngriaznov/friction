@@ -6,8 +6,8 @@
 //! compile-eligible buckets of `frame-rules-v1.toml`, serializes the
 //! surviving rule program with `friction_packs::frame_bin`, and prints
 //! the full compile report: every compiled rule, every report-only
-//! demotion with its reason, and every rejected rule with its reason —
-//! the pack's contents stay fully explainable from the source TOML and
+//! demotion with its reason, and every rejected rule with its reason.
+//! The pack's contents stay fully explainable from the source TOML and
 //! this command's output alone.
 //!
 //! Deterministic and fully offline: every input is a vendored artifact
@@ -49,7 +49,7 @@ pub struct Args {
     #[arg(long, default_value = "crates/friction-packs/packs/dms-index-v1.toml")]
     pub dms_toml: PathBuf,
     /// Path to the vendored `human-evidence-v1.bin` pack (pooled into
-    /// the dms-index-v1 human rate — see this module's own docs).
+    /// the dms-index-v1 human rate: see this module's own docs).
     #[arg(
         long,
         default_value = "crates/friction-packs/packs/human-evidence-v1.bin"
@@ -140,7 +140,7 @@ mod tests {
     use friction_packs::human_evidence::HumanEvidencePack;
 
     /// Compiling and packing the vendored artifacts twice is
-    /// byte-identical — the determinism pin every derived-artifact
+    /// byte-identical, the determinism pin every derived-artifact
     /// command in this tool carries.
     #[test]
     fn packing_the_vendored_rules_twice_is_byte_identical() {
