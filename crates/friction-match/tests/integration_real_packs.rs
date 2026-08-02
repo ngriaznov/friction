@@ -39,9 +39,14 @@ fn scanning_a_real_document_against_the_embedded_packs_runs_to_completion() {
     let document = friction_parse::parse(SOURCE).expect("valid markdown parses");
     let report = engine().scan(&document).expect("scan runs to completion");
 
-    // The document-level DMS report covers every family the pack defines.
-    assert_eq!(report.dms.families.len(), ModelFamily::ALL.len());
+    // The document-level DMS report is the single pooled machine-vs-human
+    // statistic; `target_family` is retained but no longer selects which
+    // automaton the scan walked (see `friction_match::dms`'s own docs).
     assert_eq!(report.dms.target_family, ModelFamily::Qwen);
+    assert!(
+        report.dms.machine.token_count > 0,
+        "the document has prose, so the pooled machine report must cover at least one token"
+    );
 
     // Every span's range round-trips through the source: it slices
     // cleanly and addresses non-empty text.

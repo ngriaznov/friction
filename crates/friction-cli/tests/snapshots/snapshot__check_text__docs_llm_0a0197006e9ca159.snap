@@ -25,35 +25,30 @@ bold_span_density            14.5833  [0.0000, 14.1767]   OUT
 sentence_opener_repeat_rate   0.0000  [0.0000, 0.0656]    in    
 top_opener_concentration      0.0833  [0.0545, 0.1613]    in    
 
-dms (target family: qwen):
-  qwen     mean_machine=2.1038  mean_human=1.7096  differential=0.3942  tokens=520
-  gemma    mean_machine=1.9577  mean_human=1.7096  differential=0.2481  tokens=520
-  llama    mean_machine=1.8096  mean_human=1.7096  differential=0.1000  tokens=520
-  granite  mean_machine=14.3442  mean_human=1.7096  differential=12.6346  tokens=520
-  claude   mean_machine=1.5385  mean_human=1.7096  differential=-0.1712  tokens=520
+dms: mean_machine=14.3442  mean_human=1.7096  differential=12.6346  tokens=520
 
-tell counts (12 span(s) total):
-  dms: 9
+tell counts (32 span(s) total):
+  dms: 29
   span: 1
   sub: 2
-dms.qwen
+dms.machine
 
-  ⚠ Dms tell: dms.qwen
-   ╭─[corpus/llm/docs/0a0197006e9ca159.md:1:14]
+  ⚠ Dms tell: dms.machine
+   ╭─[corpus/llm/docs/0a0197006e9ca159.md:1:3]
  1 │ **How to Set Up Automatic Database Backups for Corkboard**
-   ·              ─────────────────────┬─────────────────────
-   ·                                   ╰── Dms tell: dms.qwen
+   ·   ───────────────────────────┬──────────────────────────
+   ·                              ╰── Dms tell: dms.machine
  2 │ 
    ╰────
 
-dms.qwen
+dms.machine
 
-  ⚠ Dms tell: dms.qwen
-   ╭─[corpus/llm/docs/0a0197006e9ca159.md:3:162]
+  ⚠ Dms tell: dms.machine
+   ╭─[corpus/llm/docs/0a0197006e9ca159.md:3:1]
  2 │ 
  3 │ Corkboard is your go-to platform for organizing notes and ideas in an intuitive, visual manner. To ensure that all your valuable data remains safe and accessible, setting up automatic database backups is crucial. This guide will walk you through the process of configuring these backups using cron scheduling on a Linux server environment, specifying where to store the backups, and detailing how to restore from a backup file.
-   ·                                                                                                                                                                  ───────────────────────────────────────────────────────┬───────────────────────────────────────────────────────
-   ·                                                                                                                                                                                                                         ╰── Dms tell: dms.qwen
+   · ─────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────┬─────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
+   ·                                                                                                                                                                                                                      ╰── Dms tell: dms.machine
  4 │ 
    ╰────
 
@@ -79,71 +74,291 @@ sub.this_guide_will_walk_you_through
  4 │ 
    ╰────
 
-dms.qwen
+dms.machine
 
-  ⚠ Dms tell: dms.qwen
+  ⚠ Dms tell: dms.machine
    ╭─[corpus/llm/docs/0a0197006e9ca159.md:7:1]
  6 │ 
  7 │ Before we begin, ensure you have:
-   · ────────────────┬───────────────
-   ·                 ╰── Dms tell: dms.qwen
+   · ────────────────┬────────────────
+   ·                 ╰── Dms tell: dms.machine
  8 │ 
    ╰────
 
-dms.qwen
+dms.machine
 
-  ⚠ Dms tell: dms.qwen
-    ╭─[corpus/llm/docs/0a0197006e9ca159.md:30:44]
+  ⚠ Dms tell: dms.machine
+    ╭─[corpus/llm/docs/0a0197006e9ca159.md:9:6]
+  8 │ 
+  9 │ 1. **Corkboard installed** on your server.
+    ·      ──────────────────┬──────────────────
+    ·                        ╰── Dms tell: dms.machine
+ 10 │ 2. **MySQL/MariaDB** (or PostgreSQL) database set up for Corkboard with root or sufficient privileges.
+    ╰────
+
+dms.machine
+
+  ⚠ Dms tell: dms.machine
+    ╭─[corpus/llm/docs/0a0197006e9ca159.md:10:6]
+  9 │ 1. **Corkboard installed** on your server.
+ 10 │ 2. **MySQL/MariaDB** (or PostgreSQL) database set up for Corkboard with root or sufficient privileges.
+    ·      ────────────────────────────────────────────────┬────────────────────────────────────────────────
+    ·                                                      ╰── Dms tell: dms.machine
+ 11 │ 3. **Root access** or sudo privileges on the server.
+    ╰────
+
+dms.machine
+
+  ⚠ Dms tell: dms.machine
+    ╭─[corpus/llm/docs/0a0197006e9ca159.md:11:6]
+ 10 │ 2. **MySQL/MariaDB** (or PostgreSQL) database set up for Corkboard with root or sufficient privileges.
+ 11 │ 3. **Root access** or sudo privileges on the server.
+    ·      ───────────────────────┬───────────────────────
+    ·                             ╰── Dms tell: dms.machine
+ 12 │ 4. Basic knowledge of using a terminal/command line interface.
+    ╰────
+
+dms.machine
+
+  ⚠ Dms tell: dms.machine
+    ╭─[corpus/llm/docs/0a0197006e9ca159.md:12:4]
+ 11 │ 3. **Root access** or sudo privileges on the server.
+ 12 │ 4. Basic knowledge of using a terminal/command line interface.
+    ·    ─────────────────────────────┬─────────────────────────────
+    ·                                 ╰── Dms tell: dms.machine
+ 13 │ 
+    ╰────
+
+dms.machine
+
+  ⚠ Dms tell: dms.machine
+    ╭─[corpus/llm/docs/0a0197006e9ca159.md:16:1]
+ 15 │ 
+ 16 │ First, you need a dedicated directory to store your backups. This will help keep your system organized and make it easier to manage older backups over time.
+    · ──────────────────────────────────────────────────────────────────────────────┬─────────────────────────────────────────────────────────────────────────────
+    ·                                                                               ╰── Dms tell: dms.machine
+ 17 │ 
+    ╰────
+
+dms.machine
+
+  ⚠ Dms tell: dms.machine
+    ╭─[corpus/llm/docs/0a0197006e9ca159.md:19:4]
+ 18 │ 1. Open your terminal.
+ 19 │ 2. Navigate to a suitable location for backups, such as `/var/backups/corkboard/`.
+    ·    ──────────────────────────┬─────────────────────────
+    ·                              ╰── Dms tell: dms.machine
+ 20 │ 3. Create the backup directory with the following command:
+    ╰────
+
+dms.machine
+
+  ⚠ Dms tell: dms.machine
+    ╭─[corpus/llm/docs/0a0197006e9ca159.md:20:4]
+ 19 │ 2. Navigate to a suitable location for backups, such as `/var/backups/corkboard/`.
+ 20 │ 3. Create the backup directory with the following command:
+    ·    ───────────────────────────┬───────────────────────────
+    ·                               ╰── Dms tell: dms.machine
+ 21 │ 
+    ╰────
+
+dms.machine
+
+  ⚠ Dms tell: dms.machine
+    ╭─[corpus/llm/docs/0a0197006e9ca159.md:26:4]
+ 25 │ 
+ 26 │ 4. Set appropriate permissions so that only root or users you authorize can write to this directory.
+    ·    ────────────────────────────────────────────────┬────────────────────────────────────────────────
+    ·                                                    ╰── Dms tell: dms.machine
+ 27 │ 
+    ╰────
+
+dms.machine
+
+  ⚠ Dms tell: dms.machine
+    ╭─[corpus/llm/docs/0a0197006e9ca159.md:30:1]
  29 │ 
  30 │ Next, create a script that will handle the backup process. This script will dump your database into a file and save it in the designated backup directory.
-    ·                                            ────────────────┬───────────────
-    ·                                                            ╰── Dms tell: dms.qwen
+    · ─────────────────────────────────────────────────────────────────────────────┬────────────────────────────────────────────────────────────────────────────
+    ·                                                                              ╰── Dms tell: dms.machine
  31 │ 
     ╰────
 
-dms.qwen
+dms.machine
 
-  ⚠ Dms tell: dms.qwen
+  ⚠ Dms tell: dms.machine
+    ╭─[corpus/llm/docs/0a0197006e9ca159.md:32:4]
+ 31 │ 
+ 32 │ 1. Open your favorite text editor (e.g., nano) with root privileges:
+    ·    ────────────────────────────────┬────────────────────────────────
+    ·                                    ╰── Dms tell: dms.machine
+ 33 │ 
+    ╰────
+
+dms.machine
+
+  ⚠ Dms tell: dms.machine
+    ╭─[corpus/llm/docs/0a0197006e9ca159.md:38:4]
+ 37 │ 
+ 38 │ 2. Paste the following code into the script, adjusting paths if necessary:
+    ·    ───────────────────────────────────┬───────────────────────────────────
+    ·                                       ╰── Dms tell: dms.machine
+ 39 │ 
+    ╰────
+
+dms.machine
+
+  ⚠ Dms tell: dms.machine
+    ╭─[corpus/llm/docs/0a0197006e9ca159.md:57:78]
+ 56 │ 
+ 57 │ 3. Replace `your_db_user`, `your_db_password`, and `corkboard_database_name` with your actual database credentials.
+    ·                                                                              ───────────────────┬──────────────────
+    ·                                                                                                 ╰── Dms tell: dms.machine
+ 58 │ 4. Save the file and exit the editor (in nano, press `CTRL+X`, then `Y`, followed by `ENTER`).
+    ╰────
+
+dms.machine
+
+  ⚠ Dms tell: dms.machine
     ╭─[corpus/llm/docs/0a0197006e9ca159.md:58:4]
  57 │ 3. Replace `your_db_user`, `your_db_password`, and `corkboard_database_name` with your actual database credentials.
  58 │ 4. Save the file and exit the editor (in nano, press `CTRL+X`, then `Y`, followed by `ENTER`).
-    ·    ────────────────┬────────────────
-    ·                    ╰── Dms tell: dms.qwen
+    ·    ────────────────────────┬────────────────────────
+    ·                            ╰── Dms tell: dms.machine
  59 │ 
     ╰────
 
-dms.qwen
+dms.machine
 
-  ⚠ Dms tell: dms.qwen
+  ⚠ Dms tell: dms.machine
     ╭─[corpus/llm/docs/0a0197006e9ca159.md:60:4]
  59 │ 
  60 │ 5. Make the script executable:
     ·    ─────────────┬─────────────
-    ·                 ╰── Dms tell: dms.qwen
+    ·                 ╰── Dms tell: dms.machine
  61 │ 
     ╰────
 
-dms.qwen
+dms.machine
 
-  ⚠ Dms tell: dms.qwen
-    ╭─[corpus/llm/docs/0a0197006e9ca159.md:76:14]
+  ⚠ Dms tell: dms.machine
+    ╭─[corpus/llm/docs/0a0197006e9ca159.md:68:1]
+ 67 │ 
+ 68 │ Now that your backup script is ready, you need to schedule it using cron, a time-based job scheduler.
+    · ──────────────────────────────────────────────────┬──────────────────────────────────────────────────
+    ·                                                   ╰── Dms tell: dms.machine
+ 69 │ 
+    ╰────
+
+dms.machine
+
+  ⚠ Dms tell: dms.machine
+    ╭─[corpus/llm/docs/0a0197006e9ca159.md:70:4]
+ 69 │ 
+ 70 │ 1. Open the crontab editor for root:
+    ·    ────────────────┬────────────────
+    ·                    ╰── Dms tell: dms.machine
+ 71 │ 
+    ╰────
+
+dms.machine
+
+  ⚠ Dms tell: dms.machine
+    ╭─[corpus/llm/docs/0a0197006e9ca159.md:76:4]
  75 │ 
  76 │ 2. Add a new line to run the backup script daily at 2 AM (adjust the time as needed):
-    ·              ──────────────┬──────────────
-    ·                            ╰── Dms tell: dms.qwen
+    ·    ─────────────────────────────────────────┬────────────────────────────────────────
+    ·                                             ╰── Dms tell: dms.machine
  77 │ 
     ╰────
 
-dms.qwen
+dms.machine
 
-  ⚠ Dms tell: dms.qwen
-    ╭─[corpus/llm/docs/0a0197006e9ca159.md:82:66]
+  ⚠ Dms tell: dms.machine
+    ╭─[corpus/llm/docs/0a0197006e9ca159.md:82:4]
  81 │ 
  82 │ 3. Save and exit the editor. The cron job is now set to run your backup script every day at 2 AM.
-    ·                                                                  ───────────────┬───────────────
-    ·                                                                                 ╰── Dms tell: dms.qwen
+    ·    ───────────────────────────────────────────────┬──────────────────────────────────────────────
+    ·                                                   ╰── Dms tell: dms.machine
  83 │ 
     ╰────
+
+dms.machine
+
+  ⚠ Dms tell: dms.machine
+    ╭─[corpus/llm/docs/0a0197006e9ca159.md:86:1]
+ 85 │ 
+ 86 │ In case of data loss or corruption, you can restore Corkboard from any available backup file in the designated directory.
+    · ────────────────────────────────────────────────────────────┬────────────────────────────────────────────────────────────
+    ·                                                             ╰── Dms tell: dms.machine
+ 87 │ 
+    ╰────
+
+dms.machine
+
+  ⚠ Dms tell: dms.machine
+    ╭─[corpus/llm/docs/0a0197006e9ca159.md:88:4]
+ 87 │ 
+ 88 │ 1. Identify the desired backup file by checking the `BACKUP_DIR`. Files are named like `corkboard_YourDatabaseName_YYYYMMDD_HHMMSS.sql.gz`.
+    ·    ────────────────────────┬───────────────────────
+    ·                            ╰── Dms tell: dms.machine
+ 89 │ 
+    ╰────
+
+dms.machine
+
+  ⚠ Dms tell: dms.machine
+    ╭─[corpus/llm/docs/0a0197006e9ca159.md:90:4]
+ 89 │ 
+ 90 │ 2. To restore a database to its previous state:
+    ·    ──────────────────────┬─────────────────────
+    ·                          ╰── Dms tell: dms.machine
+ 91 │ 
+    ╰────
+
+dms.machine
+
+  ⚠ Dms tell: dms.machine
+    ╭─[corpus/llm/docs/0a0197006e9ca159.md:96:33]
+ 95 │ 
+ 96 │ 3. Replace `your_database_name` with the actual name of your database.
+    ·                                 ───────────────────┬──────────────────
+    ·                                                    ╰── Dms tell: dms.machine
+ 97 │ 
+    ╰────
+
+dms.machine
+
+  ⚠ Dms tell: dms.machine
+     ╭─[corpus/llm/docs/0a0197006e9ca159.md:100:5]
+  99 │ 
+ 100 │ - **Security**: Ensure that backups are stored securely, especially if you're using plain text files before compression.
+     ·     ──────────────────────────────────────────────────────────┬─────────────────────────────────────────────────────────
+     ·                                                               ╰── Dms tell: dms.machine
+ 101 │ - **Backup Retention**: Consider setting up a policy to keep only the most recent backups and delete older ones periodically to save disk space.
+     ╰────
+
+dms.machine
+
+  ⚠ Dms tell: dms.machine
+     ╭─[corpus/llm/docs/0a0197006e9ca159.md:101:5]
+ 100 │ - **Security**: Ensure that backups are stored securely, especially if you're using plain text files before compression.
+ 101 │ - **Backup Retention**: Consider setting up a policy to keep only the most recent backups and delete older ones periodically to save disk space.
+     ·     ──────────────────────────────────────────────────────────────────────┬─────────────────────────────────────────────────────────────────────
+     ·                                                                           ╰── Dms tell: dms.machine
+ 102 │ - **Testing**: Periodically test restoring from a backup to confirm its integrity and process speed.
+     ╰────
+
+dms.machine
+
+  ⚠ Dms tell: dms.machine
+     ╭─[corpus/llm/docs/0a0197006e9ca159.md:102:5]
+ 101 │ - **Backup Retention**: Consider setting up a policy to keep only the most recent backups and delete older ones periodically to save disk space.
+ 102 │ - **Testing**: Periodically test restoring from a backup to confirm its integrity and process speed.
+     ·     ────────────────────────────────────────────────┬───────────────────────────────────────────────
+     ·                                                     ╰── Dms tell: dms.machine
+ 103 │ 
+     ╰────
 
 span.by_following_these_steps_leading
 
@@ -155,12 +370,12 @@ span.by_following_these_steps_leading
      ·              ╰── Literal tell: span.by_following_these_steps_leading
      ╰────
 
-dms.qwen
+dms.machine
 
-  ⚠ Dms tell: dms.qwen
-     ╭─[corpus/llm/docs/0a0197006e9ca159.md:104:38]
+  ⚠ Dms tell: dms.machine
+     ╭─[corpus/llm/docs/0a0197006e9ca159.md:104:1]
  103 │ 
  104 │ By following these steps, you've set up automatic database backups for Corkboard, ensuring that your notes remain safe against unexpected data loss. Regularly checking your backup logs will help you stay informed about the success of each backup run.
-     ·                                      ─────────────────────┬─────────────────────
-     ·                                                           ╰── Dms tell: dms.qwen
+     · ─────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────┬────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
+     ·                                                                                                                              ╰── Dms tell: dms.machine
      ╰────

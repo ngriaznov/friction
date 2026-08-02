@@ -25,17 +25,23 @@ bold_span_density            13.5823  [0.0000, 14.7059]   in
 sentence_opener_repeat_rate   0.0000  [0.0079, 0.1379]    OUT   
 top_opener_concentration      0.1167  [0.0442, 0.1609]    in    
 
-dms (target family: qwen):
-  qwen     mean_machine=1.4962  mean_human=1.5513  differential=-0.0551  tokens=653
-  gemma    mean_machine=1.6279  mean_human=1.5513  differential=0.0766  tokens=653
-  llama    mean_machine=1.5038  mean_human=1.5513  differential=-0.0475  tokens=653
-  granite  mean_machine=14.5222  mean_human=1.5513  differential=12.9709  tokens=653
-  claude   mean_machine=1.4257  mean_human=1.5513  differential=-0.1256  tokens=653
+dms: mean_machine=14.5222  mean_human=1.5513  differential=12.9709  tokens=653
 
-tell counts (4 span(s) total):
-  dms: 1
+tell counts (35 span(s) total):
+  dms: 32
   span: 1
   sub: 2
+dms.machine
+
+  ⚠ Dms tell: dms.machine
+   ╭─[corpus/llm/readme/0859e6e20fb1cf84.md:5:1]
+ 4 │ 
+ 5 │ Lumen is a static site generator tailored specifically for photography portfolios. It leverages Ruby's power through a gem distribution system, making it easy to integrate into existing projects or workflows. Designed with simplicity and performance in mind, Lumen automates the generation of visually appealing portfolio sites by handling image galleries, markdown-based content, thumbnail creation, and EXIF-based caption extraction seamlessly.
+   · ───────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────┬──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
+   ·                                                                                                                                                                                                                                ╰── Dms tell: dms.machine
+ 6 │ 
+   ╰────
+
 sub.leverage_3sg
 
   ⚠ Literal tell: sub.leverage_3sg
@@ -47,6 +53,17 @@ sub.leverage_3sg
  6 │ 
    ╰────
 
+dms.machine
+
+  ⚠ Dms tell: dms.machine
+    ╭─[corpus/llm/readme/0859e6e20fb1cf84.md:9:1]
+  8 │ 
+  9 │ To utilize Lumen effectively, adhere to its recommended folder structure:
+    · ────────────────────────────────────┬────────────────────────────────────
+    ·                                     ╰── Dms tell: dms.machine
+ 10 │ 
+    ╰────
+
 sub.utilize_base
 
   ⚠ Literal tell: sub.utilize_base
@@ -56,6 +73,193 @@ sub.utilize_base
     ·    ───┬───
     ·       ╰── Literal tell: sub.utilize_base
  10 │ 
+    ╰────
+
+dms.machine
+
+  ⚠ Dms tell: dms.machine
+    ╭─[corpus/llm/readme/0859e6e20fb1cf84.md:11:17]
+ 10 │ 
+ 11 │ 1. **`images/`**: This directory should contain subdirectories named after each gallery or section within your portfolio. For example, if you have a "Summer Vacations" and "Winter Projects" gallery, create `images/summer-vacations` and `images/winter-projects`. Each subdirectory will hold the images relevant to that gallery.
+    ·                 ──────────────────────────────────────────────────────────────────────────────────────────────┬──────────────────────────────────────────────────────────────────────────────────────────────
+    ·                                                                                                               ╰── Dms tell: dms.machine
+ 12 │ 
+    ╰────
+
+dms.machine
+
+  ⚠ Dms tell: dms.machine
+    ╭─[corpus/llm/readme/0859e6e20fb1cf84.md:11:261]
+ 10 │ 
+ 11 │ 1. **`images/`**: This directory should contain subdirectories named after each gallery or section within your portfolio. For example, if you have a "Summer Vacations" and "Winter Projects" gallery, create `images/summer-vacations` and `images/winter-projects`. Each subdirectory will hold the images relevant to that gallery.
+    ·                                                                                                                                                                                                                                                                     ─────────────────────────────────┬────────────────────────────────
+    ·                                                                                                                                                                                                                                                                                                      ╰── Dms tell: dms.machine
+ 12 │ 
+    ╰────
+
+dms.machine
+
+  ⚠ Dms tell: dms.machine
+    ╭─[corpus/llm/readme/0859e6e20fb1cf84.md:13:16]
+ 12 │ 
+ 13 │ 2. **`pages/`**: This directory should contain front-matter-free markdown files representing each page of your portfolio (e.g., About Me, Contact). Markdown files do not require YAML front matter; Lumen reads them directly for content insertion.
+    ·                ───────────────────────────────────────────────────────────────────────────────────────────────────────────────────┬──────────────────────────────────────────────────────────────────────────────────────────────────────────────────
+    ·                                                                                                                                   ╰── Dms tell: dms.machine
+ 14 │ 
+    ╰────
+
+dms.machine
+
+  ⚠ Dms tell: dms.machine
+    ╭─[corpus/llm/readme/0859e6e20fb1cf84.md:17:1]
+ 16 │ 
+ 17 │ To generate your static site, use the following command:
+    · ────────────────────────────┬───────────────────────────
+    ·                             ╰── Dms tell: dms.machine
+ 18 │ 
+    ╰────
+
+dms.machine
+
+  ⚠ Dms tell: dms.machine
+    ╭─[corpus/llm/readme/0859e6e20fb1cf84.md:23:1]
+ 22 │ 
+ 23 │ This command compiles all specified galleries and pages into a fully functional static website optimized for deployment on any web server or hosting service that supports static sites (like GitHub Pages, Netlify, etc.).
+    · ─────────────────────────────────────────────────────────────────────────────────────────────────────────────┬─────────────────────────────────────────────────────────────────────────────────────────────────────────────
+    ·                                                                                                              ╰── Dms tell: dms.machine
+ 24 │ 
+    ╰────
+
+dms.machine
+
+  ⚠ Dms tell: dms.machine
+    ╭─[corpus/llm/readme/0859e6e20fb1cf84.md:27:1]
+ 26 │ 
+ 27 │ For local development and testing, Lumen offers an integrated preview server:
+    · ──────────────────────────────────────┬──────────────────────────────────────
+    ·                                       ╰── Dms tell: dms.machine
+ 28 │ 
+    ╰────
+
+dms.machine
+
+  ⚠ Dms tell: dms.machine
+    ╭─[corpus/llm/readme/0859e6e20fb1cf84.md:33:1]
+ 32 │ 
+ 33 │ This command starts a local HTTP server at `http://localhost:8000`, allowing you to view your portfolio in real-time as you make changes. It’s particularly useful for iterating on content layout, image galleries, or theme customization without rebuilding the site each time.
+    · ─────────────────────┬────────────────────
+    ·                      ╰── Dms tell: dms.machine
+ 34 │ 
+    ╰────
+
+dms.machine
+
+  ⚠ Dms tell: dms.machine
+    ╭─[corpus/llm/readme/0859e6e20fb1cf84.md:33:67]
+ 32 │ 
+ 33 │ This command starts a local HTTP server at `http://localhost:8000`, allowing you to view your portfolio in real-time as you make changes. It’s particularly useful for iterating on content layout, image galleries, or theme customization without rebuilding the site each time.
+    ·                                                                   ────────────────────────────────────────────────────────────────────────────────────────────────────────┬───────────────────────────────────────────────────────────────────────────────────────────────────────
+    ·                                                                                                                                                                           ╰── Dms tell: dms.machine
+ 34 │ 
+    ╰────
+
+dms.machine
+
+  ⚠ Dms tell: dms.machine
+    ╭─[corpus/llm/readme/0859e6e20fb1cf84.md:37:1]
+ 36 │ 
+ 37 │ Lumen automates thumbnail creation for your images:
+    · ─────────────────────────┬─────────────────────────
+    ·                          ╰── Dms tell: dms.machine
+ 38 │ 
+    ╰────
+
+dms.machine
+
+  ⚠ Dms tell: dms.machine
+    ╭─[corpus/llm/readme/0859e6e20fb1cf84.md:39:6]
+ 38 │ 
+ 39 │ 1. **Automatic Thumbnails**: When you build your site (`lumen build`), Lumen scans all image files in the `images/` directory and generates optimized thumbnails based on predefined sizes (e.g., small, medium, large). This process enhances load times without compromising quality.
+    ·      ────────────────────────┬───────────────────────
+    ·                              ╰── Dms tell: dms.machine
+ 40 │ 
+    ╰────
+
+dms.machine
+
+  ⚠ Dms tell: dms.machine
+    ╭─[corpus/llm/readme/0859e6e20fb1cf84.md:39:70]
+ 38 │ 
+ 39 │ 1. **Automatic Thumbnails**: When you build your site (`lumen build`), Lumen scans all image files in the `images/` directory and generates optimized thumbnails based on predefined sizes (e.g., small, medium, large). This process enhances load times without compromising quality.
+    ·                                                                      ──────────────────┬─────────────────
+    ·                                                                                        ╰── Dms tell: dms.machine
+ 40 │ 
+    ╰────
+
+dms.machine
+
+  ⚠ Dms tell: dms.machine
+    ╭─[corpus/llm/readme/0859e6e20fb1cf84.md:39:117]
+ 38 │ 
+ 39 │ 1. **Automatic Thumbnails**: When you build your site (`lumen build`), Lumen scans all image files in the `images/` directory and generates optimized thumbnails based on predefined sizes (e.g., small, medium, large). This process enhances load times without compromising quality.
+    ·                                                                                                                     ─────────────────────────────────────────────────────────────────────────────────┬─────────────────────────────────────────────────────────────────────────────────
+    ·                                                                                                                                                                                                      ╰── Dms tell: dms.machine
+ 40 │ 
+    ╰────
+
+dms.machine
+
+  ⚠ Dms tell: dms.machine
+    ╭─[corpus/llm/readme/0859e6e20fb1cf84.md:41:6]
+ 40 │ 
+ 41 │ 2. **Customization**: You can specify custom thumbnail dimensions or formats by editing the `_config.yml` file under specific gallery directories. For example:
+    ·      ───────────────────────────────────────────┬──────────────────────────────────────────
+    ·                                                 ╰── Dms tell: dms.machine
+ 42 │ 
+    ╰────
+
+dms.machine
+
+  ⚠ Dms tell: dms.machine
+    ╭─[corpus/llm/readme/0859e6e20fb1cf84.md:41:107]
+ 40 │ 
+ 41 │ 2. **Customization**: You can specify custom thumbnail dimensions or formats by editing the `_config.yml` file under specific gallery directories. For example:
+    ·                                                                                                           ──────────────────────────┬──────────────────────────
+    ·                                                                                                                                     ╰── Dms tell: dms.machine
+ 42 │ 
+    ╰────
+
+dms.machine
+
+  ⚠ Dms tell: dms.machine
+    ╭─[corpus/llm/readme/0859e6e20fb1cf84.md:52:1]
+ 51 │ 
+ 52 │ Lumen intelligently extracts captions from image metadata (EXIF data) to provide descriptive information about each photograph:
+    · ───────────────────────────────────────────────────────────────┬───────────────────────────────────────────────────────────────
+    ·                                                                ╰── Dms tell: dms.machine
+ 53 │ 
+    ╰────
+
+dms.machine
+
+  ⚠ Dms tell: dms.machine
+    ╭─[corpus/llm/readme/0859e6e20fb1cf84.md:54:6]
+ 53 │ 
+ 54 │ 1. **Automatic Extraction**: During the build process, Lumen reads the EXIF data of images in your galleries and automatically generates caption fields based on this metadata.
+    ·      ─────────────────────────────────────────────────────────────────────────────────────┬────────────────────────────────────────────────────────────────────────────────────
+    ·                                                                                           ╰── Dms tell: dms.machine
+ 55 │ 
+    ╰────
+
+dms.machine
+
+  ⚠ Dms tell: dms.machine
+    ╭─[corpus/llm/readme/0859e6e20fb1cf84.md:56:6]
+ 55 │ 
+ 56 │ 2. **Customization**: If you prefer a different source for captions or wish to override automatic extraction, simply add a `caption` field in the markdown front matter for that specific image:
+    ·      ──────────────────────────────────────────────────────────┬──────────────────────────────────────────────────────────
+    ·                                                                ╰── Dms tell: dms.machine
+ 57 │ 
     ╰────
 
 span.simply
@@ -69,12 +273,143 @@ span.simply
  57 │ 
     ╰────
 
-dms.qwen
+dms.machine
 
-  ⚠ Dms tell: dms.qwen
-     ╭─[corpus/llm/readme/0859e6e20fb1cf84.md:116:315]
+  ⚠ Dms tell: dms.machine
+    ╭─[corpus/llm/readme/0859e6e20fb1cf84.md:56:134]
+ 55 │ 
+ 56 │ 2. **Customization**: If you prefer a different source for captions or wish to override automatic extraction, simply add a `caption` field in the markdown front matter for that specific image:
+    ·                                                                                                                                      ─────────────────────────────┬─────────────────────────────
+    ·                                                                                                                                                                   ╰── Dms tell: dms.machine
+ 57 │ 
+    ╰────
+
+dms.machine
+
+  ⚠ Dms tell: dms.machine
+    ╭─[corpus/llm/readme/0859e6e20fb1cf84.md:70:44]
+ 69 │ 
+ 70 │ Lumen’s configuration file, `_config.yml`, centralizes settings like site title, theme selection, and output directory:
+    ·                                          ───────────────────────────────────────┬──────────────────────────────────────
+    ·                                                                                 ╰── Dms tell: dms.machine
+ 71 │ 
+    ╰────
+
+dms.machine
+
+  ⚠ Dms tell: dms.machine
+    ╭─[corpus/llm/readme/0859e6e20fb1cf84.md:82:19]
+ 81 │ 
+ 82 │ - **`site_title`**: Sets the title displayed at the top of your site, which is also used in SEO and social sharing contexts.
+    ·                   ─────────────────────────────────────────────────────┬────────────────────────────────────────────────────
+    ·                                                                        ╰── Dms tell: dms.machine
+ 83 │ 
+    ╰────
+
+dms.machine
+
+  ⚠ Dms tell: dms.machine
+    ╭─[corpus/llm/readme/0859e6e20fb1cf84.md:84:69]
+ 83 │ 
+ 84 │ - **`theme`**: Choose between `light-mode` (default) or `dark-mode` to match your aesthetic preferences or audience needs. Themes adjust background colors, text contrast, and overall visual feel without altering image galleries themselves.
+    ·                                                                     ─────────────────────────────────────────────────────────────────────────────────────┬─────────────────────────────────────────────────────────────────────────────────────
+    ·                                                                                                                                                          ╰── Dms tell: dms.machine
+ 85 │ 
+    ╰────
+
+dms.machine
+
+  ⚠ Dms tell: dms.machine
+    ╭─[corpus/llm/readme/0859e6e20fb1cf84.md:86:25]
+ 85 │ 
+ 86 │ - **`output_directory`**: Specifies the folder where the generated static site will be placed after running `lumen build`. This can be useful for separating compiled sites from source files if you manage multiple projects simultaneously.
+    ·                         ─────────────────────────────────────────┬─────────────────────────────────────────
+    ·                                                                  ╰── Dms tell: dms.machine
+ 87 │ 
+    ╰────
+
+dms.machine
+
+  ⚠ Dms tell: dms.machine
+    ╭─[corpus/llm/readme/0859e6e20fb1cf84.md:86:122]
+ 85 │ 
+ 86 │ - **`output_directory`**: Specifies the folder where the generated static site will be placed after running `lumen build`. This can be useful for separating compiled sites from source files if you manage multiple projects simultaneously.
+    ·                                                                                                                          ──────────────────────────────────────────────────────────┬─────────────────────────────────────────────────────────
+    ·                                                                                                                                                                                    ╰── Dms tell: dms.machine
+ 87 │ 
+    ╰────
+
+dms.machine
+
+  ⚠ Dms tell: dms.machine
+    ╭─[corpus/llm/readme/0859e6e20fb1cf84.md:90:6]
+ 89 │ 
+ 90 │ 1. **Installation**: Install Lumen using RubyGems:
+    ·      ──────────────────────┬──────────────────────
+    ·                            ╰── Dms tell: dms.machine
+ 91 │ 
+    ╰────
+
+dms.machine
+
+  ⚠ Dms tell: dms.machine
+    ╭─[corpus/llm/readme/0859e6e20fb1cf84.md:96:6]
+ 95 │ 
+ 96 │ 2. **Project Setup**: Initialize a new project by running:
+    ·      ──────────────────────────┬──────────────────────────
+    ·                                ╰── Dms tell: dms.machine
+ 97 │ 
+    ╰────
+
+dms.machine
+
+  ⚠ Dms tell: dms.machine
+     ╭─[corpus/llm/readme/0859e6e20fb1cf84.md:102:1]
+ 101 │ 
+ 102 │ This command creates the necessary directory structure (`images/`, `pages/`) and populates `_config.yml` with default settings.
+     · ───────────────────────────┬──────────────────────────
+     ·                            ╰── Dms tell: dms.machine
+ 103 │ 
+     ╰────
+
+dms.machine
+
+  ⚠ Dms tell: dms.machine
+     ╭─[corpus/llm/readme/0859e6e20fb1cf84.md:104:6]
+ 103 │ 
+ 104 │ 3. **Add Content**: Place your images in the appropriate gallery directories under `images/`. Write markdown files for each page of your portfolio inside the `pages/` directory.
+     ·      ──────────────────────────────────────┬──────────────────────────────────────
+     ·                                            ╰── Dms tell: dms.machine
+ 105 │ 
+     ╰────
+
+dms.machine
+
+  ⚠ Dms tell: dms.machine
+     ╭─[corpus/llm/readme/0859e6e20fb1cf84.md:104:93]
+ 103 │ 
+ 104 │ 3. **Add Content**: Place your images in the appropriate gallery directories under `images/`. Write markdown files for each page of your portfolio inside the `pages/` directory.
+     ·                                                                                             ────────────────────────────────┬────────────────────────────────
+     ·                                                                                                                             ╰── Dms tell: dms.machine
+ 105 │ 
+     ╰────
+
+dms.machine
+
+  ⚠ Dms tell: dms.machine
+     ╭─[corpus/llm/readme/0859e6e20fb1cf84.md:116:1]
  115 │ 
  116 │ Lumen simplifies the creation and maintenance of photography portfolios by automating repetitive tasks like thumbnail generation, caption extraction from EXIF data, and providing a straightforward configuration system via `_config.yml`. Its intuitive folder structure ensures consistency across galleries and pages, making it an excellent choice for photographers looking to showcase their work online with minimal effort. Happy creating!
-     ·                                                                                                                                                                                                                                                                                                                           ─────────────────┬─────────────────
-     ·                                                                                                                                                                                                                                                                                                                                            ╰── Dms tell: dms.qwen
+     · ──────────────────────────────────────────────────────────────────────────────────────────────────────────────┬──────────────────────────────────────────────────────────────────────────────────────────────────────────────
+     ·                                                                                                               ╰── Dms tell: dms.machine
+     ╰────
+
+dms.machine
+
+  ⚠ Dms tell: dms.machine
+     ╭─[corpus/llm/readme/0859e6e20fb1cf84.md:116:236]
+ 115 │ 
+ 116 │ Lumen simplifies the creation and maintenance of photography portfolios by automating repetitive tasks like thumbnail generation, caption extraction from EXIF data, and providing a straightforward configuration system via `_config.yml`. Its intuitive folder structure ensures consistency across galleries and pages, making it an excellent choice for photographers looking to showcase their work online with minimal effort. Happy creating!
+     ·                                                                                                                                                                                                                                            ─────────────────────────────────────────────────────────────────────────────────────────────────────┬─────────────────────────────────────────────────────────────────────────────────────────────────────
+     ·                                                                                                                                                                                                                                                                                                                                                 ╰── Dms tell: dms.machine
      ╰────

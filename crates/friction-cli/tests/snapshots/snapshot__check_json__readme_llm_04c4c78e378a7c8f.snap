@@ -157,79 +157,246 @@ expression: stdout
   "spans": [
     {
       "channel": "dms",
-      "frame_id": "dms.qwen",
-      "start": 508,
-      "end": 550,
-      "line": 8,
-      "column": 63,
-      "score": 14
+      "frame_id": "dms.machine",
+      "start": 60,
+      "end": 312,
+      "line": 3,
+      "column": 3,
+      "score": 1039
     },
     {
       "channel": "dms",
-      "frame_id": "dms.qwen",
+      "frame_id": "dms.machine",
+      "start": 317,
+      "end": 337,
+      "line": 5,
+      "column": 3,
+      "score": 6
+    },
+    {
+      "channel": "dms",
+      "frame_id": "dms.machine",
+      "start": 345,
+      "end": 445,
+      "line": 7,
+      "column": 5,
+      "score": 125
+    },
+    {
+      "channel": "dms",
+      "frame_id": "dms.machine",
+      "start": 450,
+      "end": 585,
+      "line": 8,
+      "column": 5,
+      "score": 215
+    },
+    {
+      "channel": "dms",
+      "frame_id": "dms.machine",
+      "start": 590,
+      "end": 694,
+      "line": 9,
+      "column": 5,
+      "score": 119
+    },
+    {
+      "channel": "dms",
+      "frame_id": "dms.machine",
+      "start": 699,
+      "end": 779,
+      "line": 10,
+      "column": 5,
+      "score": 59
+    },
+    {
+      "channel": "dms",
+      "frame_id": "dms.machine",
+      "start": 800,
+      "end": 893,
+      "line": 14,
+      "column": 5,
+      "score": 85
+    },
+    {
+      "channel": "dms",
+      "frame_id": "dms.machine",
+      "start": 898,
+      "end": 1008,
+      "line": 15,
+      "column": 5,
+      "score": 174
+    },
+    {
+      "channel": "dms",
+      "frame_id": "dms.machine",
+      "start": 1013,
+      "end": 1120,
+      "line": 16,
+      "column": 5,
+      "score": 114
+    },
+    {
+      "channel": "dms",
+      "frame_id": "dms.machine",
+      "start": 1125,
+      "end": 1242,
+      "line": 17,
+      "column": 5,
+      "score": 147
+    },
+    {
+      "channel": "dms",
+      "frame_id": "dms.machine",
       "start": 1276,
-      "end": 1305,
+      "end": 1379,
       "line": 21,
       "column": 6,
-      "score": 7
+      "score": 93
     },
     {
       "channel": "dms",
-      "frame_id": "dms.qwen",
-      "start": 2200,
-      "end": 2234,
+      "frame_id": "dms.machine",
+      "start": 1456,
+      "end": 1510,
+      "line": 28,
+      "column": 6,
+      "score": 16
+    },
+    {
+      "channel": "dms",
+      "frame_id": "dms.machine",
+      "start": 1571,
+      "end": 1690,
+      "line": 34,
+      "column": 6,
+      "score": 143
+    },
+    {
+      "channel": "dms",
+      "frame_id": "dms.machine",
+      "start": 1705,
+      "end": 1755,
+      "line": 34,
+      "column": 140,
+      "score": 20
+    },
+    {
+      "channel": "dms",
+      "frame_id": "dms.machine",
+      "start": 1763,
+      "end": 1818,
+      "line": 36,
+      "column": 6,
+      "score": 27
+    },
+    {
+      "channel": "dms",
+      "frame_id": "dms.machine",
+      "start": 1872,
+      "end": 1980,
+      "line": 42,
+      "column": 6,
+      "score": 136
+    },
+    {
+      "channel": "dms",
+      "frame_id": "dms.machine",
+      "start": 2042,
+      "end": 2135,
+      "line": 48,
+      "column": 4,
+      "score": 151
+    },
+    {
+      "channel": "dms",
+      "frame_id": "dms.machine",
+      "start": 2178,
+      "end": 2292,
       "line": 52,
-      "column": 28,
-      "score": 26
+      "column": 6,
+      "score": 231
     },
     {
       "channel": "dms",
-      "frame_id": "dms.qwen",
+      "frame_id": "dms.machine",
+      "start": 2338,
+      "end": 2364,
+      "line": 54,
+      "column": 6,
+      "score": 12
+    },
+    {
+      "channel": "dms",
+      "frame_id": "dms.machine",
+      "start": 2371,
+      "end": 2412,
+      "line": 56,
+      "column": 4,
+      "score": 18
+    },
+    {
+      "channel": "dms",
+      "frame_id": "dms.machine",
+      "start": 2575,
+      "end": 2643,
+      "line": 64,
+      "column": 1,
+      "score": 80
+    },
+    {
+      "channel": "dms",
+      "frame_id": "dms.machine",
+      "start": 2681,
+      "end": 2732,
+      "line": 64,
+      "column": 107,
+      "score": 49
+    },
+    {
+      "channel": "dms",
+      "frame_id": "dms.machine",
+      "start": 2754,
+      "end": 2945,
+      "line": 69,
+      "column": 1,
+      "score": 577
+    },
+    {
+      "channel": "dms",
+      "frame_id": "dms.machine",
       "start": 2961,
-      "end": 3005,
+      "end": 3066,
       "line": 73,
       "column": 1,
-      "score": 12
+      "score": 173
+    },
+    {
+      "channel": "dms",
+      "frame_id": "dms.machine",
+      "start": 3068,
+      "end": 3116,
+      "line": 73,
+      "column": 108,
+      "score": 27
+    },
+    {
+      "channel": "dms",
+      "frame_id": "dms.machine",
+      "start": 3170,
+      "end": 3203,
+      "line": 76,
+      "column": 1,
+      "score": 19
     }
   ],
   "tell_counts": {
-    "dms": 4
+    "dms": 26
   },
-  "dms": [
-    {
-      "family": "qwen",
-      "mean_machine": 1.7357630979498861,
-      "mean_human": 1.7403189066059226,
-      "differential": -0.004555808656036442,
-      "token_count": 439
-    },
-    {
-      "family": "gemma",
-      "mean_machine": 10.676537585421412,
-      "mean_human": 1.7403189066059226,
-      "differential": 8.93621867881549,
-      "token_count": 439
-    },
-    {
-      "family": "llama",
-      "mean_machine": 1.785876993166287,
-      "mean_human": 1.7403189066059226,
-      "differential": 0.04555808656036442,
-      "token_count": 439
-    },
-    {
-      "family": "granite",
-      "mean_machine": 1.2482915717539864,
-      "mean_human": 1.7403189066059226,
-      "differential": -0.49202733485193617,
-      "token_count": 439
-    },
-    {
-      "family": "claude",
-      "mean_machine": 1.5740318906605923,
-      "mean_human": 1.7403189066059226,
-      "differential": -0.16628701594533024,
-      "token_count": 439
-    }
-  ]
+  "dms": {
+    "mean_machine": 10.676537585421412,
+    "mean_human": 1.7403189066059226,
+    "differential": 8.93621867881549,
+    "token_count": 439
+  }
 }

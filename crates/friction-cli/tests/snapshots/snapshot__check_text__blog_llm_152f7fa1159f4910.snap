@@ -25,25 +25,20 @@ bold_span_density            28.4698  [0.0000, 10.6682]   OUT
 sentence_opener_repeat_rate   0.0645  [0.0067, 0.1343]    in    
 top_opener_concentration      0.0794  [0.0588, 0.2154]    in    
 
-dms (target family: qwen):
-  qwen     mean_machine=20.0043  mean_human=1.6283  differential=18.3759  tokens=939
-  gemma    mean_machine=1.5687  mean_human=1.6283  differential=-0.0596  tokens=939
-  llama    mean_machine=1.6166  mean_human=1.6283  differential=-0.0117  tokens=939
-  granite  mean_machine=1.3216  mean_human=1.6283  differential=-0.3067  tokens=939
-  claude   mean_machine=1.2492  mean_human=1.6283  differential=-0.3791  tokens=939
+dms: mean_machine=20.0043  mean_human=1.6283  differential=18.3759  tokens=939
 
 tell counts (31 span(s) total):
   dms: 28
   lvc: 1
   sub: 2
-dms.qwen
+dms.machine
 
-  ⚠ Dms tell: dms.qwen
+  ⚠ Dms tell: dms.machine
    ╭─[corpus/llm/blog/152f7fa1159f4910.md:3:1]
  2 │ 
  3 │ When starting a new venture, especially with limited resources, selecting the right database can significantly impact your project’s success. For a two-person startup, deciding between PostgreSQL and MySQL is crucial as it affects both technical and operational aspects of the business. This blog post aims to provide an in-depth comparison based on specific features and operational tradeoffs that drove our decision.
    · ─────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────┬────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
-   ·                                                                                                                                                                                                                  ╰── Dms tell: dms.qwen
+   ·                                                                                                                                                                                                                  ╰── Dms tell: dms.machine
  4 │ 
    ╰────
 
@@ -58,47 +53,47 @@ sub.is_crucial
  4 │ 
    ╰────
 
-dms.qwen
+dms.machine
 
-  ⚠ Dms tell: dms.qwen
+  ⚠ Dms tell: dms.machine
    ╭─[corpus/llm/blog/152f7fa1159f4910.md:7:1]
  6 │ 
  7 │ Our startup is focused on building a web application that requires robust data management capabilities but operates with limited financial resources. We need a database system that not only meets our current needs but also scales well as we grow. After careful consideration, we decided to choose PostgreSQL over MySQL. In this post, I'll outline the key features and tradeoffs that led us to make this choice.
    · ─────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────┬────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
-   ·                                                                                                                                                                                                              ╰── Dms tell: dms.qwen
+   ·                                                                                                                                                                                                              ╰── Dms tell: dms.machine
  8 │ 
    ╰────
 
-dms.qwen
+dms.machine
 
-  ⚠ Dms tell: dms.qwen
+  ⚠ Dms tell: dms.machine
     ╭─[corpus/llm/blog/152f7fa1159f4910.md:11:1]
  10 │ 
  11 │ Scalability is often cited as one of the main reasons for choosing a database system. While both PostgreSQL and MySQL support horizontal scaling through sharding or replication, their approaches differ significantly. 
     · ────────────────────────────────────────────────────────────────────────────────────────────────────────────┬───────────────────────────────────────────────────────────────────────────────────────────────────────────
-    ·                                                                                                             ╰── Dms tell: dms.qwen
+    ·                                                                                                             ╰── Dms tell: dms.machine
  12 │ 
     ╰────
 
-dms.qwen
+dms.machine
 
-  ⚠ Dms tell: dms.qwen
+  ⚠ Dms tell: dms.machine
     ╭─[corpus/llm/blog/152f7fa1159f4910.md:14:5]
  13 │ **PostgreSQL:**
  14 │ - **Advanced Features:** PostgreSQL offers advanced features such as JSONB data type, full-text search capabilities, and powerful indexing options that can handle complex queries efficiently.
     ·     ─────────────────────────────────────────────────────────────────────────────────────────────┬─────────────────────────────────────────────────────────────────────────────────────────────
-    ·                                                                                                  ╰── Dms tell: dms.qwen
+    ·                                                                                                  ╰── Dms tell: dms.machine
  15 │ - **Dynamic Schema Changes:** It supports dynamic schema changes without downtime, which is crucial for a two-person startup where requirements might change rapidly.
     ╰────
 
-dms.qwen
+dms.machine
 
-  ⚠ Dms tell: dms.qwen
+  ⚠ Dms tell: dms.machine
     ╭─[corpus/llm/blog/152f7fa1159f4910.md:15:5]
  14 │ - **Advanced Features:** PostgreSQL offers advanced features such as JSONB data type, full-text search capabilities, and powerful indexing options that can handle complex queries efficiently.
  15 │ - **Dynamic Schema Changes:** It supports dynamic schema changes without downtime, which is crucial for a two-person startup where requirements might change rapidly.
     ·     ────────────────────────────────────────────────────────────────────────────────┬────────────────────────────────────────────────────────────────────────────────
-    ·                                                                                     ╰── Dms tell: dms.qwen
+    ·                                                                                     ╰── Dms tell: dms.machine
  16 │ 
     ╰────
 
@@ -113,256 +108,256 @@ sub.is_crucial
  16 │ 
     ╰────
 
-dms.qwen
+dms.machine
 
-  ⚠ Dms tell: dms.qwen
+  ⚠ Dms tell: dms.machine
     ╭─[corpus/llm/blog/152f7fa1159f4910.md:18:5]
  17 │ **MySQL:**
  18 │ - **Simplicity:** MySQL has a simpler architecture, making it easier to manage in smaller-scale operations. However, it requires more manual intervention when scaling out.
     ·     ───────────────────────────────────────────────────────────────────────────────────┬───────────────────────────────────────────────────────────────────────────────────
-    ·                                                                                        ╰── Dms tell: dms.qwen
+    ·                                                                                        ╰── Dms tell: dms.machine
  19 │ - **Community Support:** MySQL benefits from a large community and extensive documentation, which can be advantageous for troubleshooting and learning.
     ╰────
 
-dms.qwen
+dms.machine
 
-  ⚠ Dms tell: dms.qwen
+  ⚠ Dms tell: dms.machine
     ╭─[corpus/llm/blog/152f7fa1159f4910.md:19:5]
  18 │ - **Simplicity:** MySQL has a simpler architecture, making it easier to manage in smaller-scale operations. However, it requires more manual intervention when scaling out.
  19 │ - **Community Support:** MySQL benefits from a large community and extensive documentation, which can be advantageous for troubleshooting and learning.
     ·     ─────────────────────────────────────────────────────────────────────────┬─────────────────────────────────────────────────────────────────────────
-    ·                                                                              ╰── Dms tell: dms.qwen
+    ·                                                                              ╰── Dms tell: dms.machine
  20 │ 
     ╰────
 
-dms.qwen
+dms.machine
 
-  ⚠ Dms tell: dms.qwen
+  ⚠ Dms tell: dms.machine
     ╭─[corpus/llm/blog/152f7fa1159f4910.md:21:1]
  20 │ 
  21 │ For our startup, the ability to handle complex data structures and dynamic schema changes without significant operational overhead was crucial. PostgreSQL’s advanced features provided us with flexibility that we could not easily achieve with MySQL.
     · ────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────┬───────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
-    ·                                                                                                                             ╰── Dms tell: dms.qwen
+    ·                                                                                                                             ╰── Dms tell: dms.machine
  22 │ 
     ╰────
 
-dms.qwen
+dms.machine
 
-  ⚠ Dms tell: dms.qwen
+  ⚠ Dms tell: dms.machine
     ╭─[corpus/llm/blog/152f7fa1159f4910.md:25:1]
  24 │ 
  25 │ Data integrity is paramount in any application, especially when handling sensitive information or critical business operations.
     · ───────────────────────────────────────────────────────────────┬───────────────────────────────────────────────────────────────
-    ·                                                                ╰── Dms tell: dms.qwen
+    ·                                                                ╰── Dms tell: dms.machine
  26 │ 
     ╰────
 
-dms.qwen
+dms.machine
 
-  ⚠ Dms tell: dms.qwen
+  ⚠ Dms tell: dms.machine
     ╭─[corpus/llm/blog/152f7fa1159f4910.md:28:5]
  27 │ **PostgreSQL:**
  28 │ - **ACID Compliance:** PostgreSQL strictly adheres to ACID (Atomicity, Consistency, Isolation, Durability) properties, ensuring that data transactions are reliable.
     ·     ────────────────────────────────────────────────────────────────────────────────┬───────────────────────────────────────────────────────────────────────────────
-    ·                                                                                     ╰── Dms tell: dms.qwen
+    ·                                                                                     ╰── Dms tell: dms.machine
  29 │ - **Advanced Transactions:** It supports complex transactional workflows, including nested transactions and multi-version concurrency control (MVCC), which helps in maintaining consistency during concurrent operations.
     ╰────
 
-dms.qwen
+dms.machine
 
-  ⚠ Dms tell: dms.qwen
+  ⚠ Dms tell: dms.machine
     ╭─[corpus/llm/blog/152f7fa1159f4910.md:29:5]
  28 │ - **ACID Compliance:** PostgreSQL strictly adheres to ACID (Atomicity, Consistency, Isolation, Durability) properties, ensuring that data transactions are reliable.
  29 │ - **Advanced Transactions:** It supports complex transactional workflows, including nested transactions and multi-version concurrency control (MVCC), which helps in maintaining consistency during concurrent operations.
     ·     ───────────────────────────────────────────────────────────────────────────────────────────────────────────┬──────────────────────────────────────────────────────────────────────────────────────────────────────────
-    ·                                                                                                                ╰── Dms tell: dms.qwen
+    ·                                                                                                                ╰── Dms tell: dms.machine
  30 │ 
     ╰────
 
-dms.qwen
+dms.machine
 
-  ⚠ Dms tell: dms.qwen
+  ⚠ Dms tell: dms.machine
     ╭─[corpus/llm/blog/152f7fa1159f4910.md:32:5]
  31 │ **MySQL:**
  32 │ - **ACID Compliance:** While MySQL also supports ACID compliance, its implementation might be less strict compared to PostgreSQL. This can lead to potential data inconsistencies.
     ·     ───────────────────────────────────────────────────────────────────────────────────────┬──────────────────────────────────────────────────────────────────────────────────────
-    ·                                                                                            ╰── Dms tell: dms.qwen
+    ·                                                                                            ╰── Dms tell: dms.machine
  33 │ - **Replication Features:** MySQL provides robust replication features but requires careful configuration and management to ensure reliability.
     ╰────
 
-dms.qwen
+dms.machine
 
-  ⚠ Dms tell: dms.qwen
+  ⚠ Dms tell: dms.machine
     ╭─[corpus/llm/blog/152f7fa1159f4910.md:33:5]
  32 │ - **ACID Compliance:** While MySQL also supports ACID compliance, its implementation might be less strict compared to PostgreSQL. This can lead to potential data inconsistencies.
  33 │ - **Replication Features:** MySQL provides robust replication features but requires careful configuration and management to ensure reliability.
     ·     ─────────────────────────────────────────────────────────────────────┬─────────────────────────────────────────────────────────────────────
-    ·                                                                          ╰── Dms tell: dms.qwen
+    ·                                                                          ╰── Dms tell: dms.machine
  34 │ 
     ╰────
 
-dms.qwen
+dms.machine
 
-  ⚠ Dms tell: dms.qwen
+  ⚠ Dms tell: dms.machine
     ╭─[corpus/llm/blog/152f7fa1159f4910.md:35:1]
  34 │ 
  35 │ Given our startup’s need for high data integrity, PostgreSQL's strict adherence to ACID properties and advanced transactional support were compelling factors in our decision.
     · ───────────────────────────────────────────────────────────────────────────────────────┬──────────────────────────────────────────────────────────────────────────────────────
-    ·                                                                                        ╰── Dms tell: dms.qwen
+    ·                                                                                        ╰── Dms tell: dms.machine
  36 │ 
     ╰────
 
-dms.qwen
+dms.machine
 
-  ⚠ Dms tell: dms.qwen
+  ⚠ Dms tell: dms.machine
     ╭─[corpus/llm/blog/152f7fa1159f4910.md:39:1]
  38 │ 
  39 │ Performance is another critical aspect when choosing a database system. Both PostgreSQL and MySQL have strong performance capabilities, but their strengths lie in different areas.
     · ─────────────────────────────────────────────────────────────────────────────────────────┬─────────────────────────────────────────────────────────────────────────────────────────
-    ·                                                                                          ╰── Dms tell: dms.qwen
+    ·                                                                                          ╰── Dms tell: dms.machine
  40 │ 
     ╰────
 
-dms.qwen
+dms.machine
 
-  ⚠ Dms tell: dms.qwen
+  ⚠ Dms tell: dms.machine
     ╭─[corpus/llm/blog/152f7fa1159f4910.md:42:5]
  41 │ **PostgreSQL:**
  42 │ - **Query Optimization:** PostgreSQL has a powerful query optimizer that can handle complex queries efficiently. It supports advanced indexing techniques and parallel processing.
     ·     ───────────────────────────────────────────────────────────────────────────────────────┬──────────────────────────────────────────────────────────────────────────────────────
-    ·                                                                                            ╰── Dms tell: dms.qwen
+    ·                                                                                            ╰── Dms tell: dms.machine
  43 │ - **Customizability:** The ability to customize functions and operators allows for fine-grained control over data manipulation processes, which is beneficial for optimizing performance in specific use cases.
     ╰────
 
-dms.qwen
+dms.machine
 
-  ⚠ Dms tell: dms.qwen
+  ⚠ Dms tell: dms.machine
     ╭─[corpus/llm/blog/152f7fa1159f4910.md:43:5]
  42 │ - **Query Optimization:** PostgreSQL has a powerful query optimizer that can handle complex queries efficiently. It supports advanced indexing techniques and parallel processing.
  43 │ - **Customizability:** The ability to customize functions and operators allows for fine-grained control over data manipulation processes, which is beneficial for optimizing performance in specific use cases.
     ·     ─────────────────────────────────────────────────────────────────────────────────────────────────────┬─────────────────────────────────────────────────────────────────────────────────────────────────────
-    ·                                                                                                          ╰── Dms tell: dms.qwen
+    ·                                                                                                          ╰── Dms tell: dms.machine
  44 │ 
     ╰────
 
-dms.qwen
+dms.machine
 
-  ⚠ Dms tell: dms.qwen
+  ⚠ Dms tell: dms.machine
     ╭─[corpus/llm/blog/152f7fa1159f4910.md:46:5]
  45 │ **MySQL:**
  46 │ - **Speed:** MySQL is often faster in simple query operations due to its simpler architecture. It excels in read-heavy workloads.
     ·     ──────────────────────────────────────────────────────────────┬──────────────────────────────────────────────────────────────
-    ·                                                                   ╰── Dms tell: dms.qwen
+    ·                                                                   ╰── Dms tell: dms.machine
  47 │ - **Community Performance Tuning:** The large community of MySQL users has shared many optimization techniques that can be applied out-of-the-box, making it easy to get started.
     ╰────
 
-dms.qwen
+dms.machine
 
-  ⚠ Dms tell: dms.qwen
+  ⚠ Dms tell: dms.machine
     ╭─[corpus/llm/blog/152f7fa1159f4910.md:47:5]
  46 │ - **Speed:** MySQL is often faster in simple query operations due to its simpler architecture. It excels in read-heavy workloads.
  47 │ - **Community Performance Tuning:** The large community of MySQL users has shared many optimization techniques that can be applied out-of-the-box, making it easy to get started.
     ·     ──────────────────────────────────────────────────────────────────────────────────────┬──────────────────────────────────────────────────────────────────────────────────────
-    ·                                                                                           ╰── Dms tell: dms.qwen
+    ·                                                                                           ╰── Dms tell: dms.machine
  48 │ 
     ╰────
 
-dms.qwen
+dms.machine
 
-  ⚠ Dms tell: dms.qwen
+  ⚠ Dms tell: dms.machine
     ╭─[corpus/llm/blog/152f7fa1159f4910.md:49:1]
  48 │ 
  49 │ For our application, which involves complex data processing and analysis, PostgreSQL’s superior query optimization and customizability were key factors. While MySQL might offer a slight edge in read-heavy operations, the performance gains from PostgreSQL’s advanced features justified its choice for us.
     · ───────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────┬───────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
-    ·                                                                                                                                                        ╰── Dms tell: dms.qwen
+    ·                                                                                                                                                        ╰── Dms tell: dms.machine
  50 │ 
     ╰────
 
-dms.qwen
+dms.machine
 
-  ⚠ Dms tell: dms.qwen
+  ⚠ Dms tell: dms.machine
     ╭─[corpus/llm/blog/152f7fa1159f4910.md:53:1]
  52 │ 
  53 │ Cost is always a significant factor when starting a new venture. Both PostgreSQL and MySQL are open-source, making them cost-effective solutions.
     · ────────────────────────────────────────────────────────────────────────┬────────────────────────────────────────────────────────────────────────
-    ·                                                                         ╰── Dms tell: dms.qwen
+    ·                                                                         ╰── Dms tell: dms.machine
  54 │ 
     ╰────
 
-dms.qwen
+dms.machine
 
-  ⚠ Dms tell: dms.qwen
+  ⚠ Dms tell: dms.machine
     ╭─[corpus/llm/blog/152f7fa1159f4910.md:56:5]
  55 │ **PostgreSQL:**
  56 │ - **Free License:** PostgreSQL is licensed under the PostgreSQL License, which is free to use without any restrictions.
     ·     ─────────────────────────────────────────────────────────┬─────────────────────────────────────────────────────────
-    ·                                                              ╰── Dms tell: dms.qwen
+    ·                                                              ╰── Dms tell: dms.machine
  57 │ - **No Licensing Fees:** There are no licensing fees associated with using PostgreSQL in production environments.
     ╰────
 
-dms.qwen
+dms.machine
 
-  ⚠ Dms tell: dms.qwen
+  ⚠ Dms tell: dms.machine
     ╭─[corpus/llm/blog/152f7fa1159f4910.md:57:5]
  56 │ - **Free License:** PostgreSQL is licensed under the PostgreSQL License, which is free to use without any restrictions.
  57 │ - **No Licensing Fees:** There are no licensing fees associated with using PostgreSQL in production environments.
     ·     ──────────────────────────────────────────────────────┬──────────────────────────────────────────────────────
-    ·                                                           ╰── Dms tell: dms.qwen
+    ·                                                           ╰── Dms tell: dms.machine
  58 │ 
     ╰────
 
-dms.qwen
+dms.machine
 
-  ⚠ Dms tell: dms.qwen
+  ⚠ Dms tell: dms.machine
     ╭─[corpus/llm/blog/152f7fa1159f4910.md:60:5]
  59 │ **MySQL:**
  60 │ - **Community Edition vs. Enterprise Edition:** The MySQL Community Edition is free and open-source. However, for enterprise-level features, a commercial license might be required.
     ·     ────────────────────────────────────────────────────────────────────────────────────────┬───────────────────────────────────────────────────────────────────────────────────────
-    ·                                                                                             ╰── Dms tell: dms.qwen
+    ·                                                                                             ╰── Dms tell: dms.machine
  61 │ - **Vendor Support:** While the community edition is sufficient for many use cases, enterprise features come at an additional cost if you require professional support.
     ╰────
 
-dms.qwen
+dms.machine
 
-  ⚠ Dms tell: dms.qwen
+  ⚠ Dms tell: dms.machine
     ╭─[corpus/llm/blog/152f7fa1159f4910.md:61:5]
  60 │ - **Community Edition vs. Enterprise Edition:** The MySQL Community Edition is free and open-source. However, for enterprise-level features, a commercial license might be required.
  61 │ - **Vendor Support:** While the community edition is sufficient for many use cases, enterprise features come at an additional cost if you require professional support.
     ·     ─────────────────────────────────────────────────────────────────────────────────┬─────────────────────────────────────────────────────────────────────────────────
-    ·                                                                                      ╰── Dms tell: dms.qwen
+    ·                                                                                      ╰── Dms tell: dms.machine
  62 │ 
     ╰────
 
-dms.qwen
+dms.machine
 
-  ⚠ Dms tell: dms.qwen
+  ⚠ Dms tell: dms.machine
     ╭─[corpus/llm/blog/152f7fa1159f4910.md:63:1]
  62 │ 
  63 │ For our startup, the fact that PostgreSQL does not have any licensing fees was a significant advantage. It allowed us to allocate more resources towards other critical aspects of the business without incurring unnecessary costs.
     · ──────────────────────────────────────────────────────────────────────────────────────────────────────────────────┬─────────────────────────────────────────────────────────────────────────────────────────────────────────────────
-    ·                                                                                                                   ╰── Dms tell: dms.qwen
+    ·                                                                                                                   ╰── Dms tell: dms.machine
  64 │ 
     ╰────
 
-dms.qwen
+dms.machine
 
-  ⚠ Dms tell: dms.qwen
+  ⚠ Dms tell: dms.machine
     ╭─[corpus/llm/blog/152f7fa1159f4910.md:67:1]
  66 │ 
  67 │ After carefully weighing the pros and cons, we chose PostgreSQL for our two-person startup’s first production database. The combination of advanced features, robust data integrity, superior performance in complex query operations, and no licensing fees made it an ideal choice. However, every project is unique, and your decision should be based on your specific needs and constraints.
     · ────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────┬────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
-    ·                                                                                                                                                                                                 ╰── Dms tell: dms.qwen
+    ·                                                                                                                                                                                                 ╰── Dms tell: dms.machine
  68 │ 
     ╰────
 
-dms.qwen
+dms.machine
 
-  ⚠ Dms tell: dms.qwen
+  ⚠ Dms tell: dms.machine
     ╭─[corpus/llm/blog/152f7fa1159f4910.md:69:1]
  68 │ 
  69 │ Ultimately, the key takeaway is to carefully assess your application requirements before making a decision. PostgreSQL and MySQL are both excellent choices, but their strengths lie in different areas. By understanding these differences, you can make an informed choice that best suits your startup’s goals.
     · ─────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────┬────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
-    ·                                                                                                                                                          ╰── Dms tell: dms.qwen
+    ·                                                                                                                                                          ╰── Dms tell: dms.machine
     ╰────
 
 lvc.decision

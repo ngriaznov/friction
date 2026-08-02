@@ -3,11 +3,11 @@
 //! templates, metaphor-compound jargon, per-document word overuse), with
 //! no fixes applied.
 //!
-//! Prints a per-metric table (value, envelope band, in/out), a per-family
-//! DMS summary, and every detected span, in `--format text` (a plain
-//! table plus `miette` labeled-span diagnostics — see
-//! [`crate::diagnostics`]), `--format json` (stable `serde` structs), or
-//! `--format sarif` ([`crate::sarif`]).
+//! Prints a per-metric table (value, envelope band, in/out), the pooled
+//! DMS machine-vs-human summary, and every detected span, in
+//! `--format text` (a plain table plus `miette` labeled-span diagnostics
+//! — see [`crate::diagnostics`]), `--format json` (stable `serde`
+//! structs), or `--format sarif` ([`crate::sarif`]).
 //!
 //! Exit code: `0` if every banded metric sits inside its envelope and no
 //! span was detected; `1` if either is false; `2` on error (see
@@ -41,9 +41,11 @@ pub struct CheckArgs {
     #[arg(long, value_enum)]
     genre: Option<Genre>,
 
-    /// Which generator family the DMS channel compares this document
-    /// against. Required: DMS is generator-family-specific, and silently
-    /// picking one would misreport.
+    /// Which generator family to record on the report. Still required,
+    /// still parsed — but the DMS channel now scans one pooled
+    /// machine-vs-human automaton across every family (see
+    /// `friction_match::dms`'s own module docs), so this no longer
+    /// changes what gets flagged.
     #[arg(long, value_enum)]
     family: Family,
 
@@ -102,10 +104,10 @@ struct SpanRow {
     message: Option<String>,
 }
 
-/// One generator family's document-level DMS statistics.
+/// The pooled DMS machine-vs-human document-level statistics — no family
+/// breakdown (see `friction_match::dms`'s own module docs for why).
 #[derive(Debug, Serialize)]
-struct DmsFamilyRow {
-    family: &'static str,
+struct DmsMachineRow {
     mean_machine: f64,
     mean_human: f64,
     differential: f64,
@@ -120,7 +122,7 @@ struct CheckReport {
     metrics: Vec<MetricRow>,
     spans: Vec<SpanRow>,
     tell_counts: BTreeMap<String, usize>,
-    dms: Vec<DmsFamilyRow>,
+    dms: DmsMachineRow,
 }
 
 /// Runs `friction check`.
@@ -182,7 +184,7 @@ fn run_inner(args: &CheckArgs) -> Result<ExitCode, CliError> {
                 metrics: rows,
                 spans: span_rows(&source, &report.spans),
                 tell_counts: tell_counts(&report.spans),
-                dms: dms_rows(&report),
+                dms: dms_row(&report),
             };
             let json = serde_json::to_string_pretty(&check_report)
                 .expect("CheckReport serializes: every field is plain data");
@@ -275,9 +277,9 @@ fn span_rows(source: &str, spans: &[MatchSpan]) -> Vec<SpanRow> {
 
 /// This span's `frame_id`, up to (not including) its first `.` — the
 /// grouping key [`tell_counts`] and [`render_tell_counts`] use. Every
-/// channel's frame id is namespaced this way (`"dms.<family>"`,
+/// channel's frame id is namespaced this way (the constant `"dms.machine"`,
 /// `"lvc.<nominalization>"`, and the inventory pack's own dotted entry
-/// ids for `Literal`), so this collapses each span to the pack family/
+/// ids for `Literal`), so this collapses each span to the pack channel/
 /// entry-kind that produced it.
 fn frame_prefix(frame_id: &str) -> &str {
     frame_id.split('.').next().unwrap_or(frame_id)
@@ -293,36 +295,25 @@ fn tell_counts(spans: &[MatchSpan]) -> BTreeMap<String, usize> {
     counts
 }
 
-fn dms_rows(report: &DocumentReport) -> Vec<DmsFamilyRow> {
-    report
-        .dms
-        .families
-        .iter()
-        .map(|family| DmsFamilyRow {
-            family: family.family.as_str(),
-            mean_machine: family.mean_machine,
-            mean_human: family.mean_human,
-            differential: family.differential,
-            token_count: family.token_count,
-        })
-        .collect()
+const fn dms_row(report: &DocumentReport) -> DmsMachineRow {
+    let machine = &report.dms.machine;
+    DmsMachineRow {
+        mean_machine: machine.mean_machine,
+        mean_human: machine.mean_human,
+        differential: machine.differential,
+        token_count: machine.token_count,
+    }
 }
 
 fn render_dms_summary(report: &DocumentReport) -> String {
     use std::fmt::Write as _;
     let mut out = String::new();
-    let _ = writeln!(out, "dms (target family: {}):", report.dms.target_family);
-    for family in &report.dms.families {
-        let _ = writeln!(
-            out,
-            "  {:<8} mean_machine={:.4}  mean_human={:.4}  differential={:.4}  tokens={}",
-            family.family.as_str(),
-            family.mean_machine,
-            family.mean_human,
-            family.differential,
-            family.token_count,
-        );
-    }
+    let machine = &report.dms.machine;
+    let _ = writeln!(
+        out,
+        "dms: mean_machine={:.4}  mean_human={:.4}  differential={:.4}  tokens={}",
+        machine.mean_machine, machine.mean_human, machine.differential, machine.token_count,
+    );
     out
 }
 

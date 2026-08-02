@@ -346,20 +346,35 @@ struct RawPack {
     streams: RawStreams,
 }
 
-/// A parsed DMS index pack: the shared vocabulary plus one suffix
-/// automaton per stream (`human`, and whichever of the five
-/// [`ModelFamily`] streams the pack defines).
+/// The reserved document-boundary token every stream's ids carry after
+/// each source document — the same token `corpus-tool index` interns as
+/// vocab id `1` (see that command's own doc comment). Looked up by text
+/// through [`Vocab::id_of`], never assumed to be any particular id, so a
+/// pack that happens not to define it (a hand-written test fixture, say)
+/// degrades [`DmsIndex::build_pooled_machine`] to a plain concatenation
+/// rather than panicking.
+const SEPARATOR_TOKEN: &str = "\u{0}";
+
+/// A parsed DMS index pack.
+///
+/// The shared vocabulary, one suffix automaton per stream (`human`, and
+/// whichever of the five [`ModelFamily`] streams the pack defines), plus
+/// the pooled machine-side automaton every present family stream's ids
+/// are concatenated into (see [`DmsIndex::pooled_machine_sam`]).
 #[derive(Debug, Clone)]
 pub struct DmsIndex {
     vocab: Vocab,
     human: Sam,
     families: BTreeMap<ModelFamily, Sam>,
+    pooled_machine: Sam,
 }
 
 impl DmsIndex {
     /// Parses a `dms-index-v1`-shaped pack: a `[vocab]` table plus a
     /// `[streams.human]` table and any of the five `[streams.<family>]`
-    /// tables, building a [`Vocab`] and one [`Sam`] per stream present.
+    /// tables, building a [`Vocab`] and one [`Sam`] per stream present,
+    /// plus the pooled machine-side automaton (see
+    /// [`Self::pooled_machine_sam`]).
     ///
     /// # Errors
     /// Returns [`PackError::Toml`] if `toml` is not valid TOML in the
@@ -373,9 +388,11 @@ impl DmsIndex {
         let raw: RawPack = toml::from_str(toml).map_err(PackError::from)?;
         let vocab = Vocab::from_tokens(raw.vocab.tokens);
 
-        let human = Self::build_stream_sam(&vocab, "human", &raw.streams.human.ids)?;
+        let human_ids = Self::parse_stream_ids(&vocab, "human", &raw.streams.human.ids)?;
+        let human = Sam::build(&human_ids);
 
         let mut families: BTreeMap<ModelFamily, Sam> = BTreeMap::new();
+        let mut family_ids: BTreeMap<ModelFamily, Vec<u32>> = BTreeMap::new();
         let raw_family_streams = [
             (ModelFamily::Qwen, &raw.streams.qwen),
             (ModelFamily::Gemma, &raw.streams.gemma),
@@ -385,21 +402,30 @@ impl DmsIndex {
         ];
         for (family, raw_stream) in raw_family_streams {
             if let Some(stream) = raw_stream {
-                let sam = Self::build_stream_sam(&vocab, family.as_str(), &stream.ids)?;
-                families.insert(family, sam);
+                let ids = Self::parse_stream_ids(&vocab, family.as_str(), &stream.ids)?;
+                families.insert(family, Sam::build(&ids));
+                family_ids.insert(family, ids);
             }
         }
+
+        let pooled_machine = Self::build_pooled_machine(&vocab, &family_ids);
 
         Ok(Self {
             vocab,
             human,
             families,
+            pooled_machine,
         })
     }
 
-    /// Parses one stream's `ids` field and builds its [`Sam`], validating
-    /// every id against `vocab` first.
-    fn build_stream_sam(vocab: &Vocab, stream_name: &str, ids_csv: &str) -> Result<Sam, PackError> {
+    /// Parses one stream's `ids` field, validating every id against
+    /// `vocab` first — the shared prep step both a per-family [`Sam`] and
+    /// [`Self::build_pooled_machine`] build from.
+    fn parse_stream_ids(
+        vocab: &Vocab,
+        stream_name: &str,
+        ids_csv: &str,
+    ) -> Result<Vec<u32>, PackError> {
         let ids = parse_ids_csv(stream_name, ids_csv)?;
         for &id in &ids {
             if id as usize >= vocab.len() {
@@ -410,7 +436,36 @@ impl DmsIndex {
                 });
             }
         }
-        Ok(Sam::build(&ids))
+        Ok(ids)
+    }
+
+    /// Builds the pooled machine-side automaton: every present family
+    /// stream's token ids, concatenated in a FIXED order — alphabetical by
+    /// [`ModelFamily::as_str`], not [`ModelFamily::ALL`]'s declaration
+    /// order — with [`SEPARATOR_TOKEN`]'s id (when `vocab` defines one)
+    /// inserted between consecutive streams. That separator is what keeps
+    /// a matching-statistics walk from ever bridging the boundary between
+    /// two different families into a phantom cross-family factor — the
+    /// same job it already does between documents within one family's own
+    /// stream (`corpus-tool index` appends it after every document).
+    fn build_pooled_machine(vocab: &Vocab, family_ids: &BTreeMap<ModelFamily, Vec<u32>>) -> Sam {
+        let separator = vocab.id_of(SEPARATOR_TOKEN);
+        let mut order = ModelFamily::ALL;
+        order.sort_by_key(|&family| family.as_str());
+
+        let mut pooled: Vec<u32> = Vec::new();
+        let mut first = true;
+        for family in order {
+            let Some(ids) = family_ids.get(&family) else {
+                continue;
+            };
+            if !first && let Some(sep) = separator {
+                pooled.push(sep);
+            }
+            pooled.extend_from_slice(ids);
+            first = false;
+        }
+        Sam::build(&pooled)
     }
 
     /// This pack's shared token vocabulary.
@@ -426,7 +481,11 @@ impl DmsIndex {
     }
 
     /// The suffix automaton for `family`, or `None` if this pack defines
-    /// no stream for that family.
+    /// no stream for that family. Kept for compatibility (`corpus-tool
+    /// dms-pack` still serializes every per-family section, and
+    /// `friction check --family` still parses its flag) — the runtime
+    /// detection pass reads [`Self::pooled_machine_sam`] instead; see that
+    /// method's own docs.
     #[must_use]
     pub fn family_sam(&self, family: ModelFamily) -> Option<&Sam> {
         self.families.get(&family)
@@ -436,6 +495,21 @@ impl DmsIndex {
     /// the iteration `crate::dms_bin`'s packer serializes streams in.
     pub(crate) fn family_sams(&self) -> impl Iterator<Item = (ModelFamily, &Sam)> {
         self.families.iter().map(|(&family, sam)| (family, sam))
+    }
+
+    /// The pooled machine-side automaton: every family stream this pack
+    /// defines, concatenated in fixed alphabetical order with the
+    /// document separator between streams (see
+    /// [`Self::build_pooled_machine`]) — the single "does this read
+    /// machine-generated" automaton the runtime detection pass scans
+    /// against. Family attribution is a retired concept for the fix-time
+    /// product surface: an unchanged threshold applied to a pooled
+    /// max-over-families walk can only flag a superset of what any single
+    /// family's walk flagged, which is the intended semantics (see
+    /// `friction_match::dms`'s own module docs).
+    #[must_use]
+    pub const fn pooled_machine_sam(&self) -> &Sam {
+        &self.pooled_machine
     }
 }
 
@@ -649,5 +723,106 @@ mod tests {
         "#;
         let index = DmsIndex::parse(pack).expect("empty ids stream parses");
         assert_eq!(index.human_sam().matching_stats(&[]), Vec::<u32>::new());
+    }
+
+    // --- DmsIndex::pooled_machine_sam ---
+
+    /// `claude` ids `[3,4]` ("b c") and `qwen` ids `[5,3]` ("d b"), with
+    /// vocab id `1` the real reserved document-separator character (a NUL,
+    /// present at vocab index 1 — the exact position `corpus-tool index`
+    /// always puts it at, and the exact text `SEPARATOR_TOKEN` looks up).
+    /// `claude` sorts before `qwen` alphabetically, so the pooled stream is
+    /// `[3, 4, 1, 5, 3]` — NOT the naive concatenation `[3, 4, 5, 3]` a
+    /// family-order-only pooling would produce.
+    const POOLED_SAMPLE_PACK: &str = r#"
+        [vocab]
+        tokens = ["<unused-0>", "\u0000", "a", "b", "c", "d"]
+
+        [streams.human]
+        ids = "2"
+
+        [streams.claude]
+        ids = "3,4"
+
+        [streams.qwen]
+        ids = "5,3"
+    "#;
+
+    #[test]
+    fn pooled_machine_sam_concatenates_present_families_in_alphabetical_order_with_a_separator() {
+        let index = DmsIndex::parse(POOLED_SAMPLE_PACK).expect("sample pack parses");
+        let pooled = index.pooled_machine_sam();
+
+        // The whole pooled stream, queried against itself, grows to full
+        // length at every position — the literal `[3,4,1,5,3]` order
+        // (claude, separator, qwen) is a substring of itself. Pins the
+        // concatenation order: the reverse order (`qwen` before `claude`)
+        // would not self-match this way.
+        let whole: Vec<Option<u32>> = vec![Some(3), Some(4), Some(1), Some(5), Some(3)];
+        assert_eq!(pooled.matching_stats(&whole), vec![1, 2, 3, 4, 5]);
+
+        // Each family's own bigram, queried alone, matches to length 2 —
+        // both `claude`'s "b c" and `qwen`'s "d b" are intact substrings.
+        assert_eq!(
+            pooled.matching_stats(&[Some(3), Some(4)]),
+            vec![1, 2],
+            "claude's own bigram must match in full"
+        );
+        assert_eq!(
+            pooled.matching_stats(&[Some(5), Some(3)]),
+            vec![1, 2],
+            "qwen's own bigram must match in full"
+        );
+    }
+
+    /// Without the inserted separator, `claude`'s trailing `"c"` (id `4`)
+    /// followed by `qwen`'s leading `"d"` (id `5`) would look like one
+    /// more bigram of the naive concatenation `[3,4,5,3]`. The separator
+    /// between streams breaks exactly that phantom cross-family factor:
+    /// querying `"c d"` must NOT match as a 2-token run.
+    #[test]
+    fn pooled_machine_sam_separator_prevents_a_cross_family_phantom_factor() {
+        let index = DmsIndex::parse(POOLED_SAMPLE_PACK).expect("sample pack parses");
+        let pooled = index.pooled_machine_sam();
+
+        let query: Vec<Option<u32>> = vec![Some(4), Some(5)]; // "c d"
+        assert_eq!(
+            pooled.matching_stats(&query),
+            vec![1, 1],
+            "\"c\" matches alone (len 1) but \"c d\" must reset, not grow to len 2, \
+             since the two families' streams are separated"
+        );
+    }
+
+    /// A pack with no family streams at all pools to an empty automaton
+    /// (just the root state) rather than panicking or erroring.
+    #[test]
+    fn pooled_machine_sam_is_empty_when_no_family_stream_is_present() {
+        let pack = r#"
+            [vocab]
+            tokens = ["<unused-0>", "\u0000", "a"]
+
+            [streams.human]
+            ids = "2"
+        "#;
+        let index = DmsIndex::parse(pack).expect("pack with only a human stream parses");
+        assert_eq!(
+            index.pooled_machine_sam().matching_stats(&[]),
+            Vec::<u32>::new()
+        );
+    }
+
+    /// Packing the same pack twice produces automata that agree on every
+    /// query — the same determinism pin every other [`Sam`] build in this
+    /// module carries.
+    #[test]
+    fn pooled_machine_sam_is_deterministic() {
+        let a = DmsIndex::parse(POOLED_SAMPLE_PACK).expect("sample pack parses");
+        let b = DmsIndex::parse(POOLED_SAMPLE_PACK).expect("sample pack parses");
+        let query: Vec<Option<u32>> = vec![Some(3), Some(4), Some(1), Some(5), Some(3)];
+        assert_eq!(
+            a.pooled_machine_sam().matching_stats(&query),
+            b.pooled_machine_sam().matching_stats(&query)
+        );
     }
 }

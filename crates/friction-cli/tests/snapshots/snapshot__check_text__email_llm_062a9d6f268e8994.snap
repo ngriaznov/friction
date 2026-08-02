@@ -25,230 +25,225 @@ bold_span_density            12.2511  [0.0000, 6.4516]    OUT
 sentence_opener_repeat_rate   0.0000  [0.0038, 0.0448]    OUT   
 top_opener_concentration      0.0870  [0.0485, 0.1739]    in    
 
-dms (target family: qwen):
-  qwen     mean_machine=28.9517  mean_human=1.4800  differential=27.4717  tokens=725
-  gemma    mean_machine=1.4331  mean_human=1.4800  differential=-0.0469  tokens=725
-  llama    mean_machine=1.3159  mean_human=1.4800  differential=-0.1641  tokens=725
-  granite  mean_machine=1.0262  mean_human=1.4800  differential=-0.4538  tokens=725
-  claude   mean_machine=1.2041  mean_human=1.4800  differential=-0.2759  tokens=725
+dms: mean_machine=28.9517  mean_human=1.4800  differential=27.4717  tokens=725
 
 tell counts (20 span(s) total):
   dms: 20
-dms.qwen
+dms.machine
 
-  ⚠ Dms tell: dms.qwen
+  ⚠ Dms tell: dms.machine
    ╭─[corpus/llm/email/062a9d6f268e8994.md:1:1]
  1 │ Subject: Monthly Skywatcher’s Newsletter - Stars and Celestial Events Awaits
    · ──────────────────────────────────────┬─────────────────────────────────────
-   ·                                       ╰── Dms tell: dms.qwen
+   ·                                       ╰── Dms tell: dms.machine
  2 │ 
    ╰────
 
-dms.qwen
+dms.machine
 
-  ⚠ Dms tell: dms.qwen
+  ⚠ Dms tell: dms.machine
    ╭─[corpus/llm/email/062a9d6f268e8994.md:5:1]
  4 │ 
  5 │ Welcome to another issue of our monthly newsletter where we share updates from the night sky to the latest happenings at our local astronomy club! As we look back on a fantastic month, let's dive into what transpired during our last star party, explore the beauty captured by one of our members, and get excited about upcoming events. This newsletter is filled with celestial delights that await us all.
    · ─────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────┬─────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
-   ·                                                                                                                                                                                                          ╰── Dms tell: dms.qwen
+   ·                                                                                                                                                                                                          ╰── Dms tell: dms.machine
  6 │ 
    ╰────
 
-dms.qwen
+dms.machine
 
-  ⚠ Dms tell: dms.qwen
+  ⚠ Dms tell: dms.machine
     ╭─[corpus/llm/email/062a9d6f268e8994.md:9:1]
   8 │ 
   9 │ Our February star party was an absolute success! Over 40 eager astronomers gathered at our observatory site to observe the night sky through various telescopes, learn from experienced guides, and share their passion for astronomy. The clear weather provided excellent visibility of the Milky Way, as well as several bright planets including Jupiter and Mars.
     · ───────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────┬──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
-    ·                                                                                                                                                                                    ╰── Dms tell: dms.qwen
+    ·                                                                                                                                                                                    ╰── Dms tell: dms.machine
  10 │ 
     ╰────
 
-dms.qwen
+dms.machine
 
-  ⚠ Dms tell: dms.qwen
+  ⚠ Dms tell: dms.machine
     ╭─[corpus/llm/email/062a9d6f268e8994.md:11:1]
  10 │ 
  11 │ We had a special guest, Dr. Emily Starbright (pseudonym), who shared her expertise in deep-sky imaging. She guided us through the night sky using state-of-the-art equipment, making our star party even more engaging than ever before. The highlight of the evening was undoubtedly the view of Saturn and its rings, illuminated by a full moon. Participants were impressed not only with what they saw but also with how to capture such celestial beauty.
     · ───────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────┬───────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
-    ·                                                                                                                                                                                                                                ╰── Dms tell: dms.qwen
+    ·                                                                                                                                                                                                                                ╰── Dms tell: dms.machine
  12 │ 
     ╰────
 
-dms.qwen
+dms.machine
 
-  ⚠ Dms tell: dms.qwen
+  ⚠ Dms tell: dms.machine
     ╭─[corpus/llm/email/062a9d6f268e8994.md:13:3]
  12 │ 
  13 │ **Member's Report on Orion Nebula**
     ·   ───────────────┬───────────────
-    ·                  ╰── Dms tell: dms.qwen
+    ·                  ╰── Dms tell: dms.machine
  14 │ 
     ╰────
 
-dms.qwen
+dms.machine
 
-  ⚠ Dms tell: dms.qwen
+  ⚠ Dms tell: dms.machine
     ╭─[corpus/llm/email/062a9d6f268e8994.md:15:1]
  14 │ 
  15 │ One of our most enthusiastic members, Jane Doe (pseudonym), has captured stunning images of the Orion Nebula using her new CMOS camera. Jane took the time to document her journey from setting up her equipment in the backyard to refining her skills in astrophotography over several nights. Her report includes detailed explanations about the techniques used and the challenges faced, making it an invaluable resource for both amateur and experienced photographers alike.
     · ──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────┬──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
-    ·                                                                                                                                                                                                                                           ╰── Dms tell: dms.qwen
+    ·                                                                                                                                                                                                                                           ╰── Dms tell: dms.machine
  16 │ 
     ╰────
 
-dms.qwen
+dms.machine
 
-  ⚠ Dms tell: dms.qwen
+  ⚠ Dms tell: dms.machine
     ╭─[corpus/llm/email/062a9d6f268e8994.md:17:1]
  16 │ 
  17 │ Jane's images showcase a vibrant pinkish region of gas clouds and stars within the Orion Nebula, illuminated by the intense radiation from massive young stars. She shared her process with us, including tips on adjusting exposure times to capture fine details while balancing noise reduction techniques. The result is nothing short of breathtaking—a testament to Jane’s dedication and skill.
     · ───────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────┬──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
-    ·                                                                                                                                                                                                    ╰── Dms tell: dms.qwen
+    ·                                                                                                                                                                                                    ╰── Dms tell: dms.machine
  18 │ 
     ╰────
 
-dms.qwen
+dms.machine
 
-  ⚠ Dms tell: dms.qwen
+  ⚠ Dms tell: dms.machine
     ╭─[corpus/llm/email/062a9d6f268e8994.md:19:3]
  18 │ 
  19 │ **Announcement: Guest Lecture on Exoplanet Detection**
     ·   ─────────────────────────┬────────────────────────
-    ·                            ╰── Dms tell: dms.qwen
+    ·                            ╰── Dms tell: dms.machine
  20 │ 
     ╰────
 
-dms.qwen
+dms.machine
 
-  ⚠ Dms tell: dms.qwen
+  ⚠ Dms tell: dms.machine
     ╭─[corpus/llm/email/062a9d6f268e8994.md:21:1]
  20 │ 
  21 │ On March 15th, we are thrilled to welcome Dr. John Smith (pseudonym), an expert in exoplanetary science from the University of Astrology (hypothetical institution). Dr. Smith will present a lecture titled "The Search for Other Worlds" at our club hall starting at 7:00 PM. The event is free and open to all members, their families, and interested guests.
     · ─────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────┬────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
-    ·                                                                                                                                                                                  ╰── Dms tell: dms.qwen
+    ·                                                                                                                                                                                  ╰── Dms tell: dms.machine
  22 │ 
     ╰────
 
-dms.qwen
+dms.machine
 
-  ⚠ Dms tell: dms.qwen
+  ⚠ Dms tell: dms.machine
     ╭─[corpus/llm/email/062a9d6f268e8994.md:23:1]
  22 │ 
  23 │ Dr. Smith’s research focuses on advanced methods used in the detection of exoplanets, including direct imaging techniques and transit photometry. His lecture will cover recent discoveries and future prospects for finding life beyond our solar system. We encourage everyone to attend this enlightening event, which promises to deepen our understanding of what lies outside our own cosmic neighborhood.
     · ────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────┬───────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
-    ·                                                                                                                                                                                                         ╰── Dms tell: dms.qwen
+    ·                                                                                                                                                                                                         ╰── Dms tell: dms.machine
  24 │ 
     ╰────
 
-dms.qwen
+dms.machine
 
-  ⚠ Dms tell: dms.qwen
+  ⚠ Dms tell: dms.machine
     ╭─[corpus/llm/email/062a9d6f268e8994.md:25:3]
  24 │ 
  25 │ **Upcoming Viewing Nights Schedule**
     ·   ────────────────┬───────────────
-    ·                   ╰── Dms tell: dms.qwen
+    ·                   ╰── Dms tell: dms.machine
  26 │ 
     ╰────
 
-dms.qwen
+dms.machine
 
-  ⚠ Dms tell: dms.qwen
+  ⚠ Dms tell: dms.machine
     ╭─[corpus/llm/email/062a9d6f268e8994.md:27:1]
  26 │ 
  27 │ Here’s a sneak peek at the viewing nights we have planned for March:
     · ──────────────────────────────────┬─────────────────────────────────
-    ·                                   ╰── Dms tell: dms.qwen
+    ·                                   ╰── Dms tell: dms.machine
  28 │ 
     ╰────
 
-dms.qwen
+dms.machine
 
-  ⚠ Dms tell: dms.qwen
+  ⚠ Dms tell: dms.machine
     ╭─[corpus/llm/email/062a9d6f268e8994.md:30:3]
  29 │ - **March 10th - Night Sky Observations**
  30 │   Join us as we explore the constellations visible in early spring. Our guide will point out interesting stars, planets, and galaxies.
     ·   ──────────────────────────────────────────────────────────────────┬─────────────────────────────────────────────────────────────────
-    ·                                                                     ╰── Dms tell: dms.qwen
+    ·                                                                     ╰── Dms tell: dms.machine
  31 │   
     ╰────
 
-dms.qwen
+dms.machine
 
-  ⚠ Dms tell: dms.qwen
+  ⚠ Dms tell: dms.machine
     ╭─[corpus/llm/email/062a9d6f268e8994.md:32:5]
  31 │   
  32 │ - **March 24th - Solar System Showcase**
     ·     ─────────────────┬────────────────
-    ·                      ╰── Dms tell: dms.qwen
+    ·                      ╰── Dms tell: dms.machine
  33 │   We’ll focus on observing the inner planets – Mercury, Venus, Mars, and Saturn. Bring your binoculars or telescopes if you have any!
     ╰────
 
-dms.qwen
+dms.machine
 
-  ⚠ Dms tell: dms.qwen
+  ⚠ Dms tell: dms.machine
     ╭─[corpus/llm/email/062a9d6f268e8994.md:33:3]
  32 │ - **March 24th - Solar System Showcase**
  33 │   We’ll focus on observing the inner planets – Mercury, Venus, Mars, and Saturn. Bring your binoculars or telescopes if you have any!
     ·   ─────────────────────────────────────────────────────────────────┬─────────────────────────────────────────────────────────────────
-    ·                                                                    ╰── Dms tell: dms.qwen
+    ·                                                                    ╰── Dms tell: dms.machine
  34 │ 
     ╰────
 
-dms.qwen
+dms.machine
 
-  ⚠ Dms tell: dms.qwen
+  ⚠ Dms tell: dms.machine
     ╭─[corpus/llm/email/062a9d6f268e8994.md:35:5]
  34 │ 
  35 │ - **March 31st - Comet Hunters Night**
     ·     ────────────────┬───────────────
-    ·                     ╰── Dms tell: dms.qwen
+    ·                     ╰── Dms tell: dms.machine
  36 │   In anticipation of a bright comet passing through our skies, we will set up portable telescopes to spot this celestial visitor. Stay tuned for more details.
     ╰────
 
-dms.qwen
+dms.machine
 
-  ⚠ Dms tell: dms.qwen
+  ⚠ Dms tell: dms.machine
     ╭─[corpus/llm/email/062a9d6f268e8994.md:36:3]
  35 │ - **March 31st - Comet Hunters Night**
  36 │   In anticipation of a bright comet passing through our skies, we will set up portable telescopes to spot this celestial visitor. Stay tuned for more details.
     ·   ──────────────────────────────────────────────────────────────────────────────┬─────────────────────────────────────────────────────────────────────────────
-    ·                                                                                 ╰── Dms tell: dms.qwen
+    ·                                                                                 ╰── Dms tell: dms.machine
  37 │ 
     ╰────
 
-dms.qwen
+dms.machine
 
-  ⚠ Dms tell: dms.qwen
+  ⚠ Dms tell: dms.machine
     ╭─[corpus/llm/email/062a9d6f268e8994.md:38:1]
  37 │ 
  38 │ Each night offers unique opportunities to observe different parts of the universe. Whether you’re an experienced astronomer or just starting out, there’s something exciting in store!
     · ───────────────────────────────────────────────────────────────────────────────────────────┬──────────────────────────────────────────────────────────────────────────────────────────
-    ·                                                                                            ╰── Dms tell: dms.qwen
+    ·                                                                                            ╰── Dms tell: dms.machine
  39 │ 
     ╰────
 
-dms.qwen
+dms.machine
 
-  ⚠ Dms tell: dms.qwen
+  ⚠ Dms tell: dms.machine
     ╭─[corpus/llm/email/062a9d6f268e8994.md:42:1]
  41 │ 
  42 │ As always, your feedback and suggestions are highly valued. Please feel free to reach out with any comments or ideas for future newsletters. We hope these updates inspire you to keep looking up at the stars and joining us on our cosmic adventures.
     · ───────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────┬───────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
-    ·                                                                                                                            ╰── Dms tell: dms.qwen
+    ·                                                                                                                            ╰── Dms tell: dms.machine
  43 │ 
     ╰────
 
-dms.qwen
+dms.machine
 
-  ⚠ Dms tell: dms.qwen
+  ⚠ Dms tell: dms.machine
     ╭─[corpus/llm/email/062a9d6f268e8994.md:46:2]
  45 │     
  46 │ ╭─▶ [Your Name]
  47 │ │   Community Manager
  48 │ ├─▶ Local Astronomy Club
-    · ╰──── Dms tell: dms.qwen
+    · ╰──── Dms tell: dms.machine
     ╰────

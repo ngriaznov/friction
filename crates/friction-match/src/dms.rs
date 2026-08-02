@@ -12,12 +12,45 @@
 //! [`ScopedUnit`] — a span's left-extension or continuation run can never
 //! bridge across a heading/table gap into a byte range that slices
 //! through excluded content.
+//!
+//! # One pooled machine automaton, not five per-family ones
+//!
+//! Family attribution is retired: the product question this channel
+//! answers is only "does this read machine-generated", never "which
+//! generator wrote it". Both [`scan_units`] and [`document_report`] walk
+//! [`friction_packs::DmsIndexView::pooled_machine_sam`] — every family
+//! stream `corpus-tool dms-pack` defines, concatenated in a fixed
+//! alphabetical order with the document separator between streams (see
+//! that method's own docs) — instead of fanning out over
+//! [`ModelFamily::ALL`] and reporting the best/every family's walk
+//! separately. The threshold/score logic in [`spans_from_curve`] is
+//! unchanged; only the automaton it is applied to changed. Because a
+//! pooled walk's matching-statistics curve at any position is the max
+//! over what any single family's walk would have produced there (the
+//! pooled automaton recognizes every substring any single family's
+//! automaton does, plus none that crosses a separator), an unchanged
+//! threshold applied to the pooled curve can only flag a superset of
+//! what scanning every family separately and unioning the results would
+//! have flagged — the intended semantics this round; recalibrating the
+//! thresholds for the pooled distribution is explicitly out of scope.
+//! [`ModelFamily`]/`family_sam`/`--family` are kept for compatibility
+//! (`corpus-tool dms-pack` still serializes every per-family section),
+//! but no longer change what a scan reports.
 
 use friction_packs::{DmsIndexView, ModelFamily, SamView, VocabView};
 use rayon::prelude::*;
 
-use crate::span::{Channel, DmsFamilyReport, DmsReport, MatchScore, MatchSpan};
+use crate::span::{Channel, DmsMachineReport, DmsReport, MatchScore, MatchSpan};
 use crate::token::ScopedUnit;
+
+/// The constant frame id every [`Channel::Dms`] span carries. Family
+/// attribution is retired — the product question is only "does this read
+/// machine-generated", scanned against the one pooled machine-side
+/// automaton [`friction_packs::DmsIndex::pooled_machine_sam`] builds (see
+/// that method's own docs for why an unchanged threshold applied to a
+/// pooled max-over-families walk can only flag a superset of what any
+/// single family's walk flagged — the intended semantics this round).
+const MACHINE_FRAME_ID: &str = "dms.machine";
 
 /// The validated thresholds: a span starts where
 /// `d[i] >= 3`, continues while `d[j] >= 2`, and requires length `>= 2`
@@ -106,25 +139,27 @@ fn query_ids(unit: &ScopedUnit<'_>, vocab: VocabView<'_>) -> Vec<Option<u32>> {
 }
 
 /// Runs [`spans_from_curve`] (thresholds 3/2/2, per the validated run)
-/// independently over each in-scope unit against `target`'s automaton vs.
-/// `human`, translates unit-local token indices to absolute byte ranges
-/// via `unit.tokens`, and tags every span `frame_id = "dms.<family>"`.
+/// independently over each in-scope unit against `machine`'s pooled
+/// automaton vs. `human`, translates unit-local token indices to absolute
+/// byte ranges via `unit.tokens`, and tags every span
+/// `frame_id = "dms.machine"` — the same constant for every span
+/// regardless of which family's evidence a run's tokens actually came
+/// from (see [`MACHINE_FRAME_ID`]'s own docs).
 pub fn scan_units(
     units: &[ScopedUnit<'_>],
-    target: SamView<'_>,
-    target_family: ModelFamily,
+    machine: SamView<'_>,
     human: SamView<'_>,
     vocab: VocabView<'_>,
 ) -> Vec<MatchSpan> {
     let mut spans = Vec::new();
-    let frame_id: Box<str> = format!("dms.{target_family}").into_boxed_str();
+    let frame_id: Box<str> = MACHINE_FRAME_ID.into();
 
     for unit in units {
         if unit.tokens.is_empty() {
             continue;
         }
         let query = query_ids(unit, vocab);
-        let mm = target.matching_stats(&query);
+        let mm = machine.matching_stats(&query);
         let mh = human.matching_stats(&query);
 
         for run in spans_from_curve(&mm, &mh, START_THRESH, CONT_THRESH, MIN_LEN) {
@@ -142,99 +177,60 @@ pub fn scan_units(
     spans
 }
 
-/// One unit's data every family's walk in [`document_report`] shares:
-/// the vocab-mapped query and the human automaton's matching-stats curve
-/// against it. Neither depends on which machine family is being scored,
-/// so [`document_report`] computes both exactly once per unit, before
-/// fanning out over families, instead of every family's walk redoing an
-/// identical query/human-curve computation on its own.
-struct UnitContext {
-    query: Vec<Option<u32>>,
-    human_stats: Vec<u32>,
-}
-
-/// Document-level report: for every family `index` defines, flattens
-/// every in-scope unit's independently-walked matching-statistics arrays
-/// and reports `mean(mM) - mean(mH)`.
+/// Document-level report: flattens every in-scope unit's
+/// independently-walked pooled-machine-vs-human matching-statistics
+/// arrays and reports `mean(mM) - mean(mH)`.
 ///
-/// Every unit's query and human-automaton curve is independent of every
-/// other unit's and of every family, so [`UnitContext`] is built with a
-/// rayon `par_iter` too, collected into an index-ordered `Vec` the same
-/// way the family fan-out below is.
-///
-/// Every family's walk reads only its own automaton (plus the shared,
-/// read-only per-unit contexts) and writes nothing any other family's
-/// walk reads, so this runs [`ModelFamily::ALL`] as a rayon `par_iter`.
-/// `filter_map` over that indexed, fixed-size array, collected straight
-/// into `families`, keeps the result in [`ModelFamily::ALL`] order
-/// regardless of which family's walk finishes first or how many threads
-/// ran — the `DmsReport::families` field's own documented ordering
-/// contract.
+/// Every unit's query, pooled-machine curve, and human curve are
+/// independent of every other unit's, so this runs as one rayon
+/// `par_iter` over `units`, reducing straight to the three running sums —
+/// no per-family fan-out (see [`crate::span::DmsReport`]'s own docs for
+/// why: the pooled scan reports one machine-vs-human statistic, not one
+/// per family).
 pub fn document_report(
     units: &[ScopedUnit<'_>],
     index: &DmsIndexView<'_>,
     target_family: ModelFamily,
     vocab: VocabView<'_>,
 ) -> DmsReport {
-    let contexts: Vec<UnitContext> = units
+    let machine_sam = index.pooled_machine_sam();
+    let human_sam = index.human_sam();
+
+    let (machine_total, human_total, token_count) = units
         .par_iter()
         .filter(|unit| !unit.tokens.is_empty())
         .map(|unit| {
             let query = query_ids(unit, vocab);
-            let human_stats = index.human_sam().matching_stats(&query);
-            UnitContext { query, human_stats }
+            let mm = machine_sam.matching_stats(&query);
+            let mh = human_sam.matching_stats(&query);
+            let machine: u64 = mm.iter().map(|&v| u64::from(v)).sum();
+            let human: u64 = mh.iter().map(|&v| u64::from(v)).sum();
+            (machine, human, query.len())
         })
-        .collect();
-
-    let families = ModelFamily::ALL
-        .par_iter()
-        .filter_map(|&family| family_report(&contexts, index, family))
-        .collect();
-
-    DmsReport {
-        target_family,
-        families,
-    }
-}
-
-/// One family's [`DmsFamilyReport`], `None` if `index` has no stream for
-/// `family` — the per-family unit of work [`document_report`]'s
-/// `par_iter` runs.
-fn family_report(
-    contexts: &[UnitContext],
-    index: &DmsIndexView<'_>,
-    family: ModelFamily,
-) -> Option<DmsFamilyReport> {
-    let sam = index.family_sam(family)?;
-
-    let mut machine_sum: u64 = 0;
-    let mut human_sum: u64 = 0;
-    let mut token_count: usize = 0;
-
-    for ctx in contexts {
-        let mm = sam.matching_stats(&ctx.query);
-        machine_sum += mm.iter().map(|&v| u64::from(v)).sum::<u64>();
-        human_sum += ctx.human_stats.iter().map(|&v| u64::from(v)).sum::<u64>();
-        token_count += ctx.query.len();
-    }
+        .reduce(
+            || (0u64, 0u64, 0usize),
+            |a, b| (a.0 + b.0, a.1 + b.1, a.2 + b.2),
+        );
 
     #[allow(clippy::cast_precision_loss)]
     let (mean_machine, mean_human) = if token_count == 0 {
         (0.0, 0.0)
     } else {
         (
-            machine_sum as f64 / token_count as f64,
-            human_sum as f64 / token_count as f64,
+            machine_total as f64 / token_count as f64,
+            human_total as f64 / token_count as f64,
         )
     };
 
-    Some(DmsFamilyReport {
-        family,
-        mean_machine,
-        mean_human,
-        differential: mean_machine - mean_human,
-        token_count,
-    })
+    DmsReport {
+        target_family,
+        machine: DmsMachineReport {
+            mean_machine,
+            mean_human,
+            differential: mean_machine - mean_human,
+            token_count,
+        },
+    }
 }
 
 #[cfg(test)]

@@ -28,8 +28,8 @@ const fn channel_description(channel: Channel) -> &'static str {
     match channel {
         Channel::Dms => {
             "Differential matching statistics: a span whose local token \
-             continuations are attested far more often in this generator \
-             family's corpus than in the human baseline."
+             continuations are attested far more often in the pooled \
+             machine corpus than in the human baseline."
         }
         Channel::Literal => {
             "A curated literal tell: a fixed filler phrase, ritual opening/\

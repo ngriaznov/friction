@@ -157,21 +157,21 @@ expression: stdout
   "spans": [
     {
       "channel": "dms",
-      "frame_id": "dms.qwen",
-      "start": 13,
+      "frame_id": "dms.machine",
+      "start": 2,
       "end": 56,
       "line": 1,
-      "column": 14,
-      "score": 13
+      "column": 3,
+      "score": 31
     },
     {
       "channel": "dms",
-      "frame_id": "dms.qwen",
-      "start": 221,
-      "end": 332,
+      "frame_id": "dms.machine",
+      "start": 60,
+      "end": 487,
       "line": 3,
-      "column": 162,
-      "score": 148
+      "column": 1,
+      "score": 2787
     },
     {
       "channel": "literal",
@@ -193,34 +193,133 @@ expression: stdout
     },
     {
       "channel": "dms",
-      "frame_id": "dms.qwen",
+      "frame_id": "dms.machine",
       "start": 508,
-      "end": 540,
+      "end": 541,
       "line": 7,
       "column": 1,
-      "score": 13
+      "score": 19
     },
     {
       "channel": "dms",
-      "frame_id": "dms.qwen",
-      "start": 1407,
-      "end": 1439,
-      "line": 30,
-      "column": 44,
-      "score": 8
+      "frame_id": "dms.machine",
+      "start": 548,
+      "end": 585,
+      "line": 9,
+      "column": 6,
+      "score": 7
     },
     {
       "channel": "dms",
-      "frame_id": "dms.qwen",
-      "start": 2309,
-      "end": 2342,
-      "line": 58,
+      "frame_id": "dms.machine",
+      "start": 591,
+      "end": 688,
+      "line": 10,
+      "column": 6,
+      "score": 100
+    },
+    {
+      "channel": "dms",
+      "frame_id": "dms.machine",
+      "start": 694,
+      "end": 741,
+      "line": 11,
+      "column": 6,
+      "score": 28
+    },
+    {
+      "channel": "dms",
+      "frame_id": "dms.machine",
+      "start": 745,
+      "end": 804,
+      "line": 12,
       "column": 4,
+      "score": 31
+    },
+    {
+      "channel": "dms",
+      "frame_id": "dms.machine",
+      "start": 843,
+      "end": 999,
+      "line": 16,
+      "column": 1,
+      "score": 398
+    },
+    {
+      "channel": "dms",
+      "frame_id": "dms.machine",
+      "start": 1027,
+      "end": 1079,
+      "line": 19,
+      "column": 4,
+      "score": 34
+    },
+    {
+      "channel": "dms",
+      "frame_id": "dms.machine",
+      "start": 1110,
+      "end": 1165,
+      "line": 20,
+      "column": 4,
+      "score": 22
+    },
+    {
+      "channel": "dms",
+      "frame_id": "dms.machine",
+      "start": 1230,
+      "end": 1327,
+      "line": 26,
+      "column": 4,
+      "score": 125
+    },
+    {
+      "channel": "dms",
+      "frame_id": "dms.machine",
+      "start": 1364,
+      "end": 1518,
+      "line": 30,
+      "column": 1,
+      "score": 405
+    },
+    {
+      "channel": "dms",
+      "frame_id": "dms.machine",
+      "start": 1523,
+      "end": 1588,
+      "line": 32,
+      "column": 4,
+      "score": 86
+    },
+    {
+      "channel": "dms",
+      "frame_id": "dms.machine",
+      "start": 1660,
+      "end": 1731,
+      "line": 38,
+      "column": 4,
+      "score": 61
+    },
+    {
+      "channel": "dms",
+      "frame_id": "dms.machine",
+      "start": 2267,
+      "end": 2305,
+      "line": 57,
+      "column": 78,
       "score": 12
     },
     {
       "channel": "dms",
-      "frame_id": "dms.qwen",
+      "frame_id": "dms.machine",
+      "start": 2309,
+      "end": 2358,
+      "line": 58,
+      "column": 4,
+      "score": 46
+    },
+    {
+      "channel": "dms",
+      "frame_id": "dms.machine",
       "start": 2405,
       "end": 2432,
       "line": 60,
@@ -229,21 +328,102 @@ expression: stdout
     },
     {
       "channel": "dms",
-      "frame_id": "dms.qwen",
-      "start": 2737,
-      "end": 2766,
-      "line": 76,
-      "column": 14,
-      "score": 8
+      "frame_id": "dms.machine",
+      "start": 2545,
+      "end": 2646,
+      "line": 68,
+      "column": 1,
+      "score": 211
     },
     {
       "channel": "dms",
-      "frame_id": "dms.qwen",
-      "start": 2981,
-      "end": 3012,
+      "frame_id": "dms.machine",
+      "start": 2651,
+      "end": 2684,
+      "line": 70,
+      "column": 4,
+      "score": 15
+    },
+    {
+      "channel": "dms",
+      "frame_id": "dms.machine",
+      "start": 2727,
+      "end": 2809,
+      "line": 76,
+      "column": 4,
+      "score": 136
+    },
+    {
+      "channel": "dms",
+      "frame_id": "dms.machine",
+      "start": 2919,
+      "end": 3013,
       "line": 82,
-      "column": 66,
-      "score": 8
+      "column": 4,
+      "score": 215
+    },
+    {
+      "channel": "dms",
+      "frame_id": "dms.machine",
+      "start": 3052,
+      "end": 3173,
+      "line": 86,
+      "column": 1,
+      "score": 217
+    },
+    {
+      "channel": "dms",
+      "frame_id": "dms.machine",
+      "start": 3178,
+      "end": 3226,
+      "line": 88,
+      "column": 4,
+      "score": 21
+    },
+    {
+      "channel": "dms",
+      "frame_id": "dms.machine",
+      "start": 3319,
+      "end": 3363,
+      "line": 90,
+      "column": 4,
+      "score": 27
+    },
+    {
+      "channel": "dms",
+      "frame_id": "dms.machine",
+      "start": 3539,
+      "end": 3577,
+      "line": 96,
+      "column": 33,
+      "score": 17
+    },
+    {
+      "channel": "dms",
+      "frame_id": "dms.machine",
+      "start": 3605,
+      "end": 3721,
+      "line": 100,
+      "column": 5,
+      "score": 155
+    },
+    {
+      "channel": "dms",
+      "frame_id": "dms.machine",
+      "start": 3726,
+      "end": 3866,
+      "line": 101,
+      "column": 5,
+      "score": 280
+    },
+    {
+      "channel": "dms",
+      "frame_id": "dms.machine",
+      "start": 3871,
+      "end": 3967,
+      "line": 102,
+      "column": 5,
+      "score": 113
     },
     {
       "channel": "literal",
@@ -256,54 +436,23 @@ expression: stdout
     },
     {
       "channel": "dms",
-      "frame_id": "dms.qwen",
-      "start": 4006,
-      "end": 4049,
+      "frame_id": "dms.machine",
+      "start": 3969,
+      "end": 4219,
       "line": 104,
-      "column": 38,
-      "score": 13
+      "column": 1,
+      "score": 882
     }
   ],
   "tell_counts": {
-    "dms": 9,
+    "dms": 29,
     "span": 1,
     "sub": 2
   },
-  "dms": [
-    {
-      "family": "qwen",
-      "mean_machine": 2.103846153846154,
-      "mean_human": 1.7096153846153845,
-      "differential": 0.3942307692307694,
-      "token_count": 520
-    },
-    {
-      "family": "gemma",
-      "mean_machine": 1.9576923076923076,
-      "mean_human": 1.7096153846153845,
-      "differential": 0.24807692307692308,
-      "token_count": 520
-    },
-    {
-      "family": "llama",
-      "mean_machine": 1.8096153846153846,
-      "mean_human": 1.7096153846153845,
-      "differential": 0.10000000000000009,
-      "token_count": 520
-    },
-    {
-      "family": "granite",
-      "mean_machine": 14.34423076923077,
-      "mean_human": 1.7096153846153845,
-      "differential": 12.634615384615385,
-      "token_count": 520
-    },
-    {
-      "family": "claude",
-      "mean_machine": 1.5384615384615385,
-      "mean_human": 1.7096153846153845,
-      "differential": -0.171153846153846,
-      "token_count": 520
-    }
-  ]
+  "dms": {
+    "mean_machine": 14.34423076923077,
+    "mean_human": 1.7096153846153845,
+    "differential": 12.634615384615385,
+    "token_count": 520
+  }
 }

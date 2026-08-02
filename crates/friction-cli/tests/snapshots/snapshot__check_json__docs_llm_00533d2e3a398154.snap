@@ -156,6 +156,105 @@ expression: stdout
   ],
   "spans": [
     {
+      "channel": "dms",
+      "frame_id": "dms.machine",
+      "start": 59,
+      "end": 540,
+      "line": 3,
+      "column": 1,
+      "score": 2889
+    },
+    {
+      "channel": "dms",
+      "frame_id": "dms.machine",
+      "start": 544,
+      "end": 576,
+      "line": 5,
+      "column": 3,
+      "score": 8
+    },
+    {
+      "channel": "dms",
+      "frame_id": "dms.machine",
+      "start": 580,
+      "end": 736,
+      "line": 7,
+      "column": 1,
+      "score": 285
+    },
+    {
+      "channel": "dms",
+      "frame_id": "dms.machine",
+      "start": 743,
+      "end": 888,
+      "line": 9,
+      "column": 6,
+      "score": 241
+    },
+    {
+      "channel": "dms",
+      "frame_id": "dms.machine",
+      "start": 894,
+      "end": 1094,
+      "line": 10,
+      "column": 6,
+      "score": 477
+    },
+    {
+      "channel": "dms",
+      "frame_id": "dms.machine",
+      "start": 1100,
+      "end": 1278,
+      "line": 11,
+      "column": 6,
+      "score": 363
+    },
+    {
+      "channel": "dms",
+      "frame_id": "dms.machine",
+      "start": 1283,
+      "end": 1320,
+      "line": 14,
+      "column": 3,
+      "score": 6
+    },
+    {
+      "channel": "dms",
+      "frame_id": "dms.machine",
+      "start": 1324,
+      "end": 1457,
+      "line": 16,
+      "column": 1,
+      "score": 254
+    },
+    {
+      "channel": "dms",
+      "frame_id": "dms.machine",
+      "start": 1479,
+      "end": 1631,
+      "line": 16,
+      "column": 154,
+      "score": 304
+    },
+    {
+      "channel": "dms",
+      "frame_id": "dms.machine",
+      "start": 1660,
+      "end": 1935,
+      "line": 20,
+      "column": 5,
+      "score": 1133
+    },
+    {
+      "channel": "dms",
+      "frame_id": "dms.machine",
+      "start": 1940,
+      "end": 2168,
+      "line": 21,
+      "column": 5,
+      "score": 823
+    },
+    {
       "channel": "literal",
       "frame_id": "sub.utilize_3sg",
       "start": 1980,
@@ -163,46 +262,178 @@ expression: stdout
       "line": 21,
       "column": 45,
       "score": null
+    },
+    {
+      "channel": "dms",
+      "frame_id": "dms.machine",
+      "start": 2173,
+      "end": 2195,
+      "line": 22,
+      "column": 5,
+      "score": 6
+    },
+    {
+      "channel": "dms",
+      "frame_id": "dms.machine",
+      "start": 2206,
+      "end": 2541,
+      "line": 22,
+      "column": 38,
+      "score": 1952
+    },
+    {
+      "channel": "dms",
+      "frame_id": "dms.machine",
+      "start": 2546,
+      "end": 2807,
+      "line": 23,
+      "column": 5,
+      "score": 1092
+    },
+    {
+      "channel": "dms",
+      "frame_id": "dms.machine",
+      "start": 2811,
+      "end": 2850,
+      "line": 25,
+      "column": 3,
+      "score": 7
+    },
+    {
+      "channel": "dms",
+      "frame_id": "dms.machine",
+      "start": 2854,
+      "end": 3011,
+      "line": 27,
+      "column": 1,
+      "score": 311
+    },
+    {
+      "channel": "dms",
+      "frame_id": "dms.machine",
+      "start": 3017,
+      "end": 3133,
+      "line": 29,
+      "column": 5,
+      "score": 213
+    },
+    {
+      "channel": "dms",
+      "frame_id": "dms.machine",
+      "start": 3167,
+      "end": 3324,
+      "line": 29,
+      "column": 155,
+      "score": 360
+    },
+    {
+      "channel": "dms",
+      "frame_id": "dms.machine",
+      "start": 3329,
+      "end": 3374,
+      "line": 30,
+      "column": 5,
+      "score": 12
+    },
+    {
+      "channel": "dms",
+      "frame_id": "dms.machine",
+      "start": 3416,
+      "end": 3609,
+      "line": 30,
+      "column": 92,
+      "score": 460
+    },
+    {
+      "channel": "dms",
+      "frame_id": "dms.machine",
+      "start": 3614,
+      "end": 3659,
+      "line": 33,
+      "column": 3,
+      "score": 36
+    },
+    {
+      "channel": "dms",
+      "frame_id": "dms.machine",
+      "start": 3663,
+      "end": 3764,
+      "line": 35,
+      "column": 1,
+      "score": 111
+    },
+    {
+      "channel": "dms",
+      "frame_id": "dms.machine",
+      "start": 3770,
+      "end": 4190,
+      "line": 37,
+      "column": 5,
+      "score": 2492
+    },
+    {
+      "channel": "dms",
+      "frame_id": "dms.machine",
+      "start": 4195,
+      "end": 4684,
+      "line": 38,
+      "column": 5,
+      "score": 3492
+    },
+    {
+      "channel": "dms",
+      "frame_id": "dms.machine",
+      "start": 4721,
+      "end": 5073,
+      "line": 42,
+      "column": 1,
+      "score": 1737
+    },
+    {
+      "channel": "dms",
+      "frame_id": "dms.machine",
+      "start": 5103,
+      "end": 5195,
+      "line": 46,
+      "column": 1,
+      "score": 66
+    },
+    {
+      "channel": "dms",
+      "frame_id": "dms.machine",
+      "start": 5201,
+      "end": 5411,
+      "line": 48,
+      "column": 5,
+      "score": 741
+    },
+    {
+      "channel": "dms",
+      "frame_id": "dms.machine",
+      "start": 5416,
+      "end": 5563,
+      "line": 49,
+      "column": 5,
+      "score": 216
+    },
+    {
+      "channel": "dms",
+      "frame_id": "dms.machine",
+      "start": 5567,
+      "end": 5785,
+      "line": 53,
+      "column": 1,
+      "score": 472
     }
   ],
   "tell_counts": {
+    "dms": 29,
     "sub": 1
   },
-  "dms": [
-    {
-      "family": "qwen",
-      "mean_machine": 1.2705882352941176,
-      "mean_human": 1.6887700534759358,
-      "differential": -0.4181818181818182,
-      "token_count": 935
-    },
-    {
-      "family": "gemma",
-      "mean_machine": 23.785026737967915,
-      "mean_human": 1.6887700534759358,
-      "differential": 22.09625668449198,
-      "token_count": 935
-    },
-    {
-      "family": "llama",
-      "mean_machine": 1.4866310160427807,
-      "mean_human": 1.6887700534759358,
-      "differential": -0.2021390374331551,
-      "token_count": 935
-    },
-    {
-      "family": "granite",
-      "mean_machine": 1.490909090909091,
-      "mean_human": 1.6887700534759358,
-      "differential": -0.19786096256684482,
-      "token_count": 935
-    },
-    {
-      "family": "claude",
-      "mean_machine": 1.4,
-      "mean_human": 1.6887700534759358,
-      "differential": -0.2887700534759359,
-      "token_count": 935
-    }
-  ]
+  "dms": {
+    "mean_machine": 23.785026737967915,
+    "mean_human": 1.6887700534759358,
+    "differential": 22.09625668449198,
+    "token_count": 935
+  }
 }

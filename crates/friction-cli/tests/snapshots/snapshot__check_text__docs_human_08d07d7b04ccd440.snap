@@ -25,11 +25,6 @@ bold_span_density             8.1967  [0.0000, 14.1767]   in
 sentence_opener_repeat_rate   0.0000  [0.0000, 0.0656]    in    
 top_opener_concentration      0.1000  [0.0545, 0.1613]    in    
 
-dms (target family: qwen):
-  qwen     mean_machine=1.1554  mean_human=13.3534  differential=-12.1980  tokens=399
-  gemma    mean_machine=1.3008  mean_human=13.3534  differential=-12.0526  tokens=399
-  llama    mean_machine=1.2556  mean_human=13.3534  differential=-12.0977  tokens=399
-  granite  mean_machine=1.1604  mean_human=13.3534  differential=-12.1930  tokens=399
-  claude   mean_machine=1.4612  mean_human=13.3534  differential=-11.8922  tokens=399
+dms: mean_machine=1.6241  mean_human=13.3534  differential=-11.7293  tokens=399
 
 tell counts (0 span(s) total):

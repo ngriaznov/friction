@@ -25,24 +25,30 @@ bold_span_density            14.2857  [0.0000, 10.4822]   OUT
 sentence_opener_repeat_rate   0.0000  [0.0000, 0.1111]    in    
 top_opener_concentration      0.1220  [0.0694, 0.1818]    in    
 
-dms (target family: qwen):
-  qwen     mean_machine=1.3573  mean_human=1.6522  differential=-0.2949  tokens=529
-  gemma    mean_machine=1.6144  mean_human=1.6522  differential=-0.0378  tokens=529
-  llama    mean_machine=1.4291  mean_human=1.6522  differential=-0.2231  tokens=529
-  granite  mean_machine=20.8374  mean_human=1.6522  differential=19.1853  tokens=529
-  claude   mean_machine=1.5388  mean_human=1.6522  differential=-0.1134  tokens=529
+dms: mean_machine=20.8374  mean_human=1.6522  differential=19.1853  tokens=529
 
-tell counts (4 span(s) total):
-  dms: 3
+tell counts (18 span(s) total):
+  dms: 17
   sub: 1
-dms.qwen
+dms.machine
 
-  ⚠ Dms tell: dms.qwen
-   ╭─[corpus/llm/forum/137c3759df60fa49.md:1:17]
+  ⚠ Dms tell: dms.machine
+   ╭─[corpus/llm/forum/137c3759df60fa49.md:1:3]
  1 │ **Understanding Rust's Lifetime Elision Rules**
-   ·                 ──────────────┬──────────────
-   ·                               ╰── Dms tell: dms.qwen
+   ·   ─────────────────────┬─────────────────────
+   ·                        ╰── Dms tell: dms.machine
  2 │ 
+   ╰────
+
+dms.machine
+
+  ⚠ Dms tell: dms.machine
+   ╭─[corpus/llm/forum/137c3759df60fa49.md:3:1]
+ 2 │ 
+ 3 │ Rust’s type system is robust, especially when it comes to handling lifetimes—particularly in functions that use references. Lifetimes are crucial for ensuring memory safety by preventing dangling pointers or data races. However, the explicit annotation of lifetimes can sometimes feel like an extra layer of complexity. Rust addresses this with three lifetime elision rules that automatically infer lifetimes for you when they’re safe to do so.
+   · ──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────┬─────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
+   ·                                                                                                                                                                                                                               ╰── Dms tell: dms.machine
+ 4 │ 
    ╰────
 
 sub.crucial_for
@@ -56,24 +62,166 @@ sub.crucial_for
  4 │ 
    ╰────
 
-dms.qwen
+dms.machine
 
-  ⚠ Dms tell: dms.qwen
-   ╭─[corpus/llm/forum/137c3759df60fa49.md:3:164]
- 2 │ 
- 3 │ Rust’s type system is robust, especially when it comes to handling lifetimes—particularly in functions that use references. Lifetimes are crucial for ensuring memory safety by preventing dangling pointers or data races. However, the explicit annotation of lifetimes can sometimes feel like an extra layer of complexity. Rust addresses this with three lifetime elision rules that automatically infer lifetimes for you when they’re safe to do so.
-   ·                                                                                                                                                                ──────────────────┬─────────────────
-   ·                                                                                                                                                                                  ╰── Dms tell: dms.qwen
- 4 │ 
+  ⚠ Dms tell: dms.machine
+   ╭─[corpus/llm/forum/137c3759df60fa49.md:7:1]
+ 6 │ 
+ 7 │ Lifetime elisions are syntactic rules in Rust that allow the compiler to infer the lifetimes of reference parameters without explicit annotations, making code cleaner and more readable. These rules help maintain soundness while avoiding unnecessary verbosity.
+   · ─────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────┬─────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
+   ·                                                                                                                                  ╰── Dms tell: dms.machine
+ 8 │ 
    ╰────
 
-dms.qwen
+dms.machine
 
-  ⚠ Dms tell: dms.qwen
-    ╭─[corpus/llm/forum/137c3759df60fa49.md:11:84]
+  ⚠ Dms tell: dms.machine
+    ╭─[corpus/llm/forum/137c3759df60fa49.md:11:6]
  10 │ 
  11 │ 1. **Default Parameter Rule**: If a function has only one reference parameter, the lifetime is inferred as the longest-living (outermost) reference in the argument list. This rule assumes that the referenced value lives at least as long as the outermost borrowed reference.
-    ·                                                                                    ─────────────┬─────────────
-    ·                                                                                                 ╰── Dms tell: dms.qwen
+    ·      ──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────┬─────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
+    ·                                                                                                                                            ╰── Dms tell: dms.machine
  12 │ 
+    ╰────
+
+dms.machine
+
+  ⚠ Dms tell: dms.machine
+    ╭─[corpus/llm/forum/137c3759df60fa49.md:20:14]
+ 19 │    
+ 20 │    Here, `x` and the return type both implicitly have the same lifetime because there’s only one reference parameter. The compiler infers that `x` must live at least as long as it’s being used within the function.
+    ·              ────────────────────────────────────────────────────────────────┬────────────────────────────────────────────────────────────────
+    ·                                                                              ╰── Dms tell: dms.machine
+ 21 │ 
+    ╰────
+
+dms.machine
+
+  ⚠ Dms tell: dms.machine
+    ╭─[corpus/llm/forum/137c3759df60fa49.md:20:150]
+ 19 │    
+ 20 │    Here, `x` and the return type both implicitly have the same lifetime because there’s only one reference parameter. The compiler infers that `x` must live at least as long as it’s being used within the function.
+    ·                                                                                                                                                    ─────────────────────────────────┬────────────────────────────────
+    ·                                                                                                                                                                                     ╰── Dms tell: dms.machine
+ 21 │ 
+    ╰────
+
+dms.machine
+
+  ⚠ Dms tell: dms.machine
+    ╭─[corpus/llm/forum/137c3759df60fa49.md:22:6]
+ 21 │ 
+ 22 │ 2. **Multiple Reference Parameter Rule**: If a function has more than one reference parameter, Rust uses the following pattern to infer lifetimes: the first reference gets the default lifetime `'a`, the second gets `'b`, and so on. This rule helps disambiguate which references are related or independent of each other.
+    ·      ─────────────────────────────────────────────────────────────────────────────────────────────┬─────────────────────────────────────────────────────────────────────────────────────────────
+    ·                                                                                                   ╰── Dms tell: dms.machine
+ 23 │ 
+    ╰────
+
+dms.machine
+
+  ⚠ Dms tell: dms.machine
+    ╭─[corpus/llm/forum/137c3759df60fa49.md:22:220]
+ 21 │ 
+ 22 │ 2. **Multiple Reference Parameter Rule**: If a function has more than one reference parameter, Rust uses the following pattern to infer lifetimes: the first reference gets the default lifetime `'a`, the second gets `'b`, and so on. This rule helps disambiguate which references are related or independent of each other.
+    ·                                                                                                                                                                                                                            ──────────────────────────────────────────────────┬─────────────────────────────────────────────────
+    ·                                                                                                                                                                                                                                                                              ╰── Dms tell: dms.machine
+ 23 │ 
+    ╰────
+
+dms.machine
+
+  ⚠ Dms tell: dms.machine
+    ╭─[corpus/llm/forum/137c3759df60fa49.md:32:4]
+ 31 │    
+ 32 │    Here, the compiler infers that `x` and `y` are independent references. Thus, `x` receives the default lifetime `'a`, while `y` gets a new lifetime `'b`. This ensures that if one reference goes out of scope, it doesn’t affect the other.
+    ·    ───────────────┬──────────────
+    ·                   ╰── Dms tell: dms.machine
+ 33 │ 
+    ╰────
+
+dms.machine
+
+  ⚠ Dms tell: dms.machine
+    ╭─[corpus/llm/forum/137c3759df60fa49.md:32:47]
+ 31 │    
+ 32 │    Here, the compiler infers that `x` and `y` are independent references. Thus, `x` receives the default lifetime `'a`, while `y` gets a new lifetime `'b`. This ensures that if one reference goes out of scope, it doesn’t affect the other.
+    ·                                               ────────────────┬────────────────
+    ·                                                               ╰── Dms tell: dms.machine
+ 33 │ 
+    ╰────
+
+dms.machine
+
+  ⚠ Dms tell: dms.machine
+    ╭─[corpus/llm/forum/137c3759df60fa49.md:32:155]
+ 31 │    
+ 32 │    Here, the compiler infers that `x` and `y` are independent references. Thus, `x` receives the default lifetime `'a`, while `y` gets a new lifetime `'b`. This ensures that if one reference goes out of scope, it doesn’t affect the other.
+    ·                                                                                                                                                           ──────────────────────────────────────────┬─────────────────────────────────────────
+    ·                                                                                                                                                                                                     ╰── Dms tell: dms.machine
+ 33 │ 
+    ╰────
+
+dms.machine
+
+  ⚠ Dms tell: dms.machine
+    ╭─[corpus/llm/forum/137c3759df60fa49.md:34:6]
+ 33 │ 
+ 34 │ 3. **Return Type Rule**: If a function’s return type contains a reference and there are no parameters (or only multiple non-reference parameters), Rust infers the lifetime of the returned reference to be the same as the longest-living argument in the call site. This rule helps when the function’s behavior is tied to its input references.
+    ·      ───────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────┬──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
+    ·                                                                                                                                                                             ╰── Dms tell: dms.machine
+ 35 │ 
+    ╰────
+
+dms.machine
+
+  ⚠ Dms tell: dms.machine
+    ╭─[corpus/llm/forum/137c3759df60fa49.md:43:4]
+ 42 │    
+ 43 │    Similar to the first example, because there’s only one reference parameter (`x`) that determines the output, Rust infers that the returned reference must live at least as long as `x`.
+    ·    ─────────────────────────────────────┬────────────────────────────────────
+    ·                                         ╰── Dms tell: dms.machine
+ 44 │ 
+    ╰────
+
+dms.machine
+
+  ⚠ Dms tell: dms.machine
+    ╭─[corpus/llm/forum/137c3759df60fa49.md:43:87]
+ 42 │    
+ 43 │    Similar to the first example, because there’s only one reference parameter (`x`) that determines the output, Rust infers that the returned reference must live at least as long as `x`.
+    ·                                                                                     ────────────────────────────────────────────────┬────────────────────────────────────────────────
+    ·                                                                                                                                     ╰── Dms tell: dms.machine
+ 44 │ 
+    ╰────
+
+dms.machine
+
+  ⚠ Dms tell: dms.machine
+    ╭─[corpus/llm/forum/137c3759df60fa49.md:47:1]
+ 46 │ 
+ 47 │ These elision rules strike a balance between ease of use and safety. By automatically inferring lifetimes in common scenarios where they’re safe to do so (like having only one reference parameter), Rust reduces boilerplate code while still maintaining its strong guarantees about memory safety.
+    · ───────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────┬──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
+    ·                                                                                                                                                    ╰── Dms tell: dms.machine
+ 48 │ 
+    ╰────
+
+dms.machine
+
+  ⚠ Dms tell: dms.machine
+    ╭─[corpus/llm/forum/137c3759df60fa49.md:49:1]
+ 48 │ 
+ 49 │ Understanding these rules helps you predict when explicit lifetime annotations are necessary, typically when there’s ambiguity or when multiple references interact differently. This knowledge not only streamlines your coding process but also deepens your understanding of how Rust manages data safely behind the scenes.
+    · ───────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────┬───────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
+    ·                                                                                                                                                                ╰── Dms tell: dms.machine
+ 50 │ 
+    ╰────
+
+dms.machine
+
+  ⚠ Dms tell: dms.machine
+    ╭─[corpus/llm/forum/137c3759df60fa49.md:51:1]
+ 50 │ 
+ 51 │ In summary, Rust's three lifetime elision rules provide a pragmatic approach to handling lifetimes in functions with reference parameters. By applying these rules, you can write cleaner code without sacrificing safety or clarity about memory management.
+    · ──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────┬──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
+    ·                                                                                                                               ╰── Dms tell: dms.machine
     ╰────

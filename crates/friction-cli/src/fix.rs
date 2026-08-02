@@ -14,19 +14,20 @@
 //! were flagged) is always printed to stderr, so stdout stays exactly the
 //! fixed document — safe to pipe or redirect. `--suggest` additionally
 //! lists every remaining held candidate (rule, span, reason) and every
-//! flagged paraphrase span (family, score, snippet) on stderr.
+//! flagged paraphrase span (frame id, score, snippet) on stderr.
 //!
-//! No `--family` either: the paraphrase report (below) scans every
-//! generator family the embedded DMS pack defines, since fix runs without
-//! a declared target family and reporting only one would be an arbitrary
-//! choice.
+//! No `--family` either: the paraphrase report (below) scans the one
+//! pooled machine-vs-human automaton the embedded DMS pack builds from
+//! every family it defines — DMS no longer varies by family (see
+//! `friction_match::dms`'s own module docs), so there is no target family
+//! to declare.
 //!
 //! # DMS, contrast frames, jargon, and overuse surface paraphrase candidates, never edits
 //!
 //! After fixing, the FIXED output is scanned with the DMS channel
-//! (`friction_match::dms_spans_for_family`) against every family
-//! [`friction_packs::ModelFamily::ALL`] defines, with the contrast-frame
-//! template channel (`friction_match::frame::scan_units`) — the same
+//! (`friction_match::dms_spans_pooled`) against the pooled machine-vs-
+//! human automaton, with the contrast-frame template channel
+//! (`friction_match::frame::scan_units`) — the same
 //! detector [`friction_match::Channel::Frame`] spans in `friction check`
 //! come from — with the metaphor-compound jargon channel
 //! (`friction_match::jargon::scan_units`, the same detector
@@ -61,8 +62,6 @@ use clap::Args;
 use friction_core::{Finding, RuleId};
 use friction_edit::EditReport;
 use friction_match::{MatchScore, MatchSpan};
-use friction_packs::ModelFamily;
-use rayon::prelude::*;
 use serde::Serialize;
 
 use crate::common::{CliError, Format, LineIndex, display_path, read_input, write_in_place};
@@ -132,15 +131,19 @@ struct ParaphraseRow {
     snippet: String,
 }
 
-/// One DMS paraphrase candidate after unioning per-family spans down to
+/// One paraphrase candidate after unioning every source's spans down to
 /// one entry per flagged byte region (see [`union_paraphrase_spans`]).
 #[derive(Debug, Clone, PartialEq, Eq)]
 struct ParaphraseSpan {
-    /// The winning family's frame id, e.g. `"dms.claude"`.
+    /// The winning span's frame id — the constant `"dms.machine"` for a
+    /// DMS paraphrase candidate (family attribution is retired; see
+    /// `friction_match::dms`'s own module docs), or the frame/jargon/
+    /// overuse channel's own id otherwise.
     frame_id: Box<str>,
     /// Byte range into the FIXED output.
     range: Range<usize>,
-    /// The winning family's differential score.
+    /// The winning span's differential score (DMS only; `0` for the
+    /// other three sources — see [`dms_score`]).
     score: i64,
 }
 
@@ -331,8 +334,8 @@ fn print_suggestions(output: &str, path_label: &str, suggestions: &[Finding]) {
 }
 
 /// Scans `output` — the FIXED text `fix` is about to print — for DMS
-/// paraphrase candidates against every family the embedded DMS pack
-/// defines, plus contrast-frame template spans
+/// paraphrase candidates against the pooled machine-vs-human automaton
+/// the embedded DMS pack builds, plus contrast-frame template spans
 /// (`friction_match::frame::scan_units`), metaphor-compound jargon spans
 /// (`friction_match::jargon::scan_units`), and per-document word-overuse
 /// spans (`friction_match::overuse::scan_units`), unioning everything into
@@ -361,13 +364,12 @@ fn print_suggestions(output: &str, path_label: &str, suggestions: &[Finding]) {
 /// ignored (but still accepted, keeping this function's signature stable
 /// either way) on a reuse hit.
 ///
-/// The four sources — every family's DMS walk, the contrast-frame scan,
-/// the jargon scan, and the overuse scan (the jargon scan is itself
+/// The four sources — the pooled DMS walk, the contrast-frame scan, the
+/// jargon scan, and the overuse scan (the jargon scan is itself
 /// internally parallel — see `friction_match::jargon::scan_units`) — read
 /// only `units`/`document` and never each other's output, so they run as
-/// four concurrent `rayon::join` tasks (the DMS walk is itself a
-/// `par_iter` over [`ModelFamily::ALL`], five more independent tasks).
-/// Deterministic regardless of run order or thread count: [`union_paraphrase_spans`]
+/// four concurrent `rayon::join` tasks. Deterministic regardless of run
+/// order or thread count: [`union_paraphrase_spans`]
 /// sorts by `(start, end, frame_id)` before merging, so which task
 /// finishes first never affects the returned bytes.
 ///
@@ -450,7 +452,7 @@ fn scan_paraphrase_spans(
     let units = friction_match::token::prose_scope(document, &segmenter);
 
     let (dms_spans, (frame_spans, (jargon_spans, overuse_spans))) = rayon::join(
-        || dms_spans_for_every_family(&units),
+        || dms_spans_machine(&units),
         || {
             rayon::join(
                 || friction_match::frame::scan_units(&units),
@@ -498,22 +500,15 @@ fn scan_paraphrase_spans(
     Ok(union_paraphrase_spans(spans))
 }
 
-/// Runs [`friction_match::dms_spans_for_family`] for every family
-/// [`ModelFamily::ALL`] defines, concurrently (each family's walk touches
-/// only its own automaton, never another's), collecting an
-/// [`ModelFamily::ALL`]-ordered `Vec<Vec<MatchSpan>>` before flattening —
-/// keeps assembly order fixed and thread-count-independent, matching
-/// [`register`](friction_edit::register)'s own ordered-collect discipline,
-/// even though [`union_paraphrase_spans`]'s later sort would tolerate
-/// either order.
-fn dms_spans_for_every_family(units: &[friction_match::token::ScopedUnit<'_>]) -> Vec<MatchSpan> {
-    let per_family: Vec<Vec<MatchSpan>> = ModelFamily::ALL
-        .par_iter()
-        .filter_map(|&family| {
-            friction_match::dms_spans_for_family(units, &friction_packs::DMS.pack, family)
-        })
-        .collect();
-    per_family.into_iter().flatten().collect()
+/// Runs [`friction_match::dms_spans_pooled`] over `units` — one scan
+/// against the pooled machine-vs-human automaton, replacing what used to
+/// be five separate per-family scans unioned together. An unchanged
+/// threshold applied to the pooled walk can only flag a superset of what
+/// scanning every family and unioning the results used to flag (see
+/// `friction_match::dms`'s own module docs for why), so this is strictly
+/// less work for a result that was already a superset by construction.
+fn dms_spans_machine(units: &[friction_match::token::ScopedUnit<'_>]) -> Vec<MatchSpan> {
+    friction_match::dms_spans_pooled(units, &friction_packs::DMS.pack)
 }
 
 /// A [`MatchSpan`]'s DMS differential score. Always
@@ -527,11 +522,11 @@ const fn dms_score(span: &MatchSpan) -> i64 {
     }
 }
 
-/// Unions DMS spans flagged across every generator family, plus the
-/// contrast-frame template spans, down to one entry per flagged byte
+/// Unions the pooled DMS spans, the contrast-frame template spans, the
+/// jargon spans, and the overuse spans down to one entry per flagged byte
 /// region: fix's paraphrase report is per region, not per source, so a
-/// DMS family and a frame template flagging overlapping words report
-/// once. Sorts by `(start, end, frame_id)` first — mirroring
+/// DMS run and a frame template flagging overlapping words report once.
+/// Sorts by `(start, end, frame_id)` first — mirroring
 /// `friction_match::span::merge_spans`'s own tie-break discipline — then
 /// folds each span into the running region whenever its start falls at or
 /// before that region's end (overlapping or exactly adjacent), keeping

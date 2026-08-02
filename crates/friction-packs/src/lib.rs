@@ -23,15 +23,21 @@
 //!
 //! [`DmsIndex`] parses the token-id-stream pack `corpus-tool index`
 //! writes (`packs/dms-index-v1.toml`) into a shared [`Vocab`] plus one
-//! suffix automaton ([`Sam`]) per stream — the human corpus and
-//! whichever of the five [`ModelFamily`] generator corpora the pack
-//! defines. That TOML path is the audited source, used offline; the
-//! runtime pass reads [`DMS`] instead — a zero-copy [`DmsIndexView`]
-//! over the derived artifact `corpus-tool dms-pack` serializes the
-//! finished automata into (`packs/dms-index-v1.bin`, embedded), so
-//! process start pays no TOML parse or automaton construction. See
-//! `dms_bin`'s module docs for the layout and the drift guard keeping
-//! the two representations in lockstep.
+//! suffix automaton ([`Sam`]) per stream — the human corpus, whichever of
+//! the five [`ModelFamily`] generator corpora the pack defines, and one
+//! more: [`DmsIndex::pooled_machine_sam`], every present family stream
+//! concatenated in a fixed order. That last one is what a fix-time
+//! detection pass actually scans against (`friction-match`'s `dms`
+//! module) — family attribution is not a product surface, only "does
+//! this read machine-generated" is, so the per-family automata exist for
+//! artifact compatibility, not for the runtime walk. That TOML path is
+//! the audited source, used offline; the runtime pass reads [`DMS`]
+//! instead — a zero-copy [`DmsIndexView`] over the derived artifact
+//! `corpus-tool dms-pack` serializes the finished automata into
+//! (`packs/dms-index-v1.bin`, embedded), so process start pays no TOML
+//! parse or automaton construction. See `dms_bin`'s module docs for the
+//! layout and the drift guard keeping the two representations in
+//! lockstep.
 //!
 //! # Inventory pack
 //!

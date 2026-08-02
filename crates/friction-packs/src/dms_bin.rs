@@ -41,13 +41,28 @@
 //!   sorted table's texts are strictly increasing and the search is
 //!   unambiguous.
 //! - **Streams**: stream count, then per stream a `u32` tag (`0` =
-//!   human, `1 + ModelFamily::ALL` position otherwise) and one
-//!   serialized automaton: state count `s`; `s` `u32` `len` values; `s`
-//!   `u32` suffix links ([`ROOT_LINK_SENTINEL`] for the root's `None`);
-//!   `s + 1` cumulative `u32` transition offsets (CSR); then the
-//!   transition array, 8 bytes per edge (`label: u32`, `target: u32`),
-//!   sorted by label within each state so [`SamView`] can binary-search
-//!   where [`crate::Sam`] hash-probes.
+//!   human, `1 + ModelFamily::ALL` position for a per-family stream,
+//!   [`POOLED_MACHINE_TAG`] for the pooled machine stream — see below)
+//!   and one serialized automaton: state count `s`; `s` `u32` `len`
+//!   values; `s` `u32` suffix links ([`ROOT_LINK_SENTINEL`] for the
+//!   root's `None`); `s + 1` cumulative `u32` transition offsets (CSR);
+//!   then the transition array, 8 bytes per edge (`label: u32`,
+//!   `target: u32`), sorted by label within each state so [`SamView`]
+//!   can binary-search where [`crate::Sam`] hash-probes.
+//!
+//! # Format version 2: the pooled machine stream
+//!
+//! Version 2 adds exactly one more stream to the section above, tagged
+//! [`POOLED_MACHINE_TAG`]: [`crate::DmsIndex::pooled_machine_sam`], every
+//! present family stream's ids concatenated in fixed alphabetical order
+//! with the document separator between streams (see that method's own
+//! docs). The five per-family sections from version 1 are unchanged and
+//! still written — kept for `family_sam`/`--family` compatibility — the
+//! pooled stream is additive, not a replacement. A version-1 artifact
+//! (no pooled section) is rejected by [`DmsIndexView::parse`] as a
+//! [`DmsBinError::VersionMismatch`]; there is no reader that accepts
+//! both, since every producer (`corpus-tool dms-pack`) and consumer
+//! (this crate's embedded artifact) ship together.
 //!
 //! # Determinism
 //!
@@ -55,9 +70,10 @@
 //! [`crate::Sam`]'s build is deterministic (documented on the type), the
 //! only `HashMap` iteration is explicitly sorted
 //! (`Sam::sorted_transitions`), the vocab's duplicate collapse follows
-//! `BTreeMap` order, and streams are written human-first then
-//! [`ModelFamily::ALL`] order — packing the same TOML twice produces
-//! bit-identical bytes (pinned by this module's own determinism test).
+//! `BTreeMap` order, and streams are written human-first, then
+//! [`ModelFamily::ALL`] order, then the pooled machine stream last —
+//! packing the same TOML twice produces bit-identical bytes (pinned by
+//! this module's own determinism test).
 //!
 //! # Equivalence
 //!
@@ -75,8 +91,21 @@ use crate::{PackError, Sha256};
 const MAGIC: [u8; 8] = *b"FRDMSIDX";
 
 /// This module's on-disk format version — bumped if the layout above ever
-/// changes shape.
-const FORMAT_VERSION: u16 = 1;
+/// changes shape. Bumped to `2` when [`POOLED_MACHINE_TAG`]'s stream was
+/// added (see the module docs' "Format version 2" section).
+const FORMAT_VERSION: u16 = 2;
+
+/// The stream tag for [`crate::DmsIndex::pooled_machine_sam`] — one past
+/// the last per-family tag (`1 + ModelFamily::ALL` position), so it never
+/// collides with a real family's tag regardless of how many families a
+/// pack defines. Written as a literal (not `1 + ModelFamily::ALL.len()
+/// as u32`) to keep this a `usize`-cast-free `const`; the assertion right
+/// below pins it against drift if [`ModelFamily::ALL`] ever grows.
+const POOLED_MACHINE_TAG: u32 = 6;
+const _: () = assert!(
+    POOLED_MACHINE_TAG as usize == 1 + ModelFamily::ALL.len(),
+    "POOLED_MACHINE_TAG must stay one past the last per-family tag"
+);
 
 /// A sha256 digest is recorded as lowercase hex (matching
 /// [`Sha256`]'s `Display`), not raw bytes, so a hex dump of the header
@@ -144,7 +173,7 @@ pub fn pack_dms_index_bin(toml_text: &str) -> Result<Vec<u8>, PackError> {
 
     write_vocab(&mut out, &index);
 
-    let streams: Vec<(u32, &Sam)> = std::iter::once((0u32, index.human_sam()))
+    let mut streams: Vec<(u32, &Sam)> = std::iter::once((0u32, index.human_sam()))
         .chain(index.family_sams().map(|(family, sam)| {
             let position = ModelFamily::ALL
                 .iter()
@@ -153,6 +182,7 @@ pub fn pack_dms_index_bin(toml_text: &str) -> Result<Vec<u8>, PackError> {
             (u32_from(position + 1), sam)
         }))
         .collect();
+    streams.push((POOLED_MACHINE_TAG, index.pooled_machine_sam()));
     write_u32(&mut out, u32_from(streams.len()));
     for (tag, sam) in streams {
         write_u32(&mut out, tag);
@@ -463,6 +493,7 @@ pub struct DmsIndexView<'a> {
     vocab: VocabView<'a>,
     human: SamView<'a>,
     families: [Option<SamView<'a>>; 5],
+    pooled_machine: SamView<'a>,
     source_sha256_hex: &'a str,
 }
 
@@ -499,11 +530,13 @@ impl<'a> DmsIndexView<'a> {
         let stream_count = cursor.read_u32()?;
         let mut human: Option<SamView<'a>> = None;
         let mut families: [Option<SamView<'a>>; 5] = [None; 5];
+        let mut pooled_machine: Option<SamView<'a>> = None;
         for _ in 0..stream_count {
             let tag = cursor.read_u32()?;
             let sam = Self::parse_sam(&mut cursor)?;
             match tag {
                 0 => human = Some(sam),
+                POOLED_MACHINE_TAG => pooled_machine = Some(sam),
                 t if (t as usize) <= ModelFamily::ALL.len() => {
                     families[t as usize - 1] = Some(sam);
                 }
@@ -514,10 +547,13 @@ impl<'a> DmsIndexView<'a> {
             return Err(DmsBinError::Malformed("trailing bytes after last stream"));
         }
         let human = human.ok_or(DmsBinError::Malformed("missing human stream"))?;
+        let pooled_machine =
+            pooled_machine.ok_or(DmsBinError::Malformed("missing pooled machine stream"))?;
         Ok(Self {
             vocab,
             human,
             families,
+            pooled_machine,
             source_sha256_hex,
         })
     }
@@ -584,7 +620,9 @@ impl<'a> DmsIndexView<'a> {
     }
 
     /// The suffix automaton for `family`, or `None` if this pack defines
-    /// no stream for that family.
+    /// no stream for that family. Kept for `family_sam`/`--family`
+    /// compatibility; the runtime detection pass reads
+    /// [`Self::pooled_machine_sam`] instead.
     #[must_use]
     pub fn family_sam(&self, family: ModelFamily) -> Option<SamView<'a>> {
         let position = ModelFamily::ALL
@@ -592,6 +630,17 @@ impl<'a> DmsIndexView<'a> {
             .position(|&f| f == family)
             .expect("ModelFamily::ALL is exhaustive by definition");
         self.families[position]
+    }
+
+    /// The pooled machine-side automaton — every family stream this pack
+    /// defines, concatenated in fixed alphabetical order with the
+    /// document separator between streams (see
+    /// [`crate::DmsIndex::pooled_machine_sam`]'s own docs for why). The
+    /// single stream `friction-match`'s runtime detection pass scans
+    /// against; family attribution is no longer surfaced.
+    #[must_use]
+    pub const fn pooled_machine_sam(&self) -> SamView<'a> {
+        self.pooled_machine
     }
 
     /// The lowercase-hex sha256 of the source TOML this artifact was
@@ -707,6 +756,34 @@ mod tests {
                     ),
                 }
             }
+        }
+    }
+
+    /// The pooled machine stream's view walk agrees with the owned
+    /// reference walk on every query — the same parity contract
+    /// [`sam_view_matching_stats_matches_owned_sam_on_every_stream`] pins
+    /// for the human/per-family streams, extended to the new format-2
+    /// section.
+    #[test]
+    fn pooled_machine_sam_view_matches_owned_pooled_machine_sam() {
+        let bytes = packed_sample();
+        let view = DmsIndexView::parse(&bytes).expect("packed sample parses");
+        let owned = DmsIndex::parse(SAMPLE_PACK).expect("sample pack parses");
+
+        let queries: Vec<Vec<Option<u32>>> = vec![
+            vec![Some(1), Some(2), Some(3), Some(2), Some(3)],
+            vec![Some(2), Some(1), Some(2), Some(3), Some(1)],
+            vec![Some(1), Some(2), None, Some(2), Some(3)],
+            vec![Some(9), Some(9), Some(1)],
+            vec![None, None],
+            vec![],
+        ];
+        for query in &queries {
+            assert_eq!(
+                view.pooled_machine_sam().matching_stats(query),
+                owned.pooled_machine_sam().matching_stats(query),
+                "pooled machine stream, query {query:?}"
+            );
         }
     }
 

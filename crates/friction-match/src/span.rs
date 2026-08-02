@@ -60,8 +60,10 @@ pub struct MatchSpan {
     pub range: Range<usize>,
     /// Which channel produced this span.
     pub channel: Channel,
-    /// Namespaced per channel: `"dms.<family>"`, the inventory pack's own
-    /// entry id for Literal, `"lvc.<nominalization>"` for Lvc.
+    /// Namespaced per channel: the constant `"dms.machine"` for Dms (no
+    /// family attribution — see [`crate::dms`]'s own module docs), the
+    /// inventory pack's own entry id for Literal, `"lvc.<nominalization>"`
+    /// for Lvc.
     pub frame_id: Box<str>,
     /// This span's score.
     pub score: MatchScore,
@@ -83,12 +85,14 @@ impl Spanned for MatchSpan {
     }
 }
 
-/// One family's DMS document-level statistics.
+/// The pooled machine-vs-human document-level DMS statistics.
+///
+/// No family breakdown: the product question is only "does this read
+/// machine-generated" (see [`crate::dms`]'s own module docs for why the
+/// five per-family automata were pooled into one).
 #[derive(Debug, Clone)]
-pub struct DmsFamilyReport {
-    /// The family this report covers.
-    pub family: ModelFamily,
-    /// `mean(mM)` over every in-scope token, walking `family`'s
+pub struct DmsMachineReport {
+    /// `mean(mM)` over every in-scope token, walking the pooled machine
     /// automaton.
     pub mean_machine: f64,
     /// `mean(mH)` over every in-scope token, walking the human automaton.
@@ -100,16 +104,19 @@ pub struct DmsFamilyReport {
     pub token_count: usize,
 }
 
-/// The document-level DMS report: one [`DmsFamilyReport`] per family the
-/// loaded pack defines.
+/// The document-level DMS report: one pooled machine-vs-human statistic,
+/// no per-family breakdown.
 #[derive(Debug, Clone)]
 pub struct DmsReport {
-    /// The family [`crate::MatchEngine`] was constructed with — the one
-    /// [`crate::span::MatchSpan`]s in [`Channel::Dms`] were extracted
-    /// against.
+    /// The family [`crate::MatchEngine`]/`--family` was constructed with.
+    /// Retained for API compatibility only — the pooled scan [`machine`]
+    /// below no longer varies by family, so this field no longer changes
+    /// what gets reported (see [`crate::dms`]'s own module docs).
+    ///
+    /// [`machine`]: DmsReport::machine
     pub target_family: ModelFamily,
-    /// One entry per family the pack defines, [`ModelFamily::ALL`] order.
-    pub families: Vec<DmsFamilyReport>,
+    /// The pooled machine-vs-human statistics.
+    pub machine: DmsMachineReport,
 }
 
 /// The full result of scanning one document.

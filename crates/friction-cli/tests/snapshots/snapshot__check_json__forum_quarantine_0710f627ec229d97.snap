@@ -168,41 +168,10 @@ expression: stdout
   "tell_counts": {
     "span": 1
   },
-  "dms": [
-    {
-      "family": "qwen",
-      "mean_machine": 1.0456026058631922,
-      "mean_human": 13.817589576547231,
-      "differential": -12.77198697068404,
-      "token_count": 614
-    },
-    {
-      "family": "gemma",
-      "mean_machine": 1.1921824104234529,
-      "mean_human": 13.817589576547231,
-      "differential": -12.625407166123779,
-      "token_count": 614
-    },
-    {
-      "family": "llama",
-      "mean_machine": 1.1058631921824105,
-      "mean_human": 13.817589576547231,
-      "differential": -12.711726384364821,
-      "token_count": 614
-    },
-    {
-      "family": "granite",
-      "mean_machine": 1.0602605863192183,
-      "mean_human": 13.817589576547231,
-      "differential": -12.757328990228013,
-      "token_count": 614
-    },
-    {
-      "family": "claude",
-      "mean_machine": 1.4185667752442996,
-      "mean_human": 13.817589576547231,
-      "differential": -12.399022801302932,
-      "token_count": 614
-    }
-  ]
+  "dms": {
+    "mean_machine": 1.5260586319218241,
+    "mean_human": 13.817589576547231,
+    "differential": -12.291530944625407,
+    "token_count": 614
+  }
 }

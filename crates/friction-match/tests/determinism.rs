@@ -25,12 +25,13 @@ fn scanning_the_same_document_twice_produces_byte_identical_reports() {
     let second = engine.scan(&document).expect("second scan succeeds");
 
     assert_eq!(first.spans, second.spans);
-    assert_eq!(first.dms.families.len(), second.dms.families.len());
-    for (a, b) in first.dms.families.iter().zip(&second.dms.families) {
-        assert_eq!(a.family, b.family);
-        assert_eq!(a.token_count, b.token_count);
-        assert!((a.differential - b.differential).abs() < f64::EPSILON);
-    }
+    assert_eq!(
+        first.dms.machine.token_count,
+        second.dms.machine.token_count
+    );
+    assert!(
+        (first.dms.machine.differential - second.dms.machine.differential).abs() < f64::EPSILON
+    );
 }
 
 #[test]

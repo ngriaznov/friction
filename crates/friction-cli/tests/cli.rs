@@ -36,8 +36,12 @@ const CLEAN: &str = "Run the scanner from the project root. Results stream in as
                       found, and nothing is deleted without confirmation.";
 
 /// Two paragraphs, copied from `corpus/llm/docs/57397cc503b594ba.md`, that
-/// the `claude` DMS stream reliably flags one span in each of (verified
-/// with `friction check --family claude --genre docs`): confirms `fix`'s
+/// the DMS channel reliably flags one span in each of (originally verified
+/// against the `claude` family stream with
+/// `friction check --family claude --genre docs`, back when the channel
+/// was still per-family; the pooled machine automaton the channel now
+/// scans against subsumes that stream, so the same two spans still fire —
+/// see this module's own `dms.machine` assertions): confirms `fix`'s
 /// paraphrase report actually fires on real corpus text, not only on
 /// synthetic unit-test spans. Zero-patch fixture on purpose (`fix` applies
 /// no repair-engine edit to either paragraph) so the fixed output is
@@ -52,7 +56,7 @@ const CLEAN: &str = "Run the scanner from the project root. Results stream in as
 /// re-litigate whether that edit is correct (`friction-register`'s own
 /// tests cover that). The DMS channel scores token n-grams, not
 /// punctuation, so this substitution changes neither flagged span.
-const DMS_CLAUDE_FLAGGED_DOC: &str = "Ledgerline includes a built-in caching layer designed to \
+const DMS_MACHINE_FLAGGED_DOC: &str = "Ledgerline includes a built-in caching layer designed to \
     reduce redundant database round-trips without requiring you to manage a separate cache \
     server for common cases. This page explains the model behind it: how query results get \
     cached, how the cache learns about writes, and the difference between the two cache scopes \
@@ -172,7 +176,13 @@ fn check_json_output_is_byte_identical_across_runs() {
     assert_eq!(value["genre"], "blog");
     assert_eq!(value["family"], "qwen");
     assert!(!value["spans"].as_array().unwrap().is_empty());
-    assert_eq!(value["dms"].as_array().unwrap().len(), 5);
+    // `dms` is the single pooled machine-vs-human report object now, not
+    // one entry per family — see `friction_match::dms`'s own module docs
+    // for why family attribution was retired.
+    assert!(value["dms"]["token_count"].as_u64().unwrap() > 0);
+    assert!(value["dms"]["mean_machine"].as_f64().is_some());
+    assert!(value["dms"]["mean_human"].as_f64().is_some());
+    assert!(value["dms"]["differential"].as_f64().is_some());
 }
 
 /// `check --format text` never emits an ANSI escape byte when stdout is
@@ -308,7 +318,7 @@ fn fix_suggest_lists_remaining_suggestions_on_stderr() {
 #[test]
 fn fix_reports_paraphrase_count_without_changing_stdout() {
     let dir = tempfile::tempdir().expect("tempdir");
-    let path = write_fixture(dir.path(), "flagged.md", DMS_CLAUDE_FLAGGED_DOC);
+    let path = write_fixture(dir.path(), "flagged.md", DMS_MACHINE_FLAGGED_DOC);
 
     let output = friction()
         .arg("fix")
@@ -320,7 +330,7 @@ fn fix_reports_paraphrase_count_without_changing_stdout() {
 
     let stdout = String::from_utf8(output.stdout).expect("valid UTF-8");
     assert_eq!(
-        stdout, DMS_CLAUDE_FLAGGED_DOC,
+        stdout, DMS_MACHINE_FLAGGED_DOC,
         "stdout must stay exactly the fixed text, unperturbed by the paraphrase report"
     );
 
@@ -330,7 +340,7 @@ fn fix_reports_paraphrase_count_without_changing_stdout() {
         "the paraphrase count line must be present, got: {stderr}"
     );
     assert!(
-        stderr.contains("dms.claude"),
+        stderr.contains("dms.machine"),
         "--suggest must list the flagged spans' frame id, got: {stderr}"
     );
 }
@@ -340,7 +350,7 @@ fn fix_reports_paraphrase_count_without_changing_stdout() {
 #[test]
 fn fix_json_paraphrase_array_is_byte_identical_across_runs() {
     let dir = tempfile::tempdir().expect("tempdir");
-    let path = write_fixture(dir.path(), "flagged.md", DMS_CLAUDE_FLAGGED_DOC);
+    let path = write_fixture(dir.path(), "flagged.md", DMS_MACHINE_FLAGGED_DOC);
 
     let run = || {
         friction()
@@ -367,7 +377,7 @@ fn fix_json_paraphrase_array_is_byte_identical_across_runs() {
         .expect("paraphrase array is embedded in the summary document");
     assert_eq!(rows.len(), 2);
     for row in rows {
-        assert_eq!(row["frame_id"], "dms.claude");
+        assert_eq!(row["frame_id"], "dms.machine");
         assert!(row["score"].as_i64().unwrap() > 0);
         assert!(!row["snippet"].as_str().unwrap().is_empty());
     }

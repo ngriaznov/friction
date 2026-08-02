@@ -66,9 +66,13 @@ pub fn resolve_genre(explicit: Option<Genre>) -> Genre {
     })
 }
 
-/// The generator family `friction check`'s DMS channel compares a
-/// document against. Required explicitly (no default): DMS is
-/// generator-family-specific, and silently picking one would misreport.
+/// The generator family `friction check --family` names. Retained for
+/// compatibility (the flag is still required, still parsed, still
+/// recorded on the report) but no longer selects which automaton the DMS
+/// channel scans against: `friction_match`'s DMS channel now walks one
+/// pooled machine-vs-human automaton over every family, so the product
+/// question is only "does this read machine-generated" — see
+/// `friction_match::dms`'s own module docs for why.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, ValueEnum)]
 #[value(rename_all = "lower")]
 pub enum Family {

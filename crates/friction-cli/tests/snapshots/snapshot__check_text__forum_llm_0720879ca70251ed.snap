@@ -25,22 +25,389 @@ bold_span_density            18.8679  [0.0000, 10.4822]   OUT
 sentence_opener_repeat_rate   0.0154  [0.0000, 0.1111]    in    
 top_opener_concentration      0.0984  [0.0694, 0.1818]    in    
 
-dms (target family: qwen):
-  qwen     mean_machine=1.5082  mean_human=1.6013  differential=-0.0931  tokens=612
-  gemma    mean_machine=13.1977  mean_human=1.6013  differential=11.5964  tokens=612
-  llama    mean_machine=1.6520  mean_human=1.6013  differential=0.0507  tokens=612
-  granite  mean_machine=1.7059  mean_human=1.6013  differential=0.1046  tokens=612
-  claude   mean_machine=1.4395  mean_human=1.6013  differential=-0.1618  tokens=612
+dms: mean_machine=13.1977  mean_human=1.6013  differential=11.5964  tokens=612
 
-tell counts (1 span(s) total):
-  dms: 1
-dms.qwen
+tell counts (35 span(s) total):
+  dms: 35
+dms.machine
 
-  ⚠ Dms tell: dms.qwen
-    ╭─[corpus/llm/forum/0720879ca70251ed.md:62:12]
+  ⚠ Dms tell: dms.machine
+   ╭─[corpus/llm/forum/0720879ca70251ed.md:1:1]
+ 1 │ Okay, here’s a StackExchange-style answer explaining how covering indexes optimize queries in MySQL, with an illustrative example and detailed analysis of `EXPLAIN` output:
+   · ─────────────────────────────────────────────────────────────────────────────┬────────────────────────────────────────────────────────────────────────────
+   ·                                                                              ╰── Dms tell: dms.machine
+ 2 │ 
+   ╰────
+
+dms.machine
+
+  ⚠ Dms tell: dms.machine
+   ╭─[corpus/llm/forum/0720879ca70251ed.md:5:3]
+ 4 │ 
+ 5 │ **Subject: Covering Indexes & Avoiding Table Lookups in MySQL - A Detailed Explanation**
+   ·   ──────────────────────────────────────────┬─────────────────────────────────────────
+   ·                                             ╰── Dms tell: dms.machine
+ 6 │ 
+   ╰────
+
+dms.machine
+
+  ⚠ Dms tell: dms.machine
+   ╭─[corpus/llm/forum/0720879ca70251ed.md:7:3]
+ 6 │ 
+ 7 │ **Question:** I'm running some slow SQL queries against my database.  I keep hearing about "covering indexes." What exactly are they, and how do they actually help?
+   ·   ─────────────────────────────────────────────────────────────────────────────────┬────────────────────────────────────────────────────────────────────────────────
+   ·                                                                                    ╰── Dms tell: dms.machine
+ 8 │ 
+   ╰────
+
+dms.machine
+
+  ⚠ Dms tell: dms.machine
+    ╭─[corpus/llm/forum/0720879ca70251ed.md:11:1]
+ 10 │ 
+ 11 │ You’ve hit on a crucial optimization technique in MySQL (and other relational databases).  Let’s break down covering indexes and how they dramatically reduce table lookups – often significantly speeding up your queries.
+    · ─────────────────────────────────────────────────────────────────────────────────────────────────────────────┬─────────────────────────────────────────────────────────────────────────────────────────────────────────────
+    ·                                                                                                              ╰── Dms tell: dms.machine
+ 12 │ 
+    ╰────
+
+dms.machine
+
+  ⚠ Dms tell: dms.machine
+    ╭─[corpus/llm/forum/0720879ca70251ed.md:13:3]
+ 12 │ 
+ 13 │ **What is a Covering Index?**
+    ·   ────────────┬────────────
+    ·               ╰── Dms tell: dms.machine
+ 14 │ 
+    ╰────
+
+dms.machine
+
+  ⚠ Dms tell: dms.machine
+    ╭─[corpus/llm/forum/0720879ca70251ed.md:15:1]
+ 14 │ 
+ 15 │ A covering index is an index that contains *all* the columns needed to satisfy a query. When MySQL can use a covering index, it doesn't need to access the actual underlying data rows of the table itself.  Instead, all the necessary information is retrieved directly from the index. This avoids a full table scan or, worse, a row-by-row retrieval operation.
+    · ──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────┬─────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
+    ·                                                                                                                                                                                   ╰── Dms tell: dms.machine
+ 16 │ 
+    ╰────
+
+dms.machine
+
+  ⚠ Dms tell: dms.machine
+    ╭─[corpus/llm/forum/0720879ca70251ed.md:19:1]
+ 18 │ 
+ 19 │ MySQL’s query optimizer analyzes your query and checks if it can satisfy the entire request solely through an existing index.  If the index contains all the columns used in the `SELECT`, `WHERE`, `ORDER BY`, and `GROUP BY` clauses, then a “covering index” is formed – and MySQL will try to use it.
+    · ────────────────────────────────────────────────────────────────────────────────────────┬───────────────────────────────────────────────────────────────────────────────────────
+    ·                                                                                         ╰── Dms tell: dms.machine
+ 20 │ 
+    ╰────
+
+dms.machine
+
+  ⚠ Dms tell: dms.machine
+    ╭─[corpus/llm/forum/0720879ca70251ed.md:19:226]
+ 18 │ 
+ 19 │ MySQL’s query optimizer analyzes your query and checks if it can satisfy the entire request solely through an existing index.  If the index contains all the columns used in the `SELECT`, `WHERE`, `ORDER BY`, and `GROUP BY` clauses, then a “covering index” is formed – and MySQL will try to use it.
+    ·                                                                                                                                                                                                                                ─────────────────────────────────────┬────────────────────────────────────
+    ·                                                                                                                                                                                                                                                                     ╰── Dms tell: dms.machine
+ 20 │ 
+    ╰────
+
+dms.machine
+
+  ⚠ Dms tell: dms.machine
+    ╭─[corpus/llm/forum/0720879ca70251ed.md:21:3]
+ 20 │ 
+ 21 │ **Let's Illustrate with an Example:**
+    ·   ────────────────┬────────────────
+    ·                   ╰── Dms tell: dms.machine
+ 22 │ 
+    ╰────
+
+dms.machine
+
+  ⚠ Dms tell: dms.machine
+    ╭─[corpus/llm/forum/0720879ca70251ed.md:23:1]
+ 22 │ 
+ 23 │ Imagine you have a table called `orders` with the following columns:
+    · ───────────────┬───────────────
+    ·                ╰── Dms tell: dms.machine
+ 24 │ 
+    ╰────
+
+dms.machine
+
+  ⚠ Dms tell: dms.machine
+    ╭─[corpus/llm/forum/0720879ca70251ed.md:23:42]
+ 22 │ 
+ 23 │ Imagine you have a table called `orders` with the following columns:
+    ·                                          ─────────────┬─────────────
+    ·                                                       ╰── Dms tell: dms.machine
+ 24 │ 
+    ╰────
+
+dms.machine
+
+  ⚠ Dms tell: dms.machine
+    ╭─[corpus/llm/forum/0720879ca70251ed.md:31:1]
+ 30 │ 
+ 31 │ You frequently run a query like this:
+    · ──────────────────┬──────────────────
+    ·                   ╰── Dms tell: dms.machine
+ 32 │ 
+    ╰────
+
+dms.machine
+
+  ⚠ Dms tell: dms.machine
+    ╭─[corpus/llm/forum/0720879ca70251ed.md:39:1]
+ 38 │ 
+ 39 │ Without a covering index, MySQL would typically perform a full table scan (or a more efficient index scan that *then* requires a lookup) to find the rows matching these criteria.  It’s then searching for `customer_id = 123` and then filtering by date range within those results – this involves reading every row in the table.
+    · ─────────────────────────────────────────────────────────────────────────────────────────────────────┬─────────────────────────────────────────────────────────────────────────────────────────────────────
+    ·                                                                                                      ╰── Dms tell: dms.machine
+ 40 │ 
+    ╰────
+
+dms.machine
+
+  ⚠ Dms tell: dms.machine
+    ╭─[corpus/llm/forum/0720879ca70251ed.md:39:227]
+ 38 │ 
+ 39 │ Without a covering index, MySQL would typically perform a full table scan (or a more efficient index scan that *then* requires a lookup) to find the rows matching these criteria.  It’s then searching for `customer_id = 123` and then filtering by date range within those results – this involves reading every row in the table.
+    ·                                                                                                                                                                                                                                 ──────────────────────────────────────────────────┬──────────────────────────────────────────────────
+    ·                                                                                                                                                                                                                                                                                   ╰── Dms tell: dms.machine
+ 40 │ 
+    ╰────
+
+dms.machine
+
+  ⚠ Dms tell: dms.machine
+    ╭─[corpus/llm/forum/0720879ca70251ed.md:41:3]
+ 40 │ 
+ 41 │ **EXPLAIN Output - Before Covering Index:**
+    ·   ───────────────────┬───────────────────
+    ·                      ╰── Dms tell: dms.machine
+ 42 │ 
+    ╰────
+
+dms.machine
+
+  ⚠ Dms tell: dms.machine
+    ╭─[corpus/llm/forum/0720879ca70251ed.md:43:29]
+ 42 │ 
+ 43 │ Let's examine the `EXPLAIN` output of this query:
+    ·                             ──────────┬──────────
+    ·                                       ╰── Dms tell: dms.machine
+ 44 │ 
+    ╰────
+
+dms.machine
+
+  ⚠ Dms tell: dms.machine
+    ╭─[corpus/llm/forum/0720879ca70251ed.md:53:16]
+ 52 │ 
+ 53 │ *   **`id: 1`**: This indicates a simple query (no subqueries or joins).
+    ·                ────────────────────────────┬────────────────────────────
+    ·                                            ╰── Dms tell: dms.machine
+ 54 │ *   **`select_type: SIMPLE`**: Indicates a basic, non-correlated query.
+    ╰────
+
+dms.machine
+
+  ⚠ Dms tell: dms.machine
+    ╭─[corpus/llm/forum/0720879ca70251ed.md:54:30]
+ 53 │ *   **`id: 1`**: This indicates a simple query (no subqueries or joins).
+ 54 │ *   **`select_type: SIMPLE`**: Indicates a basic, non-correlated query.
+    ·                              ─────────────────────┬────────────────────
+    ·                                                   ╰── Dms tell: dms.machine
+ 55 │ *   **`table: orders`**: The table being queried.
+    ╰────
+
+dms.machine
+
+  ⚠ Dms tell: dms.machine
+    ╭─[corpus/llm/forum/0720879ca70251ed.md:55:24]
+ 54 │ *   **`select_type: SIMPLE`**: Indicates a basic, non-correlated query.
+ 55 │ *   **`table: orders`**: The table being queried.
+    ·                        ─────────────┬────────────
+    ·                                     ╰── Dms tell: dms.machine
+ 56 │ *   **`accessed_key: NULL`**:  MySQL isn't using an index here.
+    ╰────
+
+dms.machine
+
+  ⚠ Dms tell: dms.machine
+    ╭─[corpus/llm/forum/0720879ca70251ed.md:56:29]
+ 55 │ *   **`table: orders`**: The table being queried.
+ 56 │ *   **`accessed_key: NULL`**:  MySQL isn't using an index here.
+    ·                             ─────────────────┬─────────────────
+    ·                                              ╰── Dms tell: dms.machine
+ 57 │ *   **`xrows: 1`**:  This is the estimated number of rows examined (in this case, the entire `orders` table).
+    ╰────
+
+dms.machine
+
+  ⚠ Dms tell: dms.machine
+    ╭─[corpus/llm/forum/0720879ca70251ed.md:57:19]
+ 56 │ *   **`accessed_key: NULL`**:  MySQL isn't using an index here.
+ 57 │ *   **`xrows: 1`**:  This is the estimated number of rows examined (in this case, the entire `orders` table).
+    ·                   ─────────────────────────────────────┬────────────────────────────────────
+    ·                                                        ╰── Dms tell: dms.machine
+ 58 │ *   **`Extra: Using where`**: Crucially, this means MySQL is filtering the *entire* table based on the `WHERE` clause.
+    ╰────
+
+dms.machine
+
+  ⚠ Dms tell: dms.machine
+    ╭─[corpus/llm/forum/0720879ca70251ed.md:58:29]
+ 57 │ *   **`xrows: 1`**:  This is the estimated number of rows examined (in this case, the entire `orders` table).
+ 58 │ *   **`Extra: Using where`**: Crucially, this means MySQL is filtering the *entire* table based on the `WHERE` clause.
+    ·                             ─────────────────────────────────────┬────────────────────────────────────
+    ·                                                                  ╰── Dms tell: dms.machine
+ 59 │ 
+    ╰────
+
+dms.machine
+
+  ⚠ Dms tell: dms.machine
+    ╭─[corpus/llm/forum/0720879ca70251ed.md:60:3]
+ 59 │ 
+ 60 │ **Adding a Covering Index:**
+    ·   ────────────┬───────────
+    ·               ╰── Dms tell: dms.machine
+ 61 │ 
+    ╰────
+
+dms.machine
+
+  ⚠ Dms tell: dms.machine
+    ╭─[corpus/llm/forum/0720879ca70251ed.md:62:1]
  61 │ 
  62 │ Now, let's add a composite index that includes the selected columns and the `customer_id`:
-    ·            ─────────────────┬─────────────────
-    ·                             ╰── Dms tell: dms.qwen
+    · ─────────────────────────────────────┬─────────────────────────────────────
+    ·                                      ╰── Dms tell: dms.machine
  63 │ 
+    ╰────
+
+dms.machine
+
+  ⚠ Dms tell: dms.machine
+    ╭─[corpus/llm/forum/0720879ca70251ed.md:68:1]
+ 67 │ 
+ 68 │ This index contains all the columns needed for our query.
+    · ────────────────────────────┬────────────────────────────
+    ·                             ╰── Dms tell: dms.machine
+ 69 │ 
+    ╰────
+
+dms.machine
+
+  ⚠ Dms tell: dms.machine
+    ╭─[corpus/llm/forum/0720879ca70251ed.md:70:3]
+ 69 │ 
+ 70 │ **EXPLAIN Output - After Covering Index:**
+    ·   ───────────────────┬──────────────────
+    ·                      ╰── Dms tell: dms.machine
+ 71 │ 
+    ╰────
+
+dms.machine
+
+  ⚠ Dms tell: dms.machine
+    ╭─[corpus/llm/forum/0720879ca70251ed.md:72:1]
+ 71 │ 
+ 72 │ Now let's run the same query again and examine the `EXPLAIN` output:
+    · ─────────────────────────┬────────────────────────
+    ·                          ╰── Dms tell: dms.machine
+ 73 │ 
+    ╰────
+
+dms.machine
+
+  ⚠ Dms tell: dms.machine
+    ╭─[corpus/llm/forum/0720879ca70251ed.md:82:16]
+ 81 │ 
+ 82 │ *   **`id: 1`**: Still a simple query.
+    ·                ───────────┬───────────
+    ·                           ╰── Dms tell: dms.machine
+ 83 │ *   **`select_type: SIMPLE`**: Remains the same.
+    ╰────
+
+dms.machine
+
+  ⚠ Dms tell: dms.machine
+    ╭─[corpus/llm/forum/0720879ca70251ed.md:85:33]
+ 84 │ *   **`table: orders`**:  Still querying `orders`.
+ 85 │ *   **`accessed_key: custdate`**: This is the *key*! MySQL now uses the index for filtering, specifically by `customer_id` and `order_date`.
+    ·                                 ──────────────────────────────────────┬─────────────────────────────────────
+    ·                                                                       ╰── Dms tell: dms.machine
+ 86 │ *   **`xrows: 0`**: Because all data needed is retrieved from the index, no rows are actually read from the table itself.
+    ╰────
+
+dms.machine
+
+  ⚠ Dms tell: dms.machine
+    ╭─[corpus/llm/forum/0720879ca70251ed.md:86:19]
+ 85 │ *   **`accessed_key: custdate`**: This is the *key*! MySQL now uses the index for filtering, specifically by `customer_id` and `order_date`.
+ 86 │ *   **`xrows: 0`**: Because all data needed is retrieved from the index, no rows are actually read from the table itself.
+    ·                   ───────────────────────────────────────────────────┬───────────────────────────────────────────────────
+    ·                                                                      ╰── Dms tell: dms.machine
+ 87 │ *   **`Extra: Using index`**: This confirms that MySQL is using an index to satisfy the query.
+    ╰────
+
+dms.machine
+
+  ⚠ Dms tell: dms.machine
+    ╭─[corpus/llm/forum/0720879ca70251ed.md:87:29]
+ 86 │ *   **`xrows: 0`**: Because all data needed is retrieved from the index, no rows are actually read from the table itself.
+ 87 │ *   **`Extra: Using index`**: This confirms that MySQL is using an index to satisfy the query.
+    ·                             ─────────────────────────────────┬────────────────────────────────
+    ·                                                              ╰── Dms tell: dms.machine
+ 88 │ 
+    ╰────
+
+dms.machine
+
+  ⚠ Dms tell: dms.machine
+    ╭─[corpus/llm/forum/0720879ca70251ed.md:89:3]
+ 88 │ 
+ 89 │ **Key Distinction: "Using index" vs. "Using where"**
+    ·   ───────────────────────┬───────────────────────
+    ·                          ╰── Dms tell: dms.machine
+ 90 │ 
+    ╰────
+
+dms.machine
+
+  ⚠ Dms tell: dms.machine
+    ╭─[corpus/llm/forum/0720879ca70251ed.md:91:1]
+ 90 │ 
+ 91 │ The "Using index" extra clause indicates that MySQL is *directly* using the index to retrieve data, avoiding a full table scan or row lookup. “Using where” means it’s filtering rows based on the `WHERE` clause but still requires some form of indexing (likely a non-covering one).
+    · ─────────────────────────────────────────────────────────────────────────────────────────────────┬────────────────────────────────────────────────────────────────────────────────────────────────
+    ·                                                                                                  ╰── Dms tell: dms.machine
+ 92 │ 
+    ╰────
+
+dms.machine
+
+  ⚠ Dms tell: dms.machine
+    ╭─[corpus/llm/forum/0720879ca70251ed.md:91:210]
+ 90 │ 
+ 91 │ The "Using index" extra clause indicates that MySQL is *directly* using the index to retrieve data, avoiding a full table scan or row lookup. “Using where” means it’s filtering rows based on the `WHERE` clause but still requires some form of indexing (likely a non-covering one).
+    ·                                                                                                                                                                                                            ──────────────────────────────────────┬─────────────────────────────────────
+    ·                                                                                                                                                                                                                                                  ╰── Dms tell: dms.machine
+ 92 │ 
+    ╰────
+
+dms.machine
+
+  ⚠ Dms tell: dms.machine
+    ╭─[corpus/llm/forum/0720879ca70251ed.md:97:1]
+ 96 │ 
+ 97 │ Do you want me to delve deeper into specific aspects like index cardinality, different types of covering indexes, or how they relate to query optimization in more complex scenarios?
+    · ──────────────────────────────────────────────────────────────────────────────────────────┬──────────────────────────────────────────────────────────────────────────────────────────
+    ·                                                                                           ╰── Dms tell: dms.machine
     ╰────

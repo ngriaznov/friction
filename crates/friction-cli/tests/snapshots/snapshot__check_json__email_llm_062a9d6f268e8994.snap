@@ -157,7 +157,7 @@ expression: stdout
   "spans": [
     {
       "channel": "dms",
-      "frame_id": "dms.qwen",
+      "frame_id": "dms.machine",
       "start": 0,
       "end": 78,
       "line": 1,
@@ -166,7 +166,7 @@ expression: stdout
     },
     {
       "channel": "dms",
-      "frame_id": "dms.qwen",
+      "frame_id": "dms.machine",
       "start": 98,
       "end": 501,
       "line": 5,
@@ -175,7 +175,7 @@ expression: stdout
     },
     {
       "channel": "dms",
-      "frame_id": "dms.qwen",
+      "frame_id": "dms.machine",
       "start": 534,
       "end": 892,
       "line": 9,
@@ -184,7 +184,7 @@ expression: stdout
     },
     {
       "channel": "dms",
-      "frame_id": "dms.qwen",
+      "frame_id": "dms.machine",
       "start": 894,
       "end": 1341,
       "line": 11,
@@ -193,7 +193,7 @@ expression: stdout
     },
     {
       "channel": "dms",
-      "frame_id": "dms.qwen",
+      "frame_id": "dms.machine",
       "start": 1345,
       "end": 1376,
       "line": 13,
@@ -202,7 +202,7 @@ expression: stdout
     },
     {
       "channel": "dms",
-      "frame_id": "dms.qwen",
+      "frame_id": "dms.machine",
       "start": 1380,
       "end": 1849,
       "line": 15,
@@ -211,7 +211,7 @@ expression: stdout
     },
     {
       "channel": "dms",
-      "frame_id": "dms.qwen",
+      "frame_id": "dms.machine",
       "start": 1851,
       "end": 2245,
       "line": 17,
@@ -220,7 +220,7 @@ expression: stdout
     },
     {
       "channel": "dms",
-      "frame_id": "dms.qwen",
+      "frame_id": "dms.machine",
       "start": 2249,
       "end": 2299,
       "line": 19,
@@ -229,7 +229,7 @@ expression: stdout
     },
     {
       "channel": "dms",
-      "frame_id": "dms.qwen",
+      "frame_id": "dms.machine",
       "start": 2303,
       "end": 2657,
       "line": 21,
@@ -238,7 +238,7 @@ expression: stdout
     },
     {
       "channel": "dms",
-      "frame_id": "dms.qwen",
+      "frame_id": "dms.machine",
       "start": 2659,
       "end": 3061,
       "line": 23,
@@ -247,7 +247,7 @@ expression: stdout
     },
     {
       "channel": "dms",
-      "frame_id": "dms.qwen",
+      "frame_id": "dms.machine",
       "start": 3065,
       "end": 3097,
       "line": 25,
@@ -256,7 +256,7 @@ expression: stdout
     },
     {
       "channel": "dms",
-      "frame_id": "dms.qwen",
+      "frame_id": "dms.machine",
       "start": 3101,
       "end": 3171,
       "line": 27,
@@ -265,7 +265,7 @@ expression: stdout
     },
     {
       "channel": "dms",
-      "frame_id": "dms.qwen",
+      "frame_id": "dms.machine",
       "start": 3217,
       "end": 3349,
       "line": 30,
@@ -274,7 +274,7 @@ expression: stdout
     },
     {
       "channel": "dms",
-      "frame_id": "dms.qwen",
+      "frame_id": "dms.machine",
       "start": 3357,
       "end": 3391,
       "line": 32,
@@ -283,7 +283,7 @@ expression: stdout
     },
     {
       "channel": "dms",
-      "frame_id": "dms.qwen",
+      "frame_id": "dms.machine",
       "start": 3396,
       "end": 3531,
       "line": 33,
@@ -292,7 +292,7 @@ expression: stdout
     },
     {
       "channel": "dms",
-      "frame_id": "dms.qwen",
+      "frame_id": "dms.machine",
       "start": 3537,
       "end": 3569,
       "line": 35,
@@ -301,7 +301,7 @@ expression: stdout
     },
     {
       "channel": "dms",
-      "frame_id": "dms.qwen",
+      "frame_id": "dms.machine",
       "start": 3574,
       "end": 3730,
       "line": 36,
@@ -310,7 +310,7 @@ expression: stdout
     },
     {
       "channel": "dms",
-      "frame_id": "dms.qwen",
+      "frame_id": "dms.machine",
       "start": 3732,
       "end": 3918,
       "line": 38,
@@ -319,7 +319,7 @@ expression: stdout
     },
     {
       "channel": "dms",
-      "frame_id": "dms.qwen",
+      "frame_id": "dms.machine",
       "start": 3942,
       "end": 4189,
       "line": 42,
@@ -328,7 +328,7 @@ expression: stdout
     },
     {
       "channel": "dms",
-      "frame_id": "dms.qwen",
+      "frame_id": "dms.machine",
       "start": 4206,
       "end": 4255,
       "line": 46,
@@ -339,41 +339,10 @@ expression: stdout
   "tell_counts": {
     "dms": 20
   },
-  "dms": [
-    {
-      "family": "qwen",
-      "mean_machine": 28.951724137931034,
-      "mean_human": 1.48,
-      "differential": 27.471724137931034,
-      "token_count": 725
-    },
-    {
-      "family": "gemma",
-      "mean_machine": 1.433103448275862,
-      "mean_human": 1.48,
-      "differential": -0.04689655172413798,
-      "token_count": 725
-    },
-    {
-      "family": "llama",
-      "mean_machine": 1.3158620689655172,
-      "mean_human": 1.48,
-      "differential": -0.16413793103448282,
-      "token_count": 725
-    },
-    {
-      "family": "granite",
-      "mean_machine": 1.0262068965517241,
-      "mean_human": 1.48,
-      "differential": -0.45379310344827584,
-      "token_count": 725
-    },
-    {
-      "family": "claude",
-      "mean_machine": 1.2041379310344829,
-      "mean_human": 1.48,
-      "differential": -0.2758620689655171,
-      "token_count": 725
-    }
-  ]
+  "dms": {
+    "mean_machine": 28.951724137931034,
+    "mean_human": 1.48,
+    "differential": 27.471724137931034,
+    "token_count": 725
+  }
 }

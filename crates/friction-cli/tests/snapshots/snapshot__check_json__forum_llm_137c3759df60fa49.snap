@@ -157,12 +157,21 @@ expression: stdout
   "spans": [
     {
       "channel": "dms",
-      "frame_id": "dms.qwen",
-      "start": 16,
+      "frame_id": "dms.machine",
+      "start": 2,
       "end": 45,
       "line": 1,
-      "column": 17,
-      "score": 6
+      "column": 3,
+      "score": 8
+    },
+    {
+      "channel": "dms",
+      "frame_id": "dms.machine",
+      "start": 49,
+      "end": 499,
+      "line": 3,
+      "column": 1,
+      "score": 2572
     },
     {
       "channel": "literal",
@@ -175,62 +184,148 @@ expression: stdout
     },
     {
       "channel": "dms",
-      "frame_id": "dms.qwen",
-      "start": 212,
-      "end": 248,
-      "line": 3,
-      "column": 160,
-      "score": 7
+      "frame_id": "dms.machine",
+      "start": 534,
+      "end": 793,
+      "line": 7,
+      "column": 1,
+      "score": 722
     },
     {
       "channel": "dms",
-      "frame_id": "dms.qwen",
-      "start": 899,
-      "end": 926,
+      "frame_id": "dms.machine",
+      "start": 821,
+      "end": 1089,
       "line": 11,
-      "column": 84,
-      "score": 9
+      "column": 6,
+      "score": 1001
+    },
+    {
+      "channel": "dms",
+      "frame_id": "dms.machine",
+      "start": 1301,
+      "end": 1432,
+      "line": 20,
+      "column": 14,
+      "score": 194
+    },
+    {
+      "channel": "dms",
+      "frame_id": "dms.machine",
+      "start": 1437,
+      "end": 1505,
+      "line": 20,
+      "column": 148,
+      "score": 72
+    },
+    {
+      "channel": "dms",
+      "frame_id": "dms.machine",
+      "start": 1512,
+      "end": 1699,
+      "line": 22,
+      "column": 6,
+      "score": 442
+    },
+    {
+      "channel": "dms",
+      "frame_id": "dms.machine",
+      "start": 1726,
+      "end": 1826,
+      "line": 22,
+      "column": 220,
+      "score": 151
+    },
+    {
+      "channel": "dms",
+      "frame_id": "dms.machine",
+      "start": 2049,
+      "end": 2079,
+      "line": 32,
+      "column": 4,
+      "score": 10
+    },
+    {
+      "channel": "dms",
+      "frame_id": "dms.machine",
+      "start": 2092,
+      "end": 2125,
+      "line": 32,
+      "column": 47,
+      "score": 6
+    },
+    {
+      "channel": "dms",
+      "frame_id": "dms.machine",
+      "start": 2200,
+      "end": 2286,
+      "line": 32,
+      "column": 155,
+      "score": 133
+    },
+    {
+      "channel": "dms",
+      "frame_id": "dms.machine",
+      "start": 2293,
+      "end": 2631,
+      "line": 34,
+      "column": 6,
+      "score": 1716
+    },
+    {
+      "channel": "dms",
+      "frame_id": "dms.machine",
+      "start": 2799,
+      "end": 2875,
+      "line": 43,
+      "column": 4,
+      "score": 47
+    },
+    {
+      "channel": "dms",
+      "frame_id": "dms.machine",
+      "start": 2882,
+      "end": 2979,
+      "line": 43,
+      "column": 85,
+      "score": 136
+    },
+    {
+      "channel": "dms",
+      "frame_id": "dms.machine",
+      "start": 3014,
+      "end": 3310,
+      "line": 47,
+      "column": 1,
+      "score": 1048
+    },
+    {
+      "channel": "dms",
+      "frame_id": "dms.machine",
+      "start": 3312,
+      "end": 3633,
+      "line": 49,
+      "column": 1,
+      "score": 1057
+    },
+    {
+      "channel": "dms",
+      "frame_id": "dms.machine",
+      "start": 3635,
+      "end": 3888,
+      "line": 51,
+      "column": 1,
+      "score": 759
     }
   ],
   "tell_counts": {
-    "dms": 3,
+    "dms": 17,
     "sub": 1
   },
-  "dms": [
-    {
-      "family": "qwen",
-      "mean_machine": 1.3572778827977316,
-      "mean_human": 1.6521739130434783,
-      "differential": -0.2948960302457466,
-      "token_count": 529
-    },
-    {
-      "family": "gemma",
-      "mean_machine": 1.614366729678639,
-      "mean_human": 1.6521739130434783,
-      "differential": -0.037807183364839236,
-      "token_count": 529
-    },
-    {
-      "family": "llama",
-      "mean_machine": 1.4291115311909264,
-      "mean_human": 1.6521739130434783,
-      "differential": -0.2230623818525519,
-      "token_count": 529
-    },
-    {
-      "family": "granite",
-      "mean_machine": 20.83742911153119,
-      "mean_human": 1.6521739130434783,
-      "differential": 19.185255198487713,
-      "token_count": 529
-    },
-    {
-      "family": "claude",
-      "mean_machine": 1.5387523629489603,
-      "mean_human": 1.6521739130434783,
-      "differential": -0.11342155009451793,
-      "token_count": 529
-    }
-  ]
+  "dms": {
+    "mean_machine": 20.83742911153119,
+    "mean_human": 1.6521739130434783,
+    "differential": 19.185255198487713,
+    "token_count": 529
+  }
 }

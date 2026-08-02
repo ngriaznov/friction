@@ -46,9 +46,9 @@ fn composed_four_operation_paragraph_input_detects_all_four_tell_families() {
     );
 
     assert!(
-        report.dms.families.iter().any(|f| f.differential > 0.0),
-        "expected a positive DMS document-level differential for at least one family, got {:?}",
-        report.dms.families
+        report.dms.machine.differential > 0.0,
+        "expected a positive pooled DMS document-level differential, got {:?}",
+        report.dms.machine
     );
 }
 
