@@ -63,7 +63,7 @@ Seven operations edit text. Nothing else does.
    per-million frequencies from the machine and human corpora, and the pack
    compiler enforces the evidence at build time: a rule whose target word
    is unattested in human text, whose trigger measures human-tilted, or
-   whose trigger is simply too common in human prose to auto-edit
+   whose trigger is too common in human prose to auto-edit
    (100+/M) never compiles as an edit — it demotes to a report-only
    finding, and `--suggest` shows it with its measured rates. Rewrites
    realize through the inflection tables, so tense and agreement survive
@@ -126,13 +126,14 @@ with the sentence that motivated each one.
 
 Detection (what finds the candidates) runs six channels. Five are span-level: a
 mined literal inventory, a shallow tag-pattern scan for light-verb
-constructions, a differential matching-statistics profile computed against
-per-generator-family suffix-automaton indexes — which also powers the
-document-level report in `friction check` — a deterministic contrast-frame
+constructions, a differential matching-statistics profile computed against one pooled
+machine suffix automaton (every mined generator family's corpus in a
+single index) — which also powers the document-level report in
+`friction check` — a deterministic contrast-frame
 template scan: `frame.contrast.question` (the dismissive-foil interrogative
 above) and `frame.contrast.correction` (declarative epanorthosis, *"not just
 X — it's Y"*), both detect-only in `check` and, for `fix`, reported in the
-paraphrase list alongside DMS (differential matching statistics — friction's
+paraphrase list with DMS (differential matching statistics — friction's
 own name for its corpus-differential detection channel, built on the
 matching-statistics literature; see `docs/research/ALGORITHMS.md` §1)
 candidates whenever no gated edit applies (an
@@ -247,11 +248,15 @@ cargo build --release -p friction-cli
 
 The binary lands at `target/release/friction`; MSRV is 1.96.
 
-Either way the result is self-contained: the part-of-speech tagger (1.4 MB) and
-dependency parser (6.5 MB) are vendored weight artifacts compiled into the
-binary, and nothing is downloaded at build or run time. Both are fixed tables,
-so the runtime stays deterministic — there is no inference engine here, only
-lookups. That accounts for the binary being around 16 MB.
+Either way the result is self-contained: the part-of-speech tagger (1.4 MB),
+the dependency parser (6.5 MB), the matching-statistics automata
+(dms-index, 25.8 MB — per-family streams plus the pooled machine automaton
+the runtime scans), the compound-attestation filter (2.3 MB), and the
+evidence packs are all compiled into the binary, and nothing is downloaded
+at build or run time. Everything is fixed tables, so the runtime stays
+deterministic — there is no inference engine here, only lookups. That
+accounts for the binary being around 59 MB (about a 27 MB compressed
+download).
 
 ## Usage
 
@@ -410,14 +415,14 @@ declined it. The `suggest:` line above counts a different thing: findings the
 detector surfaced that no operation claimed at all.
 
 The `paraphrase:` line counts a third, unrelated thing: after fixing, `fix`
-also scans its own output with the DMS statistical channel against every
-generator family the embedded index covers, and with the contrast-frame
+also scans its own output with the DMS statistical channel against the
+pooled machine automaton, and with the contrast-frame
 template scan, and reports how many spans either flagged. It never touches
 them — there is no licensed rewrite for a DMS tell or for an `only`-marked
 question or a declarative correction frame, only a fixed set of literal
 edits, so a flagged span is left exactly as written for a human to
-paraphrase. `--suggest` lists each one on stderr: location, generator family
-(or frame id), score, and the flagged snippet.
+paraphrase. `--suggest` lists each one on stderr: location, channel id, score, and
+the flagged snippet.
 
 Clean text passes through byte-identical:
 
@@ -436,7 +441,7 @@ friction check draft.md --family gemma --format sarif > report.sarif
 friction check draft.md --family qwen --residual
 ```
 
-Reports detected spans with byte-exact locations, tell counts per family,
+Reports detected spans with byte-exact locations, tell counts,
 distribution metrics against the genre envelope, and the document-level
 matching-statistics differential. The SARIF output validates against the SARIF
 2.1.0 schema.
@@ -446,9 +451,11 @@ compiled frame rule covers. The machine tells the rule set cannot yet
 explain or rewrite, which is exactly the evidence queue the next
 rule-generation batch should start from.
 
-`--family` is required and matters: detection indexes are specific to the
-generator family they were mined from (`qwen`, `gemma`, `llama`, `granite`).
-Text from a model family you have no index for will mostly evade the
+`--family` is still required by the interface but no longer selects an
+index: since 0.5.0 every scan runs against one pooled machine automaton
+built from all mined family corpora (`qwen`, `gemma`, `llama`, `granite`,
+`claude`), and the flag only labels the report. Text from a generator
+whose register none of the mined corpora resemble can still evade the
 statistical channel. See limits below.
 
 **`check` is a report, not a gate.** Its exit code is `0` only when *every*
@@ -574,7 +581,7 @@ $ friction explain draft.md --format json
 ```
 
 Ranges index the **original** bytes, so `text[start..end]` is exactly what the
-replacement replaces. Held candidates appear alongside with the gate that
+replacement replaces. Held candidates appear with the gate that
 declined them, which is the part worth surfacing to a reviewer: it says what
 friction noticed and chose not to touch.
 
@@ -666,7 +673,7 @@ detection frame, or introduces an unattested content word, fails the build):
   classes. Hand-reviewed; every mined entry carries its corpus counts.
 - `dms-index-v1.toml` — per-family machine/human token streams for the
   matching-statistics channel. The runtime embeds `dms-index-v1.bin`
-  alongside it: the same streams with their suffix automata pre-built by
+  next to it: the same streams with their suffix automata pre-built by
   `corpus-tool dms-pack` and serialized flat, loaded as a zero-copy view
   so process start pays no parse or automaton construction (a test
   re-packs the TOML and fails if the two ever diverge).
