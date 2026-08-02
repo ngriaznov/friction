@@ -21,6 +21,16 @@ mod table;
 
 use clap::{Parser, Subcommand};
 
+/// mimalloc as the global allocator: the fix pipeline is allocation-heavy
+/// (perceptron scratch, per-sentence strings — the malloc/free family
+/// measured ~10% of hot samples under glibc malloc), and mimalloc's
+/// small-allocation fast path buys a measured chunk of that back for one
+/// dependency line. Allocator choice cannot affect output bytes — nothing
+/// in the engine observes addresses — so the byte-determinism contract is
+/// untouched.
+#[global_allocator]
+static GLOBAL: mimalloc::MiMalloc = mimalloc::MiMalloc;
+
 /// `friction`: a deterministic engine that reduces LLM-speak in prose.
 #[derive(Debug, Parser)]
 #[command(name = "friction", version, about, long_about = None)]

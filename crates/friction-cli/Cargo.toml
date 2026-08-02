@@ -35,6 +35,14 @@ serde = { workspace = true }
 serde_json = { workspace = true }
 thiserror = { workspace = true }
 rayon = { workspace = true }
+# Global allocator for the shipped binary (see main.rs's
+# `#[global_allocator]` doc comment for the measured rationale). The
+# first native (C) code in the friction binary itself — vendored and
+# built by libmimalloc-sys via `cc`, no system library or pkg-config
+# lookup, so the existing release cross-build matrix needs nothing new.
+# Not yet in [workspace.dependencies]; added here per crate-local
+# convention (see `miette`, below).
+mimalloc = "0.1"
 
 # `check`'s text-mode findings are rendered as labeled-span diagnostics
 # with miette's fancy renderer (see src/diagnostics.rs); not yet covered
