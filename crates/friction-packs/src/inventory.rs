@@ -12,6 +12,7 @@
 
 use std::collections::{BTreeMap, BTreeSet};
 
+use rayon::prelude::*;
 use regex::Regex;
 use serde::Deserialize;
 
@@ -227,26 +228,41 @@ impl InventoryPack {
     pub fn parse(toml: &str) -> Result<Self, PackError> {
         let raw: RawPack = toml::from_str(toml).map_err(PackError::from)?;
 
-        let mut deletion_spans: Vec<DeletionSpan> = raw
-            .deletion_spans
-            .into_iter()
-            .map(DeletionSpan::try_from_raw)
-            .collect::<Result<_, _>>()?;
-        let mut substitution_pairs: Vec<SubstitutionPair> = raw
-            .substitution_pairs
-            .into_iter()
-            .map(SubstitutionPair::try_from_raw)
-            .collect::<Result<_, _>>()?;
-        let mut ritual_frames: Vec<RitualFrame> = raw
-            .ritual_frames
-            .into_iter()
-            .map(RitualFrame::try_from_raw)
-            .collect::<Result<_, _>>()?;
-        let mut preview_frames: Vec<PreviewFrame> = raw
-            .preview_frames
-            .into_iter()
-            .map(PreviewFrame::try_from_raw)
-            .collect::<Result<_, _>>()?;
+        // The four regex-carrying families compile in parallel: regex
+        // construction (~200 µs a pattern, ~31 patterns) is this parse's
+        // entire cost, paid on every process's first pack touch.
+        // Determinism: an indexed `into_par_iter().map(..).collect()`
+        // yields the same Vec<Result> in declaration order regardless of
+        // thread count, and `first_error` then picks the winning error
+        // sequentially — same value AND same error selection as the old
+        // serial loop, byte for byte.
+        fn first_error<T: Send>(results: Vec<Result<T, PackError>>) -> Result<Vec<T>, PackError> {
+            results.into_iter().collect()
+        }
+        let mut deletion_spans: Vec<DeletionSpan> = first_error(
+            raw.deletion_spans
+                .into_par_iter()
+                .map(DeletionSpan::try_from_raw)
+                .collect(),
+        )?;
+        let mut substitution_pairs: Vec<SubstitutionPair> = first_error(
+            raw.substitution_pairs
+                .into_par_iter()
+                .map(SubstitutionPair::try_from_raw)
+                .collect(),
+        )?;
+        let mut ritual_frames: Vec<RitualFrame> = first_error(
+            raw.ritual_frames
+                .into_par_iter()
+                .map(RitualFrame::try_from_raw)
+                .collect(),
+        )?;
+        let mut preview_frames: Vec<PreviewFrame> = first_error(
+            raw.preview_frames
+                .into_par_iter()
+                .map(PreviewFrame::try_from_raw)
+                .collect(),
+        )?;
         let mut lvc_pairs: Vec<LvcPair> = raw
             .lvc_pairs
             .into_iter()
