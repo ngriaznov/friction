@@ -897,10 +897,19 @@ fn compile_one(
         return Outcome::Rejected(draft.id, Reject::ShadowedByLemmaRule { parent });
     }
 
-    // Anchor: the longest run of consecutive obligatory literals.
-    let Some((anchor_start, anchor_len)) = anchor_run(&draft.pattern) else {
+    // Anchor: the longest run of consecutive obligatory anchorable
+    // elements — literals, plus single-member-class tag positions
+    // (see `anchorable_word`).
+    let Some((anchor_start, anchor_len)) = anchor_run(&draft.pattern, classes, interner) else {
         return Outcome::Rejected(draft.id, Reject::ZeroLiteralAnchor);
     };
+    let anchor_words: Vec<String> = draft.pattern[anchor_start..anchor_start + anchor_len]
+        .iter()
+        .map(|elem| {
+            anchorable_word(elem, classes, interner)
+                .expect("anchor runs contain only anchorable elements")
+        })
+        .collect();
 
     // Demotions to report-only: flip-bucket guards (measured
     // machine-tilted: protecting them would shelter machine-leaning
@@ -912,13 +921,11 @@ fn compile_one(
     } else if template_has_placeholder(&draft.target) {
         Some("target realization was never authored (`?` placeholder)".to_string())
     } else if draft.kind != RuleKind::Guard
-        && let Some(reason) =
-            anchor_evidence_demotion(&draft.pattern, anchor_start, anchor_len, evidence)
+        && let Some(reason) = anchor_evidence_demotion(&anchor_words, evidence)
     {
         Some(reason)
     } else if draft.kind == RuleKind::Guard
-        && let Some((m, h)) =
-            machine_tilted_guard(&draft.pattern, anchor_start, anchor_len, evidence)
+        && let Some((m, h)) = machine_tilted_guard(&anchor_words, evidence)
     {
         // A guard whose own anchor measures machine-tilted would
         // shelter machine-leaning text: the flip bucket's exact
@@ -959,12 +966,9 @@ fn compile_one(
         .iter()
         .map(|elem| compile_pat(elem, interner, classes))
         .collect();
-    let anchor_ids = draft.pattern[anchor_start..anchor_start + anchor_len]
+    let anchor_ids = anchor_words
         .iter()
-        .map(|elem| match elem {
-            PatElem::Lit(text) => interner.intern(text),
-            _ => unreachable!("anchor runs contain only literals"),
-        })
+        .map(|word| interner.intern(word))
         .collect();
 
     #[expect(clippy::cast_possible_truncation, reason = "patterns are tokens-long")]
@@ -1000,9 +1004,32 @@ fn is_inflection_shadow(surface: &[PatElem], parent: &[PatElem]) -> bool {
         })
 }
 
-/// Finds the longest run of consecutive obligatory literal elements;
-/// returns `(start, len)`, leftmost winning ties.
-fn anchor_run(pattern: &[PatElem]) -> Option<(usize, usize)> {
+/// The one word this pattern element pins every match to, if any: a
+/// literal's own text, or — for a `TAG[class]` position whose class
+/// has exactly one single-word member — that member. Either shape lets
+/// the element serve in an anchor run: the index prefilter matches the
+/// word at lemma level, and for a tag-classed element the verifier
+/// still enforces the tag before the rule can fire (the verb-gated
+/// `vsub.harness` split is the motivating case: noun "harness" reaches
+/// the verifier and is refused there).
+fn anchorable_word(elem: &PatElem, classes: &ClassTable, interner: &Interner) -> Option<String> {
+    match elem {
+        PatElem::Lit(text) => Some(text.clone()),
+        PatElem::TagClass { class, .. } => classes
+            .single_word_member(class)
+            .map(|id| interner.words[id as usize].clone()),
+        _ => None,
+    }
+}
+
+/// Finds the longest run of consecutive obligatory anchorable elements
+/// (see [`anchorable_word`]); returns `(start, len)`, leftmost winning
+/// ties.
+fn anchor_run(
+    pattern: &[PatElem],
+    classes: &ClassTable,
+    interner: &Interner,
+) -> Option<(usize, usize)> {
     let mut best: Option<(usize, usize)> = None;
     let mut run_start = 0;
     let consider = |start: usize, end: usize, best: &mut Option<(usize, usize)>| {
@@ -1012,7 +1039,7 @@ fn anchor_run(pattern: &[PatElem]) -> Option<(usize, usize)> {
         }
     };
     for (i, elem) in pattern.iter().enumerate() {
-        if !matches!(elem, PatElem::Lit(_)) {
+        if anchorable_word(elem, classes, interner).is_none() {
             consider(run_start, i, &mut best);
             run_start = i + 1;
         }
@@ -1044,19 +1071,8 @@ const HUMAN_RATE_CEILING_PER_MILLION: f64 = 100.0;
 ///   text too often to auto-edit no matter how machine-tilted its
 ///   ratio is — absolute human frequency, not the ratio, is what sets
 ///   the human-holdout edit noise.
-fn anchor_evidence_demotion(
-    pattern: &[PatElem],
-    anchor_start: usize,
-    anchor_len: usize,
-    evidence: &CorpusEvidence,
-) -> Option<String> {
-    let words: Vec<&str> = pattern[anchor_start..anchor_start + anchor_len]
-        .iter()
-        .map(|elem| match elem {
-            PatElem::Lit(text) => text.as_str(),
-            _ => unreachable!("anchor runs contain only literals"),
-        })
-        .collect();
+fn anchor_evidence_demotion(anchor_words: &[String], evidence: &CorpusEvidence) -> Option<String> {
+    let words: Vec<&str> = anchor_words.iter().map(String::as_str).collect();
     #[expect(
         clippy::cast_precision_loss,
         reason = "corpus counts are far below 2^52"
@@ -1099,19 +1115,8 @@ fn anchor_evidence_demotion(
 
 /// The guard anchor's `(machine, human)` counts when they classify as
 /// solidly machine-tilted (the confirmation bar) — `None` otherwise.
-fn machine_tilted_guard(
-    pattern: &[PatElem],
-    anchor_start: usize,
-    anchor_len: usize,
-    evidence: &CorpusEvidence,
-) -> Option<(u64, u64)> {
-    let words: Vec<&str> = pattern[anchor_start..anchor_start + anchor_len]
-        .iter()
-        .map(|elem| match elem {
-            PatElem::Lit(text) => text.as_str(),
-            _ => unreachable!("anchor runs contain only literals"),
-        })
-        .collect();
+fn machine_tilted_guard(anchor_words: &[String], evidence: &CorpusEvidence) -> Option<(u64, u64)> {
+    let words: Vec<&str> = anchor_words.iter().map(String::as_str).collect();
     // Guard confirmation is a two-sided verdict: register-matched
     // evidence only (see `CorpusEvidence::phrase_counts_register_matched`).
     // Either matched pair may confirm — the DMS streams, or the
@@ -1402,6 +1407,21 @@ impl ClassTable {
             .iter()
             .position(|n| n == name)
             .map(|i| u16::try_from(i).expect("class count far below u16::MAX"))
+    }
+
+    /// The class's one single-word member id, when the class has
+    /// exactly one member and that member is exactly one word — the
+    /// shape that lets a `TAG[class]` position anchor a scan like a
+    /// literal would (see [`anchorable_word`]).
+    fn single_word_member(&self, name: &str) -> Option<u32> {
+        let members = &self.members[usize::from(self.id_of(name)?)];
+        match members.as_slice() {
+            [member] => match member.as_slice() {
+                [only] => Some(*only),
+                _ => None,
+            },
+            _ => None,
+        }
     }
 }
 

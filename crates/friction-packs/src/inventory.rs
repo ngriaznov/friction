@@ -226,8 +226,6 @@ impl InventoryPack {
     /// variants for a structural violation this parse enforces. See each
     /// variant's own docs.
     pub fn parse(toml: &str) -> Result<Self, PackError> {
-        let raw: RawPack = toml::from_str(toml).map_err(PackError::from)?;
-
         // The four regex-carrying families compile in parallel: regex
         // construction (~200 µs a pattern, ~31 patterns) is this parse's
         // entire cost, paid on every process's first pack touch.
@@ -239,6 +237,8 @@ impl InventoryPack {
         fn first_error<T: Send>(results: Vec<Result<T, PackError>>) -> Result<Vec<T>, PackError> {
             results.into_iter().collect()
         }
+
+        let raw: RawPack = toml::from_str(toml).map_err(PackError::from)?;
         let mut deletion_spans: Vec<DeletionSpan> = first_error(
             raw.deletion_spans
                 .into_par_iter()

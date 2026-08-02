@@ -218,7 +218,11 @@ rules_ship = [
 { id="nn.correctness-issue", p="\"correctness issue\"", t="\"bug\"", k="r", m_pm=147.6, h_pm=0.4, v="CONFIRMED" },
 { id="rev.just-flagging", p="\"just flagging\"", t="\"just noting\"", k="r", m_pm=132.8, h_pm=0.1, v="CONFIRMED" },
 { id="num.lands-somewhere", p="\"lands\" \"somewhere\" X", t="\"be\" \"somewhere\" X", k="r", m_pm=6.1, h_pm=0.0, v="CONFIRMED" },
-{ id="vsub.harness", p="\"harness\" X", t="\"use\" X", k="r", m_pm=44.3, h_pm=4.4, v="CONFIRMED" },
+{ id="vsub.harness::vb", p="VB[harness_v] X", t="VB[use] X", k="r", m_pm=44.3, h_pm=4.4, v="CONFIRMED", n="verb-tag split of vsub.harness: noun harness (test harness, wiring harness) must never match" },
+{ id="vsub.harness::vbz", p="VBZ[harness_v] X", t="VBZ[use] X", k="r", m_pm=44.3, h_pm=4.4, v="CONFIRMED", n="verb-tag split of vsub.harness" },
+{ id="vsub.harness::vbg", p="VBG[harness_v] X", t="VBG[use] X", k="r", m_pm=44.3, h_pm=4.4, v="CONFIRMED", n="verb-tag split of vsub.harness" },
+{ id="vsub.harness::vbn", p="VBN[harness_v] X", t="VBN[use] X", k="r", m_pm=44.3, h_pm=4.4, v="CONFIRMED", n="verb-tag split of vsub.harness" },
+{ id="vsub.harness::vbd", p="VBD[harness_v] X", t="VBD[use] X", k="r", m_pm=44.3, h_pm=4.4, v="CONFIRMED", n="verb-tag split of vsub.harness" },
 { id="vsub.acquire", p="\"acquire\" X", t="\"get\" X", k="r", m_pm=73.8, h_pm=7.0, v="CONFIRMED" },
 { id="red.point-in-time", p="\"point in time\"", t="\"point\"", k="r", m_pm=29.5, h_pm=3.6, v="CONFIRMED" },
 { id="phg.by-and-large", p="\"by and large\"", t="=", k="g", m_pm=0.0, h_pm=0.3, v="guard-confirmed" },
@@ -3427,6 +3431,7 @@ crucial_adj = ["crucial", "key", "vital", "pivotal", "essential", "critical", "i
 enhance_v = ["enhance", "boost", "elevate", "amplify", "augment", "bolster", "enrich"]
 evolving_adj = ["ever-evolving", "ever-changing", "constantly-evolving", "rapidly-changing", "fast-paced"]
 explore_v = ["explore", "examine", "unpack", "dissect", "demystify"]
+harness_v = ["harness"]
 insight_adj = ["actionable", "valuable", "meaningful", "rich", "key"]
 insight_n = ["insight", "takeaway", "learning"]
 intricate_adj = ["intricate", "nuanced", "multifaceted"]

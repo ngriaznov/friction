@@ -401,7 +401,7 @@ impl BigramTable {
     /// This table's word vocabulary size (including the reserved `"<s>"`
     /// entry).
     #[must_use]
-    pub fn vocab_len(&self) -> usize {
+    pub const fn vocab_len(&self) -> usize {
         match &self.repr {
             BigramRepr::Owned { vocab, .. } => vocab.len(),
             BigramRepr::View { vocab, .. } => vocab.len(),
@@ -551,7 +551,7 @@ impl SkeletonSet {
     /// This set's coarse-tag vocabulary size (including the `<S>`/`<E>`
     /// sentinels).
     #[must_use]
-    pub fn tag_vocab_len(&self) -> usize {
+    pub const fn tag_vocab_len(&self) -> usize {
         match &self.repr {
             SkeletonRepr::Owned { tag_vocab, .. } => tag_vocab.len(),
             SkeletonRepr::View { tag_vocab, .. } => tag_vocab.len(),

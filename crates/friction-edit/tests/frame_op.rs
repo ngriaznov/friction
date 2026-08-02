@@ -97,3 +97,49 @@ fn frame_rewrites_are_idempotent() {
     assert_eq!(once, twice, "second application must be a no-op");
     assert_eq!(twice, thrice, "third application must be a no-op");
 }
+
+/// The `vsub.harness` split gates the harness->use rewrite on a verb
+/// tag: noun "harness" (a test harness, this crate's own module docs
+/// describing "the harness") must come back byte-identical. Both
+/// sentences here are real misfires the ungated rule produced on this
+/// repository's own comments ("half of the use", "in this use").
+#[test]
+fn noun_harness_is_never_rewritten() {
+    let engine = engine();
+    for source in [
+        "This is the string-level half of the harness: fixtures are contracts.\n",
+        "It is never the sole decider for either ordering in this harness.\n",
+        "The test harness runs nightly.\n",
+    ] {
+        let (fixed, _) = engine.fix_document(source).expect("engine runs");
+        assert_eq!(fixed, source, "noun harness must stay untouched");
+    }
+}
+
+/// The same split still rewrites genuine verb usages, in the matched
+/// tag's own form, across the inflection paradigm.
+#[test]
+fn verb_harness_still_rewrites_per_form() {
+    let engine = engine();
+    for (source, expected) in [
+        (
+            "We harness existing tooling to cut costs.\n",
+            "We use existing tooling to cut costs.\n",
+        ),
+        (
+            "It harnesses the cache for speed.\n",
+            "It uses the cache for speed.\n",
+        ),
+        (
+            "Harnessing the scheduler proved difficult.\n",
+            "Using the scheduler proved difficult.\n",
+        ),
+        (
+            "The power is harnessed by the runtime.\n",
+            "The power is used by the runtime.\n",
+        ),
+    ] {
+        let (fixed, _) = engine.fix_document(source).expect("engine runs");
+        assert_eq!(fixed, expected, "verb harness must still rewrite");
+    }
+}
