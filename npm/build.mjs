@@ -56,7 +56,7 @@ for (const { pkg, os, cpu, target, bin } of PLATFORMS) {
         description: `The ${os}-${cpu} binary for friction. Installed automatically as an optional dependency of friction-cli; not meant to be depended on directly.`,
         license: "MIT OR Apache-2.0",
         repository: { type: "git", url: `git+${REPO}.git` },
-        homepage: `${REPO}#readme`,
+        homepage: "https://friction-cli.dev",
         os: [os],
         cpu: [cpu],
         files: [`bin/${bin}`],

@@ -8,14 +8,21 @@
     "documentation",
     "llm",
     "prose",
-    "cli"
+    "cli",
+    "technical-writing",
+    "docs",
+    "ai",
+    "rust",
+    "prose-linter",
+    "sarif",
+    "vale"
   ],
   "license": "MIT OR Apache-2.0",
   "repository": {
     "type": "git",
     "url": "git+https://github.com/ngriaznov/friction.git"
   },
-  "homepage": "https://github.com/ngriaznov/friction#readme",
+  "homepage": "https://friction-cli.dev",
   "bugs": "https://github.com/ngriaznov/friction/issues",
   "bin": {
     "friction": "bin/friction.js"
