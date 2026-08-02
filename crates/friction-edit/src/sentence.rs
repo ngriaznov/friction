@@ -667,7 +667,14 @@ fn generate_sentence(
     let mut splicer = SentenceSplicer::new(source, sentence_range.clone());
 
     run_substitution(&mut splicer, &mut held, &sentence_range, ctx, &original);
-    run_pivot(&mut splicer, &mut held, &sentence_range, ctx, pivot_budget);
+    run_pivot(
+        &mut splicer,
+        &mut held,
+        &sentence_range,
+        ctx,
+        pivot_budget,
+        &original,
+    );
     run_deletion(&mut splicer, &mut held, &sentence_range, ctx, &original);
     run_frame_dejust(&mut splicer, &mut held, &sentence_range, pivot_budget);
     run_frame_rewrite(
@@ -843,16 +850,28 @@ fn run_pivot(
     sentence_range: &Range<usize>,
     ctx: &EditContext<'_>,
     pivot_budget: &mut PivotBudget,
+    original: &OriginalState,
 ) {
     let lexicon = ctx.inventory.lvc_lexicon();
     for _ in 0..2 {
         let working = splicer.working_text();
-        let tokens = tag(ctx.tagger, &working);
+        // An unedited working text is byte-identical to the original the
+        // guard phase already tagged — reuse those tags (the same
+        // purity argument as `run_frame_rewrite`'s); only an edited
+        // sentence (a prior substitution, or this loop's own first
+        // pivot) pays for a fresh tag.
+        let owned_tokens;
+        let tokens: &[TaggedToken] = if splicer.edited() {
+            owned_tokens = tag(ctx.tagger, &working);
+            &owned_tokens
+        } else {
+            &original.tags
+        };
 
         let mut licensed = None;
         let mut rejected = false;
         for i in 0..tokens.len() {
-            match classify_candidate(&tokens, &working, i, lexicon) {
+            match classify_candidate(tokens, &working, i, lexicon) {
                 CandidateOutcome::Rejected(_) => {
                     rejected = true;
                     break;

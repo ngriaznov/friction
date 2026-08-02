@@ -163,6 +163,34 @@ fn run_inner(args: &FixArgs) -> Result<ExitCode, CliError> {
         return Err(CliError::InPlaceStdin);
     }
 
+    // Force the embedded packs' first-touch parses on background threads
+    // so they overlap each other (and reading the input) instead of
+    // running serially on the critical path — `Engine::new` derefs
+    // INVENTORY then ATTESTATION back to back, and the paraphrase scan
+    // first touches HUMAN_EVIDENCE inside its innermost `rayon::join`
+    // arm. Every pack is a process-lifetime `LazyLock` whose value is a
+    // pure function of embedded bytes, so where (and on which thread) the
+    // first force happens can never change output: later touchers block
+    // on the same completed value. Plain `std::thread`, not the rayon
+    // pool — these must not occupy pool workers the engine may want.
+    // The threads are deliberately detached: every pack forced below is
+    // consumed later in this function, so the process never exits with
+    // one of them still mid-parse on the success path.
+    let _ = std::thread::spawn(|| {
+        let _ = std::sync::LazyLock::force(&friction_packs::ATTESTATION);
+    });
+    let _ = std::thread::spawn(|| {
+        let _ = std::sync::LazyLock::force(&friction_packs::HUMAN_EVIDENCE);
+        let _ = std::sync::LazyLock::force(&friction_packs::JARGON);
+        let _ = std::sync::LazyLock::force(&friction_packs::JARGON_ATTEST);
+    });
+    let _ = std::thread::spawn(|| {
+        let _ = std::sync::LazyLock::force(&friction_packs::INVENTORY);
+        let _ = std::sync::LazyLock::force(&friction_packs::REGISTER);
+        let _ = std::sync::LazyLock::force(&friction_packs::FRAME);
+        let _ = std::sync::LazyLock::force(&friction_packs::DMS);
+    });
+
     let source = read_input(&args.input)?;
     let syntax = crate::common::syntax_of(&args.input, &source);
     let engine = friction_edit::Engine::new()?;

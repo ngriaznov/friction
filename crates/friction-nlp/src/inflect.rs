@@ -103,9 +103,39 @@ static IRREGULAR_VERB_BASES: std::sync::LazyLock<
     for &(base, sg3, ing, past) in IRREGULAR_VERBS {
         for form in [sg3, ing, past] {
             if form != base {
-                map.insert(form, base);
+                let displaced = map.insert(form, base);
+                // [`lemmatize`]'s linear scan returns the FIRST matching
+                // row; a map keeps the LAST insert. The two agree only
+                // while every inflected form is a distinct key, so a new
+                // table row that breaks that silently changes lemmas —
+                // fail loudly instead.
+                assert!(
+                    displaced.is_none_or(|prev| prev == base),
+                    "IRREGULAR_VERBS: form {form:?} maps to two bases"
+                );
             }
         }
+    }
+    map
+});
+
+/// `IRREGULAR_NOUNS`, indexed plural -> singular — [`lemmatize`]'s noun
+/// table lookup, hashed for the same hot-path reason (and with the same
+/// seedless-`FxHashMap` determinism argument) as
+/// [`IRREGULAR_VERB_BASES`] above.
+static IRREGULAR_NOUN_SINGULARS: std::sync::LazyLock<
+    rustc_hash::FxHashMap<&'static str, &'static str>,
+> = std::sync::LazyLock::new(|| {
+    let mut map = rustc_hash::FxHashMap::with_capacity_and_hasher(
+        IRREGULAR_NOUNS.len(),
+        rustc_hash::FxBuildHasher,
+    );
+    for &(singular, plural) in IRREGULAR_NOUNS {
+        let displaced = map.insert(plural, singular);
+        assert!(
+            displaced.is_none_or(|prev| prev == singular),
+            "IRREGULAR_NOUNS: plural {plural:?} maps to two singulars"
+        );
     }
     map
 });
@@ -153,15 +183,17 @@ pub fn lemmatize(surface: &str, pos: &str) -> Box<str> {
         return Box::from(lower);
     }
 
-    for &(base, sg3, ing, past) in IRREGULAR_VERBS {
-        if lower == sg3 || lower == ing || lower == past {
-            return Box::from(base);
-        }
+    // Hash lookups over the same two tables the old linear scans walked
+    // (verbs before nouns, preserving the scan order). The one shape
+    // difference — [`IRREGULAR_VERB_BASES`] skips a form equal to its own
+    // base ("put"/"read"/"set" past forms) — is unobservable: those words
+    // carry no strippable suffix, so the candidate loop below is empty and
+    // the fallback returns `lower`, which IS the base, byte for byte.
+    if let Some(&base) = IRREGULAR_VERB_BASES.get(lower.as_str()) {
+        return Box::from(base);
     }
-    for &(singular, plural) in IRREGULAR_NOUNS {
-        if lower == plural {
-            return Box::from(singular);
-        }
+    if let Some(&singular) = IRREGULAR_NOUN_SINGULARS.get(lower.as_str()) {
+        return Box::from(singular);
     }
 
     let (candidates, probe): (Vec<String>, &str) = match pos {
