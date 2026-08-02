@@ -133,7 +133,9 @@ mod registry;
 mod validate;
 
 pub use artifact::{PackError, Sha256};
-pub use attestation::{AttestationPack, BigramTable, NearNoOpCalibration, SkeletonSet};
+pub use attestation::{
+    AttestationPack, BigramTable, NearNoOpCalibration, SkeletonSet, pack_attestation_bin,
+};
 pub use dms::{DmsIndex, ModelFamily, Sam, Vocab};
 pub use dms_bin::{DmsBinError, DmsIndexView, SamView, VocabView, pack_dms_index_bin};
 pub use envelope::{ENVELOPE_V2, EnvelopePack, exceedance};

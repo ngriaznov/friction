@@ -58,7 +58,7 @@ use std::collections::{BTreeMap, BTreeSet};
 
 use serde::Deserialize;
 
-use crate::PackError;
+use crate::{PackError, Sha256};
 
 /// A pack's word vocabulary (bigram side) or coarse-tag vocabulary
 /// (skeleton side): `tokens[i]` is the text for id `i`.
@@ -100,13 +100,245 @@ impl TokenVocab {
     }
 }
 
+// ---------------------------------------------------------------------
+// Derived binary artifact (`attestation-v1.bin`).
+//
+// The TOML parse above stays the audited source-of-truth read side, used
+// offline by `corpus-tool` — but it paid ~25 ms on every process start
+// (full `toml::from_str` over 1.8 MB, then B-tree materialization of
+// ~16k vocab tokens, ~125k bigram edges, and ~96k skeleton codes): the
+// single largest slice of `friction`'s fixed startup cost. This is the
+// same cure the DMS index already received (`crate::dms_bin`): do the
+// work once, offline, in `corpus-tool attest-pack`, and serialize the
+// finished tables in a layout the runtime reads as a zero-copy view
+// over the `include_bytes!`'d static — header validation plus slice
+// splits at load, no per-entry work.
+//
+// Layout (all integers little-endian; every multi-byte field is read via
+// `from_le_bytes` on a byte slice — alignment-free by construction, so
+// no `unsafe` is ever needed):
+//
+// - **Header**: 8-byte magic `FRATTEST`, `u16` format version, 64-byte
+//   lowercase-hex sha256 of the source TOML (the same staleness guard
+//   `dms_bin` records — the registry drift test re-packs the TOML and
+//   compares bytes).
+// - **Near-no-op calibration**: `u8` presence flag; when present, the
+//   threshold's `f64` bits, `u32` sample doc count, `u8` dev-check flag
+//   (+ its `f64` bits when set), and a `u32`-length-prefixed method
+//   string. `f64::to_le_bytes`/`from_le_bytes` round-trip bit-exactly.
+// - **Word vocab**, then later **tag vocab**, both in `dms_bin`'s vocab
+//   shape: `u32` token count `n`; `n + 1` cumulative `u32` byte offsets
+//   into a string pool; `u32` pool length + the pool; and a first-id-wins
+//   duplicate-collapsed lookup table of ids sorted by token text (`u32`
+//   count + that many `u32` ids) for `id_of`'s binary search — exactly
+//   [`TokenVocab`]'s `entry().or_insert(first)` resolution, precomputed.
+// - **Bigram edges**: `u32` distinct-left count (precomputed for
+//   [`BigramTable::distinct_lefts`]), `u32` edge count, then each edge
+//   packed `(left << 32) | right` as a `u64`, strictly ascending — the
+//   flat equivalent of the owned `BTreeMap<u32, BTreeSet<u32>>`, whose
+//   sorted iteration order is exactly this packed order.
+// - **Skeleton codes**: `tag5` then `tag4`, each a `u32` count plus that
+//   many strictly-ascending `u64` codes (the owned `BTreeSet<u64>`s,
+//   flattened in order).
+//
+// Determinism: `pack_attestation_bin` is a pure function of the TOML
+// text — every section serializes a `BTreeMap`/`BTreeSet` iteration.
+// Equivalence: each view query is the owned query with the B-tree probe
+// replaced by a binary search over the identical sorted content, which
+// cannot change any membership answer; pinned by this module's own
+// round-trip tests and the CLI's byte-identical snapshot battery.
+// ---------------------------------------------------------------------
+
+/// The 8-byte magic every attestation binary artifact starts with.
+const BIN_MAGIC: [u8; 8] = *b"FRATTEST";
+
+/// The artifact's on-disk format version — bumped if the layout above
+/// ever changes shape.
+const BIN_FORMAT_VERSION: u16 = 1;
+
+/// A sha256 digest is recorded as lowercase hex (matching
+/// [`crate::Sha256`]'s `Display`) — same choice as `dms_bin`'s header.
+const SHA256_HEX_LEN: usize = 64;
+
+/// Reads the little-endian `u32` at logical index `index` of a `u32`
+/// array serialized as raw bytes.
+fn u32_at(region: &[u8], index: usize) -> u32 {
+    let start = index * 4;
+    u32::from_le_bytes(
+        region[start..start + 4]
+            .try_into()
+            .expect("caller-validated 4-byte slice"),
+    )
+}
+
+/// Reads the little-endian `u64` at logical index `index` of a `u64`
+/// array serialized as raw bytes.
+fn u64_at(region: &[u8], index: usize) -> u64 {
+    let start = index * 8;
+    u64::from_le_bytes(
+        region[start..start + 8]
+            .try_into()
+            .expect("caller-validated 8-byte slice"),
+    )
+}
+
+/// `true` if the strictly-ascending serialized `u64` array in `region`
+/// contains `value` — the binary-search counterpart of the owned
+/// `BTreeSet<u64>::contains`.
+fn sorted_u64_contains(region: &[u8], value: u64) -> bool {
+    let mut lo: usize = 0;
+    let mut hi: usize = region.len() / 8;
+    while lo < hi {
+        let mid = lo + (hi - lo) / 2;
+        match u64_at(region, mid).cmp(&value) {
+            std::cmp::Ordering::Less => lo = mid + 1,
+            std::cmp::Ordering::Greater => hi = mid,
+            std::cmp::Ordering::Equal => return true,
+        }
+    }
+    false
+}
+
+/// A tiny forward-only cursor for [`AttestationPack::from_bin`]'s
+/// sequential section reads — deliberately its own copy rather than a
+/// shared abstraction with `dms_bin`'s (same "no forced sharing"
+/// reasoning as [`TokenVocab`] vs `crate::Vocab` above), erroring in
+/// this module's own [`PackError`] vocabulary.
+struct BinCursor {
+    bytes: &'static [u8],
+    pos: usize,
+}
+
+impl BinCursor {
+    const fn new(bytes: &'static [u8]) -> Self {
+        Self { bytes, pos: 0 }
+    }
+
+    fn take(&mut self, len: usize) -> Result<&'static [u8], PackError> {
+        let end = self
+            .pos
+            .checked_add(len)
+            .filter(|&end| end <= self.bytes.len())
+            .ok_or(PackError::AttestationBinMalformed(
+                "section ran past the end of the artifact",
+            ))?;
+        let slice = &self.bytes[self.pos..end];
+        self.pos = end;
+        Ok(slice)
+    }
+
+    fn read_u8(&mut self) -> Result<u8, PackError> {
+        Ok(self.take(1)?[0])
+    }
+
+    fn read_u32(&mut self) -> Result<u32, PackError> {
+        let slice = self.take(4)?;
+        Ok(u32::from_le_bytes(
+            slice.try_into().expect("checked 4-byte slice"),
+        ))
+    }
+
+    fn read_f64(&mut self) -> Result<f64, PackError> {
+        let slice = self.take(8)?;
+        Ok(f64::from_le_bytes(
+            slice.try_into().expect("checked 8-byte slice"),
+        ))
+    }
+
+    const fn is_exhausted(&self) -> bool {
+        self.pos == self.bytes.len()
+    }
+}
+
+/// Zero-copy view over a serialized vocab section: [`TokenVocab`]'s exact
+/// lookup surface (first-id-wins for duplicate texts included), over
+/// borrowed bytes.
+#[derive(Debug, Clone, Copy)]
+struct VocabView {
+    /// Total token-id count (duplicates included) — [`TokenVocab::len`].
+    count: u32,
+    /// `count + 1` cumulative byte offsets into `pool`.
+    offsets: &'static [u8],
+    pool: &'static [u8],
+    /// Token ids sorted by token text, duplicates collapsed first-id-wins.
+    sorted_count: u32,
+    sorted_ids: &'static [u8],
+}
+
+impl VocabView {
+    /// The token text for `id`, as bytes — the comparison key
+    /// [`Self::id_of`]'s binary search probes with.
+    fn token_bytes(&self, id: u32) -> &'static [u8] {
+        let start = u32_at(self.offsets, id as usize) as usize;
+        let end = u32_at(self.offsets, id as usize + 1) as usize;
+        &self.pool[start..end]
+    }
+
+    /// The id for `text`, or `None` if out-of-vocab —
+    /// [`TokenVocab::id_of`]'s contract.
+    fn id_of(&self, text: &str) -> Option<u32> {
+        let key = text.as_bytes();
+        let mut lo: u32 = 0;
+        let mut hi: u32 = self.sorted_count;
+        while lo < hi {
+            let mid = lo + (hi - lo) / 2;
+            let id = u32_at(self.sorted_ids, mid as usize);
+            match self.token_bytes(id).cmp(key) {
+                std::cmp::Ordering::Less => lo = mid + 1,
+                std::cmp::Ordering::Greater => hi = mid,
+                std::cmp::Ordering::Equal => return Some(id),
+            }
+        }
+        None
+    }
+
+    /// The text for `id`, or `None` if `id` is not a valid id —
+    /// [`TokenVocab::token_of`]'s contract.
+    #[cfg(test)]
+    fn token_of(&self, id: u32) -> Option<&'static str> {
+        (id < self.count).then(|| {
+            std::str::from_utf8(self.token_bytes(id))
+                .expect("pack side wrote every token from a &str")
+        })
+    }
+
+    const fn len(&self) -> usize {
+        self.count as usize
+    }
+}
+
 /// Seam-bigram membership table: has this exact `(left, right)` word pair
 /// been observed adjacent to each other anywhere in the TRAIN human
 /// corpus.
+///
+/// Two representations behind one query surface: `Owned` is what
+/// [`AttestationPack::parse`] builds from the source TOML (the offline
+/// `corpus-tool` path), `View` is what [`AttestationPack::from_bin`]
+/// splits zero-copy out of the embedded derived artifact (the runtime
+/// path). Every query answers identically from either — the view's
+/// binary searches walk the same sorted content the owned B-trees hold.
 #[derive(Debug, Clone)]
 pub struct BigramTable {
-    vocab: TokenVocab,
-    edges: BTreeMap<u32, BTreeSet<u32>>,
+    repr: BigramRepr,
+}
+
+#[derive(Debug, Clone)]
+enum BigramRepr {
+    Owned {
+        vocab: TokenVocab,
+        edges: BTreeMap<u32, BTreeSet<u32>>,
+    },
+    View {
+        vocab: VocabView,
+        distinct_lefts: u32,
+        /// Strictly-ascending `(left << 32) | right` packed edges.
+        edges: &'static [u8],
+    },
+}
+
+/// Packs a bigram edge the way the binary artifact stores it.
+const fn pack_edge(left_id: u32, right_id: u32) -> u64 {
+    ((left_id as u64) << 32) | right_id as u64
 }
 
 impl BigramTable {
@@ -121,15 +353,28 @@ impl BigramTable {
     /// boolean membership test.
     #[must_use]
     pub fn attests(&self, left: &str, right: &str) -> bool {
-        let Some(left_id) = self.vocab.id_of(left) else {
-            return false;
-        };
-        let Some(right_id) = self.vocab.id_of(right) else {
-            return false;
-        };
-        self.edges
-            .get(&left_id)
-            .is_some_and(|rights| rights.contains(&right_id))
+        match &self.repr {
+            BigramRepr::Owned { vocab, edges } => {
+                let Some(left_id) = vocab.id_of(left) else {
+                    return false;
+                };
+                let Some(right_id) = vocab.id_of(right) else {
+                    return false;
+                };
+                edges
+                    .get(&left_id)
+                    .is_some_and(|rights| rights.contains(&right_id))
+            }
+            BigramRepr::View { vocab, edges, .. } => {
+                let Some(left_id) = vocab.id_of(left) else {
+                    return false;
+                };
+                let Some(right_id) = vocab.id_of(right) else {
+                    return false;
+                };
+                sorted_u64_contains(edges, pack_edge(left_id, right_id))
+            }
+        }
     }
 
     /// The number of distinct left tokens with at least one attested
@@ -137,44 +382,94 @@ impl BigramTable {
     /// mined).
     #[must_use]
     pub fn distinct_lefts(&self) -> usize {
-        self.edges.len()
+        match &self.repr {
+            BigramRepr::Owned { edges, .. } => edges.len(),
+            BigramRepr::View { distinct_lefts, .. } => *distinct_lefts as usize,
+        }
     }
 
     /// The total number of `(left, right)` pairs attested across every
     /// left token.
     #[must_use]
     pub fn edge_count(&self) -> usize {
-        self.edges.values().map(BTreeSet::len).sum()
+        match &self.repr {
+            BigramRepr::Owned { edges, .. } => edges.values().map(BTreeSet::len).sum(),
+            BigramRepr::View { edges, .. } => edges.len() / 8,
+        }
     }
 
     /// This table's word vocabulary size (including the reserved `"<s>"`
     /// entry).
     #[must_use]
-    pub const fn vocab_len(&self) -> usize {
-        self.vocab.len()
+    pub fn vocab_len(&self) -> usize {
+        match &self.repr {
+            BigramRepr::Owned { vocab, .. } => vocab.len(),
+            BigramRepr::View { vocab, .. } => vocab.len(),
+        }
     }
 }
 
 /// POS-skeleton n-gram set: has this exact run of coarse part-of-speech
 /// tags (`<S>`/`<E>` sentinels included) been observed as (part of) a
 /// TRAIN human sentence's skeleton.
+///
+/// Same two-representation shape as [`BigramTable`] — see its own docs.
 #[derive(Debug, Clone)]
 pub struct SkeletonSet {
-    tag_vocab: TokenVocab,
-    tag5: BTreeSet<u64>,
-    tag4: BTreeSet<u64>,
+    repr: SkeletonRepr,
+}
+
+#[derive(Debug, Clone)]
+enum SkeletonRepr {
+    Owned {
+        tag_vocab: TokenVocab,
+        tag5: BTreeSet<u64>,
+        tag4: BTreeSet<u64>,
+    },
+    View {
+        tag_vocab: VocabView,
+        /// Strictly-ascending packed 5-gram codes.
+        tag5: &'static [u8],
+        /// Strictly-ascending packed 4-gram codes.
+        tag4: &'static [u8],
+    },
 }
 
 impl SkeletonSet {
+    /// This set's tag-vocabulary id for `tag`, whichever representation
+    /// holds it.
+    fn tag_id_of(&self, tag: &str) -> Option<u32> {
+        match &self.repr {
+            SkeletonRepr::Owned { tag_vocab, .. } => tag_vocab.id_of(tag),
+            SkeletonRepr::View { tag_vocab, .. } => tag_vocab.id_of(tag),
+        }
+    }
+
+    /// Whether `code` is an attested 5-gram window.
+    fn tag5_contains(&self, code: u64) -> bool {
+        match &self.repr {
+            SkeletonRepr::Owned { tag5, .. } => tag5.contains(&code),
+            SkeletonRepr::View { tag5, .. } => sorted_u64_contains(tag5, code),
+        }
+    }
+
+    /// Whether `code` is an attested 4-gram window.
+    fn tag4_contains(&self, code: u64) -> bool {
+        match &self.repr {
+            SkeletonRepr::Owned { tag4, .. } => tag4.contains(&code),
+            SkeletonRepr::View { tag4, .. } => sorted_u64_contains(tag4, code),
+        }
+    }
+
     /// Packs a window of tag text into this set's base-`vocab_len` `u64`
     /// encoding, or `None` if any tag in `window` is outside this set's
     /// own tag vocabulary (an out-of-vocabulary tag can never have been
     /// attested).
     fn pack_window(&self, window: &[&str]) -> Option<u64> {
-        let base = u64::try_from(self.tag_vocab.len()).ok()?;
+        let base = u64::try_from(self.tag_vocab_len()).ok()?;
         let mut value: u64 = 0;
         for &tag in window {
-            let id = self.tag_vocab.id_of(tag)?;
+            let id = self.tag_id_of(tag)?;
             value = value.checked_mul(base)?.checked_add(u64::from(id))?;
         }
         Some(value)
@@ -219,14 +514,14 @@ impl SkeletonSet {
             let five_attested = i + 5 <= n
                 && self
                     .pack_window(&tags[i..i + 5])
-                    .is_some_and(|code| self.tag5.contains(&code));
+                    .is_some_and(|code| self.tag5_contains(code));
             if five_attested {
                 continue;
             }
             let four_attested = i + 4 <= n
                 && self
                     .pack_window(&tags[i..i + 4])
-                    .is_some_and(|code| self.tag4.contains(&code));
+                    .is_some_and(|code| self.tag4_contains(code));
             if four_attested {
                 continue;
             }
@@ -238,20 +533,29 @@ impl SkeletonSet {
     /// The number of distinct attested 5-gram tag windows.
     #[must_use]
     pub fn tag5_len(&self) -> usize {
-        self.tag5.len()
+        match &self.repr {
+            SkeletonRepr::Owned { tag5, .. } => tag5.len(),
+            SkeletonRepr::View { tag5, .. } => tag5.len() / 8,
+        }
     }
 
     /// The number of distinct attested 4-gram tag windows.
     #[must_use]
     pub fn tag4_len(&self) -> usize {
-        self.tag4.len()
+        match &self.repr {
+            SkeletonRepr::Owned { tag4, .. } => tag4.len(),
+            SkeletonRepr::View { tag4, .. } => tag4.len() / 8,
+        }
     }
 
     /// This set's coarse-tag vocabulary size (including the `<S>`/`<E>`
     /// sentinels).
     #[must_use]
-    pub const fn tag_vocab_len(&self) -> usize {
-        self.tag_vocab.len()
+    pub fn tag_vocab_len(&self) -> usize {
+        match &self.repr {
+            SkeletonRepr::Owned { tag_vocab, .. } => tag_vocab.len(),
+            SkeletonRepr::View { tag_vocab, .. } => tag_vocab.len(),
+        }
     }
 
     /// The tag text for `id`, or `None` if `id` is not a valid id in this
@@ -259,7 +563,10 @@ impl SkeletonSet {
     /// need to render a packed code back to readable tags.
     #[cfg(test)]
     fn tag_of(&self, id: u32) -> Option<&str> {
-        self.tag_vocab.token_of(id)
+        match &self.repr {
+            SkeletonRepr::Owned { tag_vocab, .. } => tag_vocab.token_of(id),
+            SkeletonRepr::View { tag_vocab, .. } => tag_vocab.token_of(id),
+        }
     }
 }
 
@@ -332,9 +639,11 @@ impl AttestationPack {
         let tag5 = parse_skeleton_codes(&raw.skeleton.tag5)?;
         let tag4 = parse_skeleton_codes(&raw.skeleton.tag4)?;
         let skeleton = SkeletonSet {
-            tag_vocab,
-            tag5,
-            tag4,
+            repr: SkeletonRepr::Owned {
+                tag_vocab,
+                tag5,
+                tag4,
+            },
         };
 
         let near_noop = raw.near_noop.map(|raw| NearNoOpCalibration {
@@ -350,6 +659,320 @@ impl AttestationPack {
             near_noop,
         })
     }
+
+    /// Loads a [`pack_attestation_bin`]-written derived artifact as a
+    /// zero-copy view — header/section validation plus slice splits, no
+    /// per-entry materialization — returning the pack alongside the
+    /// source TOML's sha256 hex recorded in the artifact header.
+    ///
+    /// `bytes` is `&'static` because the view borrows it for the life of
+    /// the process — the runtime caller is [`crate::ATTESTATION`]'s
+    /// `include_bytes!`'d static.
+    ///
+    /// # Errors
+    /// Returns [`PackError::AttestationBinMalformed`] for any structural
+    /// inconsistency (bad magic/version, a section running past the end,
+    /// a lookup table or code array out of order). Never expected for
+    /// the vendored embedded artifact — covered by this module's
+    /// round-trip tests and the registry's drift test.
+    pub fn from_bin(bytes: &'static [u8]) -> Result<(Self, &'static str), PackError> {
+        let mut cursor = BinCursor::new(bytes);
+        if cursor.take(8)? != BIN_MAGIC {
+            return Err(PackError::AttestationBinMalformed("unrecognized magic"));
+        }
+        let version = u16::from_le_bytes(cursor.take(2)?.try_into().expect("checked 2-byte slice"));
+        if version != BIN_FORMAT_VERSION {
+            return Err(PackError::AttestationBinMalformed(
+                "unsupported format version",
+            ));
+        }
+        let sha_hex = std::str::from_utf8(cursor.take(SHA256_HEX_LEN)?)
+            .map_err(|_| PackError::AttestationBinMalformed("sha256 is not valid UTF-8"))?;
+
+        let near_noop = read_near_noop(&mut cursor)?;
+
+        let vocab = read_vocab(&mut cursor)?;
+        let distinct_lefts = cursor.read_u32()?;
+        let edge_count = cursor.read_u32()? as usize;
+        let edges = cursor.take(edge_count * 8)?;
+        if validate_edges(edges)? != distinct_lefts {
+            return Err(PackError::AttestationBinMalformed(
+                "recorded distinct-left count disagrees with the edge array",
+            ));
+        }
+
+        let tag_vocab = read_vocab(&mut cursor)?;
+        let tag5_count = cursor.read_u32()? as usize;
+        let tag5 = cursor.take(tag5_count * 8)?;
+        validate_ascending_u64(tag5, "tag5 codes are not strictly ascending")?;
+        let tag4_count = cursor.read_u32()? as usize;
+        let tag4 = cursor.take(tag4_count * 8)?;
+        validate_ascending_u64(tag4, "tag4 codes are not strictly ascending")?;
+
+        if !cursor.is_exhausted() {
+            return Err(PackError::AttestationBinMalformed(
+                "trailing bytes after the final section",
+            ));
+        }
+
+        Ok((
+            Self {
+                bigram: BigramTable {
+                    repr: BigramRepr::View {
+                        vocab,
+                        distinct_lefts,
+                        edges,
+                    },
+                },
+                skeleton: SkeletonSet {
+                    repr: SkeletonRepr::View {
+                        tag_vocab,
+                        tag5,
+                        tag4,
+                    },
+                },
+                near_noop,
+            },
+            sha_hex,
+        ))
+    }
+}
+
+/// Packs `toml_text` (an `attestation-v1` pack) into the binary layout
+/// documented at the top of this module's artifact section — the build
+/// side `corpus-tool attest-pack` runs offline.
+///
+/// A pure function of the TOML text: every section serializes a
+/// `BTreeMap`/`BTreeSet` iteration, so packing the same text twice is
+/// bit-identical (pinned by this module's tests).
+///
+/// # Errors
+/// Returns [`PackError`] if `toml_text` is not a valid `attestation-v1`
+/// pack — see [`AttestationPack::parse`]. Serialization itself cannot
+/// fail.
+pub fn pack_attestation_bin(toml_text: &str) -> Result<Vec<u8>, PackError> {
+    let pack = AttestationPack::parse(toml_text)?;
+    let sha_hex = Sha256::of_bytes(toml_text.as_bytes()).to_string();
+
+    let mut out = Vec::new();
+    out.extend_from_slice(&BIN_MAGIC);
+    out.extend_from_slice(&BIN_FORMAT_VERSION.to_le_bytes());
+    out.extend_from_slice(sha_hex.as_bytes());
+
+    write_near_noop(&mut out, pack.near_noop());
+
+    let BigramRepr::Owned { vocab, edges } = &pack.bigram.repr else {
+        unreachable!("parse always builds the owned representation");
+    };
+    write_vocab(&mut out, vocab);
+    write_u32(&mut out, u32_from(edges.len()));
+    let edge_count: usize = edges.values().map(BTreeSet::len).sum();
+    write_u32(&mut out, u32_from(edge_count));
+    for (&left, rights) in edges {
+        for &right in rights {
+            out.extend_from_slice(&pack_edge(left, right).to_le_bytes());
+        }
+    }
+
+    let SkeletonRepr::Owned {
+        tag_vocab,
+        tag5,
+        tag4,
+    } = &pack.skeleton.repr
+    else {
+        unreachable!("parse always builds the owned representation");
+    };
+    write_vocab(&mut out, tag_vocab);
+    for set in [tag5, tag4] {
+        write_u32(&mut out, u32_from(set.len()));
+        for &code in set {
+            out.extend_from_slice(&code.to_le_bytes());
+        }
+    }
+
+    Ok(out)
+}
+
+/// Serializes one vocab section — see the artifact layout docs above.
+fn write_vocab(out: &mut Vec<u8>, vocab: &TokenVocab) {
+    write_u32(out, u32_from(vocab.tokens.len()));
+    let mut pool: Vec<u8> = Vec::new();
+    let mut offsets: Vec<u32> = Vec::with_capacity(vocab.tokens.len() + 1);
+    offsets.push(0);
+    for token in &vocab.tokens {
+        pool.extend_from_slice(token.as_bytes());
+        offsets.push(u32_from(pool.len()));
+    }
+    for offset in &offsets {
+        write_u32(out, *offset);
+    }
+    write_u32(out, u32_from(pool.len()));
+    out.extend_from_slice(&pool);
+    // `by_text` IS the first-id-wins duplicate collapse in byte-string
+    // order — `TokenVocab::from_tokens` built it with
+    // `entry().or_insert(first)` — so its values, in iteration order,
+    // are exactly the sorted lookup table `VocabView::id_of` needs.
+    write_u32(out, u32_from(vocab.by_text.len()));
+    for &id in vocab.by_text.values() {
+        write_u32(out, id);
+    }
+}
+
+/// Serializes the near-no-op calibration section.
+fn write_near_noop(out: &mut Vec<u8>, near_noop: Option<&NearNoOpCalibration>) {
+    let Some(calibration) = near_noop else {
+        out.push(0);
+        return;
+    };
+    out.push(1);
+    out.extend_from_slice(&calibration.threshold_per_1000_words.to_le_bytes());
+    write_u32(out, calibration.sample_doc_count);
+    match calibration.dev_check_max_per_1000_words {
+        None => out.push(0),
+        Some(value) => {
+            out.push(1);
+            out.extend_from_slice(&value.to_le_bytes());
+        }
+    }
+    write_u32(out, u32_from(calibration.method.len()));
+    out.extend_from_slice(calibration.method.as_bytes());
+}
+
+/// Appends `value` little-endian.
+fn write_u32(out: &mut Vec<u8>, value: u32) {
+    out.extend_from_slice(&value.to_le_bytes());
+}
+
+/// `usize -> u32` with the one honest justification every count in this
+/// artifact shares.
+fn u32_from(value: usize) -> u32 {
+    u32::try_from(value).expect("an attestation pack's counts stay far below u32::MAX")
+}
+
+/// Reads the near-no-op calibration section.
+fn read_near_noop(cursor: &mut BinCursor) -> Result<Option<NearNoOpCalibration>, PackError> {
+    match cursor.read_u8()? {
+        0 => Ok(None),
+        1 => {
+            let threshold_per_1000_words = cursor.read_f64()?;
+            let sample_doc_count = cursor.read_u32()?;
+            let dev_check_max_per_1000_words = match cursor.read_u8()? {
+                0 => None,
+                1 => Some(cursor.read_f64()?),
+                _ => {
+                    return Err(PackError::AttestationBinMalformed(
+                        "near-no-op dev-check flag is not 0 or 1",
+                    ));
+                }
+            };
+            let method_len = cursor.read_u32()? as usize;
+            let method = std::str::from_utf8(cursor.take(method_len)?)
+                .map_err(|_| PackError::AttestationBinMalformed("method is not valid UTF-8"))?;
+            Ok(Some(NearNoOpCalibration {
+                threshold_per_1000_words,
+                sample_doc_count,
+                dev_check_max_per_1000_words,
+                method: Box::from(method),
+            }))
+        }
+        _ => Err(PackError::AttestationBinMalformed(
+            "near-no-op flag is not 0 or 1",
+        )),
+    }
+}
+
+/// Reads and structurally validates one vocab section: offsets monotone
+/// and spanning the pool exactly, every lookup id in range, lookup texts
+/// strictly ascending (what makes [`VocabView::id_of`]'s binary search
+/// correct).
+fn read_vocab(cursor: &mut BinCursor) -> Result<VocabView, PackError> {
+    let count = cursor.read_u32()?;
+    let offsets = cursor.take((count as usize + 1) * 4)?;
+    let pool_len = cursor.read_u32()? as usize;
+    let pool = cursor.take(pool_len)?;
+
+    let mut prev: u32 = 0;
+    for i in 0..=count as usize {
+        let offset = u32_at(offsets, i);
+        if offset < prev || offset as usize > pool_len {
+            return Err(PackError::AttestationBinMalformed(
+                "vocab offsets are not monotone within the pool",
+            ));
+        }
+        prev = offset;
+    }
+    if u32_at(offsets, 0) != 0 || u32_at(offsets, count as usize) as usize != pool_len {
+        return Err(PackError::AttestationBinMalformed(
+            "vocab offsets do not span the pool",
+        ));
+    }
+
+    let sorted_count = cursor.read_u32()?;
+    if sorted_count > count {
+        return Err(PackError::AttestationBinMalformed(
+            "vocab lookup table is larger than the vocab",
+        ));
+    }
+    let sorted_ids = cursor.take(sorted_count as usize * 4)?;
+    let view = VocabView {
+        count,
+        offsets,
+        pool,
+        sorted_count,
+        sorted_ids,
+    };
+    let mut prev_token: Option<&[u8]> = None;
+    for i in 0..sorted_count as usize {
+        let id = u32_at(sorted_ids, i);
+        if id >= count {
+            return Err(PackError::AttestationBinMalformed(
+                "vocab lookup id out of range",
+            ));
+        }
+        let token = view.token_bytes(id);
+        if prev_token.is_some_and(|prev| prev >= token) {
+            return Err(PackError::AttestationBinMalformed(
+                "vocab lookup table is not strictly ascending",
+            ));
+        }
+        prev_token = Some(token);
+    }
+    Ok(view)
+}
+
+/// Validates the packed edge array is strictly ascending, returning its
+/// distinct-left count for the header cross-check.
+fn validate_edges(edges: &[u8]) -> Result<u32, PackError> {
+    let n = edges.len() / 8;
+    let mut prev: Option<u64> = None;
+    let mut distinct_lefts: u32 = 0;
+    for i in 0..n {
+        let value = u64_at(edges, i);
+        if prev.is_some_and(|p| p >= value) {
+            return Err(PackError::AttestationBinMalformed(
+                "bigram edges are not strictly ascending",
+            ));
+        }
+        if prev.is_none_or(|p| (p >> 32) != (value >> 32)) {
+            distinct_lefts += 1;
+        }
+        prev = Some(value);
+    }
+    Ok(distinct_lefts)
+}
+
+/// Validates a packed skeleton-code array is strictly ascending.
+fn validate_ascending_u64(region: &[u8], message: &'static str) -> Result<(), PackError> {
+    let n = region.len() / 8;
+    let mut prev: Option<u64> = None;
+    for i in 0..n {
+        let value = u64_at(region, i);
+        if prev.is_some_and(|p| p >= value) {
+            return Err(PackError::AttestationBinMalformed(message));
+        }
+        prev = Some(value);
+    }
+    Ok(())
 }
 
 fn parse_bigram(raw: &RawBigram, vocab: TokenVocab) -> Result<BigramTable, PackError> {
@@ -384,7 +1007,9 @@ fn parse_bigram(raw: &RawBigram, vocab: TokenVocab) -> Result<BigramTable, PackE
         edges.entry(left_id).or_default().extend(rights);
     }
 
-    Ok(BigramTable { vocab, edges })
+    Ok(BigramTable {
+        repr: BigramRepr::Owned { vocab, edges },
+    })
 }
 
 /// Parses `rights` (the `;`-delimited, per-left comma-joined id groups)
@@ -729,6 +1354,111 @@ mod tests {
         assert_eq!(a.skeleton().tag5_len(), b.skeleton().tag5_len());
         assert!(a.bigram().attests("<s>", "the"));
         assert!(b.bigram().attests("<s>", "the"));
+    }
+
+    /// Leaks a packed artifact for the `&'static` lifetime
+    /// [`AttestationPack::from_bin`] requires — test-only, mirroring the
+    /// runtime's `include_bytes!` static.
+    fn leak_bin(toml: &str) -> &'static [u8] {
+        Box::leak(
+            pack_attestation_bin(toml)
+                .expect("test pack packs")
+                .into_boxed_slice(),
+        )
+    }
+
+    #[test]
+    fn packing_the_same_toml_twice_is_bit_identical() {
+        assert_eq!(
+            pack_attestation_bin(SAMPLE_PACK).expect("sample pack packs"),
+            pack_attestation_bin(SAMPLE_PACK).expect("sample pack packs"),
+        );
+    }
+
+    #[test]
+    fn bin_round_trip_answers_identically_to_the_owned_parse() {
+        let owned = AttestationPack::parse(SAMPLE_PACK).expect("sample pack parses");
+        let (view, sha_hex) = AttestationPack::from_bin(leak_bin(SAMPLE_PACK))
+            .expect("freshly packed artifact parses");
+
+        assert_eq!(
+            sha_hex,
+            Sha256::of_bytes(SAMPLE_PACK.as_bytes()).to_string()
+        );
+        assert_eq!(view.bigram().vocab_len(), owned.bigram().vocab_len());
+        assert_eq!(view.bigram().edge_count(), owned.bigram().edge_count());
+        assert_eq!(
+            view.bigram().distinct_lefts(),
+            owned.bigram().distinct_lefts()
+        );
+        assert_eq!(view.skeleton().tag5_len(), owned.skeleton().tag5_len());
+        assert_eq!(view.skeleton().tag4_len(), owned.skeleton().tag4_len());
+        assert_eq!(
+            view.skeleton().tag_vocab_len(),
+            owned.skeleton().tag_vocab_len()
+        );
+        assert_eq!(view.near_noop(), owned.near_noop());
+
+        // Every in-vocab pair, both directions, plus out-of-vocab probes:
+        // the view's binary searches and the owned B-trees must agree on
+        // all of them.
+        for left in ["<s>", ".", "fox", "quick", "the", "banana"] {
+            for right in ["<s>", ".", "fox", "quick", "the", "banana"] {
+                assert_eq!(
+                    view.bigram().attests(left, right),
+                    owned.bigram().attests(left, right),
+                    "attests({left:?}, {right:?}) must agree"
+                );
+            }
+        }
+
+        let attested = ["<S>", "DT", "JJ", "NN", ".", "<E>"];
+        let unattested = ["<S>", "NN", "DT", "JJ", ".", "<E>"];
+        let out_of_vocab = ["<S>", "ZZ", "JJ", "NN", ".", "<E>"];
+        for tags in [&attested, &unattested, &out_of_vocab] {
+            for lo in 0..tags.len() {
+                assert_eq!(
+                    view.skeleton().window_attested(tags, lo, lo),
+                    owned.skeleton().window_attested(tags, lo, lo),
+                    "window_attested({tags:?}, {lo}) must agree"
+                );
+            }
+        }
+    }
+
+    #[test]
+    fn bin_round_trip_preserves_a_present_near_noop_table() {
+        let with_calibration = format!(
+            "{SAMPLE_PACK}\n[near_noop]\nthreshold_per_1000_words = 1.5\n\
+             sample_doc_count = 264\ndev_check_max_per_1000_words = 1.2\n\
+             method = \"train-max-times-1.15\"\n"
+        );
+        let owned = AttestationPack::parse(&with_calibration).expect("pack parses");
+        let (view, _) = AttestationPack::from_bin(leak_bin(&with_calibration))
+            .expect("freshly packed artifact parses");
+        assert_eq!(view.near_noop(), owned.near_noop());
+    }
+
+    #[test]
+    fn from_bin_rejects_a_truncated_artifact() {
+        let bytes = pack_attestation_bin(SAMPLE_PACK).expect("sample pack packs");
+        let truncated: &'static [u8] =
+            Box::leak(bytes[..bytes.len() - 1].to_vec().into_boxed_slice());
+        assert!(matches!(
+            AttestationPack::from_bin(truncated),
+            Err(PackError::AttestationBinMalformed(_))
+        ));
+    }
+
+    #[test]
+    fn from_bin_rejects_a_bad_magic() {
+        let mut bytes = pack_attestation_bin(SAMPLE_PACK).expect("sample pack packs");
+        bytes[0] ^= 0xFF;
+        let corrupted: &'static [u8] = Box::leak(bytes.into_boxed_slice());
+        assert!(matches!(
+            AttestationPack::from_bin(corrupted),
+            Err(PackError::AttestationBinMalformed("unrecognized magic"))
+        ));
     }
 
     #[test]

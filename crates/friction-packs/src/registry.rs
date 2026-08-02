@@ -139,23 +139,38 @@ pub static FRAME: LazyLock<LoadedPack<FramePackView<'static>>> = LazyLock::new(|
     }
 });
 
-/// The embedded `attestation-v1.toml` source — written by `corpus-tool
-/// attest`.
-const ATTESTATION_V1_TOML: &str = include_str!("../packs/attestation-v1.toml");
+/// The embedded derived attestation artifact — the bigram/skeleton
+/// tables pre-flattened by `corpus-tool attest-pack` (see the artifact
+/// layout docs in [`crate::attestation`]). The source
+/// `attestation-v1.toml` stays in `packs/` as the audited artifact
+/// `corpus-tool attest` writes, but is no longer embedded or parsed at
+/// runtime: this module's drift test re-packs it and compares bytes, so
+/// the two cannot silently diverge.
+const ATTESTATION_V1_BIN: &[u8] = include_bytes!("../packs/attestation-v1.bin");
 
-/// The built-in attestation pack, parsed once from the embedded
-/// `attestation-v1.toml` and reused for the life of the process.
+/// The built-in attestation pack, viewed zero-copy over the embedded
+/// derived artifact and reused for the life of the process.
+///
+/// This used to parse the ~1.8 MB `attestation-v1.toml` on first touch —
+/// measured ~25 ms, the largest single slice of `friction`'s fixed
+/// startup cost after [`DMS`]'s own conversion. The view does header
+/// validation plus slice splits instead; the flattening now happens
+/// once, offline, in `corpus-tool attest-pack`. `sha256` records the
+/// **source TOML's** digest (carried in the artifact's own header),
+/// preserving this registry's provenance contract — the same shape as
+/// [`DMS`] and [`FRAME`].
 ///
 /// # Panics
-/// Panics if the embedded `attestation-v1.toml` fails to parse — a bug in
-/// this crate's own vendored data (covered by this crate's attestation
-/// tests), not a condition any caller can recover from by retrying.
+/// Panics if the embedded artifact fails to parse — a bug in this
+/// crate's own vendored data (covered by this crate's attestation
+/// round-trip and drift tests), not a runtime condition.
 pub static ATTESTATION: LazyLock<LoadedPack<AttestationPack>> = LazyLock::new(|| {
-    let pack = AttestationPack::parse(ATTESTATION_V1_TOML)
-        .expect("embedded attestation-v1.toml must parse: see this crate's attestation tests");
+    let (pack, sha_hex) = AttestationPack::from_bin(ATTESTATION_V1_BIN)
+        .expect("embedded attestation-v1.bin must parse: see this crate's attestation tests");
     LoadedPack {
         version: "attestation-v1".into(),
-        sha256: Sha256::of_bytes(ATTESTATION_V1_TOML.as_bytes()),
+        sha256: Sha256::parse_hex(sha_hex)
+            .expect("a parsed artifact's recorded sha256 is always 64 hex characters"),
         pack,
     }
 });
@@ -261,7 +276,7 @@ const MACHINE_EVIDENCE_V1_BIN: &[u8] = include_bytes!("../packs/machine-evidence
 /// `human_evidence` tests), not a condition any caller can recover from
 /// by retrying.
 pub static HUMAN_EVIDENCE: LazyLock<HumanEvidencePack> = LazyLock::new(|| {
-    HumanEvidencePack::load(HUMAN_EVIDENCE_V1_BIN)
+    HumanEvidencePack::load_static(HUMAN_EVIDENCE_V1_BIN)
         .expect("embedded human-evidence-v1.bin must load: see this crate's human_evidence tests")
 });
 
@@ -274,7 +289,7 @@ pub static HUMAN_EVIDENCE: LazyLock<HumanEvidencePack> = LazyLock::new(|| {
 /// bug in this crate's own vendored data, not a condition any caller
 /// can recover from by retrying.
 pub static MACHINE_EVIDENCE: LazyLock<HumanEvidencePack> = LazyLock::new(|| {
-    HumanEvidencePack::load(MACHINE_EVIDENCE_V1_BIN)
+    HumanEvidencePack::load_static(MACHINE_EVIDENCE_V1_BIN)
         .expect("embedded machine-evidence-v1.bin must load: see this crate's human_evidence tests")
 });
 
@@ -423,6 +438,11 @@ mod tests {
         assert_eq!(noms_a, noms_b);
     }
 
+    /// The in-repo source TOML, loaded at test time only — the runtime
+    /// embeds the derived `.bin`, and these tests are what keep the two
+    /// from diverging (same arrangement as [`DMS_INDEX_V1_TOML`]).
+    const ATTESTATION_V1_TOML: &str = include_str!("../packs/attestation-v1.toml");
+
     #[test]
     fn attestation_static_loads() {
         assert_eq!(&*ATTESTATION.version, "attestation-v1");
@@ -431,7 +451,7 @@ mod tests {
     }
 
     #[test]
-    fn attestation_sha256_matches_recomputed_hash_of_the_embedded_bytes() {
+    fn attestation_sha256_matches_recomputed_hash_of_the_source_toml() {
         let recomputed = Sha256::of_bytes(ATTESTATION_V1_TOML.as_bytes());
         assert_eq!(ATTESTATION.sha256, recomputed);
         assert!(recomputed.verify(ATTESTATION_V1_TOML.as_bytes()));
@@ -444,6 +464,56 @@ mod tests {
         assert_eq!(a.bigram().edge_count(), b.bigram().edge_count());
         assert_eq!(a.skeleton().tag5_len(), b.skeleton().tag5_len());
         assert_eq!(a.skeleton().tag4_len(), b.skeleton().tag4_len());
+    }
+
+    /// The drift guard: re-packing the in-repo TOML must reproduce the
+    /// embedded `.bin` byte for byte. Fails when `corpus-tool attest`
+    /// (or its `--calibrate-near-noop` stage) regenerates the TOML but
+    /// `corpus-tool attest-pack` wasn't re-run — the exact staleness the
+    /// artifact's recorded source sha256 exists to catch.
+    #[test]
+    fn attestation_bin_is_freshly_packed_from_the_source_toml() {
+        let repacked = crate::pack_attestation_bin(ATTESTATION_V1_TOML)
+            .expect("in-repo attestation-v1.toml packs");
+        assert_eq!(
+            repacked, ATTESTATION_V1_BIN,
+            "packs/attestation-v1.bin is stale: re-run `corpus-tool attest-pack`"
+        );
+    }
+
+    /// The embedded view and a fresh TOML parse answer identically —
+    /// spot-checked over real vocabulary the fix pipeline queries.
+    #[test]
+    fn attestation_view_agrees_with_a_fresh_toml_parse() {
+        let owned = AttestationPack::parse(ATTESTATION_V1_TOML).unwrap();
+        let view = &ATTESTATION.pack;
+        assert_eq!(view.bigram().vocab_len(), owned.bigram().vocab_len());
+        assert_eq!(view.bigram().edge_count(), owned.bigram().edge_count());
+        assert_eq!(
+            view.bigram().distinct_lefts(),
+            owned.bigram().distinct_lefts()
+        );
+        assert_eq!(view.skeleton().tag5_len(), owned.skeleton().tag5_len());
+        assert_eq!(view.skeleton().tag4_len(), owned.skeleton().tag4_len());
+        assert_eq!(
+            view.skeleton().tag_vocab_len(),
+            owned.skeleton().tag_vocab_len()
+        );
+        assert_eq!(view.near_noop(), owned.near_noop());
+        for (left, right) in [
+            ("<s>", "the"),
+            ("the", "same"),
+            ("of", "the"),
+            ("is", "a"),
+            ("never", "attested-nonsense-token"),
+            ("qzxwv", "qzxwv"),
+        ] {
+            assert_eq!(
+                view.bigram().attests(left, right),
+                owned.bigram().attests(left, right),
+                "attests({left:?}, {right:?}) must agree"
+            );
+        }
     }
 
     #[test]

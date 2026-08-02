@@ -82,6 +82,12 @@ enum Command {
     /// On the train split, builds the seam-bigram membership table and
     /// POS-skeleton n-gram sets for the attestation pack.
     Attest(commands::attest::Args),
+    /// Builds the derived attestation binary artifact
+    /// (`friction_packs::ATTESTATION` loads at runtime) from the
+    /// vendored `attestation-v1.toml`: both membership tables
+    /// pre-flattened into sorted arrays, so process start pays no TOML
+    /// parse or B-tree materialization.
+    AttestPack(commands::attest_pack::Args),
     /// On the train split's docs genre, measures each document's
     /// per-1000-prose-word em-dash rate and reports the population's
     /// 10th/50th/90th percentile, for `register-v1.toml`'s
@@ -169,6 +175,7 @@ pub fn run() -> anyhow::Result<()> {
         Command::PackCheck(args) => commands::pack_check::run(&args),
         Command::OutputBands(args) => commands::output_bands::run(&args),
         Command::Attest(args) => commands::attest::run(&args),
+        Command::AttestPack(args) => commands::attest_pack::run(&args),
         Command::RegisterBands(args) => commands::register_bands::run(&args),
         Command::JargonAttest(args) => commands::jargon_attest::run(&args),
         Command::WeightsPack(args) => commands::weights_pack::run(&args),
