@@ -10,13 +10,19 @@
 //!
 //! Every compiled rule carries an anchor: its longest obligatory
 //! literal run, as interned word ids. [`FrameIndex`] buckets rules by
-//! their anchor's first word id; the per-sentence scan resolves each
-//! token to word ids once (lemma and lowercased surface — a literal
-//! matches either, the same equivalence the adjudication referee
-//! counts by), walks the sentence left to right, and only attempts
-//! full verification for rules whose anchor could start at the current
-//! token. Anchor candidacy is a few binary searches per token; full
-//! verification only runs on plausible sites.
+//! their anchor's first word id in a dense array indexed by that id
+//! (pack word ids are dense ranks, so this is a direct slice index,
+//! not a tree lookup); two-or-more-word anchors additionally carry
+//! their second word id, so the scan can reject a candidate by
+//! peeking one token ahead before paying for full verification. The
+//! per-sentence scan resolves each token to word ids once (lemma and
+//! lowercased surface — a literal matches either, the same
+//! equivalence the adjudication referee counts by), walks the
+//! sentence left to right, and only attempts full verification for
+//! rules whose anchor could plausibly start at the current token.
+//! Anchor candidacy is an O(1) bucket lookup plus, for multi-word
+//! anchors, one cheap next-token id check; full verification only
+//! runs on sites that survive both.
 //!
 //! # Verification semantics
 //!
@@ -47,7 +53,6 @@
 //! right. No scoring, no search: the policy is a total order, so the
 //! result is deterministic for any input.
 
-use std::collections::BTreeMap;
 use std::ops::Range;
 
 use friction_nlp::TaggedToken;
@@ -74,32 +79,87 @@ pub struct FrameMatch {
     pub group_tokens: Vec<Option<usize>>,
 }
 
+/// One anchor-bucket entry: a candidate rule, plus — when its anchor
+/// runs two or more words — the second anchor word's id and whether
+/// that word must match by surface only (mirrors the rule's own
+/// `surface_match`, so the discriminator can never be looser than the
+/// verifier it's screening for).
+#[derive(Debug, Clone, Copy)]
+struct AnchorCandidate {
+    rule_index: u32,
+    second: Option<u32>,
+    surface_only: bool,
+}
+
 /// Anchor-first lookup over a frame pack: rule indexes bucketed by
-/// their anchor's first word id. Built once per process.
+/// their anchor's first word id.
+///
+/// The bucket array is indexed directly by that id (pack word ids are
+/// dense ranks assigned by the compiler, and the vocabulary is small,
+/// so this trades a little unused capacity for O(1) lookup instead of
+/// a tree). Built once per process.
 #[derive(Debug)]
 pub struct FrameIndex {
-    by_first_anchor_id: BTreeMap<u32, Vec<u32>>,
+    by_first_anchor_id: Vec<Vec<AnchorCandidate>>,
+    /// Every interned word, keyed by text, built once so
+    /// [`scan_sentence`]'s per-token resolution — several lookups per
+    /// token, every token of every sentence — hits a hash lookup
+    /// instead of [`FramePackView::word_id`]'s binary search over the
+    /// packed string table each time. `FxHashMap` (rustc's own
+    /// seedless, deterministic hasher): this workspace's
+    /// reproducibility doctrine rules out a randomly-seeded hasher
+    /// (`ahash`/`foldhash`) on a hot path, and std's default `SipHash`'s
+    /// `DoS` resistance buys nothing for compiled-in pack vocabulary.
+    word_ids: rustc_hash::FxHashMap<Box<str>, u32>,
 }
 
 impl FrameIndex {
     /// Builds the index over every rule in `view`.
     #[must_use]
     pub fn build(view: &FramePackView<'_>) -> Self {
-        let mut by_first_anchor_id: BTreeMap<u32, Vec<u32>> = BTreeMap::new();
+        let mut by_first_anchor_id: Vec<Vec<AnchorCandidate>> =
+            vec![Vec::new(); view.word_count() as usize];
         for index in 0..view.rule_count() {
             let rule = view.rule(index).expect("index in range");
-            if let Some(first) = rule.anchor.clone().next() {
-                by_first_anchor_id.entry(first).or_default().push(index);
+            let mut anchor = rule.anchor.clone();
+            let Some(first) = anchor.next() else {
+                continue;
+            };
+            let second = anchor.next();
+            if let Some(bucket) = by_first_anchor_id.get_mut(first as usize) {
+                bucket.push(AnchorCandidate {
+                    rule_index: index,
+                    second,
+                    surface_only: rule.surface_match,
+                });
             }
         }
-        Self { by_first_anchor_id }
+        let mut word_ids = rustc_hash::FxHashMap::with_capacity_and_hasher(
+            view.word_count() as usize,
+            rustc_hash::FxBuildHasher,
+        );
+        for id in 0..view.word_count() {
+            let word = view.word(id).expect("id in range");
+            word_ids.insert(Box::from(word), id);
+        }
+        Self {
+            by_first_anchor_id,
+            word_ids,
+        }
     }
 
     /// The rules whose anchor starts with `word_id`.
-    fn candidates(&self, word_id: u32) -> &[u32] {
+    fn candidates(&self, word_id: u32) -> &[AnchorCandidate] {
         self.by_first_anchor_id
-            .get(&word_id)
+            .get(word_id as usize)
             .map_or(&[], Vec::as_slice)
+    }
+
+    /// The interned id of `w`, from the index's own hash map — see the
+    /// `word_ids` field docs for why this exists alongside
+    /// [`FramePackView::word_id`] rather than calling through to it.
+    fn word_id(&self, w: &str) -> Option<u32> {
+        self.word_ids.get(w).copied()
     }
 }
 
@@ -143,47 +203,103 @@ pub fn scan_sentence(
     tokens: &[TaggedToken],
     text: &str,
 ) -> Vec<FrameMatch> {
+    // Scratch buffers reused across every token in the sentence instead
+    // of each token allocating its own lowercased `String` (surface,
+    // lemma) and its own `Vec<String>` of suffix-reduction candidates —
+    // this loop is sequential (a single `.map().collect()`, not
+    // `par_iter`), so one buffer per role is safe to reuse and clear on
+    // each token.
+    let mut surface_buf = String::new();
+    let mut lemma_buf = String::new();
+    let mut reduction_buf = String::new();
     let resolved: Vec<ResolvedToken> = tokens
         .iter()
         .map(|token| {
-            let surface = surface_of(token, text).to_lowercase();
-            let surface_id = view.word_id(&surface);
+            lower_into(&mut surface_buf, surface_of(token, text));
+            let surface_id = index.word_id(&surface_buf);
             let mut ids: Vec<u32> = surface_id.into_iter().collect();
             let mut push = |word: &str| {
-                if let Some(id) = view.word_id(word)
+                if let Some(id) = index.word_id(word)
                     && !ids.contains(&id)
                 {
                     ids.push(id);
                 }
             };
-            push(&token.lemma.to_lowercase());
-            // Irregular forms reduce through the shared tables...
-            for pos in ["VBD", "VBG", "VBZ"] {
-                push(&friction_nlp::lemmatize(&surface, pos));
+            lower_into(&mut lemma_buf, &token.lemma);
+            push(&lemma_buf);
+            // Irregular forms reduce through the shared table directly —
+            // one hash lookup instead of `lemmatize`'s lowercase-then-
+            // linear-scan repeated once per VBD/VBG/VBZ (the irregular
+            // check inside `lemmatize` is pos-independent anyway, so
+            // three calls only ever found the same base three times).
+            if let Some(base) = friction_nlp::irregular_verb_base(&surface_buf) {
+                push(base);
             }
-            // ...but the regular reverse lemmatization there keeps ONE
-            // stem per form, and when two stems both round-trip
+            // `lemmatize`'s regular reverse-derivation (VBD/VBZ, and
+            // VBG's plain "-ing" strip) picks ONE stem per form via a
+            // round-trip check, and when two stems both round-trip
             // ("commenc"/"commence" for "commenced") it can keep the
             // wrong one. Here the pack's own interner is the
-            // dictionary: generate every plausible suffix reduction
-            // and let interner membership arbitrate — a stem that is
-            // no rule's word can never matter to a scan, and a stem
-            // that is one is exactly the reading the rule wants.
-            for candidate in suffix_reductions(&surface) {
-                push(&candidate);
+            // dictionary instead: `for_each_suffix_reduction` below
+            // generates every plausible suffix reduction and lets
+            // interner membership arbitrate — a stem that is no rule's
+            // word can never matter to a scan, and a stem that is one
+            // is exactly the reading the rule wants. Shares
+            // `suffix_reductions`'s exact candidate logic (see that
+            // function's own docs on why runtime and the adjudication
+            // referee can never disagree) via `for_each_suffix_reduction`,
+            // without collecting a `Vec<String>` this hot path only
+            // ever throws away after one `word_id` lookup each.
+            //
+            // The one candidate `for_each_suffix_reduction` does NOT
+            // generate that `lemmatize`'s VBG path does: the
+            // "-ying" -> "-ie" restoration for the tie/die/lie/vie
+            // family (a short y-stem after stripping "-ing" — the
+            // suffix-reduction loop only ever strips "-ing" down to
+            // the bare y-stem, never rebuilds the "-ie" ending).
+            // Fall back to it directly so it isn't lost.
+            if let Some(stem) = surface_buf.strip_suffix("ing")
+                && stem.chars().count() <= 2
+                && let Some(base) = surface_buf.strip_suffix("ying")
+            {
+                reduction_buf.clear();
+                reduction_buf.push_str(base);
+                reduction_buf.push_str("ie");
+                push(&reduction_buf);
             }
+            for_each_suffix_reduction(&surface_buf, &mut reduction_buf, push);
             ResolvedToken { surface_id, ids }
         })
         .collect();
 
     let mut matches = Vec::new();
+    // Hoisted out of the token loop and cleared per token instead of
+    // reallocated: this is `scan_sentence`'s innermost bookkeeping,
+    // paid once per token either way, so reusing the backing buffer
+    // saves one allocation per token instead of per rule-dedup reset.
+    let mut tried: Vec<u32> = Vec::new();
     for at in 0..tokens.len() {
-        let mut tried: Vec<u32> = Vec::new();
-        for id in resolved[at].ids.clone() {
-            for &rule_index in index.candidates(id) {
-                if tried.contains(&rule_index) {
+        tried.clear();
+        for idx in 0..resolved[at].ids.len() {
+            let id = resolved[at].ids[idx];
+            for candidate in index.candidates(id) {
+                if tried.contains(&candidate.rule_index) {
                     continue;
                 }
+                // Second-anchor-word discriminator: for multi-word
+                // anchors, reject before paying for a rule fetch and
+                // full verification unless the next token can stand
+                // for the anchor's second word. Single-word anchors
+                // (`second == None`) and pilot rules (surface-only)
+                // fall through to their pre-existing behavior.
+                if let Some(second) = candidate.second
+                    && !resolved
+                        .get(at + 1)
+                        .is_some_and(|next| next.matches(second, candidate.surface_only))
+                {
+                    continue;
+                }
+                let rule_index = candidate.rule_index;
                 tried.push(rule_index);
                 let rule = view.rule(rule_index).expect("indexed rule in range");
                 if anchor_fits(&rule, &resolved, at)
@@ -240,6 +356,85 @@ fn surface_of<'a>(token: &TaggedToken, text: &'a str) -> &'a str {
     &text[token.token.range.clone()]
 }
 
+/// Lowercases `raw` into `buf` (cleared first) instead of allocating a new
+/// `String` — exactly [`str::to_lowercase`]'s own per-`char`
+/// [`char::to_lowercase`] mapping, so this produces byte-identical output
+/// to `raw.to_lowercase()`, just written into scratch space [`scan_sentence`]
+/// reuses across every token in a sentence rather than allocating fresh
+/// per token.
+fn lower_into(buf: &mut String, raw: &str) {
+    buf.clear();
+    for c in raw.chars() {
+        buf.extend(c.to_lowercase());
+    }
+}
+
+/// Undoes a doubled final consonant in `stem`, writing the shortened form
+/// into `buf` (cleared first) and returning `true` — `false`, `buf`
+/// untouched, when `stem` has no doubled consonant to undo. Shared by
+/// [`for_each_suffix_reduction`]'s `-ed`/`-ing` branch and, through it,
+/// [`suffix_reductions`].
+fn undoubled_into(stem: &str, buf: &mut String) -> bool {
+    let chars: Vec<char> = stem.chars().collect();
+    let n = chars.len();
+    if n >= 2 && chars[n - 1] == chars[n - 2] && !"aeiou".contains(chars[n - 1]) {
+        buf.clear();
+        buf.extend(chars[..n - 1].iter());
+        true
+    } else {
+        false
+    }
+}
+
+/// Calls `f` once per plausible base-form reduction of a lowercased
+/// `surface`, in the same order [`suffix_reductions`] collects them —
+/// covers `-ied`/`-ed`/`-ing` (with doubled-consonant undoubling and
+/// `-e` restoration) and `-ies`/`-es`/`-s`, deliberately over-generating
+/// (callers keep only candidates a dictionary knows: the pack's interner
+/// at match time, the probe vocabulary in the adjudication referee).
+///
+/// [`suffix_reductions`] is defined in terms of this function (collecting
+/// each `f` call into an owned `Vec<String>`), so referee and runtime
+/// share the exact same reduction logic either way — this generator form
+/// exists only so [`scan_sentence`]'s hot path, which needs nothing but
+/// an interner `word_id` lookup per candidate, never keeps a candidate
+/// past that lookup. `buf` is scratch space the caller owns and reuses
+/// across tokens; each candidate is either a subslice of `surface`
+/// (borrowed directly, no allocation) or built into `buf` and yielded as
+/// `&*buf`.
+fn for_each_suffix_reduction(surface: &str, buf: &mut String, mut f: impl FnMut(&str)) {
+    if let Some(stem) = surface.strip_suffix("ied") {
+        buf.clear();
+        buf.push_str(stem);
+        buf.push('y');
+        f(buf);
+    }
+    for suffix in ["ed", "ing"] {
+        if let Some(stem) = surface.strip_suffix(suffix) {
+            if undoubled_into(stem, buf) {
+                f(buf);
+            }
+            f(stem);
+            buf.clear();
+            buf.push_str(stem);
+            buf.push('e');
+            f(buf);
+        }
+    }
+    if let Some(stem) = surface.strip_suffix("ies") {
+        buf.clear();
+        buf.push_str(stem);
+        buf.push('y');
+        f(buf);
+    }
+    if let Some(stem) = surface.strip_suffix("es") {
+        f(stem);
+    }
+    if let Some(stem) = surface.strip_suffix('s') {
+        f(stem);
+    }
+}
+
 /// Every plausible base-form reduction of a lowercased surface.
 ///
 /// Covers `-ied`/`-ed`/`-ing` (with doubled-consonant undoubling and
@@ -251,33 +446,10 @@ fn surface_of<'a>(token: &TaggedToken, text: &'a str) -> &'a str {
 #[must_use]
 pub fn suffix_reductions(surface: &str) -> Vec<String> {
     let mut out = Vec::new();
-    let undoubled = |stem: &str| {
-        let chars: Vec<char> = stem.chars().collect();
-        let n = chars.len();
-        (n >= 2 && chars[n - 1] == chars[n - 2] && !"aeiou".contains(chars[n - 1]))
-            .then(|| chars[..n - 1].iter().collect::<String>())
-    };
-    if let Some(stem) = surface.strip_suffix("ied") {
-        out.push(format!("{stem}y"));
-    }
-    for suffix in ["ed", "ing"] {
-        if let Some(stem) = surface.strip_suffix(suffix) {
-            if let Some(un) = undoubled(stem) {
-                out.push(un);
-            }
-            out.push(stem.to_string());
-            out.push(format!("{stem}e"));
-        }
-    }
-    if let Some(stem) = surface.strip_suffix("ies") {
-        out.push(format!("{stem}y"));
-    }
-    if let Some(stem) = surface.strip_suffix("es") {
-        out.push(stem.to_string());
-    }
-    if let Some(stem) = surface.strip_suffix('s') {
-        out.push(stem.to_string());
-    }
+    let mut buf = String::new();
+    for_each_suffix_reduction(surface, &mut buf, |candidate| {
+        out.push(candidate.to_string());
+    });
     out
 }
 
@@ -773,6 +945,127 @@ mod tests {
                 "non-overlapping, ordered"
             );
         }
+    }
+
+    /// The rule index of the pack rule with id `id`.
+    fn find_rule_index(view: &FramePackView<'_>, id: &str) -> u32 {
+        (0..view.rule_count())
+            .find(|&i| view.rule(i).expect("rule").id == id)
+            .unwrap_or_else(|| panic!("rule {id} not found in pack"))
+    }
+
+    /// [`FrameIndex`] stores each multi-word anchor's second word id
+    /// alongside the rule, and the scan uses it to reject a candidate
+    /// before ever invoking the verifier: a sentence where the
+    /// anchor's first word appears but the second does not must not
+    /// match, even though the first word alone would have put the
+    /// rule in play.
+    #[test]
+    fn two_word_anchor_discriminator_rejects_before_verify() {
+        let view = &FRAME.pack;
+        let index = FrameIndex::build(view);
+        let rule_index = find_rule_index(view, "col.seamless-integration");
+        let rule = view.rule(rule_index).expect("rule");
+        let mut anchor = rule.anchor.clone();
+        let first = anchor.next().expect("anchor has a first word");
+        let second = anchor.next().expect("anchor has a second word");
+        let candidate = index
+            .candidates(first)
+            .iter()
+            .find(|c| c.rule_index == rule_index)
+            .expect("rule indexed under its anchor's first word");
+        assert_eq!(
+            candidate.second,
+            Some(second),
+            "discriminator carries the anchor's second word"
+        );
+
+        // "seamless" appears, but not followed by "integration": the
+        // discriminator rejects before verification runs.
+        let (rejected, _) = scan("This provides seamless deployment with the API.");
+        assert!(
+            !rule_ids(&rejected).contains(&"col.seamless-integration"),
+            "found: {:?}",
+            rule_ids(&rejected)
+        );
+
+        // Both anchor words present: the rule still fires.
+        let (accepted, _) = scan("This provides seamless integration with the API.");
+        assert!(
+            rule_ids(&accepted).contains(&"col.seamless-integration"),
+            "found: {:?}",
+            rule_ids(&accepted)
+        );
+    }
+
+    /// A single-word anchor carries no discriminator, so the
+    /// next-token check never applies to it — candidacy behaves
+    /// exactly as before the discriminator was added.
+    #[test]
+    fn single_word_anchor_has_no_discriminator() {
+        let view = &FRAME.pack;
+        let index = FrameIndex::build(view);
+        let rule_index = find_rule_index(view, "vsub.utilize");
+        let first = view
+            .rule(rule_index)
+            .expect("rule")
+            .anchor
+            .clone()
+            .next()
+            .expect("anchor has a first word");
+        let candidate = index
+            .candidates(first)
+            .iter()
+            .find(|c| c.rule_index == rule_index)
+            .expect("rule indexed under its anchor's first word");
+        assert_eq!(candidate.second, None);
+
+        let (matches, _) = scan("We utilize the cache.");
+        assert!(
+            rule_ids(&matches).contains(&"vsub.utilize"),
+            "found: {:?}",
+            rule_ids(&matches)
+        );
+    }
+
+    /// A pilot (surface-matched) two-word anchor discriminates by
+    /// surface id, mirroring the verifier's own pilot semantics —
+    /// never a lemma-level identity, since pilot targets are exact
+    /// inflected forms.
+    #[test]
+    fn pilot_rule_discriminator_uses_surface_id_only() {
+        let view = &FRAME.pack;
+        let index = FrameIndex::build(view);
+        let rule_index = find_rule_index(view, "pilot.such-as");
+        let rule = view.rule(rule_index).expect("rule");
+        assert!(rule.surface_match, "pilot rules are surface-matched");
+        let mut anchor = rule.anchor.clone();
+        let first = anchor.next().expect("anchor has a first word");
+        let second = anchor.next().expect("anchor has a second word");
+        let candidate = index
+            .candidates(first)
+            .iter()
+            .find(|c| c.rule_index == rule_index)
+            .expect("rule indexed under its anchor's first word");
+        assert_eq!(candidate.second, Some(second));
+        assert!(
+            candidate.surface_only,
+            "pilot candidate discriminates by surface id"
+        );
+
+        let (rejected, _) = scan("We processed data such that errors dropped.");
+        assert!(
+            !rule_ids(&rejected).contains(&"pilot.such-as"),
+            "found: {:?}",
+            rule_ids(&rejected)
+        );
+
+        let (accepted, _) = scan("We used tools such as calculators.");
+        assert!(
+            rule_ids(&accepted).contains(&"pilot.such-as"),
+            "found: {:?}",
+            rule_ids(&accepted)
+        );
     }
 
     /// Scanning the same sentence twice is identical (determinism).

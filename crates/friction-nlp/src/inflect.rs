@@ -81,6 +81,56 @@ pub fn agreeing_forms(lemma: &str, class: WordClass) -> Vec<String> {
     forms
 }
 
+/// `IRREGULAR_VERBS`, indexed the other way round: every inflected form
+/// (3sg, gerund, past) maps to its base, built once. [`lemmatize`]'s own
+/// irregular-table check is a linear scan repeated by every caller that
+/// tries multiple POS tags against the same surface word (the scan
+/// itself doesn't depend on `pos`) — [`irregular_verb_base`] gives those
+/// callers a single hash lookup instead.
+///
+/// `FxHashMap` (rustc's own hasher): seedless and deterministic, unlike
+/// `ahash`/`foldhash`'s random default seeding, which this workspace's
+/// reproducibility doctrine rules out for anything on a hot path — and
+/// std's `HashMap` default `SipHash`'s `DoS` resistance buys nothing here,
+/// since these keys are compiled-in strings, never attacker input.
+static IRREGULAR_VERB_BASES: std::sync::LazyLock<
+    rustc_hash::FxHashMap<&'static str, &'static str>,
+> = std::sync::LazyLock::new(|| {
+    let mut map = rustc_hash::FxHashMap::with_capacity_and_hasher(
+        IRREGULAR_VERBS.len() * 3,
+        rustc_hash::FxBuildHasher,
+    );
+    for &(base, sg3, ing, past) in IRREGULAR_VERBS {
+        for form in [sg3, ing, past] {
+            if form != base {
+                map.insert(form, base);
+            }
+        }
+    }
+    map
+});
+
+/// The base form of `lower`, if it's an irregular verb's inflected form.
+///
+/// A direct hash-map lookup over [`lemmatize`]'s own `IRREGULAR_VERBS`
+/// table (third-person-singular, gerund, or past form only — same
+/// table, reverse direction), for callers on a hot path who'd otherwise
+/// pay for `lemmatize`'s linear scan once per POS tag tried against the
+/// same word. `lower` must already be lowercased; unlike [`lemmatize`]
+/// this performs no case folding of its own.
+///
+/// # Examples
+/// ```
+/// use friction_nlp::irregular_verb_base;
+///
+/// assert_eq!(irregular_verb_base("went"), Some("go"));
+/// assert_eq!(irregular_verb_base("walked"), None);
+/// ```
+#[must_use]
+pub fn irregular_verb_base(lower: &str) -> Option<&'static str> {
+    IRREGULAR_VERB_BASES.get(lower).copied()
+}
+
 /// Best-effort reverse lemmatization for a tagged surface word.
 ///
 /// Given its surface text and a coarse Penn tag, guesses the base-form

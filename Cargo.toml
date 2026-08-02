@@ -53,6 +53,16 @@ insta = "1"
 # output regardless of thread count (see `friction-edit`'s own
 # `rayon_determinism` test). Pinned to the `1.12` line; bump deliberately.
 rayon = "1.12"
+# Seedless, deterministic `FxHash` — the hasher rustc itself uses for its
+# internal maps. Used where a `HashMap` is on a hot lookup path and
+# std's default SipHash's DoS-resistance is paid for nothing (these
+# keys are never attacker-controlled): `friction-match`'s per-scan
+# interner-id lookup and `friction-nlp`'s irregular-verb-base lookup.
+# Deliberately not `ahash`/`foldhash`: both randomly seed by default,
+# which would make map iteration order (and anything derived from it)
+# vary run to run — this workspace's reproducibility doctrine requires
+# every hash used in a hot path to be seedless and fixed.
+rustc-hash = "2"
 
 [workspace.lints.rust]
 unsafe_code = "deny"

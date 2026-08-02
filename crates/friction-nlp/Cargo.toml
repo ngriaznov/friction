@@ -43,6 +43,7 @@ serde_json = { workspace = true }
 # `build_open_table`, `HashView`) — mirrors `friction_packs::jargon_attest`'s
 # own use of this same crate for a byte-reproducible, non-`SipHash` filter.
 xxhash-rust = { workspace = true }
+rustc-hash = { workspace = true }
 
 [[example]]
 name = "train_perceptron"

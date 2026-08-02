@@ -223,23 +223,51 @@ type Occurrences = BTreeMap<Box<str>, Vec<Range<usize>>>;
 /// not.
 fn tally(tagged: &[TaggedSentence], source: &str) -> (Occurrences, u64) {
     let mut occurrences: Occurrences = BTreeMap::new();
+    // `total_tokens` alone decides whether `scan_units` judges this
+    // document at all ([`MIN_DOC_TOKENS`]) and is knowable from each
+    // sentence's token *count* without visiting a single token — so it's
+    // computed first and checked before any per-token work (slicing,
+    // case-folding, map lookups) runs at all. A no-op for the two
+    // benchmark documents (both are far larger than the floor), but a
+    // real, unconditional skip for every short document this channel
+    // would have discarded via `total_tokens < MIN_DOC_TOKENS` anyway.
+    let total_tokens: u64 = tagged.iter().map(|s| s.tokens.len() as u64).sum();
+    if total_tokens < MIN_DOC_TOKENS {
+        return (occurrences, total_tokens);
+    }
+
     let mut nonlexical: std::collections::BTreeSet<Box<str>> = std::collections::BTreeSet::new();
-    let mut total_tokens: u64 = 0;
+    // Reused across every candidate token instead of allocating a fresh
+    // lowercased `String` per occurrence: `to_ascii_lowercase` output
+    // is written into this buffer once per token, and only turned into
+    // an owned `Box<str>` key on a genuinely new word — the common case
+    // (a repeated word) looks the existing entry up by the borrowed
+    // buffer contents and pushes into its `Vec` without allocating at
+    // all. `is_candidate_shape` already restricts a candidate to ASCII
+    // letters, so ASCII case-folding here is exactly `to_lowercase`'s
+    // result for every string this function ever sees.
+    let mut lower = String::new();
     for sentence in tagged {
-        total_tokens += sentence.tokens.len() as u64;
         for token in &sentence.tokens {
             let text = &source[token.token.range.clone()];
             if !is_candidate_shape(text) {
                 continue;
             }
-            let key: Box<str> = text.to_lowercase().into_boxed_str();
-            if is_lexical_choice_tag(token.pos.as_str()) {
-                occurrences
-                    .entry(key)
-                    .or_default()
-                    .push(token.token.range.clone());
+            let key: &str = if text.bytes().all(|b| b.is_ascii_lowercase()) {
+                text
             } else {
-                nonlexical.insert(key);
+                lower.clear();
+                lower.extend(text.chars().map(|c| c.to_ascii_lowercase()));
+                &lower
+            };
+            if is_lexical_choice_tag(token.pos.as_str()) {
+                if let Some(ranges) = occurrences.get_mut(key) {
+                    ranges.push(token.token.range.clone());
+                } else {
+                    occurrences.insert(key.into(), vec![token.token.range.clone()]);
+                }
+            } else if !nonlexical.contains(key) {
+                nonlexical.insert(key.into());
             }
         }
     }
