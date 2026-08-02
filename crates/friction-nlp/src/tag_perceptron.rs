@@ -741,8 +741,6 @@ fn build_features(
     buf: &mut String,
     mut emit: impl FnMut(&str),
 ) {
-    use std::fmt::Write as _;
-
     // Every real token stream is far smaller than `isize::MAX`, so this
     // conversion never wraps.
     #[allow(clippy::cast_possible_wrap)]
@@ -764,28 +762,34 @@ fn build_features(
 
     let word_two_forward = normalize_word_identity(context_word(surfaces, i + 2));
 
+    // Direct byte pushes, not `write!`: every part is already a `&str`,
+    // and the `core::fmt` machinery (dynamic dispatch through
+    // `fmt::Write`, per-argument `Formatter` setup) measured ~17% of a
+    // large fix run's instructions across the two perceptrons' feature
+    // builders. `push_str` concatenation of the identical parts produces
+    // byte-identical feature keys with none of that overhead.
     macro_rules! feat {
-        ($($arg:tt)*) => {{
+        ($($part:expr),+ $(,)?) => {{
             buf.clear();
-            write!(buf, $($arg)*).expect("writing to a String never fails");
+            $(buf.push_str($part);)+
             emit(buf.as_str());
         }};
     }
 
     emit("bias");
-    feat!("word={cur_word}");
-    feat!("suffix={cur_suffix}");
-    feat!("pref1={cur_pref1}");
-    feat!("i-1 tag={prev1_tag}");
-    feat!("i-2 tag={prev2_tag}");
-    feat!("i-1 tag+i-2 tag={prev1_tag},{prev2_tag}");
-    feat!("i-1 tag+word={prev1_tag},{cur_word}");
-    feat!("i-1 word={prev_word}");
-    feat!("i-1 suffix={prev_suffix}");
-    feat!("i-2 word={word_two_back}");
-    feat!("i+1 word={next_word}");
-    feat!("i+1 suffix={next_suffix}");
-    feat!("i+2 word={word_two_forward}");
+    feat!("word=", cur_word);
+    feat!("suffix=", cur_suffix);
+    feat!("pref1=", cur_pref1);
+    feat!("i-1 tag=", prev1_tag);
+    feat!("i-2 tag=", prev2_tag);
+    feat!("i-1 tag+i-2 tag=", prev1_tag, ",", prev2_tag);
+    feat!("i-1 tag+word=", prev1_tag, ",", cur_word);
+    feat!("i-1 word=", prev_word);
+    feat!("i-1 suffix=", prev_suffix);
+    feat!("i-2 word=", word_two_back);
+    feat!("i+1 word=", next_word);
+    feat!("i+1 suffix=", next_suffix);
+    feat!("i+2 word=", word_two_forward);
 }
 
 /// Owned, allocating wrapper over [`build_features`]: collects every

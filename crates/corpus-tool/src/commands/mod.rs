@@ -10,6 +10,7 @@
 
 pub mod adjudicate;
 pub mod attest;
+pub mod attest_pack;
 pub mod clean;
 pub mod dms_pack;
 pub mod envelope;

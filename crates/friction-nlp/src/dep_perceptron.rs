@@ -298,17 +298,20 @@ fn push_child_features(
     tags: &[Box<str>],
     child: Option<usize>,
 ) {
-    use std::fmt::Write as _;
-
     let (tag, relation) = child.map_or((NONE, NONE), |index| {
         let relation = config.arc(index).map_or(NONE, |(_, rel)| rel.as_str());
         (tags[index].as_ref(), relation)
     });
+    // Direct byte pushes, not `write!` — see `build_features`' own note.
     buf.clear();
-    write!(buf, "{prefix}.t={tag}").expect("writing to a String never fails");
+    buf.push_str(prefix);
+    buf.push_str(".t=");
+    buf.push_str(tag);
     emit(buf.as_str());
     buf.clear();
-    write!(buf, "{prefix}.rel={relation}").expect("writing to a String never fails");
+    buf.push_str(prefix);
+    buf.push_str(".rel=");
+    buf.push_str(relation);
     emit(buf.as_str());
 }
 
@@ -350,8 +353,6 @@ fn build_features(
     buf: &mut String,
     mut emit: impl FnMut(&str),
 ) {
-    use std::fmt::Write as _;
-
     let stack = config.stack();
     let s0 = stack.last().copied();
     let s1 = if stack.len() >= 2 {
@@ -370,42 +371,47 @@ fn build_features(
     let b1v = at(words, tags, b1);
     let b2v = at(words, tags, b2);
 
+    // Direct byte pushes, not `write!` — every part is already a `&str`,
+    // and the `core::fmt` machinery measured ~17% of a large fix run's
+    // instructions across the two perceptrons' feature builders.
+    // `push_str` concatenation of the identical parts produces
+    // byte-identical feature keys with none of that overhead.
     macro_rules! feat {
-        ($($arg:tt)*) => {{
+        ($($part:expr),+ $(,)?) => {{
             buf.clear();
-            write!(buf, $($arg)*).expect("writing to a String never fails");
+            $(buf.push_str($part);)+
             emit(buf.as_str());
         }};
     }
 
     // Unigrams.
-    feat!("s0.w={}", s0v.w);
-    feat!("s0.t={}", s0v.t);
-    feat!("s0.wt={}|{}", s0v.w, s0v.t);
-    feat!("s1.w={}", s1v.w);
-    feat!("s1.t={}", s1v.t);
-    feat!("s1.wt={}|{}", s1v.w, s1v.t);
-    feat!("b0.w={}", b0v.w);
-    feat!("b0.t={}", b0v.t);
-    feat!("b0.wt={}|{}", b0v.w, b0v.t);
-    feat!("b1.w={}", b1v.w);
-    feat!("b1.t={}", b1v.t);
-    feat!("b1.wt={}|{}", b1v.w, b1v.t);
-    feat!("b2.t={}", b2v.t);
+    feat!("s0.w=", s0v.w);
+    feat!("s0.t=", s0v.t);
+    feat!("s0.wt=", s0v.w, "|", s0v.t);
+    feat!("s1.w=", s1v.w);
+    feat!("s1.t=", s1v.t);
+    feat!("s1.wt=", s1v.w, "|", s1v.t);
+    feat!("b0.w=", b0v.w);
+    feat!("b0.t=", b0v.t);
+    feat!("b0.wt=", b0v.w, "|", b0v.t);
+    feat!("b1.w=", b1v.w);
+    feat!("b1.t=", b1v.t);
+    feat!("b1.wt=", b1v.w, "|", b1v.t);
+    feat!("b2.t=", b2v.t);
 
     // Pairs.
-    feat!("s0b0.wtwt={}|{}|{}|{}", s0v.w, s0v.t, b0v.w, b0v.t);
-    feat!("s0b0.wtw={}|{}|{}", s0v.w, s0v.t, b0v.w);
-    feat!("s0b0.wwt={}|{}|{}", s0v.w, b0v.w, b0v.t);
-    feat!("s0b0.wtt={}|{}|{}", s0v.w, s0v.t, b0v.t);
-    feat!("s0b0.twt={}|{}|{}", s0v.t, b0v.w, b0v.t);
-    feat!("s0b0.ww={}|{}", s0v.w, b0v.w);
-    feat!("s0b0.tt={}|{}", s0v.t, b0v.t);
-    feat!("b0b1.tt={}|{}", b0v.t, b1v.t);
+    feat!("s0b0.wtwt=", s0v.w, "|", s0v.t, "|", b0v.w, "|", b0v.t);
+    feat!("s0b0.wtw=", s0v.w, "|", s0v.t, "|", b0v.w);
+    feat!("s0b0.wwt=", s0v.w, "|", b0v.w, "|", b0v.t);
+    feat!("s0b0.wtt=", s0v.w, "|", s0v.t, "|", b0v.t);
+    feat!("s0b0.twt=", s0v.t, "|", b0v.w, "|", b0v.t);
+    feat!("s0b0.ww=", s0v.w, "|", b0v.w);
+    feat!("s0b0.tt=", s0v.t, "|", b0v.t);
+    feat!("b0b1.tt=", b0v.t, "|", b1v.t);
 
     // Triples.
-    feat!("s0b0b1.ttt={}|{}|{}", s0v.t, b0v.t, b1v.t);
-    feat!("s1s0b0.ttt={}|{}|{}", s1v.t, s0v.t, b0v.t);
+    feat!("s0b0b1.ttt=", s0v.t, "|", b0v.t, "|", b1v.t);
+    feat!("s1s0b0.ttt=", s1v.t, "|", s0v.t, "|", b0v.t);
 
     // Children.
     let (s0_left, s0_right) = s0.map_or((None, None), |head| children_of(config, head));
@@ -419,7 +425,7 @@ fn build_features(
         (Some(si), Some(bi)) => bucket_distance(bi - si),
         _ => NONE,
     };
-    feat!("dist.s0t.b0t={}|{}|{}", dist_bucket, s0v.t, b0v.t);
+    feat!("dist.s0t.b0t=", dist_bucket, "|", s0v.t, "|", b0v.t);
 }
 
 /// Owned, allocating wrapper over [`build_features`]: collects every

@@ -40,6 +40,26 @@ jobs:
       - uses: Swatinem/rust-cache@v2
       - run: cargo test --workspace
 
+  artifacts:
+    name: derived artifacts are freshly packed
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+      # The friction-packs drift tests already assert byte-equality of
+      # each committed .bin against a repack of its committed source, but
+      # a failed multi-megabyte assert_eq! is unreadable. This job gives
+      # the same guarantee a crisp signal: regenerate everything that is
+      # a pure function of committed bytes (see the script's own header
+      # for what is deliberately excluded), then fail on any diff — the
+      # fix is always `./scripts/repack-artifacts.sh` and commit.
+      - run: ./scripts/repack-artifacts.sh
+      - run: |
+          git diff --stat --exit-code \
+            crates/friction-packs/packs crates/friction-nlp/weights \
+            || { echo "::error::derived artifacts are stale — run ./scripts/repack-artifacts.sh and commit the result"; exit 1; }
+
   corpus-determinism-full:
     name: full-corpus determinism (segmenter + tagger)
     runs-on: ubuntu-latest
