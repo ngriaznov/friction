@@ -50,9 +50,26 @@ jobs:
             echo "v${{ steps.read.outputs.version }} is new; will build and release"
           fi
 
+  # The test gate: no binary is built and nothing is tagged or published
+  # unless the whole workspace suite passes on the release commit itself.
+  # CI runs the same suite in parallel on every push, but a parallel
+  # workflow cannot *block* this one — only a `needs` edge can. Scoped to
+  # release pushes (`should_release`), so the ordinary-commit no-op path
+  # stays a two-step version check.
+  test:
+    name: test gate
+    needs: version
+    if: needs.version.outputs.should_release == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+      - run: cargo test --workspace
+
   build:
     name: ${{ matrix.target }}
-    needs: version
+    needs: [version, test]
     if: needs.version.outputs.should_release == 'true'
     runs-on: ${{ matrix.os }}
     strategy:
