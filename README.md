@@ -75,7 +75,7 @@ your lockfile:
     "lint:docs": "friction fix README.md | cmp -s - README.md"
   },
   "devDependencies": {
-    "friction-cli": "0.5.1"
+    "friction-cli": "0.5.2"
   }
 }
 ```
