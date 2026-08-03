@@ -555,7 +555,7 @@ mod tests {
     }
 
     /// Every lexeme and every attested exception carries non-empty
-    /// `notes` — enforced structurally by [`JargonPack::parse`], pinned
+    /// `notes` — enforced by [`JargonPack::parse`], pinned
     /// here against the real embedded pack rather than only a synthetic
     /// one.
     #[test]

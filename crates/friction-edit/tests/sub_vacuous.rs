@@ -51,3 +51,18 @@ fn non_vacuous_is_never_split_by_the_bare_rule() {
         "The suite keeps every real assertion and drops the meaningless one.\n"
     );
 }
+
+/// The guarantees-genre tell from the same curated batch: "enforced
+/// structurally" becomes the correctness-by-construction term of art,
+/// with the carried-over "enforced" and the new "by" scaffolding
+/// passing closure through the widened function-word allowance.
+#[test]
+fn enforced_structurally_becomes_enforced_by_construction() {
+    let (fixed, _) = engine()
+        .fix_document("The closure guarantee is enforced structurally rather than asserted.\n")
+        .expect("engine runs");
+    assert_eq!(
+        fixed,
+        "The closure guarantee is enforced by construction rather than asserted.\n"
+    );
+}

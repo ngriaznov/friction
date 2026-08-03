@@ -495,7 +495,7 @@ closed operations and skip register rephrasing, read the edits from `explain
 - **Closed**: no code path can insert a *searched-for* word. Content words are
   always input-derived. Function words may be introduced only from a fixed set
   declared per operation, checked on every candidate before it is applied, so
-  the guarantee is enforced structurally rather than asserted. The approaches
+  the guarantee is enforced by construction rather than asserted. The approaches
   that would break it (bridge insertion, corpus-path synthesis) were tried
   during research, failed, and are pinned as red tests so they cannot come
   back.

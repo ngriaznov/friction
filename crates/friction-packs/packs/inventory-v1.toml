@@ -78,8 +78,10 @@ mine_paired_report_path = "corpus/MINE_PAIRED.md"
 # needing no separate attestation just because it glues two content words
 # together) doesn't have to be attested one substitution at a time. Kept
 # deliberately small: every word here is a genuinely closed-class English
-# function word, not a content word that happens to recur.
-closure_function_word_allowance = ["a", "an", "the", "to", "of", "and", "or"]
+# function word, not a content word that happens to recur. "by" joined for
+# sub.enforced_structurally's "enforced by construction" (a preposition is
+# as closed-class as English gets).
+closure_function_word_allowance = ["a", "an", "the", "to", "of", "and", "or", "by"]
 
 [pack]
 version = "inventory-v1"
@@ -280,6 +282,30 @@ what a logician calls vacuously true, working programmers write as \
 corpus (grep-verified, 1 occurrence: "trivially copyable" in the docs \
 register) and hand-attested by the curator as the standard term of \
 art; the adverb slot has no a/an seam to break.
+"""
+
+[[substitution_pairs]]
+id = "sub.enforced_structurally"
+pattern = '(?i)\benforced structurally\b'
+replacement = "enforced by construction"
+repair = "substitute"
+source = "curated-seed"
+attested_replacement_tokens = ["enforced", "construction"]
+notes = """
+Machine register of the guarantees genre: models write "the invariant \
+is enforced structurally" where a person writes "enforced by \
+construction" (the correctness-by-construction term of art) or names \
+the enforcing mechanism outright. Measured absence on both committed \
+corpus sides (0 machine, 0 human) - the phrase lives in generated \
+design/guarantee prose, a register the corpora sample only thinly, so \
+this stays curated-seed with the measurement on record, like the \
+vacuous family above. Replacement tokens: "enforced" is carried over \
+from the matched span itself; "construction" is attested 3 times in \
+the train human corpus (grep-verified). "by design" (design x123) was \
+considered and rejected for meaning drift: "by design" asserts intent, \
+"structurally"/"by construction" asserts that the shape itself makes \
+violation impossible. "by" is closed-class scaffolding, admitted to \
+closure_function_word_allowance alongside "of"/"to".
 """
 
 [[substitution_pairs]]
