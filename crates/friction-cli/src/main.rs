@@ -16,6 +16,7 @@ mod diagnostics;
 mod explain;
 mod fast_source;
 mod fix;
+mod lsp;
 mod sarif;
 mod table;
 
@@ -49,6 +50,8 @@ enum Command {
     /// Runs the repair engine and reports what fired and what was held,
     /// per pass, without emitting the fixed text.
     Explain(explain::ExplainArgs),
+    /// Serves diagnostics and quick-fixes to any editor over LSP/stdio.
+    Lsp(lsp::LspArgs),
 }
 
 fn main() -> std::process::ExitCode {
@@ -57,5 +60,6 @@ fn main() -> std::process::ExitCode {
         Command::Check(args) => check::run(&args),
         Command::Fix(args) => fix::run(&args),
         Command::Explain(args) => explain::run(&args),
+        Command::Lsp(args) => lsp::run(&args),
     }
 }

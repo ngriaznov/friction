@@ -50,6 +50,13 @@ mimalloc = "0.1"
 # `directories`, above) rather than touching the shared root file.
 miette = { version = "7", features = ["fancy"] }
 
+# `friction lsp`: the resident language server (src/lsp.rs). The sync
+# rust-analyzer server crates rather than an async framework — the whole
+# workspace is tokio-free (rayon only) and a stdio LSP loop needs no
+# executor. Crate-local per convention (see `miette`, above).
+lsp-server = "0.7"
+lsp-types = "0.95"
+
 [dev-dependencies]
 # Drives the built `friction` binary as a subprocess for the integration
 # tests (exit codes, stdin mode, JSON/SARIF shape): not yet covered by
