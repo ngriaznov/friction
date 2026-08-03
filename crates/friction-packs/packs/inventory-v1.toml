@@ -214,6 +214,75 @@ train-split measurement above.
 """
 
 [[substitution_pairs]]
+id = "sub.non_vacuous"
+pattern = '(?i)\bnon-vacuous\b'
+replacement = "real"
+repair = "substitute"
+source = "curated-seed"
+attested_replacement_tokens = ["real"]
+notes = """
+Generated-test-register tell, curated ahead of a test-register corpus: \
+models describe assertions and tests as "non-vacuous" ("a non-vacuous \
+test", "the assertion is non-vacuous") where human test authors write \
+"real" or "actually asserts something". Measured absence everywhere \
+this corpus can look: 0 occurrences across the whole committed machine \
+corpus (all five families, docs and review registers), 0 in the \
+committed human corpus, and no unigram entry in the 49.7M-token \
+external human-evidence pack (fewer than the builder's five-occurrence \
+floor in 49.7M words of human code review), so no frame rule can earn \
+a compile from the shipped registers - the word lives in a register \
+(generated test code and prose about it) none of them sample. \
+Replacement token "real" is attested 80 times in the train human \
+corpus (grep-verified), including the adjectival slot ("a real \
+project", "real code"). Must sit before any bare-vacuous judgment: \
+this longer literal starts earlier, so overlap resolution keeps it and \
+drops the inner bare-"vacuous" match (pinned by test).
+"""
+
+[[substitution_pairs]]
+id = "sub.vacuous"
+pattern = '(?i)\bvacuous\b'
+replacement = "meaningless"
+repair = "substitute"
+source = "curated-seed"
+attested_replacement_tokens = ["meaningless"]
+notes = """
+Generated-test-register tell, same measured absence as sub.non_vacuous \
+(0 machine-corpus, 0 human-corpus, below the external pack's unigram \
+floor): "a vacuous check", "the test is vacuous" is the generated-test \
+dialect for an assertion that asserts nothing. "meaningless" is the \
+plain human word for the same judgment, attested in the train human \
+corpus (grep-verified: "meaningless" x2, blog register), correct in \
+both the attributive and predicative slots ("a meaningless check", \
+"the check is meaningless"), and consonant-initial so no a/an seam is \
+created. NOT "trivial": a trivial test can still assert something; \
+vacuous specifically means it cannot fail. The formal-logic sense \
+("vacuous truth") is legitimate human usage, but it lives in \
+mathematical writing, not the technical-documentation register this \
+pack is scoped to. This pattern also matches the tail of \
+"non-vacuous"; sub.non_vacuous's earlier-starting span wins overlap \
+resolution there (pinned by test).
+"""
+
+[[substitution_pairs]]
+id = "sub.vacuously"
+pattern = '(?i)\bvacuously\b'
+replacement = "trivially"
+repair = "substitute"
+source = "curated-seed"
+attested_replacement_tokens = ["trivially"]
+notes = """
+Adverbial form of the same generated-test tell ("the check passes \
+vacuously", "vacuously true"), same measured absence as \
+sub.non_vacuous. "trivially" is the exact human idiom for this slot: \
+what a logician calls vacuously true, working programmers write as \
+"trivially true" / "passes trivially". Attested in the train human \
+corpus (grep-verified, 1 occurrence: "trivially copyable" in the docs \
+register) and hand-attested by the curator as the standard term of \
+art; the adverb slot has no a/an seam to break.
+"""
+
+[[substitution_pairs]]
 id = "sub.in_order_to"
 pattern = '(?i)\bin order to\b'
 replacement = "to"
