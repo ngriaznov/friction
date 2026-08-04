@@ -484,6 +484,12 @@ const NO_DOUBLE_EXCEPTIONS: &[&str] = &[
     "discover",
     "recover",
     "uncover",
+    // Same unstressed "-er" final syllable, surfaced later by the same
+    // rewrites: "render" -> "renderred" in real passivized output.
+    // "prefer"/"refer"/"defer" stay OUT of this list — their final
+    // syllable is stressed, so they genuinely double ("preferred").
+    "render",
+    "surrender",
 ];
 
 fn classify_surface_form(surface_lower: &str) -> Form {
@@ -766,11 +772,16 @@ mod tests {
         ("running", "occur", Some("occurring")),
         ("stopping", "quit", Some("quitting")),
         ("planned", "equip", Some("equipped")),
+        ("used", "prefer", Some("preferred")),
         // --- NO_DOUBLE_EXCEPTIONS: an unstressed final syllable that
         // looks CVC but must not double ---
         ("used", "encounter", Some("encountered")),
         ("used", "empower", Some("empowered")),
         ("used", "discover", Some("discovered")),
+        ("used", "render", Some("rendered")),
+        ("used", "surrender", Some("surrendered")),
+        ("used", "offer", Some("offered")),
+        ("used", "order", Some("ordered")),
         // --- past "-ed" ---
         ("utilized", "use", Some("used")),
         ("leveraged", "employ", Some("employed")),

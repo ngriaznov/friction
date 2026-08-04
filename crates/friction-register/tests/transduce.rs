@@ -232,6 +232,64 @@ fn t4_be_agrees_with_the_promoted_objects_number_and_tense() {
     }
 }
 
+// 5 (continued). T4 number agreement over a coordinated object: the
+// whole promoted phrase is plural even when its head conjunct is
+// singular. Pinned against real output where head-only agreement
+// produced "a thumbnail, title, price, and two badges is rendered".
+#[test]
+fn t4_be_agrees_with_a_coordinated_object_not_just_its_head() {
+    let shapes = [
+        tok(Some(1), DepRelation::Nsubj, "We", "PRP", "we"),
+        tok(None, DepRelation::Root, "render", "VBP", "render"),
+        tok(Some(3), DepRelation::Det, "a", "DT", "a"),
+        tok(Some(1), DepRelation::Dobj, "thumbnail", "NN", "thumbnail"),
+        tok(Some(3), DepRelation::Punct, ",", ",", ","),
+        tok(Some(3), DepRelation::Conj, "title", "NN", "title"),
+        tok(Some(3), DepRelation::Punct, ",", ",", ","),
+        tok(Some(3), DepRelation::Conj, "price", "NN", "price"),
+        tok(Some(3), DepRelation::Punct, ",", ",", ","),
+        tok(Some(3), DepRelation::Cc, "and", "CC", "and"),
+        tok(Some(11), DepRelation::Other, "two", "CD", "two"),
+        tok(Some(3), DepRelation::Conj, "badges", "NNS", "badge"),
+        tok(Some(1), DepRelation::Punct, ".", ".", "."),
+    ];
+    let (source, tokens, parse) = build(&shapes);
+
+    let found = t4_activize_to_passive(&source, &tokens, &parse);
+    assert_eq!(found.len(), 1);
+    assert_eq!(
+        &*found[0].replacement,
+        "A thumbnail, title, price, and two badges are rendered"
+    );
+    assert_ranges_match(
+        &source,
+        &found,
+        &["We render a thumbnail, title, price, and two badges"],
+    );
+}
+
+// 5 (continued). "or"/"nor" coordination instead agrees with the
+// conjunct nearest the verb slot: blanket-plural would trade one
+// agreement error for another ("thumbnails or a badge are rendered").
+#[test]
+fn t4_or_coordination_agrees_with_the_nearest_conjunct() {
+    let shapes = [
+        tok(Some(1), DepRelation::Nsubj, "We", "PRP", "we"),
+        tok(None, DepRelation::Root, "render", "VBP", "render"),
+        tok(Some(1), DepRelation::Dobj, "thumbnails", "NNS", "thumbnail"),
+        tok(Some(2), DepRelation::Cc, "or", "CC", "or"),
+        tok(Some(5), DepRelation::Det, "a", "DT", "a"),
+        tok(Some(2), DepRelation::Conj, "badge", "NN", "badge"),
+        tok(Some(1), DepRelation::Punct, ".", ".", "."),
+    ];
+    let (source, tokens, parse) = build(&shapes);
+
+    let found = t4_activize_to_passive(&source, &tokens, &parse);
+    assert_eq!(found.len(), 1);
+    assert_eq!(&*found[0].replacement, "Thumbnails or a badge is rendered");
+    assert_ranges_match(&source, &found, &["We render thumbnails or a badge"]);
+}
+
 // 5 (continued). T4 does not fire on a reflexive-pronoun object --
 // pinned against a real sentence ("I ... tore myself away from ..."):
 // "myself" has no independent referent to promote, so "Myself was torn
@@ -654,6 +712,20 @@ fn past_participle_uses_the_irregular_table_verbatim() {
     // `past_participle` for anything outside the irregular table.
     assert_eq!(past_participle("deploy"), "deployed");
     assert_eq!(past_participle("carry"), "carried");
+}
+
+// 9 (continued). Consonant doubling follows stress, not just letter
+// shape: an unstressed final syllable never doubles ("render" surfaced
+// as "renderred" in real T4 output), while a stressed one does.
+#[test]
+fn past_participle_doubles_only_stressed_final_syllables() {
+    assert_eq!(past_participle("render"), "rendered");
+    assert_eq!(past_participle("offer"), "offered");
+    assert_eq!(past_participle("order"), "ordered");
+    assert_eq!(past_participle("prefer"), "preferred");
+
+    assert_eq!(past("render"), "rendered");
+    assert_eq!(past("prefer"), "preferred");
 }
 
 #[test]

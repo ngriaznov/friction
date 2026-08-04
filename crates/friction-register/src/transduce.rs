@@ -608,6 +608,63 @@ fn object_is_licensable(
     true
 }
 
+/// `true` if the promoted object takes plural "be" agreement.
+///
+/// Agreement follows the whole promoted phrase, not just its head
+/// token: a coordinated object is plural even when its head conjunct
+/// is singular — the head-only check produced "a thumbnail, title,
+/// price, and two badges **is** rendered" against real prose. An
+/// "or"/"nor" list instead agrees with the conjunct nearest the verb
+/// slot (the last one): "thumbnails or a badge **is** rendered" —
+/// blanket-plural over disjunction would trade one agreement error for
+/// another.
+fn promoted_object_is_plural(
+    source: &str,
+    tokens: &[TaggedToken],
+    parse: &SentenceParse,
+    obj_token: usize,
+    obj_first: usize,
+    obj_last: usize,
+) -> bool {
+    let Some(last_conjunct) = children_with_relation(parse, obj_token, DepRelation::Conj)
+        .map(|edge| edge.token)
+        .max()
+    else {
+        return token_takes_plural_agreement(source, tokens, obj_token);
+    };
+    let mut coordinators = (obj_first..=obj_last)
+        .filter(|&index| {
+            parse
+                .edge(index)
+                .is_some_and(|edge| edge.relation == DepRelation::Cc)
+        })
+        .map(|index| token_text(source, tokens, index).to_lowercase())
+        .peekable();
+    let disjunctive =
+        coordinators.peek().is_some() && coordinators.all(|cc| matches!(cc.as_str(), "or" | "nor"));
+    if disjunctive {
+        token_takes_plural_agreement(source, tokens, last_conjunct)
+    } else {
+        // "and" coordination — or an asyndetic comma list, which reads
+        // the same way: more than one referent, plural.
+        true
+    }
+}
+
+/// `true` if this single token, standing as (or ending) a promoted
+/// subject, takes plural "be" agreement.
+///
+/// "you" always takes plural agreement regardless of referent count —
+/// measured where "you" as a promoted object produced "You is
+/// encouraged" three times. "them" belongs with "they"/"these"/"those"
+/// but was missing, producing "Them is plucked".
+fn token_takes_plural_agreement(source: &str, tokens: &[TaggedToken], index: usize) -> bool {
+    let surface = token_text(source, tokens, index).to_lowercase();
+    surface == "you"
+        || matches!(tokens[index].pos.as_str(), "NNS" | "NNPS")
+        || matches!(surface.as_str(), "they" | "these" | "those" | "them")
+}
+
 #[must_use]
 pub fn t4_activize_to_passive(
     source: &str,
@@ -647,16 +704,8 @@ pub fn t4_activize_to_passive(
         if contains_markdown_structural_syntax(span_text(source, tokens, subj_first, obj_last)) {
             continue; // see contains_markdown_structural_syntax's own docs.
         }
-        let obj_surface = token_text(source, tokens, obj.token).to_lowercase();
-
-        // "you" always takes plural agreement regardless of referent
-        // count — measured where "you" as a promoted object produced
-        // "You is encouraged" three times. "them" belongs with
-        // "they"/"these"/"those" but was missing, producing "Them is
-        // plucked".
-        let plural = obj_surface == "you"
-            || matches!(tokens[obj.token].pos.as_str(), "NNS" | "NNPS")
-            || matches!(obj_surface.as_str(), "they" | "these" | "those" | "them");
+        let plural =
+            promoted_object_is_plural(source, tokens, parse, obj.token, obj_first, obj_last);
         let be = match (tag == "VBD", plural) {
             (true, true) => "were",
             (true, false) => "was",
