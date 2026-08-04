@@ -30,8 +30,8 @@ use std::ops::Range;
 use friction_core::CoreError;
 use friction_core::span::{Spanned, validate_range};
 use friction_nlp::{
-    DepEdge, DepRelation, FINITE_VERB_TAGS, LEXICON_EN, SentenceParse, TaggedToken, coarse_tag,
-    has_finite_verb,
+    DepEdge, DepRelation, FINITE_VERB_TAGS, LEXICON_EN, Lexicon, SentenceParse, TaggedToken,
+    coarse_tag, has_finite_verb,
 };
 
 /// A proposed rewrite: replace `range` with `replacement`, moving the
@@ -171,41 +171,6 @@ fn span_text<'src>(
     &source[tokens[first].token.range.start..tokens[last].token.range.end]
 }
 
-/// Subject-pronoun contractions: one token fusing a subject AND a finite
-/// auxiliary (`it's` = `it is`). The shipped tagger keeps these whole and
-/// tags them `PRP`, so a tag-based finite-verb scan is blind to the
-/// finite verb inside — measured on real prose: "None of it is wrong,
-/// exactly — it's machine register …" was comma-spliced because `it's`
-/// read as a bare pronoun. Case-folded, straight-apostrophe forms; match
-/// after folding U+2019.
-const SUBJECT_CONTRACTIONS: &[&str] = &[
-    "it's", "that's", "there's", "here's", "he's", "she's", "what's", "who's", "they're", "we're",
-    "you're", "i'm", "i've", "they've", "we've", "you've", "i'll", "he'll", "she'll", "it'll",
-    "we'll", "they'll", "you'll", "i'd", "he'd", "she'd", "it'd", "we'd", "they'd", "you'd",
-];
-
-/// Negated auxiliary contractions: a finite verb (plus its negation) in
-/// one token, no subject fused. Same tagger blindness as
-/// [`SUBJECT_CONTRACTIONS`] — `aren't` can surface untagged as a verb.
-const NEGATED_AUX_CONTRACTIONS: &[&str] = &[
-    "isn't",
-    "aren't",
-    "wasn't",
-    "weren't",
-    "don't",
-    "doesn't",
-    "didn't",
-    "won't",
-    "can't",
-    "couldn't",
-    "shouldn't",
-    "wouldn't",
-    "hasn't",
-    "haven't",
-    "hadn't",
-    "ain't",
-];
-
 /// Token `index`'s surface, case-folded with curly apostrophes
 /// straightened: the shape both contraction lists are written in.
 fn folded_token_text(source: &str, tokens: &[TaggedToken], index: usize) -> String {
@@ -215,15 +180,28 @@ fn folded_token_text(source: &str, tokens: &[TaggedToken], index: usize) -> Stri
 }
 
 /// [`has_finite_verb`] plus contraction awareness: `true` if any token is
-/// tag-finite OR is a contraction that embeds a finite auxiliary. The
-/// widening is deliberately local to this module's transducers. The edit
-/// gates keep the strict tag-based check they were calibrated with.
+/// tag-finite OR is a [`Lexicon::subject_contractions`](friction_nlp::Lexicon::subject_contractions)
+/// or [`Lexicon::negated_aux_contractions`](friction_nlp::Lexicon::negated_aux_contractions)
+/// entry. The widening is deliberately local to this module's
+/// transducers. The edit gates keep the strict tag-based check they were
+/// calibrated with.
+///
+/// Both lists exist because the shipped tagger fuses a contraction into
+/// one token and tags it `PRP`/leaves it unrecognized, so a tag-based
+/// finite-verb scan is blind to the finite verb inside: a subject
+/// contraction fuses a subject AND a finite auxiliary (`it's` = `it is`)
+/// — measured on real prose: "None of it is wrong, exactly — it's
+/// machine register …" was comma-spliced because `it's` read as a bare
+/// pronoun — while a negated-auxiliary contraction fuses a finite verb
+/// plus its negation with no subject (`aren't` can surface untagged as a
+/// verb). Both lists are case-folded, straight-apostrophe forms; match
+/// after folding U+2019 (see [`folded_token_text`]).
 fn has_finite_verb_cx(source: &str, all: &[TaggedToken], range: Range<usize>) -> bool {
     has_finite_verb(&all[range.clone()])
         || range.into_iter().any(|i| {
             let text = folded_token_text(source, all, i);
-            SUBJECT_CONTRACTIONS.contains(&text.as_str())
-                || NEGATED_AUX_CONTRACTIONS.contains(&text.as_str())
+            LEXICON_EN.subject_contractions.contains(&text)
+                || LEXICON_EN.negated_aux_contractions.contains(&text)
         })
 }
 
@@ -239,7 +217,9 @@ fn opens_independent_clause(
     next: usize,
 ) -> bool {
     let first_is_fused_clause = next < tokens.len()
-        && SUBJECT_CONTRACTIONS.contains(&folded_token_text(source, tokens, next).as_str());
+        && LEXICON_EN
+            .subject_contractions
+            .contains(&folded_token_text(source, tokens, next));
     first_is_fused_clause
         || friction_nlp::is_imperative_initial(&tokens[next..])
         || independent_clause_follows(tokens, parse, next)
@@ -258,55 +238,6 @@ fn recapitalize(text: &str) -> String {
 // ---------------------------------------------------------------------
 // T4: active -> agentless passive.
 // ---------------------------------------------------------------------
-
-/// Subjects recoverable without an agent phrase: the reader already
-/// knows who "we"/"the team" is, unlike an identifiable agent ("the
-/// vendor") whose demotion erases information.
-///
-/// Matched against the subject's full span, not just its head token —
-/// a single-token comparison would leave the multi-word entries
-/// (`"the team"`, `"our team"`) unable to ever match. `they` is
-/// deliberately absent: it's anaphoric to an earlier antecedent, unlike
-/// `we`/`i`/`you`/`one`, which are non-referential.
-///
-/// Measured on real prose: `"Browse the list of programmed channels to
-/// ensure they match the uploaded file"` satisfies every condition, and
-/// passivizing yields `"...to ensure the uploaded file is matched"`,
-/// quietly dropping that *the channels* must match — a meaning change
-/// this transducer isn't permitted to make.
-const GENERIC_SUBJ: &[&str] = &["we", "i", "you", "one", "the team", "our team"];
-
-/// Reflexive pronouns: never a licensed passive subject.
-///
-/// "I ... tore myself away" promotes to "Myself was torn away" —
-/// ungrammatical, since a reflexive has no referent independent of the
-/// subject the passive deletes. No table can paper over this. The
-/// transducer refuses to fire. Personal pronouns are never a licensed
-/// object to promote.
-///
-/// Two reasons: a ditransitive verb's indirect object is often
-/// mislabeled `dobj`, promoting the wrong participant, and a pronoun
-/// carries almost no information to promote. Measured on real prose:
-/// `"see how much time and effort they save you"` passivizes to
-/// `"...you are saved"` — the beneficiary is promoted while the real
-/// object (`time and effort`) is stranded.
-///
-/// Separate from [`REFLEXIVE_OBJ`]: a reflexive is refused as grammar,
-/// a personal pronoun as judgement — merging would hide that
-/// difference.
-const PERSONAL_PRONOUN_OBJ: &[&str] = &["me", "us", "you", "him", "her", "it", "them", "'em"];
-
-const REFLEXIVE_OBJ: &[&str] = &[
-    "myself",
-    "yourself",
-    "himself",
-    "herself",
-    "itself",
-    "oneself",
-    "ourselves",
-    "yourselves",
-    "themselves",
-];
 
 /// `true` if `text` contains a character that only ever appears as
 /// Markdown structural syntax here (emphasis asterisks, link/reference
@@ -358,25 +289,6 @@ fn within_bracketed_aside(source: &str, tokens: &[TaggedToken], first: usize, la
     round > 0 || square > 0
 }
 
-/// Stative or linking-verb lemmas: never a licensed passive.
-///
-/// "Have" and "become"/"remain"/"seem"/"appear" are copulas taking a
-/// predicate-nominal complement, not a true object: forcing the
-/// transform produces nonsense ("about a day of downtime was had",
-/// "problems are become").
-///
-/// "Want"/"wish"/"prefer"/"need" differ: ordinary transitive verbs, so
-/// the transform is legal, but a passive of a desire reads bureaucratic
-/// and loses who wanted it ("the surprising benefits we've found were
-/// wanted", "Postgres' fine-grained control was preferred": both
-/// grammatical, both worse).
-///
-/// The distinction matters if revisited: the first group cannot be
-/// passivized, the second should not be.
-const STATIVE_OR_LINKING_LEMMA: &[&str] = &[
-    "have", "become", "remain", "seem", "appear", "want", "wish", "prefer", "need",
-];
-
 /// Active clause -> agentless passive (T4): `"We deployed the change"` ->
 /// `"The change was deployed"`.
 ///
@@ -387,7 +299,7 @@ const STATIVE_OR_LINKING_LEMMA: &[&str] = &[
 /// # Licensing conditions
 /// All required, or the candidate verb is skipped:
 /// - the verb has both an `nsubj` and a `dobj` child
-/// - the subject's text is one of [`GENERIC_SUBJ`]
+/// - the subject's text is one of `LEXICON_EN.generic_subjects`
 /// - the verb has no `auxpass` child (not already passive)
 /// - the verb is not itself a `conj`, and none of its children is a verb
 ///   attached by `conj` — passivizing one conjunct would strand the
@@ -420,9 +332,22 @@ fn verb_is_licensable(
         return false;
     }
     let lemma = tokens[index].lemma.as_ref();
-    if STATIVE_OR_LINKING_LEMMA.contains(&lemma) {
-        // Never passivizes idiomatically; see
-        // STATIVE_OR_LINKING_LEMMA's own docs.
+    if LEXICON_EN.stative_verbs.contains(lemma) {
+        // Stative or linking-verb lemmas: never a licensed passive.
+        //
+        // "Have" and "become"/"remain"/"seem"/"appear" are copulas
+        // taking a predicate-nominal complement, not a true object:
+        // forcing the transform produces nonsense ("about a day of
+        // downtime was had", "problems are become").
+        //
+        // "Want"/"wish"/"prefer"/"need" differ: ordinary transitive
+        // verbs, so the transform is legal, but a passive of a desire
+        // reads bureaucratic and loses who wanted it ("the surprising
+        // benefits we've found were wanted", "Postgres' fine-grained
+        // control was preferred": both grammatical, both worse).
+        //
+        // The distinction matters if revisited: the first group cannot
+        // be passivized, the second should not be.
         return false;
     }
     if lemma.ends_with("ed") && !LEXICON_EN.is_irregular_verb_base(lemma) {
@@ -570,12 +495,27 @@ fn object_is_licensable(
     if verb_child_after_object {
         return false;
     }
+    // Reflexive pronouns are never a licensed passive subject: "I ...
+    // tore myself away" promotes to "Myself was torn away" —
+    // ungrammatical, since a reflexive has no referent independent of
+    // the subject the passive deletes. No table can paper over this;
+    // the transducer refuses to fire.
+    //
+    // Personal pronouns are refused for a different reason — judgement,
+    // not grammar — so kept as a separate check rather than merged into
+    // the reflexive one, which would hide that difference. Two reasons:
+    // a ditransitive verb's indirect object is often mislabeled `dobj`,
+    // promoting the wrong participant, and a pronoun carries almost no
+    // information to promote. Measured on real prose: "see how much
+    // time and effort they save you" passivizes to "...you are saved"
+    // — the beneficiary is promoted while the real object ("time and
+    // effort") is stranded.
     let obj_surface = token_text(source, tokens, obj_token).to_lowercase();
-    if REFLEXIVE_OBJ.contains(&obj_surface.as_str()) {
-        return false; // no independent referent to promote; see REFLEXIVE_OBJ's own docs.
+    if LEXICON_EN.reflexive_pronouns.contains(&obj_surface) {
+        return false;
     }
-    if PERSONAL_PRONOUN_OBJ.contains(&obj_surface.as_str()) {
-        return false; // see PERSONAL_PRONOUN_OBJ's own docs.
+    if LEXICON_EN.object_pronouns.contains(&obj_surface) {
+        return false;
     }
     if !is_plausible_object_pos(tokens[obj_token].pos.as_str()) {
         return false; // not a nominal; see is_plausible_object_pos's own docs.
@@ -690,9 +630,26 @@ pub fn t4_activize_to_passive(
             continue;
         };
 
+        // Subjects recoverable without an agent phrase: the reader
+        // already knows who "we"/"the team" is, unlike an identifiable
+        // agent ("the vendor") whose demotion erases information.
+        //
+        // Matched against the subject's full span, not just its head
+        // token — a single-token comparison would leave the multi-word
+        // entries ("the team", "our team") unable to ever match.
+        // "they" is deliberately absent from the lexicon's generic-
+        // subject list: it's anaphoric to an earlier antecedent, unlike
+        // "we"/"i"/"you"/"one", which are non-referential.
+        //
+        // Measured on real prose: "Browse the list of programmed
+        // channels to ensure they match the uploaded file" satisfies
+        // every condition, and passivizing yields "...to ensure the
+        // uploaded file is matched", quietly dropping that *the
+        // channels* must match — a meaning change this transducer
+        // isn't permitted to make.
         let (subj_first, subj_last) = subtree_span(parse, subj.token);
         let subj_text = span_text(source, tokens, subj_first, subj_last).to_lowercase();
-        if !GENERIC_SUBJ.contains(&subj_text.as_str()) {
+        if !LEXICON_EN.generic_subjects.contains(&subj_text) {
             continue; // demoting an identifiable agent loses information.
         }
 
@@ -761,47 +718,16 @@ pub const PERMITTED_FUNCTION_WORDS: [&str; 4] = ["was", "were", "is", "are"];
 /// The verb [`t5_nominalization`] would substitute for
 /// `nominalization_lower` (already lowercased).
 ///
-/// The read side of [`NOMINAL_VERB`], exposed so a caller validating
-/// closure consults the same lookup rather than a second,
-/// independently-maintained copy.
-///
+/// The read side of `LEXICON_EN.nominal_verbs` (fixed and closed: a
+/// suffix detector (`"-tion"`, `"-ment"`) would also match nouns with
+/// no verb reading — `"nation"`, `"moment"` — so it stays a literal,
+/// audited table), exposed so a caller validating closure consults the
+/// same lookup rather than a second, independently-maintained copy.
 #[must_use]
 pub fn nominal_verb_for(nominalization_lower: &str) -> Option<&'static str> {
-    NOMINAL_VERB
-        .iter()
-        .find(|&&(noun, _)| noun == nominalization_lower)
-        .map(|&(_, verb)| verb)
+    let lex: &'static Lexicon = &LEXICON_EN;
+    lex.nominal_verbs.get(nominalization_lower).map(Box::as_ref)
 }
-
-/// Nominalized-noun -> verb table (23 entries). Fixed and closed: a
-/// suffix detector (`"-tion"`, `"-ment"`) would also match nouns with
-/// no verb reading (`"nation"`, `"moment"`), so this stays a literal,
-/// audited table.
-const NOMINAL_VERB: &[(&str, &str)] = &[
-    ("optimization", "optimizing"),
-    ("reduction", "reducing"),
-    ("creation", "creating"),
-    ("implementation", "implementing"),
-    ("integration", "integrating"),
-    ("migration", "migrating"),
-    ("deployment", "deploying"),
-    ("improvement", "improving"),
-    ("allocation", "allocating"),
-    ("utilization", "using"),
-    ("configuration", "configuring"),
-    ("validation", "validating"),
-    ("verification", "verifying"),
-    ("execution", "executing"),
-    ("generation", "generating"),
-    ("adoption", "adopting"),
-    ("expansion", "expanding"),
-    ("introduction", "introducing"),
-    ("elimination", "eliminating"),
-    ("consolidation", "consolidating"),
-    ("degradation", "degrading"),
-    ("compression", "compressing"),
-    ("duplication", "duplicating"),
-];
 
 /// Nominalization unpacking (T5): `"the optimization of X"` -> `"optimizing X"`.
 ///
@@ -809,7 +735,7 @@ const NOMINAL_VERB: &[(&str, &str)] = &[
 /// restraint [`t4_activize_to_passive`] shows in reverse.
 ///
 /// # Licensing conditions
-/// - the noun's lowercase text is a key in [`NOMINAL_VERB`]
+/// - the noun's lowercase text is a key in `LEXICON_EN.nominal_verbs`
 /// - it has a `det` child spelled exactly `"the"`
 /// - it has a `prep` child spelled `"of"`, whose `pobj` child is the
 ///   argument the unpacked verb takes
@@ -826,13 +752,13 @@ pub fn t5_nominalization(
     for index in 0..tokens.len() {
         // Penn `NN`/`NNS` exactly, not `coarse_tag`'s truncated "NN",
         // which would also match `NNP`/`NNPS`: proper nouns are never
-        // nominalizations, and the table above was audited under that
-        // exclusion.
+        // nominalizations, and `LEXICON_EN.nominal_verbs` was audited
+        // under that exclusion.
         if !matches!(tokens[index].pos.as_str(), "NN" | "NNS") {
             continue;
         }
         let lower = token_text(source, tokens, index).to_lowercase();
-        let Some(&(_, verb)) = NOMINAL_VERB.iter().find(|&&(noun, _)| noun == lower) else {
+        let Some(verb) = LEXICON_EN.nominal_verbs.get(lower.as_str()) else {
             continue;
         };
 
@@ -1385,7 +1311,7 @@ pub fn t7_semicolon(source: &str, tokens: &[TaggedToken], parse: &SentenceParse)
 
 // ---------------------------------------------------------------------
 // Inflection. `third_sg` is unused by either transducer (T5's
-// `NOMINAL_VERB` spells out its own forms), but ships alongside
+// `LEXICON_EN.nominal_verbs` spells out its own forms), but ships alongside
 // `past`/`past_participle` since the three were audited as one unit —
 // they now live in `friction_nlp::inflect`, beside the `LEXICON_EN`
 // tables they read, and are re-exported here unchanged so external

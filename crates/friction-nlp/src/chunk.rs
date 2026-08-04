@@ -27,6 +27,7 @@ use std::ops::Range;
 
 use friction_core::TokenKind;
 
+use crate::lexicon::LEXICON_EN;
 use crate::tag::TaggedToken;
 
 /// Full Penn tags that count as a finite verb for clause completeness.
@@ -48,15 +49,6 @@ pub fn is_imperative_initial(tokens: &[TaggedToken]) -> bool {
     tokens.first().is_some_and(|t| t.pos.as_str() == "VB")
 }
 
-/// Subordinating conjunctions that open a subordinate clause — a
-/// language fact (same status as [`crate::lvc::LIGHT_VERBS`] /
-/// [`crate::lvc::BE_FORMS`]), hardcoded rather than threaded in by a
-/// caller.
-const SUBORDINATORS: &[&str] = &[
-    "because", "although", "though", "while", "since", "unless", "until", "before", "after", "if",
-    "when", "whereas", "as",
-];
-
 /// `true` if `token` is a single `;`/`.`/`!`/`?` punctuation mark: a
 /// strong boundary a clause never crosses.
 fn is_strong_boundary(token: &TaggedToken) -> bool {
@@ -74,7 +66,7 @@ fn is_coordinator(token: &TaggedToken) -> bool {
     token.pos.as_str() == "CC"
 }
 
-/// `true` if a [`SUBORDINATORS`] match at `i` opens a subordinate
+/// `true` if a `LEXICON_EN.subordinators` match at `i` opens a subordinate
 /// *clause*, not a prepositional phrase — several entries (`while`,
 /// `before`, `after`, `since`, `as`, ...) are also prepositions ("waited
 /// for **a while**"), and only a finite verb before the next strong
@@ -143,10 +135,11 @@ pub struct ClauseChunks {
 
 /// Segments `tokens` into clauses.
 ///
-/// Splits the stream at: a subordinator from [`SUBORDINATORS`] gated by a
-/// finite verb on its right (see [`subordinator_opens_a_clause`] — several
-/// are also ordinary prepositions, and an ungated match would carve off a
-/// bogus verbless clause like "for a while"); a comma-plus-coordinator
+/// Splits the stream at: a subordinator from `LEXICON_EN.subordinators`
+/// gated by a finite verb on its right (see
+/// [`subordinator_opens_a_clause`] — several are also ordinary
+/// prepositions, and an ungated match would carve off a bogus verbless
+/// clause like "for a while"); a comma-plus-coordinator
 /// joining two independent clauses (see [`coordinator_splits`]); and
 /// semicolons or sentence-strong punctuation. Each resulting [`Clause`]
 /// records its own finite-verb token indices, so
@@ -162,7 +155,12 @@ pub fn chunk_clauses(tokens: &[TaggedToken]) -> ClauseChunks {
 
     let mut splits: BTreeSet<usize> = BTreeSet::from([0]);
     for (i, token) in tokens.iter().enumerate().skip(1) {
-        if SUBORDINATORS.contains(&token.lemma.as_ref()) && subordinator_opens_a_clause(tokens, i) {
+        // Subordinating conjunctions that open a subordinate clause — a
+        // language fact (same status as `crate::lvc::LIGHT_VERBS` /
+        // `crate::lvc::BE_FORMS`), consulted from the lexicon rather
+        // than threaded in by a caller.
+        if LEXICON_EN.subordinators.contains(&token.lemma) && subordinator_opens_a_clause(tokens, i)
+        {
             splits.insert(i);
         }
     }
