@@ -11,6 +11,8 @@
 //! tag: regular "-s" formation is identical for a plural noun and a
 //! third-person-singular verb, so one code path covers both.
 
+use crate::lexicon::LEXICON_EN;
+
 /// A lemma's real part of speech, and therefore which inflected forms
 /// [`agreeing_forms`] may legitimately derive for it.
 ///
@@ -81,12 +83,17 @@ pub fn agreeing_forms(lemma: &str, class: WordClass) -> Vec<String> {
     forms
 }
 
-/// `IRREGULAR_VERBS`, indexed the other way round: every inflected form
-/// (3sg, gerund, past) maps to its base, built once. [`lemmatize`]'s own
-/// irregular-table check is a linear scan repeated by every caller that
-/// tries multiple POS tags against the same surface word (the scan
-/// itself doesn't depend on `pos`) — [`irregular_verb_base`] gives those
-/// callers a single hash lookup instead.
+/// [`LEXICON_EN`]'s `verbs` table, indexed the other way round: every
+/// inflected form (3sg, gerund, past) maps to its base, built once.
+/// [`lemmatize`]'s own irregular-table check is a linear scan repeated by
+/// every caller that tries multiple POS tags against the same surface
+/// word (the scan itself doesn't depend on `pos`) — [`irregular_verb_base`]
+/// gives those callers a single hash lookup instead.
+///
+/// Built from `verbs` only, never `past_only`: surface classification
+/// (this map's sole purpose) is defined over `verbs`' key set alone, so a
+/// `past_only` base like "hit" is deliberately absent here too — see
+/// [`Lexicon::past_only`](crate::lexicon::Lexicon::past_only).
 ///
 /// `FxHashMap` (rustc's own hasher): seedless and deterministic, unlike
 /// `ahash`/`foldhash`'s random default seeding, which this workspace's
@@ -96,22 +103,21 @@ pub fn agreeing_forms(lemma: &str, class: WordClass) -> Vec<String> {
 static IRREGULAR_VERB_BASES: std::sync::LazyLock<
     rustc_hash::FxHashMap<&'static str, &'static str>,
 > = std::sync::LazyLock::new(|| {
-    let mut map = rustc_hash::FxHashMap::with_capacity_and_hasher(
-        IRREGULAR_VERBS.len() * 3,
-        rustc_hash::FxBuildHasher,
-    );
-    for &(base, sg3, ing, past) in IRREGULAR_VERBS {
-        for form in [sg3, ing, past] {
-            if form != base {
-                let displaced = map.insert(form, base);
+    let verbs = &LEXICON_EN.verbs;
+    let mut map =
+        rustc_hash::FxHashMap::with_capacity_and_hasher(verbs.len() * 3, rustc_hash::FxBuildHasher);
+    for (base, forms) in verbs {
+        for form in [&forms.sg3, &forms.ing, &forms.past] {
+            if form.as_ref() != base.as_ref() {
+                let displaced = map.insert(form.as_ref(), base.as_ref());
                 // [`lemmatize`]'s linear scan returns the FIRST matching
                 // row. A map keeps the LAST insert. The two agree only
                 // while every inflected form is a distinct key, so a new
                 // table row that breaks that silently changes lemmas.
                 // Fail loudly instead.
                 assert!(
-                    displaced.is_none_or(|prev| prev == base),
-                    "IRREGULAR_VERBS: form {form:?} maps to two bases"
+                    displaced.is_none_or(|prev| prev == base.as_ref()),
+                    "LEXICON_EN.verbs: form {form:?} maps to two bases"
                 );
             }
         }
@@ -119,22 +125,21 @@ static IRREGULAR_VERB_BASES: std::sync::LazyLock<
     map
 });
 
-/// `IRREGULAR_NOUNS`, indexed plural -> singular — [`lemmatize`]'s noun
-/// table lookup, hashed for the same hot-path reason (and with the same
-/// seedless-`FxHashMap` determinism argument) as
+/// [`LEXICON_EN`]'s `nouns` table, indexed plural -> singular —
+/// [`lemmatize`]'s noun table lookup, hashed for the same hot-path reason
+/// (and with the same seedless-`FxHashMap` determinism argument) as
 /// [`IRREGULAR_VERB_BASES`] above.
 static IRREGULAR_NOUN_SINGULARS: std::sync::LazyLock<
     rustc_hash::FxHashMap<&'static str, &'static str>,
 > = std::sync::LazyLock::new(|| {
-    let mut map = rustc_hash::FxHashMap::with_capacity_and_hasher(
-        IRREGULAR_NOUNS.len(),
-        rustc_hash::FxBuildHasher,
-    );
-    for &(singular, plural) in IRREGULAR_NOUNS {
-        let displaced = map.insert(plural, singular);
+    let nouns = &LEXICON_EN.nouns;
+    let mut map =
+        rustc_hash::FxHashMap::with_capacity_and_hasher(nouns.len(), rustc_hash::FxBuildHasher);
+    for (singular, plural) in nouns {
+        let displaced = map.insert(plural.as_ref(), singular.as_ref());
         assert!(
-            displaced.is_none_or(|prev| prev == singular),
-            "IRREGULAR_NOUNS: plural {plural:?} maps to two singulars"
+            displaced.is_none_or(|prev| prev == singular.as_ref()),
+            "LEXICON_EN.nouns: plural {plural:?} maps to two singulars"
         );
     }
     map
@@ -142,12 +147,12 @@ static IRREGULAR_NOUN_SINGULARS: std::sync::LazyLock<
 
 /// The base form of `lower`, if it's an irregular verb's inflected form.
 ///
-/// A direct hash-map lookup over [`lemmatize`]'s own `IRREGULAR_VERBS`
-/// table (third-person-singular, gerund, or past form only — same
-/// table, reverse direction), for callers on a hot path who'd otherwise
-/// pay for `lemmatize`'s linear scan once per POS tag tried against the
-/// same word. `lower` must already be lowercased; unlike [`lemmatize`]
-/// this performs no case folding of its own.
+/// A direct hash-map lookup over [`LEXICON_EN`]'s `verbs` table
+/// (third-person-singular, gerund, or past form only — same table,
+/// reverse direction), for callers on a hot path who'd otherwise pay for
+/// `lemmatize`'s linear scan once per POS tag tried against the same
+/// word. `lower` must already be lowercased; unlike [`lemmatize`] this
+/// performs no case folding of its own.
 ///
 /// # Examples
 /// ```
@@ -351,171 +356,39 @@ enum Form {
     Past,
 }
 
-/// Common irregular verbs whose third-person-singular, gerund, or past
-/// form is not derivable by the regular suffix rules — `(base, 3sg, ing,
-/// past)`. Regular verbs are deliberately omitted: the regular rules
-/// already produce their correct forms.
-const IRREGULAR_VERBS: &[(&str, &str, &str, &str)] = &[
-    ("be", "is", "being", "was"),
-    ("have", "has", "having", "had"),
-    ("do", "does", "doing", "did"),
-    ("go", "goes", "going", "went"),
-    ("make", "makes", "making", "made"),
-    ("take", "takes", "taking", "took"),
-    ("get", "gets", "getting", "got"),
-    ("give", "gives", "giving", "gave"),
-    ("speed", "speeds", "speeding", "sped"),
-    ("know", "knows", "knowing", "knew"),
-    ("think", "thinks", "thinking", "thought"),
-    ("see", "sees", "seeing", "saw"),
-    ("come", "comes", "coming", "came"),
-    ("write", "writes", "writing", "wrote"),
-    ("build", "builds", "building", "built"),
-    ("find", "finds", "finding", "found"),
-    ("leave", "leaves", "leaving", "left"),
-    ("bring", "brings", "bringing", "brought"),
-    ("keep", "keeps", "keeping", "kept"),
-    ("begin", "begins", "beginning", "began"),
-    ("run", "runs", "running", "ran"),
-    ("buy", "buys", "buying", "bought"),
-    ("catch", "catches", "catching", "caught"),
-    ("choose", "chooses", "choosing", "chose"),
-    ("drive", "drives", "driving", "drove"),
-    ("feel", "feels", "feeling", "felt"),
-    ("grow", "grows", "growing", "grew"),
-    ("hold", "holds", "holding", "held"),
-    ("lead", "leads", "leading", "led"),
-    ("lose", "loses", "losing", "lost"),
-    ("mean", "means", "meaning", "meant"),
-    ("meet", "meets", "meeting", "met"),
-    ("pay", "pays", "paying", "paid"),
-    ("put", "puts", "putting", "put"),
-    ("read", "reads", "reading", "read"),
-    ("say", "says", "saying", "said"),
-    ("sell", "sells", "selling", "sold"),
-    ("send", "sends", "sending", "sent"),
-    ("set", "sets", "setting", "set"),
-    ("speak", "speaks", "speaking", "spoke"),
-    ("spend", "spends", "spending", "spent"),
-    ("stand", "stands", "standing", "stood"),
-    ("teach", "teaches", "teaching", "taught"),
-    ("tell", "tells", "telling", "told"),
-    ("understand", "understands", "understanding", "understood"),
-    ("win", "wins", "winning", "won"),
-    ("become", "becomes", "becoming", "became"),
-];
-
-/// Common irregular noun plurals — `(singular, plural)`. Regular plurals
-/// ("widget" -> "widgets") are handled by the suffix rules and do not need
-/// an entry here.
-const IRREGULAR_NOUNS: &[(&str, &str)] = &[
-    ("person", "people"),
-    ("child", "children"),
-    ("man", "men"),
-    ("woman", "women"),
-    ("mouse", "mice"),
-    ("goose", "geese"),
-    ("foot", "feet"),
-    ("tooth", "teeth"),
-    ("criterion", "criteria"),
-    ("phenomenon", "phenomena"),
-    ("datum", "data"),
-    ("analysis", "analyses"),
-    ("index", "indices"),
-];
-
-/// Multi-syllable common words whose final consonant looks like it should
-/// double under the naive consonant-vowel-consonant heuristic (see
-/// [`should_double_final_consonant`]) but doesn't, because English
-/// doubling depends on which syllable is stressed: information this
-/// heuristic deliberately lacks, to stay dependency-free.
-const NO_DOUBLE_EXCEPTIONS: &[&str] = &[
-    "open",
-    "happen",
-    "offer",
-    "listen",
-    "enter",
-    "visit",
-    "focus",
-    "profit",
-    "target",
-    "market",
-    "differ",
-    "cover",
-    "answer",
-    "gather",
-    "wonder",
-    "matter",
-    "order",
-    "honor",
-    "favor",
-    "labor",
-    "color",
-    "consider",
-    "deliver",
-    "suffer",
-    "benefit",
-    "exhibit",
-    "edit",
-    "credit",
-    "limit",
-    "orbit",
-    "audit",
-    "format",
-    "budget",
-    "signal",
-    "panel",
-    "cancel",
-    "model",
-    "label",
-    "travel",
-    "level",
-    "total",
-    "equal",
-    "fuel",
-    // "enter" compounds share the same unstressed-final-syllable
-    // false-doubling risk. Added after real prose surfaced "encounter" ->
-    // "encounterred", "empower" -> "empowerred", "discover" ->
-    // "discoverred" from `friction-register` rewrites with no exception
-    // entry for any of them.
-    "encounter",
-    "counter",
-    "empower",
-    "discover",
-    "recover",
-    "uncover",
-    // Same unstressed "-er" final syllable, surfaced later by the same
-    // rewrites: "render" -> "renderred" in real passivized output.
-    // "prefer"/"refer"/"defer" stay OUT of this list — their final
-    // syllable is stressed, so they genuinely double ("preferred").
-    "render",
-    "surrender",
-];
-
 fn classify_surface_form(surface_lower: &str) -> Form {
     classify_irregular(surface_lower).unwrap_or_else(|| classify_regular(surface_lower))
 }
 
+/// Classifies `word` against [`LEXICON_EN`]'s `verbs` (sg3/ing/past/base,
+/// in that per-entry precedence) then `nouns` (plural/singular) tables.
+/// Never consults `past_only`: surface classification is defined over
+/// `verbs`' key set alone (see [`IRREGULAR_VERB_BASES`]'s docs).
+///
+/// `verbs`/`nouns` are `BTreeMap`s, so iteration is alphabetical rather
+/// than the old curated array order — safe only because no surface form
+/// is assigned conflicting outcomes by two different entries, which the
+/// `verbs_table_*` tests below pin.
 fn classify_irregular(word: &str) -> Option<Form> {
-    for &(base, sg3, ing, past) in IRREGULAR_VERBS {
-        if word == sg3 {
+    for (base, forms) in &LEXICON_EN.verbs {
+        if word == forms.sg3.as_ref() {
             return Some(Form::SuffixS);
         }
-        if word == ing {
+        if word == forms.ing.as_ref() {
             return Some(Form::Ing);
         }
-        if word == past {
+        if word == forms.past.as_ref() {
             return Some(Form::Past);
         }
-        if word == base {
+        if word == base.as_ref() {
             return Some(Form::Base);
         }
     }
-    for &(singular, plural) in IRREGULAR_NOUNS {
-        if word == plural {
+    for (singular, plural) in &LEXICON_EN.nouns {
+        if word == plural.as_ref() {
             return Some(Form::SuffixS);
         }
-        if word == singular {
+        if word == singular.as_ref() {
             return Some(Form::Base);
         }
     }
@@ -549,19 +422,20 @@ fn generate(lemma: &str, form: Form) -> String {
 }
 
 fn generate_suffix_s(lemma: &str) -> String {
-    if IRREGULAR_NOUNS.iter().any(|&(_, plural)| plural == lemma) {
+    if LEXICON_EN
+        .nouns
+        .values()
+        .any(|plural| plural.as_ref() == lemma)
+    {
         // Already an irregular plural (or invariant form used directly as
         // a replacement lemma, e.g. "people"): nothing to add.
         return lemma.to_string();
     }
-    if let Some(&(_, plural)) = IRREGULAR_NOUNS
-        .iter()
-        .find(|&&(singular, _)| singular == lemma)
-    {
+    if let Some(plural) = LEXICON_EN.nouns.get(lemma) {
         return plural.to_string();
     }
-    if let Some(&(_, sg3, _, _)) = IRREGULAR_VERBS.iter().find(|&&(base, ..)| base == lemma) {
-        return sg3.to_string();
+    if let Some(forms) = LEXICON_EN.verbs.get(lemma) {
+        return forms.sg3.to_string();
     }
     regular_suffix_s(lemma)
 }
@@ -577,8 +451,8 @@ fn regular_suffix_s(lemma: &str) -> String {
 }
 
 fn generate_ing(lemma: &str) -> String {
-    if let Some(&(_, _, ing, _)) = IRREGULAR_VERBS.iter().find(|&&(base, ..)| base == lemma) {
-        return ing.to_string();
+    if let Some(forms) = LEXICON_EN.verbs.get(lemma) {
+        return forms.ing.to_string();
     }
     regular_ing(lemma)
 }
@@ -603,8 +477,8 @@ fn regular_ing(lemma: &str) -> String {
 }
 
 fn generate_past(lemma: &str) -> String {
-    if let Some(&(_, _, _, past)) = IRREGULAR_VERBS.iter().find(|&&(base, ..)| base == lemma) {
-        return past.to_string();
+    if let Some(forms) = LEXICON_EN.verbs.get(lemma) {
+        return forms.past.to_string();
     }
     regular_past(lemma)
 }
@@ -621,6 +495,68 @@ fn regular_past(lemma: &str) -> String {
         )
     } else {
         format!("{lemma}ed")
+    }
+}
+
+/// The past-tense form of `lemma`: irregular tables first, else the
+/// regular suffix rule.
+///
+/// Checks [`LEXICON_EN`]'s `verbs` table, then `past_only` — unlike
+/// [`classify_irregular`]/[`generate_past`] above, which never consult
+/// `past_only` (see [`IRREGULAR_VERB_BASES`]'s docs). This is the public,
+/// general-purpose past-tense lookup; those are the internal
+/// surface-classification path, pinned to its own narrower table on
+/// purpose.
+#[must_use]
+pub fn past(lemma: &str) -> String {
+    if let Some(forms) = LEXICON_EN.verbs.get(lemma) {
+        return forms.past.to_string();
+    }
+    if let Some(forms) = LEXICON_EN.past_only.get(lemma) {
+        return forms.past.to_string();
+    }
+    regular_past(lemma)
+}
+
+/// The past-participle form of `lemma`: irregular tables first, else the
+/// regular suffix rule. See [`past`]'s docs for why this consults
+/// `past_only` and the internal generators above do not.
+#[must_use]
+pub fn past_participle(lemma: &str) -> String {
+    if let Some(forms) = LEXICON_EN.verbs.get(lemma) {
+        return forms.participle.to_string();
+    }
+    if let Some(forms) = LEXICON_EN.past_only.get(lemma) {
+        return forms.participle.to_string();
+    }
+    regular_past(lemma)
+}
+
+/// Endings after which the regular third-person-singular suffix is
+/// `"-es"`, not `"-s"`. `"o"` joins the true sibilants (`"go"` ->
+/// `"goes"`) because English spelling extends the same epenthetic vowel
+/// to a trailing `"o"`, not because it's phonetically a sibilant.
+const SIBILANT_ENDINGS: &[&str] = &["s", "x", "z", "ch", "sh", "o"];
+
+/// The regular third-person-singular present form of `lemma` (`"deploy"`
+/// -> `"deploys"`, `"carry"` -> `"carries"`).
+///
+/// Consults no irregular table: English third-singular formation is
+/// regular outside `be`/`have`. Its `"o"` ending deliberately diverges
+/// from [`regular_suffix_s`]'s ("go" -> "goes" here, but "photo" ->
+/// "photos" there) — don't unify them, nouns don't take the epenthetic
+/// vowel a verb's "-o" does.
+#[must_use]
+pub fn third_sg(lemma: &str) -> String {
+    if SIBILANT_ENDINGS
+        .iter()
+        .any(|suffix| lemma.ends_with(suffix))
+    {
+        format!("{lemma}es")
+    } else if ends_with_consonant_y(lemma) {
+        format!("{}ies", &lemma[..lemma.len() - 1])
+    } else {
+        format!("{lemma}s")
     }
 }
 
@@ -649,9 +585,9 @@ fn ends_with_silent_e(lemma: &str) -> bool {
 /// information: double the final consonant before a vowel suffix when the
 /// word ends in a single vowel followed by a single non-w/x/y consonant
 /// preceded by another consonant (or is only three letters), and isn't a
-/// known exception (see [`NO_DOUBLE_EXCEPTIONS`]).
+/// known exception (see [`LEXICON_EN`]'s `no_double`).
 fn should_double_final_consonant(lemma: &str) -> bool {
-    if NO_DOUBLE_EXCEPTIONS.contains(&lemma) {
+    if LEXICON_EN.no_double.contains(lemma) {
         return false;
     }
     let chars: Vec<char> = lemma.chars().collect();
@@ -934,6 +870,99 @@ mod tests {
             ("robust", WordClass::Adjective),
         ] {
             assert_eq!(agreeing_forms(lemma, class), agreeing_forms(lemma, class));
+        }
+    }
+
+    /// [`past`]: `verbs` table, then `past_only`, then the regular rule.
+    #[test]
+    fn past_covers_all_three_sources() {
+        assert_eq!(past("go"), "went");
+        assert_eq!(past("write"), "wrote");
+        assert_eq!(past("hit"), "hit");
+        assert_eq!(past("deploy"), "deployed");
+        assert_eq!(past("render"), "rendered");
+    }
+
+    /// [`past_participle`]: `verbs` table (explicit participle or,
+    /// pinned, a 3-element entry's fallback to its own past form), then
+    /// `past_only`, then the regular rule.
+    #[test]
+    fn past_participle_covers_all_three_sources() {
+        assert_eq!(past_participle("write"), "written");
+        assert_eq!(past_participle("go"), "gone");
+        assert_eq!(past_participle("hit"), "hit");
+        assert_eq!(past_participle("show"), "shown");
+        // "know" is a 3-element [irregular_verbs] entry: no explicit
+        // participle, so this falls back to "knew" (== past), not "known".
+        assert_eq!(past_participle("know"), "knew");
+        assert_eq!(past_participle("deploy"), "deployed");
+        assert_eq!(past_participle("prefer"), "preferred");
+    }
+
+    /// [`third_sg`]: sibilant/"o" -> "-es", consonant-"y" -> "-ies", else
+    /// "-s". No irregular table.
+    #[test]
+    fn third_sg_matches_expected_forms() {
+        assert_eq!(third_sg("deploy"), "deploys");
+        assert_eq!(third_sg("watch"), "watches");
+        assert_eq!(third_sg("carry"), "carries");
+        assert_eq!(third_sg("go"), "goes");
+    }
+
+    /// Pins [`classify_irregular`]'s safety property under `verbs`'
+    /// `BTreeMap` (alphabetical) iteration: no surface form is assigned a
+    /// different [`Form`] by two different entries. The old code walked a
+    /// curated `IRREGULAR_VERBS` array in a fixed order, so "the first
+    /// entry that recognizes a word wins" was well-defined only by that
+    /// order; this proves cross-entry "first" never actually matters, so
+    /// alphabetical iteration is safe too.
+    ///
+    /// Within one entry, a word can legitimately match more than one
+    /// field (`"put"`'s `past` and its own base form are both `"put"`);
+    /// that's resolved by the fixed sg3/ing/past/base check order, not by
+    /// entry iteration order, so it's collapsed to that entry's single
+    /// first-match answer before comparing across entries.
+    #[test]
+    fn verbs_table_has_no_cross_entry_form_conflicts() {
+        let mut seen: std::collections::HashMap<&str, Form> = std::collections::HashMap::new();
+        for (base, forms) in &LEXICON_EN.verbs {
+            let mut local: std::collections::HashMap<&str, Form> = std::collections::HashMap::new();
+            for (word, form) in [
+                (forms.sg3.as_ref(), Form::SuffixS),
+                (forms.ing.as_ref(), Form::Ing),
+                (forms.past.as_ref(), Form::Past),
+                (base.as_ref(), Form::Base),
+            ] {
+                local.entry(word).or_insert(form);
+            }
+            for (word, form) in local {
+                match seen.insert(word, form) {
+                    Some(prev) if prev != form => {
+                        panic!("{word:?} classifies as both {prev:?} and {form:?} (entry {base:?})")
+                    }
+                    _ => {}
+                }
+            }
+        }
+    }
+
+    /// Same property as `verbs_table_has_no_cross_entry_form_conflicts`,
+    /// for `nouns` (plural/singular).
+    #[test]
+    fn nouns_table_has_no_cross_entry_form_conflicts() {
+        let mut seen: std::collections::HashMap<&str, Form> = std::collections::HashMap::new();
+        for (singular, plural) in &LEXICON_EN.nouns {
+            for (word, form) in [
+                (plural.as_ref(), Form::SuffixS),
+                (singular.as_ref(), Form::Base),
+            ] {
+                match seen.insert(word, form) {
+                    Some(prev) if prev != form => panic!(
+                        "{word:?} classifies as both {prev:?} and {form:?} (entry {singular:?})"
+                    ),
+                    _ => {}
+                }
+            }
         }
     }
 }

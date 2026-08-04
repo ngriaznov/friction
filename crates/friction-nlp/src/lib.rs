@@ -37,7 +37,10 @@ pub use chunk::{
     has_finite_verb, is_complete_after_deletion, is_imperative_initial, opens_with_binding_cue,
     overlaps_counted_enumeration,
 };
-pub use inflect::{WordClass, agreeing_forms, inflect, irregular_verb_base, lemmatize};
+pub use inflect::{
+    WordClass, agreeing_forms, inflect, irregular_verb_base, lemmatize, past, past_participle,
+    third_sg,
+};
 pub use tag::{PosTag, TaggedToken, Tagger, classify_token_kind, coarse_tag};
 #[cfg(feature = "train-tooling")]
 pub use tag_perceptron::train_support;
