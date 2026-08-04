@@ -14,6 +14,10 @@ mod weights_bin;
 pub use segment::{SegmentError, Segmenter, segment_document};
 pub use segment_srx::SrxSegmenter;
 
+mod lexicon;
+
+pub use lexicon::{LEXICON_EN, Lexicon, LexiconError, PastForms, VerbForms, WordSet};
+
 /// Light-verb-construction tables and matching.
 ///
 /// Shared between runtime detection (`friction-harness::pivot` and a

@@ -1,0 +1,166 @@
+[pack]
+version = "lexicon-en-v1"
+
+# base = ["3sg", "ing", "past"] or ["3sg", "ing", "past", "participle"];
+# a 3-element entry means participle == past (true for most verbs).
+[irregular_verbs]
+be = ["is", "being", "was", "been"]
+have = ["has", "having", "had"]
+do = ["does", "doing", "did", "done"]
+go = ["goes", "going", "went", "gone"]
+make = ["makes", "making", "made"]
+take = ["takes", "taking", "took", "taken"]
+get = ["gets", "getting", "got"]
+give = ["gives", "giving", "gave", "given"]
+speed = ["speeds", "speeding", "sped"]
+know = ["knows", "knowing", "knew"]
+think = ["thinks", "thinking", "thought"]
+see = ["sees", "seeing", "saw", "seen"]
+come = ["comes", "coming", "came", "come"]
+write = ["writes", "writing", "wrote", "written"]
+build = ["builds", "building", "built"]
+find = ["finds", "finding", "found"]
+leave = ["leaves", "leaving", "left"]
+bring = ["brings", "bringing", "brought"]
+keep = ["keeps", "keeping", "kept"]
+begin = ["begins", "beginning", "began", "begun"]
+run = ["runs", "running", "ran", "run"]
+buy = ["buys", "buying", "bought"]
+catch = ["catches", "catching", "caught"]
+choose = ["chooses", "choosing", "chose", "chosen"]
+drive = ["drives", "driving", "drove", "driven"]
+feel = ["feels", "feeling", "felt"]
+grow = ["grows", "growing", "grew", "grown"]
+hold = ["holds", "holding", "held"]
+lead = ["leads", "leading", "led"]
+lose = ["loses", "losing", "lost"]
+mean = ["means", "meaning", "meant"]
+meet = ["meets", "meeting", "met"]
+pay = ["pays", "paying", "paid"]
+put = ["puts", "putting", "put"]
+read = ["reads", "reading", "read"]
+say = ["says", "saying", "said"]
+sell = ["sells", "selling", "sold"]
+send = ["sends", "sending", "sent"]
+set = ["sets", "setting", "set"]
+speak = ["speaks", "speaking", "spoke"]
+spend = ["spends", "spending", "spent"]
+stand = ["stands", "standing", "stood"]
+teach = ["teaches", "teaching", "taught"]
+tell = ["tells", "telling", "told"]
+understand = ["understands", "understanding", "understood"]
+win = ["wins", "winning", "won"]
+become = ["becomes", "becoming", "became", "become"]
+
+# Irregular verbs consulted for past/participle generation only —
+# never for surface classification, whose key set is [irregular_verbs]
+# alone. base = ["past", "participle"].
+[irregular_past_only]
+burst = ["burst", "burst"]
+cast = ["cast", "cast"]
+cost = ["cost", "cost"]
+cut = ["cut", "cut"]
+draw = ["drew", "drawn"]
+fall = ["fell", "fallen"]
+feed = ["fed", "fed"]
+hit = ["hit", "hit"]
+hurt = ["hurt", "hurt"]
+let = ["let", "let"]
+override = ["overrode", "overridden"]
+overwrite = ["overwrote", "overwritten"]
+quit = ["quit", "quit"]
+rewrite = ["rewrote", "rewritten"]
+rise = ["rose", "risen"]
+shed = ["shed", "shed"]
+show = ["showed", "shown"]
+shut = ["shut", "shut"]
+spread = ["spread", "spread"]
+undergo = ["underwent", "undergone"]
+
+[irregular_nouns]
+person = "people"
+child = "children"
+man = "men"
+woman = "women"
+mouse = "mice"
+goose = "geese"
+foot = "feet"
+tooth = "teeth"
+criterion = "criteria"
+phenomenon = "phenomena"
+datum = "data"
+analysis = "analyses"
+index = "indices"
+
+# Multi-syllable words whose final consonant looks CVC but must not double:
+# English doubling follows stress, which the heuristic deliberately lacks.
+# "encounter"/"empower"/"discover" surfaced as "encounterred" etc. from
+# register rewrites; "render" -> "renderred" from T4 passivize output.
+# Stressed finals ("prefer", "refer", "defer") stay OUT: they double.
+[no_double]
+words = [
+    "answer", "audit", "benefit", "budget", "cancel", "color", "consider", "counter",
+    "cover", "credit", "deliver", "differ", "discover", "edit", "empower", "encounter",
+    "enter", "equal", "exhibit", "favor", "focus", "format", "fuel", "gather",
+    "happen", "honor", "label", "labor", "level", "limit", "listen", "market",
+    "matter", "model", "offer", "open", "orbit", "order", "panel", "profit",
+    "recover", "render", "signal", "suffer", "surrender", "target", "total", "travel",
+    "uncover", "visit", "wonder",
+]
+
+[subordinators]
+words = [
+    "because", "although", "though", "while", "since", "unless", "until", "before", "after", "if",
+    "when", "whereas", "as",
+]
+
+# Fixed and closed: a suffix detector would also match nouns with no verb
+# reading ("nation", "moment"), so this stays a literal, audited table.
+[nominal_verbs]
+optimization = "optimizing"
+reduction = "reducing"
+creation = "creating"
+implementation = "implementing"
+integration = "integrating"
+migration = "migrating"
+deployment = "deploying"
+improvement = "improving"
+allocation = "allocating"
+utilization = "using"
+configuration = "configuring"
+validation = "validating"
+verification = "verifying"
+execution = "executing"
+generation = "generating"
+adoption = "adopting"
+expansion = "expanding"
+introduction = "introducing"
+elimination = "eliminating"
+consolidation = "consolidating"
+degradation = "degrading"
+compression = "compressing"
+duplication = "duplicating"
+
+# The only subjects T4 may demote: passivizing an identifiable agent
+# loses information.
+[generic_subjects]
+phrases = ["we", "i", "you", "one", "the team", "our team"]
+
+[pronouns]
+reflexive = ["myself", "yourself", "himself", "herself", "itself", "oneself", "ourselves", "yourselves", "themselves"]
+object = ["me", "us", "you", "him", "her", "it", "them", "'em"]
+
+[contractions]
+subject = [
+    "it's", "that's", "there's", "here's", "he's", "she's", "what's", "who's",
+    "they're", "we're", "you're", "i'm", "i've", "they've", "we've", "you've",
+    "i'll", "he'll", "she'll", "it'll", "we'll", "they'll", "you'll", "i'd",
+    "he'd", "she'd", "it'd", "we'd", "they'd", "you'd",
+]
+negated_aux = [
+    "isn't", "aren't", "wasn't", "weren't", "don't", "doesn't", "didn't", "won't",
+    "can't", "couldn't", "shouldn't", "wouldn't", "hasn't", "haven't", "hadn't", "ain't",
+]
+
+[stative_verbs]
+lemmas = ["have", "become", "remain", "seem", "appear", "want", "wish", "prefer", "need"]

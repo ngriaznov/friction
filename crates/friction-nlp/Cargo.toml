@@ -20,6 +20,8 @@ train-tooling = []
 [dependencies]
 friction-core = { path = "../friction-core" }
 thiserror = { workspace = true }
+# Parses the vendored lexicon-en-v1 pack (src/lexicon.rs).
+toml = { workspace = true }
 
 # Pinned to the exact version verified to build cleanly on this workspace's
 # toolchain/edition (rustc 1.96, edition 2024, resolver 3); not yet covered
