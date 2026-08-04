@@ -1,6 +1,6 @@
 //! Source model for the adjudicated frame-rewrite rule set.
 //!
-//! Covers `packs/frame-rules-v1.toml`: seven evidence buckets, the
+//! Covers `packs/frame-rules-en-v1.toml`: seven evidence buckets, the
 //! class tables, the declared function-word set, and the
 //! pattern/target grammar the rules are written in.
 //!
@@ -75,7 +75,7 @@ pub struct PilotRule {
     pub support: u32,
 }
 
-/// The whole `frame-rules-v1.toml` artifact, buckets in fence order.
+/// The whole `frame-rules-en-v1.toml` artifact, buckets in fence order.
 #[derive(Debug, Clone, Deserialize)]
 pub struct FrameRuleSet {
     /// Corpus-confirmed knowledge rules (compile).
@@ -109,7 +109,7 @@ pub struct FunctionWords {
 }
 
 impl FrameRuleSet {
-    /// Parses the `frame-rules-v1.toml` text into the bucket model.
+    /// Parses the `frame-rules-en-v1.toml` text into the bucket model.
     ///
     /// # Errors
     /// Returns [`FrameRulesError::Toml`] if the text is not valid TOML
@@ -878,8 +878,8 @@ mod tests {
     /// tables intact.
     #[test]
     fn shipped_rule_set_parses_and_keeps_every_rule() {
-        let set = FrameRuleSet::parse(include_str!("../packs/frame-rules-v1.toml"))
-            .expect("shipped frame-rules-v1.toml must parse");
+        let set = FrameRuleSet::parse(include_str!("../packs/frame-rules-en-v1.toml"))
+            .expect("shipped frame-rules-en-v1.toml must parse");
         let total = set.rules_ship.len()
             + set.rules_flip.len()
             + set.rules_surface.len()
@@ -906,8 +906,8 @@ mod tests {
     /// become per-rule rejections, not load failures.)
     #[test]
     fn every_compiling_bucket_pattern_and_target_parses() {
-        let set = FrameRuleSet::parse(include_str!("../packs/frame-rules-v1.toml"))
-            .expect("shipped frame-rules-v1.toml must parse");
+        let set = FrameRuleSet::parse(include_str!("../packs/frame-rules-en-v1.toml"))
+            .expect("shipped frame-rules-en-v1.toml must parse");
         for rule in [&set.rules_ship, &set.rules_flip, &set.rules_surface]
             .into_iter()
             .flatten()

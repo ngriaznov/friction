@@ -18,9 +18,9 @@ $ cargo build --release -p corpus-tool
 
 $ ./target/release/corpus-tool index \
     --corpus-dir corpus \
-    --pack crates/friction-packs/packs/dms-index-v1.toml \
+    --pack crates/friction-packs/packs/dms-index-en-v1.toml \
     --calibrate
-index: wrote 18335 vocab token(s), 4 family stream(s), 264 human doc(s) to crates/friction-packs/packs/dms-index-v1.toml
+index: wrote 18335 vocab token(s), 4 family stream(s), 264 human doc(s) to crates/friction-packs/packs/dms-index-en-v1.toml
 dev calibration (not holdout):
   qwen: 58/67 dev doc(s) classified correctly
   gemma: 66/71 dev doc(s) classified correctly
@@ -45,7 +45,7 @@ labeled exception that reads `dev` (never `holdout`), per its own
 `.filter(|r| r.split == Some(Split::Dev))` at `index.rs:388`, printed under an
 explicit "dev calibration (not holdout)" banner as designed.
 
-`index` produced `crates/friction-packs/packs/dms-index-v1.toml`: 18,335 vocab
+`index` produced `crates/friction-packs/packs/dms-index-en-v1.toml`: 18,335 vocab
 tokens, one shared vocabulary across five streams (qwen/gemma/llama/granite/
 human), matching the manifest's real per-family doc counts (qwen 38, gemma 81,
 llama 75, granite 36, plus 264 human docs = 230 llm + 264 human = 494 train
@@ -71,14 +71,14 @@ first run's output.
   copies of `MINE_INVENTORY.md`. `diff` between the two files: empty.
 - `index`, run twice independently: identical sha256
   `3a6f36760358be28498230069733930ed8e7ecf9dd24d38f1afec30dcc50746b` for both
-  copies of `dms-index-v1.toml`. `diff` between the two files: empty.
+  copies of `dms-index-en-v1.toml`. `diff` between the two files: empty.
 
 **Both subcommands are deterministic: two independent runs against the same
 corpus produce byte-identical output.**
 
 ## 3. Inventory pack v1 curation
 
-`crates/friction-packs/packs/inventory-v1.toml` was hand-curated from
+`crates/friction-packs/packs/inventory-en-v1.toml` was hand-curated from
 `corpus/MINE_INVENTORY.md` plus the pre-existing runtime inventory
 (`friction-harness::tellspan`'s RITUAL/SUBS/SPANS statics and
 `friction-nlp::lvc`'s `DERIVATIONAL_LEXICON`). Nothing in this pack was
@@ -230,16 +230,16 @@ round is recorded here instead, alongside each pack's own
 
 | pack file | sha256 | corpus_manifest_sha256 |
 |---|---|---|
-| `crates/friction-packs/packs/inventory-v1.toml` | `69f81e7a1b7e6e0eed280f6ae75b29a8f31464cc89b9151b081294a6a4f8c4f5` | `001d33df8d362ee94ffd2d8e0fcdf811fd4ce1de34cd909a7d852793a34b6969` |
-| `crates/friction-packs/packs/dms-index-v1.toml` | `3a6f36760358be28498230069733930ed8e7ecf9dd24d38f1afec30dcc50746b` | `001d33df8d362ee94ffd2d8e0fcdf811fd4ce1de34cd909a7d852793a34b6969` |
-| `crates/friction-packs/packs/envelope-v2.toml` (unchanged, re-verified) | `cb10f536fefad0610d8523d0d00625cce9f76a78434fcd66a14bc48c73d3aee7` | `001d33df8d362ee94ffd2d8e0fcdf811fd4ce1de34cd909a7d852793a34b6969` |
-| `crates/friction-packs/packs/mined-ngrams-v1.toml` (unchanged, re-verified) | `ba1be507d439f513828b039aedcb236e5cca4f2b8a94e701367270ec1de5b9d2` | (pre-existing pack, own provenance) |
-| `crates/friction-packs/packs/envelope-v1.toml` (unchanged, re-verified) | `802033d18018a148ece0c9cc68348b283878867003e208bb0be6835906fcb1d6` | (pre-existing pack, own provenance) |
+| `crates/friction-packs/packs/inventory-en-v1.toml` | `69f81e7a1b7e6e0eed280f6ae75b29a8f31464cc89b9151b081294a6a4f8c4f5` | `001d33df8d362ee94ffd2d8e0fcdf811fd4ce1de34cd909a7d852793a34b6969` |
+| `crates/friction-packs/packs/dms-index-en-v1.toml` | `3a6f36760358be28498230069733930ed8e7ecf9dd24d38f1afec30dcc50746b` | `001d33df8d362ee94ffd2d8e0fcdf811fd4ce1de34cd909a7d852793a34b6969` |
+| `crates/friction-packs/packs/envelope-en-v2.toml` (unchanged, re-verified) | `cb10f536fefad0610d8523d0d00625cce9f76a78434fcd66a14bc48c73d3aee7` | `001d33df8d362ee94ffd2d8e0fcdf811fd4ce1de34cd909a7d852793a34b6969` |
+| `crates/friction-packs/packs/mined-ngrams-en-v1.toml` (unchanged, re-verified) | `ba1be507d439f513828b039aedcb236e5cca4f2b8a94e701367270ec1de5b9d2` | (pre-existing pack, own provenance) |
+| `crates/friction-packs/packs/envelope-en-v1.toml` (unchanged, re-verified) | `802033d18018a148ece0c9cc68348b283878867003e208bb0be6835906fcb1d6` | (pre-existing pack, own provenance) |
 
 `corpus/manifest.jsonl` itself hashes to
 `001d33df8d362ee94ffd2d8e0fcdf811fd4ce1de34cd909a7d852793a34b6969` at the
 time both new packs were built, matching the two pre-existing packs
-(`envelope-v2.toml`, `dms-index-v1.toml`) that also embed it — all four packs
+(`envelope-en-v2.toml`, `dms-index-en-v1.toml`) that also embed it — all four packs
 were built against the identical corpus snapshot.
 
 ## 6. Test status
@@ -247,7 +247,7 @@ were built against the identical corpus snapshot.
 `cargo fmt --check`, `cargo clippy --workspace --all-targets -- -D
 warnings`, and `cargo test --workspace` were all re-run with both real packs
 present on disk, after this milestone's work (including the new
-`inventory-v1.toml` and `dms-index-v1.toml` pack files) was in place:
+`inventory-en-v1.toml` and `dms-index-en-v1.toml` pack files) was in place:
 
 - `cargo fmt --check`: clean (exit 0).
 - `cargo clippy --workspace --all-targets -- -D warnings`: clean (exit 0).
@@ -333,7 +333,7 @@ catch:
 
 - **`crucial` family** (`sub.crucial_for`, `sub.is_crucial`): the standalone
   word `crucial` is already flagged as an llm-favored intensifier by the
-  unrelated `mine`/`mined-ngrams-v1.toml` pipeline (z=6.4922) — so the
+  unrelated `mine`/`mined-ngrams-en-v1.toml` pipeline (z=6.4922) — so the
   *word* was already known to skew machine — but no phrase built on it ever
   cleared `mine-inventory`'s literal 2-/3-/4-gram gate on the pooled
   corpus (spot-checked: `corpus/MINE_INVENTORY.md` contains a single
@@ -348,7 +348,7 @@ catch:
   predicate-verb sense this substitution needs ("this matters", "order
   matters"); the other 4 are the unrelated noun sense "matters of X" /
   "such matters" and do not support the verb-slot claim — see
-  `sub.is_crucial`'s own `notes` in `inventory-v1.toml` for the count
+  `sub.is_crucial`'s own `notes` in `inventory-en-v1.toml` for the count
   breakdown.
 - **`ritual.let_me_know_if_you_would_like`**: an assistant-voice closing
   continuation offer ("Let me know if you'd like any refinements/
@@ -369,7 +369,7 @@ catch:
   like" / "let me know if you would like") the id names — curator-refined
   counts against `corpus/paired/`: stock=9, antislop=1, human_train=0 (the
   one human hit above does not match the narrowed form). See the entry's
-  own `notes` in `inventory-v1.toml` for the full count breakdown.
+  own `notes` in `inventory-en-v1.toml` for the full count breakdown.
 
 ### 8.4 Rejected
 
@@ -459,12 +459,12 @@ train split has no real chance of recurring in a corpus roughly a fifth the
 size — the paired corpus's job is topic cancellation for phrases common
 enough to show up at all in 55 prompts, not a substitute for the larger
 corpus's raw statistical power. The cross-check is recorded here, in each
-entry's own `notes` field in `inventory-v1.toml`, and is not itself grounds
+entry's own `notes` field in `inventory-en-v1.toml`, and is not itself grounds
 to change any of the four entries' `source` or `repair`.
 
 ### 8.6 Pack changes summary
 
-`crates/friction-packs/packs/inventory-v1.toml`:
+`crates/friction-packs/packs/inventory-en-v1.toml`:
 
 - Added `mine_paired_report_path = "corpus/MINE_PAIRED.md"` and
   `pack.paired_manifest_sha256` (sha256 of `corpus/paired/manifest.jsonl`

@@ -20,7 +20,7 @@ fn args(corpus_dir: &std::path::Path, out: std::path::PathBuf) -> Args {
 #[test]
 fn envelope_empty_corpus_writes_header_only_pack() {
     let dir = tempfile::tempdir().unwrap();
-    let out = dir.path().join("envelope-v2.toml");
+    let out = dir.path().join("envelope-en-v2.toml");
     envelope::run(&args(dir.path(), out.clone())).unwrap();
 
     let text = std::fs::read_to_string(&out).unwrap();
@@ -54,7 +54,7 @@ fn envelope_bands_are_human_train_only_but_llm_train_feeds_direction() {
 
     common::write_manifest_raw(&dir.path().join("manifest.jsonl"), &[h_train, h_dev, llm]);
 
-    let out = dir.path().join("envelope-v2.toml");
+    let out = dir.path().join("envelope-en-v2.toml");
     envelope::run(&args(dir.path(), out.clone())).unwrap();
 
     let text = std::fs::read_to_string(&out).unwrap();
@@ -95,7 +95,7 @@ fn envelope_ties_between_identical_human_and_llm_train_content_exclude_every_met
 
     common::write_manifest_raw(&dir.path().join("manifest.jsonl"), &[h1, h2, l1, l2]);
 
-    let out = dir.path().join("envelope-v2.toml");
+    let out = dir.path().join("envelope-en-v2.toml");
     envelope::run(&args(dir.path(), out.clone())).unwrap();
 
     let text = std::fs::read_to_string(&out).unwrap();
@@ -117,7 +117,7 @@ fn envelope_defaults_to_include_true_when_genre_has_no_train_llm_docs() {
     record.split = Some(Split::Train);
     common::write_manifest_raw(&dir.path().join("manifest.jsonl"), &[record]);
 
-    let out = dir.path().join("envelope-v2.toml");
+    let out = dir.path().join("envelope-en-v2.toml");
     envelope::run(&args(dir.path(), out.clone())).unwrap();
 
     let text = std::fs::read_to_string(&out).unwrap();
@@ -153,7 +153,7 @@ fn envelope_output_is_deterministic_across_runs() {
 #[test]
 fn envelope_rejects_lo_percentile_not_below_hi_percentile() {
     let dir = tempfile::tempdir().unwrap();
-    let out = dir.path().join("envelope-v2.toml");
+    let out = dir.path().join("envelope-en-v2.toml");
     let mut bad_args = args(dir.path(), out);
     bad_args.lo_percentile = 90.0;
     bad_args.hi_percentile = 10.0;
@@ -164,7 +164,7 @@ fn envelope_rejects_lo_percentile_not_below_hi_percentile() {
 #[test]
 fn envelope_rejects_percentile_out_of_range() {
     let dir = tempfile::tempdir().unwrap();
-    let out = dir.path().join("envelope-v2.toml");
+    let out = dir.path().join("envelope-en-v2.toml");
     let mut bad_args = args(dir.path(), out);
     bad_args.hi_percentile = 150.0;
     assert!(envelope::run(&bad_args).is_err());
@@ -176,7 +176,7 @@ fn envelope_rejects_percentile_out_of_range() {
 #[test]
 fn envelope_rejects_auc_include_threshold_out_of_range() {
     let dir = tempfile::tempdir().unwrap();
-    let out = dir.path().join("envelope-v2.toml");
+    let out = dir.path().join("envelope-en-v2.toml");
     let mut bad_args = args(dir.path(), out);
     bad_args.auc_include_threshold = 0.2;
     assert!(envelope::run(&bad_args).is_err());
@@ -187,7 +187,7 @@ fn envelope_rejects_auc_include_threshold_out_of_range() {
 #[test]
 fn envelope_creates_missing_out_directory() {
     let dir = tempfile::tempdir().unwrap();
-    let out = dir.path().join("nested/packs/envelope-v2.toml");
+    let out = dir.path().join("nested/packs/envelope-en-v2.toml");
     envelope::run(&args(dir.path(), out.clone())).unwrap();
     assert!(out.exists());
 }

@@ -14,7 +14,7 @@
 //! [`t6_em_dash`]/[`t7_semicolon`] are later additions: neither em
 //! dashes nor semicolon splices came up in the research phase's
 //! Biber-feature work, only later as measured Claude-family tells (see
-//! `register-v1.toml`'s `[features.em_dash]`/`[features.semicolon]` and
+//! `register-en-v1.toml`'s `[features.em_dash]`/`[features.semicolon]` and
 //! `docs/research/FRONTIER_MODELS.md`). [`t7_semicolon`] reuses
 //! [`independent_clause_follows`], T6's own subtree-anchored
 //! independent-clause check, unchanged: the two features license the
@@ -1080,7 +1080,7 @@ fn independent_clause_candidate(
 }
 
 /// Em-dash reduction (T6): homes the `em_dash` feature toward its
-/// human band (measured at effectively zero -- see `register-v1.toml`)
+/// human band (measured at effectively zero -- see `register-en-v1.toml`)
 /// by removing em dashes one sentence-level construction at a time.
 ///
 /// Handles exactly two shapes, chosen by how many em-dash tokens (see
@@ -1244,7 +1244,7 @@ fn semicolon_candidate(
 /// Semicolon-splice reduction (T7).
 ///
 /// Homes the `semicolon` feature toward its human band, nonzero
-/// unlike T6's em-dash band (see `register-v1.toml`'s
+/// unlike T6's em-dash band (see `register-en-v1.toml`'s
 /// `[features.semicolon]`), by turning a semicolon that joins two
 /// independent clauses into a sentence break.
 ///

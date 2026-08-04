@@ -647,7 +647,7 @@ pub fn sentence_initial_demonstratives(text: &str, tokens: &[TaggedToken]) -> Ve
 /// `friction-metrics::rhythm::em_dash_density` treats those as
 /// equivalent for its own purpose (a coarse rhythm signal); this feature
 /// exists specifically because human technical writing almost never uses
-/// the real character at all (see `register-v1.toml`'s
+/// the real character at all (see `register-en-v1.toml`'s
 /// `[features.em_dash]`), a distinction a broader detector would blur.
 ///
 /// Returns byte offsets, not token indices, unlike every other detector
@@ -743,7 +743,7 @@ mod semicolon_tests {
 
     /// Nonzero is the common case in human technical prose, unlike
     /// `em_dashes` -- this feature's band is nonzero (see
-    /// `register-v1.toml`'s `[features.semicolon]`).
+    /// `register-en-v1.toml`'s `[features.semicolon]`).
     #[test]
     fn semicolons_counts_ordinary_prose_usage() {
         assert_eq!(

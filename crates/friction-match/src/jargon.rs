@@ -137,7 +137,7 @@ fn jargon_span_at(
 
     // The exception check: a hand-curated TOML override (kept for the
     // cases the filter misses but a human reason still applies, see
-    // jargon-v1.toml's own header) OR the web-scale attestation filter
+    // jargon-en-v1.toml's own header) OR the web-scale attestation filter
     // (the real oracle now, SYNTHESIS.md §4). Either suppresses the
     // flag; neither is authoritative over the other.
     let normalized = normalized_compound(tokens, document_text, start, head_idx);

@@ -3,7 +3,7 @@
 //!
 //! Runs the whole compile fence (see `friction_packs`' own
 //! `frame_compile` module docs for the gauntlet) over the four
-//! compile-eligible buckets of `frame-rules-v1.toml`, serializes the
+//! compile-eligible buckets of `frame-rules-en-v1.toml`, serializes the
 //! surviving rule program with `friction_packs::frame_bin`, and prints
 //! the full compile report: every compiled rule, every report-only
 //! demotion with its reason, and every rejected rule with its reason.
@@ -22,7 +22,7 @@
 //! so a stale `.bin` (rules edited, this command not re-run) fails
 //! loudly in `friction-packs`' own drift test instead of silently
 //! serving an older rule program. **Re-run this command after every
-//! `frame-rules-v1.toml` change, after every `corpus-tool index` run**
+//! `frame-rules-en-v1.toml` change, after every `corpus-tool index` run**
 //! (regenerates the attestation rates), and after every `corpus-tool
 //! human-evidence` run.
 
@@ -38,32 +38,38 @@ use friction_packs::human_evidence::HumanEvidencePack;
 /// Arguments for `corpus-tool frame-pack`.
 #[derive(Debug, ClapArgs)]
 pub struct Args {
-    /// Path to the vendored `frame-rules-v1.toml` rule set.
+    /// Path to the vendored `frame-rules-en-v1.toml` rule set.
     #[arg(
         long,
-        default_value = "crates/friction-packs/packs/frame-rules-v1.toml"
+        default_value = "crates/friction-packs/packs/frame-rules-en-v1.toml"
     )]
     pub rules: PathBuf,
-    /// Path to the vendored `dms-index-v1.toml` pack (attestation
+    /// Path to the vendored `dms-index-en-v1.toml` pack (attestation
     /// rates come from its human stream).
-    #[arg(long, default_value = "crates/friction-packs/packs/dms-index-v1.toml")]
+    #[arg(
+        long,
+        default_value = "crates/friction-packs/packs/dms-index-en-v1.toml"
+    )]
     pub dms_toml: PathBuf,
-    /// Path to the vendored `human-evidence-v1.bin` pack (pooled into
+    /// Path to the vendored `human-evidence-en-v1.bin` pack (pooled into
     /// the dms-index-v1 human rate: see this module's own docs).
     #[arg(
         long,
-        default_value = "crates/friction-packs/packs/human-evidence-v1.bin"
+        default_value = "crates/friction-packs/packs/human-evidence-en-v1.bin"
     )]
     pub human_evidence: PathBuf,
-    /// Path to the vendored `machine-evidence-v1.bin` pack (the machine
+    /// Path to the vendored `machine-evidence-en-v1.bin` pack (the machine
     /// half of the review-register evidence pair).
     #[arg(
         long,
-        default_value = "crates/friction-packs/packs/machine-evidence-v1.bin"
+        default_value = "crates/friction-packs/packs/machine-evidence-en-v1.bin"
     )]
     pub machine_evidence: PathBuf,
     /// Path to write the derived binary artifact to.
-    #[arg(long, default_value = "crates/friction-packs/packs/frame-pack-v1.bin")]
+    #[arg(
+        long,
+        default_value = "crates/friction-packs/packs/frame-pack-en-v1.bin"
+    )]
     pub out_bin: PathBuf,
 }
 
@@ -149,16 +155,16 @@ mod tests {
             .canonicalize()
             .expect("workspace root exists");
         let rules_text = std::fs::read_to_string(
-            repo_root.join("crates/friction-packs/packs/frame-rules-v1.toml"),
+            repo_root.join("crates/friction-packs/packs/frame-rules-en-v1.toml"),
         )
-        .expect("vendored frame-rules-v1.toml exists");
+        .expect("vendored frame-rules-en-v1.toml exists");
         let dms_text = std::fs::read_to_string(
-            repo_root.join("crates/friction-packs/packs/dms-index-v1.toml"),
+            repo_root.join("crates/friction-packs/packs/dms-index-en-v1.toml"),
         )
-        .expect("vendored dms-index-v1.toml exists");
+        .expect("vendored dms-index-en-v1.toml exists");
         let human_evidence_bytes =
-            std::fs::read(repo_root.join("crates/friction-packs/packs/human-evidence-v1.bin"))
-                .expect("vendored human-evidence-v1.bin exists");
+            std::fs::read(repo_root.join("crates/friction-packs/packs/human-evidence-en-v1.bin"))
+                .expect("vendored human-evidence-en-v1.bin exists");
         let set = FrameRuleSet::parse(&rules_text).expect("vendored rules parse");
         let external =
             HumanEvidencePack::load(&human_evidence_bytes).expect("vendored human evidence loads");

@@ -291,7 +291,7 @@ pub enum FrameCompileError {
 /// builder's five-occurrence floor). A phrase absent from the external
 /// pack's probe table is left out of the pooled count *and* its total
 /// entirely — that absence means the phrase was never one of
-/// `frame-rules-v1.toml`'s own literal probes when the pack was built,
+/// `frame-rules-en-v1.toml`'s own literal probes when the pack was built,
 /// so nothing about it was ever measured, and pooling a `0` would be a
 /// fabricated data point, not a real one.
 ///
@@ -1570,9 +1570,9 @@ words = ["a", "an", "the", "to", "of"]
     /// for every fenced rule exactly once.
     #[test]
     fn shipped_rule_set_compiles_with_full_accounting() {
-        let set = FrameRuleSet::parse(include_str!("../packs/frame-rules-v1.toml"))
+        let set = FrameRuleSet::parse(include_str!("../packs/frame-rules-en-v1.toml"))
             .expect("shipped rules parse");
-        let rates = CorpusEvidence::from_dms_toml(include_str!("../packs/dms-index-v1.toml"))
+        let rates = CorpusEvidence::from_dms_toml(include_str!("../packs/dms-index-en-v1.toml"))
             .expect("shipped dms index parses");
         let (pack, report) = compile(&set, &rates).expect("shipped set must compile");
         let fenced = set.rules_ship.len()
@@ -1615,9 +1615,9 @@ words = ["a", "an", "the", "to", "of"]
     /// Compilation is a pure function: two runs, identical output.
     #[test]
     fn compile_is_deterministic() {
-        let set = FrameRuleSet::parse(include_str!("../packs/frame-rules-v1.toml"))
+        let set = FrameRuleSet::parse(include_str!("../packs/frame-rules-en-v1.toml"))
             .expect("shipped rules parse");
-        let rates = CorpusEvidence::from_dms_toml(include_str!("../packs/dms-index-v1.toml"))
+        let rates = CorpusEvidence::from_dms_toml(include_str!("../packs/dms-index-en-v1.toml"))
             .expect("shipped dms index parses");
         let (pack_a, _) = compile(&set, &rates).expect("compile a");
         let (pack_b, _) = compile(&set, &rates).expect("compile b");
@@ -1740,9 +1740,9 @@ words = ["a", "an", "the", "to", "of"]
     /// pack to compiling without any external evidence at all.
     #[test]
     fn empty_external_pack_leaves_compile_output_unchanged() {
-        let set = FrameRuleSet::parse(include_str!("../packs/frame-rules-v1.toml"))
+        let set = FrameRuleSet::parse(include_str!("../packs/frame-rules-en-v1.toml"))
             .expect("shipped rules parse");
-        let dms_toml = include_str!("../packs/dms-index-v1.toml");
+        let dms_toml = include_str!("../packs/dms-index-en-v1.toml");
         let without_external = CorpusEvidence::from_dms_toml(dms_toml).expect("dms index parses");
         let with_empty_external = CorpusEvidence::from_dms_toml(dms_toml)
             .expect("dms index parses")

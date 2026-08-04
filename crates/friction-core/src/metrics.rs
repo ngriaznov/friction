@@ -52,7 +52,7 @@ pub struct MetricVector {
     /// `"In today's..."`).
     pub ritual_marker_rate: f64,
     /// Rate of curated llm-favored mined n-grams (`crates/friction-packs/
-    /// packs/mined-ngrams-v1.toml`), per 1000 tokens.
+    /// packs/mined-ngrams-en-v1.toml`), per 1000 tokens.
     pub llm_favored_phrase_rate: f64,
     /// Rate of curated human-favored mined n-grams (same pack), per 1000
     /// tokens.

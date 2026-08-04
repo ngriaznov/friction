@@ -160,7 +160,7 @@ fn accept_regression1_getting_started_substitution_and_deletion() {
 /// deletion of `"By following these steps, "`, every one of the four
 /// coarse-tag 5-gram windows `check_deletion_gates` checks (`<S> PR MD RB
 /// CC`, `PR MD RB CC RB`, `MD RB CC RB VB`, `RB CC RB VB DT`) is attested
-/// in this workspace's own `attestation-v1.toml` (mined by
+/// in this workspace's own `attestation-en-v1.toml` (mined by
 /// `corpus-tool attest` from this repository's real 264-doc TRAIN split
 /// via the shipped `PerceptronTagger`), so the deletion is Allowed here —
 /// whereas the fixture's documented output requires it to be held. The

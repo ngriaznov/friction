@@ -1,7 +1,7 @@
 # frame-rules-v1 — adjudicated frame_rewrite rule set (source artifact).
 #
 # COMPILE FENCE: only rules_ship, rules_flip, rules_surface and
-# rules_pilot may compile into frame-pack-v1.bin; rules_quarantine,
+# rules_pilot may compile into frame-pack-en-v1.bin; rules_quarantine,
 # rules_no_evidence and rules_staged_surface are staged evidence for
 # `corpus-tool adjudicate` and MUST NOT compile.
 #

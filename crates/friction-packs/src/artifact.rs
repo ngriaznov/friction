@@ -182,7 +182,7 @@ pub enum PackError {
         value: String,
     },
 
-    /// An `attestation-v1.bin` derived artifact failed structural
+    /// An `attestation-en-v1.bin` derived artifact failed structural
     /// validation (see [`crate::AttestationPack::from_bin`]). Never
     /// expected for the vendored embedded artifact: covered by this
     /// crate's round-trip and drift tests.

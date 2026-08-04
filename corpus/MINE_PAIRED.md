@@ -61,7 +61,7 @@ Total n-gram tokens: stock=30487, antislop=31308.
 | notes at | 12 | 7 | 1.7208 | 0 |
 
 ### antislop-favored
-antislop-favored entries are diagnostic only — they show what the antislop model avoided, never a source of substitution-pair replacement text; any replacement text must be hand-picked from corpus/human train docs per inventory-v1.toml's curation convention.
+antislop-favored entries are diagnostic only — they show what the antislop model avoided, never a source of substitution-pair replacement text; any replacement text must be hand-picked from corpus/human train docs per inventory-en-v1.toml's curation convention.
 | n-gram | stock count | antislop count | score | human_train_count |
 |---|---|---|---|---|
 | where the | 2 | 12 | 5.0312 | 38 |
@@ -173,7 +173,7 @@ Total n-gram tokens: stock=25696, antislop=26611.
 | this is the | 8 | 9 | 0.9254 | 34 |
 
 ### antislop-favored
-antislop-favored entries are diagnostic only — they show what the antislop model avoided, never a source of substitution-pair replacement text; any replacement text must be hand-picked from corpus/human train docs per inventory-v1.toml's curation convention.
+antislop-favored entries are diagnostic only — they show what the antislop model avoided, never a source of substitution-pair replacement text; any replacement text must be hand-picked from corpus/human train docs per inventory-en-v1.toml's curation convention.
 | n-gram | stock count | antislop count | score | human_train_count |
 |---|---|---|---|---|
 | to create a | 0 | 6 | 15.4499 | 33 |
@@ -238,7 +238,7 @@ Total n-gram tokens: stock=21539, antislop=22589.
 | notes at the very | 4 | 5 | 0.8545 | 0 |
 
 ### antislop-favored
-antislop-favored entries are diagnostic only — they show what the antislop model avoided, never a source of substitution-pair replacement text; any replacement text must be hand-picked from corpus/human train docs per inventory-v1.toml's curation convention.
+antislop-favored entries are diagnostic only — they show what the antislop model avoided, never a source of substitution-pair replacement text; any replacement text must be hand-picked from corpus/human train docs per inventory-en-v1.toml's curation convention.
 | n-gram | stock count | antislop count | score | human_train_count |
 |---|---|---|---|---|
 | model or description e | 0 | 4 | 10.4887 | 0 |

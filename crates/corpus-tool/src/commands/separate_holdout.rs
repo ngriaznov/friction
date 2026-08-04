@@ -23,7 +23,7 @@
 //! This command changes no metric, envelope, or rule: it is measurement
 //! plumbing only, scored against the envelope pack `corpus-tool envelope`
 //! already froze from the train split (`--envelope`, defaulted to the
-//! same shipped `envelope-v2.toml` `separate` uses). As with `separate`,
+//! same shipped `envelope-en-v2.toml` `separate` uses). As with `separate`,
 //! quarantined (CC-BY-SA) human docs are not excluded — quarantine only
 //! restricts redistributing document *text*, not measuring it.
 
@@ -54,7 +54,10 @@ pub struct Args {
     /// same one `separate` scores the dev split against) used for the
     /// combined score. Already frozen before this run; never refit
     /// against holdout data.
-    #[arg(long, default_value = "crates/friction-packs/packs/envelope-v2.toml")]
+    #[arg(
+        long,
+        default_value = "crates/friction-packs/packs/envelope-en-v2.toml"
+    )]
     pub envelope: PathBuf,
     /// Path to the release `friction` binary. Invoked as `<bin> fix
     /// <path> --genre <genre>`, one subprocess per llm-holdout doc, to

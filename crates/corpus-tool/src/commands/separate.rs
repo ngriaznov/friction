@@ -40,7 +40,10 @@ pub struct Args {
     pub corpus_dir: PathBuf,
     /// Path to the envelope pack (`corpus-tool envelope`'s output) used
     /// for the combined score.
-    #[arg(long, default_value = "crates/friction-packs/packs/envelope-v2.toml")]
+    #[arg(
+        long,
+        default_value = "crates/friction-packs/packs/envelope-en-v2.toml"
+    )]
     pub envelope: PathBuf,
     /// Path to write the markdown separation report to.
     #[arg(long)]

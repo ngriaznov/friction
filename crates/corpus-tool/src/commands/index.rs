@@ -60,7 +60,10 @@ pub struct Args {
     #[arg(long, default_value = "corpus")]
     pub corpus_dir: PathBuf,
     /// Path to write the versioned DMS index pack to.
-    #[arg(long, default_value = "crates/friction-packs/packs/dms-index-v1.toml")]
+    #[arg(
+        long,
+        default_value = "crates/friction-packs/packs/dms-index-en-v1.toml"
+    )]
     pub pack: PathBuf,
     /// Also build the five automata in-process and report dev-split
     /// (never holdout) per-family classification accuracy: a regression
@@ -287,7 +290,7 @@ fn toml_quote(text: &str) -> String {
 }
 
 /// Renders a comma-joined `ids` field value: see the module docs (and
-/// `crates/friction-packs/packs/dms-index-v1.toml`'s own header comment,
+/// `crates/friction-packs/packs/dms-index-en-v1.toml`'s own header comment,
 /// once generated) for why this is one string rather than a native TOML
 /// integer array.
 fn render_ids_csv(ids: &[u32]) -> String {

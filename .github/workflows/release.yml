@@ -181,14 +181,14 @@ jobs:
           v="${{ needs.version.outputs.version }}"
           for f in crates/friction-nlp/weights/parser_en.bin \
                    crates/friction-nlp/weights/perceptron_en.bin \
-                   crates/friction-packs/packs/jargon-attest-v1.bin \
-                   crates/friction-packs/packs/dms-index-v1.bin; do
+                   crates/friction-packs/packs/jargon-attest-en-v1.bin \
+                   crates/friction-packs/packs/dms-index-en-v1.bin; do
             name="friction-data-${v}-$(basename "$f")"
             cp "$f" "dist/$name"
             shasum -a 256 "dist/$name" | cut -d' ' -f1 > "dist/$name.sha256"
           done
-          cp crates/friction-packs/packs/jargon-attest-v1.toml \
-            "dist/friction-data-${v}-jargon-attest-v1.toml"
+          cp crates/friction-packs/packs/jargon-attest-en-v1.toml \
+            "dist/friction-data-${v}-jargon-attest-en-v1.toml"
 
       - run: ls -l dist
 

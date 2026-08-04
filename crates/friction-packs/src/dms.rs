@@ -2,7 +2,7 @@
 //! suffix automata a fix-time detection pass compares a document against.
 //!
 //! `corpus-tool index` only ever writes token-id streams plus a shared
-//! vocabulary to a versioned TOML pack (`dms-index-v1.toml`); this module
+//! vocabulary to a versioned TOML pack (`dms-index-en-v1.toml`); this module
 //! is the read side, turning that pack into in-memory, queryable suffix
 //! automata — the same "embedded TOML -> in-memory struct" shape
 //! [`crate::EnvelopePack`] already established for this crate. A

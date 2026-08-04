@@ -4,7 +4,7 @@
 //! [`xorf::BinaryFuse8`] filter over ~2M case-folded, multiword concept
 //! keys mined from Wikipedia article titles (CC BY-SA 4.0 + GFDL) and
 //! `OpenAlex` Topics display names (CC0), embedded in the binary as a
-//! versioned pack (`packs/jargon-attest-v1.bin` + its `.toml` sidecar).
+//! versioned pack (`packs/jargon-attest-en-v1.bin` + its `.toml` sidecar).
 //!
 //! # Collision direction is safe by construction
 //!

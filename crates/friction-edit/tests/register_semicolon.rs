@@ -6,7 +6,7 @@
 //! and leaves grammatical output on realistic input.
 //!
 //! Unlike `register_em_dash.rs`, the semicolon band is nonzero (see
-//! `register-v1.toml`'s `[features.semicolon]`), so this file also
+//! `register-en-v1.toml`'s `[features.semicolon]`), so this file also
 //! covers the case em-dash's own `[0, 0]` band couldn't have: a document
 //! whose semicolon rate already sits *inside* the band must come back
 //! byte-identical, proving the register pass stops at the band's edge
@@ -22,7 +22,7 @@ fn count_semicolons(text: &str) -> usize {
 }
 
 /// A document well above the semicolon band (high = 3.6563 per 1000
-/// prose words -- see `register-v1.toml`'s `[features.semicolon]`),
+/// prose words -- see `register-en-v1.toml`'s `[features.semicolon]`),
 /// every sentence a semicolon joining two independent clauses, T7's one
 /// rewrite shape.
 const ABOVE_BAND: &str = "The job reads from the queue; it commits offsets only after the \

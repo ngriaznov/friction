@@ -117,6 +117,6 @@ fn pack_check_fails_on_a_frequency_hygiene_violation() {
 #[test]
 fn pack_check_succeeds_on_the_real_shipped_inventory_v1_pack() {
     let manifest_dir = env!("CARGO_MANIFEST_DIR");
-    let pack = PathBuf::from(manifest_dir).join("../friction-packs/packs/inventory-v1.toml");
+    let pack = PathBuf::from(manifest_dir).join("../friction-packs/packs/inventory-en-v1.toml");
     pack_check::run(&Args { pack }).unwrap();
 }

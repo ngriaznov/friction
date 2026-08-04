@@ -102,11 +102,11 @@ fn density_per_1000_tokens(document: &Document, occurrences: u64) -> f64 {
 // ---------------------------------------------------------------------
 
 /// Embedded `mined-ngrams-v1` pack source, pulled in at compile time —
-/// see `friction-packs/packs/mined-ngrams-v1.toml` for curation rationale.
+/// see `friction-packs/packs/mined-ngrams-en-v1.toml` for curation rationale.
 /// Embedding raw TOML (vs. depending on `friction-packs`) keeps this
 /// family's only coupling to that pack a build-time file read, not a
 /// crate dependency.
-const MINED_PACK_SOURCE: &str = include_str!("../../friction-packs/packs/mined-ngrams-v1.toml");
+const MINED_PACK_SOURCE: &str = include_str!("../../friction-packs/packs/mined-ngrams-en-v1.toml");
 
 /// One curated n-gram entry from the mined pack. Only `ngram` is used;
 /// `z` and `category` are left unparsed rather than declared unused.
@@ -128,12 +128,12 @@ struct MinedPack {
 /// The embedded pack, parsed once and reused for the life of the process.
 ///
 /// # Panics
-/// Panics if the embedded `mined-ngrams-v1.toml` fails to parse — a
+/// Panics if the embedded `mined-ngrams-en-v1.toml` fails to parse — a
 /// malformed pack shipped with this crate (see `mined_pack_parses`), not
 /// something a caller can fix by retrying.
 static MINED_PACK: LazyLock<MinedPack> = LazyLock::new(|| {
     toml::from_str(MINED_PACK_SOURCE)
-        .expect("embedded mined-ngrams-v1.toml must parse: see this module's tests")
+        .expect("embedded mined-ngrams-en-v1.toml must parse: see this module's tests")
 });
 
 /// [`MINED_PACK`]'s llm-favored entries, pre-tokenized once via
@@ -178,7 +178,7 @@ fn phrase_rate(document: &Document, phrases: &[Vec<String>]) -> f64 {
 
 /// Rate of llm-favored n-grams, per 1000 word tokens.
 ///
-/// From `crates/friction-packs/packs/mined-ngrams-v1.toml`'s
+/// From `crates/friction-packs/packs/mined-ngrams-en-v1.toml`'s
 /// `llm_favored` list, matched case-insensitively at word boundaries: a
 /// phrase never matches inside a longer word.
 #[must_use]

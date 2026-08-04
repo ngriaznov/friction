@@ -43,7 +43,7 @@ artifact-size multiplier for no benefit). It's embedded **raw, uncompressed**.
 straight over the `include_bytes!`'d static: no `HashMap` is built, no
 feature string is re-hashed, no per-feature array is allocated, and (being
 uncompressed) nothing is decompressed either. This mirrors
-`friction-packs/packs/jargon-attest-v1.bin`'s own embedded `BinaryFuse8`
+`friction-packs/packs/jargon-attest-en-v1.bin`'s own embedded `BinaryFuse8`
 filter (bytes in, a view out, zero construction), which is itself the
 precedent this format follows. See `friction_nlp::weights_bin`'s module
 docs for the shared header/hash-table primitives and each of
@@ -141,7 +141,7 @@ tag verbatim, since its first character is not alphabetic) needed no
 change either: the new punctuation tags are already members of a small
 closed set themselves, so "return it verbatim" is now exactly the right
 coarse behavior, not a loophole. The one real consumer of the *old*
-scheme's surface-text tags (`friction-packs/packs/attestation-v1.toml`'s
+scheme's surface-text tags (`friction-packs/packs/attestation-en-v1.toml`'s
 skeleton pack, built by `corpus-tool attest` calling `coarse_tag` over
 every token including punctuation) goes stale from this change and is
 regenerated separately, outside this task's scope (see that pack's own

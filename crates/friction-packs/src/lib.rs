@@ -5,7 +5,7 @@
 //! # Envelope bands
 //!
 //! [`EnvelopePack`] parses the TOML file `corpus-tool envelope` writes
-//! (`packs/envelope-v2.toml`, embedded into this crate and exposed
+//! (`packs/envelope-en-v2.toml`, embedded into this crate and exposed
 //! pre-parsed as [`ENVELOPE_V2`]) into a `(genre, metric) -> [lo, hi]`
 //! lookup, used by `friction check`'s metric guardrails.
 //!
@@ -22,7 +22,7 @@
 //! # DMS index
 //!
 //! [`DmsIndex`] parses the token-id-stream pack `corpus-tool index`
-//! writes (`packs/dms-index-v1.toml`) into a shared [`Vocab`] plus one
+//! writes (`packs/dms-index-en-v1.toml`) into a shared [`Vocab`] plus one
 //! suffix automaton ([`Sam`]) per stream — the human corpus, whichever of
 //! the five [`ModelFamily`] generator corpora the pack defines, and one
 //! more: [`DmsIndex::pooled_machine_sam`], every present family stream
@@ -34,7 +34,7 @@
 //! the audited source, used offline; the runtime pass reads [`DMS`]
 //! instead — a zero-copy [`DmsIndexView`] over the derived artifact
 //! `corpus-tool dms-pack` serializes the finished automata into
-//! (`packs/dms-index-v1.bin`, embedded), so process start pays no TOML
+//! (`packs/dms-index-en-v1.bin`, embedded), so process start pays no TOML
 //! parse or automaton construction. See `dms_bin`'s module docs for the
 //! layout and the drift guard keeping the two representations in
 //! lockstep.
@@ -42,7 +42,7 @@
 //! # Inventory pack
 //!
 //! [`InventoryPack`] parses the curated tell-span inventory
-//! (`packs/inventory-v1.toml`, embedded and exposed pre-parsed as
+//! (`packs/inventory-en-v1.toml`, embedded and exposed pre-parsed as
 //! [`INVENTORY`]) into typed, deterministically-sorted tables: deletion
 //! spans, substitution pairs, ritual frames, a (currently empty)
 //! preview-frame family, licensed light-verb-construction pairs, guard
@@ -55,7 +55,7 @@
 //! # Attestation pack
 //!
 //! [`AttestationPack`] parses the seam-bigram and POS-skeleton mining
-//! output `corpus-tool attest` writes (`packs/attestation-v1.toml`,
+//! output `corpus-tool attest` writes (`packs/attestation-en-v1.toml`,
 //! embedded and exposed pre-parsed as [`ATTESTATION`]) into a
 //! [`BigramTable`] (has this exact word pair been observed adjacent to
 //! each other in the TRAIN human corpus) and a [`SkeletonSet`] (has this
@@ -69,7 +69,7 @@
 //! # Register pack
 //!
 //! [`RegisterPack`] parses the two-feature human rate-band pack
-//! (`packs/register-v1.toml`, embedded and exposed pre-parsed as
+//! (`packs/register-en-v1.toml`, embedded and exposed pre-parsed as
 //! [`REGISTER`]) `friction-edit`'s register module homes toward: a
 //! `[low, high]` band per feature (nominalization, agentless passive),
 //! measured per 1000 prose words from the train-split `docs` genre. See
@@ -79,7 +79,7 @@
 //! # Jargon pack
 //!
 //! [`JargonPack`] parses the curated metaphor-lexeme pack
-//! (`packs/jargon-v1.toml`, embedded and exposed pre-parsed as [`JARGON`])
+//! (`packs/jargon-en-v1.toml`, embedded and exposed pre-parsed as [`JARGON`])
 //! `friction-match`'s `jargon.metaphor` channel flags against: a lexeme
 //! list (each with `source`/`notes` provenance) and a small
 //! attested-exceptions allowlist of established compounds never flagged.
@@ -88,7 +88,7 @@
 //! # Jargon attestation pack
 //!
 //! [`jargon_attest`] parses the web-scale compound attestation pack
-//! (`packs/jargon-attest-v1.bin` + its `.toml` sidecar, embedded and
+//! (`packs/jargon-attest-en-v1.bin` + its `.toml` sidecar, embedded and
 //! exposed pre-parsed as [`JARGON_ATTEST`]) into a [`JargonAttestPack`]: a
 //! `BinaryFuse8` filter over ~2M normalized Wikipedia-title/OpenAlex-topic
 //! compound keys, replacing the bottleneck of a hand-curated exception
@@ -99,7 +99,7 @@
 //! # Human evidence pack
 //!
 //! [`human_evidence`] parses the external human-corpus evidence pack
-//! (`packs/human-evidence-v1.bin`, embedded and exposed pre-parsed as
+//! (`packs/human-evidence-en-v1.bin`, embedded and exposed pre-parsed as
 //! [`HUMAN_EVIDENCE`]) `corpus-tool human-evidence` mines from
 //! locally-staged external human corpora: unigram and literal-probe
 //! occurrence counts that pool into [`frame_compile::CorpusEvidence`],

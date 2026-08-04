@@ -381,7 +381,7 @@ struct ReportHeader {
 /// docs).
 const ANTISLOP_FAVORED_BANNER: &str = "antislop-favored entries are diagnostic only — they show \
 what the antislop model avoided, never a source of substitution-pair replacement text; any \
-replacement text must be hand-picked from corpus/human train docs per inventory-v1.toml's \
+replacement text must be hand-picked from corpus/human train docs per inventory-en-v1.toml's \
 curation convention.";
 
 fn render_report(header: &ReportHeader, orders: &[PairedOrderReport]) -> String {

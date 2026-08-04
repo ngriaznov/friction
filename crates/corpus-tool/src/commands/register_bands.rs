@@ -2,7 +2,7 @@
 //! semicolon rates over the train-split human docs-genre population.
 //!
 //! For hand-transcribing into
-//! `crates/friction-packs/packs/register-v1.toml`'s `[features.em_dash]`
+//! `crates/friction-packs/packs/register-en-v1.toml`'s `[features.em_dash]`
 //! and `[features.semicolon]`. Runs through
 //! [`friction_edit::register::measure_em_dash_rate`]/
 //! [`friction_edit::register::measure_semicolon_rate`] — the same
@@ -43,7 +43,7 @@ struct DocRates {
 /// each document's per-1000-prose-word em-dash and semicolon rates, and
 /// prints each document's pair of rates plus both populations'
 /// 10th/50th/90th percentile (nearest-rank, the same method
-/// `register-v1.toml`'s existing bands were measured with).
+/// `register-en-v1.toml`'s existing bands were measured with).
 ///
 /// # Errors
 /// Returns an error if the manifest or a referenced document can't be

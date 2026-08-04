@@ -3,7 +3,7 @@
 //!
 //! Re-derives every rule's verdict straight from the shipped corpora and
 //! reports where the re-measurement agrees or disagrees with the verdict
-//! already recorded in `frame-rules-v1.toml`.
+//! already recorded in `frame-rules-en-v1.toml`.
 //!
 //! For every rule in all seven buckets (`rules_ship`, `rules_flip`,
 //! `rules_surface`, `rules_pilot`, `rules_quarantine`,
@@ -108,7 +108,7 @@ pub struct Args {
     /// Path to the frame-rewrite rule set to adjudicate.
     #[arg(
         long,
-        default_value = "crates/friction-packs/packs/frame-rules-v1.toml"
+        default_value = "crates/friction-packs/packs/frame-rules-en-v1.toml"
     )]
     pub rules: PathBuf,
     /// Report format.
@@ -126,7 +126,7 @@ pub struct Args {
     pub regenerate: bool,
 }
 
-/// The seven buckets `frame-rules-v1.toml` carries, in the fixed order
+/// The seven buckets `frame-rules-en-v1.toml` carries, in the fixed order
 /// this command reports them (the same order the rule-set file itself
 /// declares them in).
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -917,7 +917,8 @@ pub fn run(args: &Args) -> anyhow::Result<()> {
             .ok()
             .and_then(|bytes| HumanEvidencePack::load(&bytes).ok())
     };
-    let review_pair = load_pack("machine-evidence-v1.bin").zip(load_pack("human-evidence-v1.bin"));
+    let review_pair =
+        load_pack("machine-evidence-en-v1.bin").zip(load_pack("human-evidence-en-v1.bin"));
     let measured = aggregate_measurements(
         &rows,
         &probes,
@@ -1103,7 +1104,7 @@ fn regenerate_rule_set(
     out.push_str(
         "# frame-rules-v1 — adjudicated frame_rewrite rule set (source artifact).\n#\n\
          # COMPILE FENCE: only rules_ship, rules_flip, rules_surface and\n\
-         # rules_pilot may compile into frame-pack-v1.bin; rules_quarantine,\n\
+         # rules_pilot may compile into frame-pack-en-v1.bin; rules_quarantine,\n\
          # rules_no_evidence and rules_staged_surface are staged evidence for\n\
          # `corpus-tool adjudicate` and MUST NOT compile.\n#\n\
          # m_pm / h_pm are measured occurrences per million tokens in\n\

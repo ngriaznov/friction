@@ -4,7 +4,7 @@
 //! agentless passive, em dash, semicolon — toward their human rate band by selecting and
 //! applying [`friction_register::transduce`] candidates. The first two are Biber constructions;
 //! the last two aren't Biber's, but the same band-and-transducer machinery applies to them
-//! unchanged (see `register-v1.toml`'s `[features.em_dash]`/`[features.semicolon]`).
+//! unchanged (see `register-en-v1.toml`'s `[features.em_dash]`/`[features.semicolon]`).
 //!
 //! # Termination is the band, not the median
 //!

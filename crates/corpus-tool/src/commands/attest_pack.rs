@@ -9,7 +9,7 @@
 //! startup cost it removes).
 //!
 //! Deterministic and fully offline: the input is the vendored
-//! `attestation-v1.toml` already checked into `crates/friction-packs/
+//! `attestation-en-v1.toml` already checked into `crates/friction-packs/
 //! packs/`, written by `corpus-tool attest`. This command hands its text
 //! to [`friction_packs::pack_attestation_bin`] — which records the
 //! TOML's sha256 in the artifact header, so a stale `.bin` (TOML
@@ -26,14 +26,17 @@ use clap::Args as ClapArgs;
 /// Arguments for `corpus-tool attest-pack`.
 #[derive(Debug, ClapArgs)]
 pub struct Args {
-    /// Path to the vendored `attestation-v1.toml` pack.
+    /// Path to the vendored `attestation-en-v1.toml` pack.
     #[arg(
         long,
-        default_value = "crates/friction-packs/packs/attestation-v1.toml"
+        default_value = "crates/friction-packs/packs/attestation-en-v1.toml"
     )]
     pub attestation_toml: PathBuf,
     /// Path to write the derived binary artifact to.
-    #[arg(long, default_value = "crates/friction-packs/packs/attestation-v1.bin")]
+    #[arg(
+        long,
+        default_value = "crates/friction-packs/packs/attestation-en-v1.bin"
+    )]
     pub out_bin: PathBuf,
 }
 
@@ -78,9 +81,9 @@ mod tests {
             .canonicalize()
             .expect("workspace root exists");
         let toml_text = std::fs::read_to_string(
-            repo_root.join("crates/friction-packs/packs/attestation-v1.toml"),
+            repo_root.join("crates/friction-packs/packs/attestation-en-v1.toml"),
         )
-        .expect("vendored attestation-v1.toml exists");
+        .expect("vendored attestation-en-v1.toml exists");
         let first = friction_packs::pack_attestation_bin(&toml_text).expect("vendored pack packs");
         let second = friction_packs::pack_attestation_bin(&toml_text).expect("vendored pack packs");
         assert_eq!(first, second);

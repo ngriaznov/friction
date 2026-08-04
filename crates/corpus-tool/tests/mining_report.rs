@@ -1,6 +1,6 @@
 //! Guards against `corpus/MINING.md` drifting from the exact `mine`
 //! invocation documented as its own generation command, and from the
-//! provenance command `crates/friction-packs/packs/mined-ngrams-v1.toml`
+//! provenance command `crates/friction-packs/packs/mined-ngrams-en-v1.toml`
 //! claims it was curated from.
 //!
 //! This exercises the real, committed `corpus/` directory (not a tempdir
@@ -14,7 +14,7 @@ use std::path::Path;
 
 use corpus_tool::commands::mine::{self, Args, NgramOrderArg};
 
-/// The exact flags `crates/friction-packs/packs/mined-ngrams-v1.toml`'s
+/// The exact flags `crates/friction-packs/packs/mined-ngrams-en-v1.toml`'s
 /// provenance comment claims `corpus/MINING.md` was produced with:
 /// `corpus-tool mine --n all --top 120 --min-count 5 --report <path>`.
 /// If that provenance comment ever changes, this constant (and the
@@ -66,7 +66,7 @@ fn mining_report_matches_documented_provenance_command() {
         regenerated, committed,
         "corpus/MINING.md does not match `corpus-tool mine --n all --top {DOCUMENTED_TOP} \
          --min-count {DOCUMENTED_MIN_COUNT} --report <path>` (the provenance command documented \
-         in crates/friction-packs/packs/mined-ngrams-v1.toml) — regenerate it with that exact \
+         in crates/friction-packs/packs/mined-ngrams-en-v1.toml) — regenerate it with that exact \
          command"
     );
 
@@ -100,7 +100,7 @@ fn mining_report_contains_entries_named_in_pack_curation_rationale() {
         assert!(
             committed.contains(needle),
             "corpus/MINING.md is missing {needle:?}, which \
-             crates/friction-packs/packs/mined-ngrams-v1.toml's curation rationale names as a \
+             crates/friction-packs/packs/mined-ngrams-en-v1.toml's curation rationale names as a \
              raw top-120 entry a reviewer should be able to see and verify was dropped"
         );
     }

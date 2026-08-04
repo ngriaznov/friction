@@ -35,7 +35,10 @@ pub struct Args {
     #[arg(long, default_value = "corpus")]
     pub corpus_dir: PathBuf,
     /// Path to write the versioned envelope pack to.
-    #[arg(long, default_value = "crates/friction-packs/packs/envelope-v2.toml")]
+    #[arg(
+        long,
+        default_value = "crates/friction-packs/packs/envelope-en-v2.toml"
+    )]
     pub out: PathBuf,
     /// Lower percentile of the band (nearest-rank method; see module
     /// docs).

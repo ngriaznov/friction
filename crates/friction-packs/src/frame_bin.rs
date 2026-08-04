@@ -882,9 +882,9 @@ mod tests {
     use crate::frame_rules::FrameRuleSet;
 
     fn shipped_pack() -> CompiledPack {
-        let set = FrameRuleSet::parse(include_str!("../packs/frame-rules-v1.toml"))
+        let set = FrameRuleSet::parse(include_str!("../packs/frame-rules-en-v1.toml"))
             .expect("shipped rules parse");
-        let rates = CorpusEvidence::from_dms_toml(include_str!("../packs/dms-index-v1.toml"))
+        let rates = CorpusEvidence::from_dms_toml(include_str!("../packs/dms-index-en-v1.toml"))
             .expect("shipped dms index parses");
         compile(&set, &rates).expect("shipped set compiles").0
     }

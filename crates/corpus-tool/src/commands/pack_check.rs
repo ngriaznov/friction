@@ -8,7 +8,10 @@ use clap::Args as ClapArgs;
 #[derive(Debug, ClapArgs)]
 pub struct Args {
     /// Path to the inventory pack TOML file to check.
-    #[arg(long, default_value = "crates/friction-packs/packs/inventory-v1.toml")]
+    #[arg(
+        long,
+        default_value = "crates/friction-packs/packs/inventory-en-v1.toml"
+    )]
     pub pack: PathBuf,
 }
 

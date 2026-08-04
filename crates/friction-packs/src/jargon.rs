@@ -10,7 +10,7 @@
 //!
 //! This module is the read side only: [`JargonPack::parse`] turns the
 //! pack's TOML shape into typed, validated, deterministically-sorted
-//! in-memory tables. `crates/friction-packs/packs/jargon-v1.toml` itself
+//! in-memory tables. `crates/friction-packs/packs/jargon-en-v1.toml` itself
 //! is hand-curated. See that file's own header comment.
 
 use std::collections::BTreeSet;

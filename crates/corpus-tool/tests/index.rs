@@ -52,7 +52,7 @@ fn index_respects_train_only_data_protocol() {
     let dir = tempfile::tempdir().unwrap();
     build_mini_corpus(dir.path());
 
-    let pack_path = dir.path().join("dms-index-v1.toml");
+    let pack_path = dir.path().join("dms-index-en-v1.toml");
     index::run(&args(dir.path(), pack_path.clone())).unwrap();
     let text = std::fs::read_to_string(&pack_path).unwrap();
 
@@ -80,7 +80,7 @@ fn index_never_touches_holdout_lock() {
     let sentinel = "h004\tdeadbeef\thuman/docs/h004.md\n";
     std::fs::write(&lock_path, sentinel).unwrap();
 
-    let pack_path = dir.path().join("dms-index-v1.toml");
+    let pack_path = dir.path().join("dms-index-en-v1.toml");
     index::run(&args(dir.path(), pack_path)).unwrap();
 
     let after = std::fs::read_to_string(&lock_path).unwrap();
@@ -119,7 +119,7 @@ fn index_errors_on_unmapped_model_family() {
     });
     common::write_manifest_raw(&dir.path().join("manifest.jsonl"), &[record]);
 
-    let pack_path = dir.path().join("dms-index-v1.toml");
+    let pack_path = dir.path().join("dms-index-en-v1.toml");
     let err = index::run(&args(dir.path(), pack_path)).unwrap_err();
     assert!(
         err.to_string().contains("unmapped model family"),
@@ -135,7 +135,7 @@ fn index_output_round_trips_through_dms_index_parse() {
     let dir = tempfile::tempdir().unwrap();
     build_mini_corpus(dir.path());
 
-    let pack_path = dir.path().join("dms-index-v1.toml");
+    let pack_path = dir.path().join("dms-index-en-v1.toml");
     index::run(&args(dir.path(), pack_path.clone())).unwrap();
     let text = std::fs::read_to_string(&pack_path).unwrap();
 
@@ -170,7 +170,7 @@ fn index_calibrate_runs_without_error_on_empty_dev_split() {
     let dir = tempfile::tempdir().unwrap();
     build_mini_corpus(dir.path());
 
-    let pack_path = dir.path().join("dms-index-v1.toml");
+    let pack_path = dir.path().join("dms-index-en-v1.toml");
     let mut calibrated_args = args(dir.path(), pack_path);
     calibrated_args.calibrate = true;
     index::run(&calibrated_args).unwrap();

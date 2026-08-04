@@ -25,7 +25,7 @@
 //! `0` for an absent word, reflecting that.
 //!
 //! The probe table has no such floor: it always contains exactly the
-//! literal probes `frame-rules-v1.toml` produced when the pack was
+//! literal probes `frame-rules-en-v1.toml` produced when the pack was
 //! built (every knowledge-bucket rule's [`crate::frame_rules::literal_probes`]
 //! output plus every pilot rule's whitespace-split phrase), each with its
 //! real measured count — including an honest `0`. A phrase's *absence*
@@ -39,7 +39,7 @@
 //!
 //! The external human corpora this pack draws from live outside the
 //! repository (large, living datasets, not vendored). Until they are
-//! staged, `packs/human-evidence-v1.bin` is the *empty* pack — built by
+//! staged, `packs/human-evidence-en-v1.bin` is the *empty* pack — built by
 //! running `corpus-tool human-evidence` with zero `--input` directories:
 //! an empty unigram table, an empty probe table, `total_tokens = 0`. Every
 //! pooling accessor on [`crate::frame_compile::CorpusEvidence`] is a
@@ -342,7 +342,7 @@ impl HumanEvidencePack {
     }
 
     /// `words`' external non-overlapping occurrence count, if `words` was
-    /// one of `frame-rules-v1.toml`'s own literal probes when this pack
+    /// one of `frame-rules-en-v1.toml`'s own literal probes when this pack
     /// was built. `None` means exactly that it was not: "never measured",
     /// not "measured zero" (see this module's own docs).
     #[must_use]

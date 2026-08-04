@@ -1,5 +1,5 @@
 //! Derived binary DMS artifact: the pre-built suffix automata
-//! `packs/dms-index-v1.toml` describes, serialized flat so runtime never
+//! `packs/dms-index-en-v1.toml` describes, serialized flat so runtime never
 //! builds them again.
 //!
 //! # Why this exists

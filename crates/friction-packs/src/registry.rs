@@ -25,40 +25,41 @@ pub struct LoadedPack<T> {
     pub sha256: Sha256,
 }
 
-/// The embedded `inventory-v1.toml` source — 32 KB, cheap to embed, like
+/// The embedded `inventory-en-v1.toml` source — 32 KB, cheap to embed, like
 /// `ENVELOPE_V2_TOML`.
-const INVENTORY_V1_TOML: &str = include_str!("../packs/inventory-v1.toml");
+const INVENTORY_V1_TOML: &str = include_str!("../packs/inventory-en-v1.toml");
 
 /// The embedded derived DMS artifact — every stream's suffix automaton
 /// pre-built by `corpus-tool dms-pack` and serialized flat (see
 /// [`crate::dms_bin`]'s module docs for the layout and why). The source
-/// `dms-index-v1.toml` stays in `packs/` as the audited artifact
+/// `dms-index-en-v1.toml` stays in `packs/` as the audited artifact
 /// `corpus-tool index` writes, but is no longer embedded or parsed at
 /// runtime: this crate's `dms_bin` drift test re-packs it and compares
 /// bytes, so the two cannot silently diverge.
-const DMS_INDEX_V1_BIN: &[u8] = include_bytes!("../packs/dms-index-v1.bin");
+const DMS_INDEX_V1_BIN: &[u8] = include_bytes!("../packs/dms-index-en-v1.bin");
 
 /// The embedded derived frame-rewrite pack — the compiled rule program
-/// `corpus-tool frame-pack` builds from `frame-rules-v1.toml` after
+/// `corpus-tool frame-pack` builds from `frame-rules-en-v1.toml` after
 /// running the whole compile fence. ~115 KB.
-const FRAME_PACK_V1_BIN: &[u8] = include_bytes!("../packs/frame-pack-v1.bin");
+const FRAME_PACK_V1_BIN: &[u8] = include_bytes!("../packs/frame-pack-en-v1.bin");
 
 /// The built-in inventory pack, parsed once from the embedded
-/// `inventory-v1.toml` and reused for the life of the process.
+/// `inventory-en-v1.toml` and reused for the life of the process.
 ///
 /// # Panics
-/// Panics if the embedded `inventory-v1.toml` fails to parse, or if it
+/// Panics if the embedded `inventory-en-v1.toml` fails to parse, or if it
 /// parses but fails audit (disjointness/closure/frequency-hygiene/
 /// guard-token-exposure) — a bug in this crate's own vendored data
 /// (covered by this crate's inventory and validate tests), not a
 /// condition any caller can recover from by retrying.
 pub static INVENTORY: LazyLock<LoadedPack<InventoryPack>> = LazyLock::new(|| {
-    let pack = InventoryPack::parse(INVENTORY_V1_TOML)
-        .expect("embedded inventory-v1.toml must parse: see this crate's inventory/validate tests");
+    let pack = InventoryPack::parse(INVENTORY_V1_TOML).expect(
+        "embedded inventory-en-v1.toml must parse: see this crate's inventory/validate tests",
+    );
     let violations = validate(&pack);
     assert!(
         violations.is_empty(),
-        "embedded inventory-v1.toml failed audit: {violations:#?}"
+        "embedded inventory-en-v1.toml failed audit: {violations:#?}"
     );
     LoadedPack {
         version: pack.version().into(),
@@ -90,7 +91,7 @@ pub fn load_dms_pack(toml: &str) -> Result<LoadedPack<DmsIndex>, PackError> {
 /// The built-in DMS index, viewed zero-copy over the embedded derived
 /// artifact and reused for the life of the process.
 ///
-/// This used to parse the ~2.5 MB `dms-index-v1.toml` and build every
+/// This used to parse the ~2.5 MB `dms-index-en-v1.toml` and build every
 /// suffix automaton on first touch — the whole of `friction`'s measured
 /// fixed startup cost (~90 ms). The view does a handful of slice splits
 /// instead; the construction now happens once, offline, in `corpus-tool
@@ -104,7 +105,8 @@ pub fn load_dms_pack(toml: &str) -> Result<LoadedPack<DmsIndex>, PackError> {
 /// crate's own vendored data (covered by `dms_bin`'s round-trip and
 /// drift tests), not a runtime condition.
 pub static DMS: LazyLock<LoadedPack<DmsIndexView<'static>>> = LazyLock::new(|| {
-    let pack = DmsIndexView::parse(DMS_INDEX_V1_BIN).expect("embedded dms-index-v1.bin must parse");
+    let pack =
+        DmsIndexView::parse(DMS_INDEX_V1_BIN).expect("embedded dms-index-en-v1.bin must parse");
     let sha256 = Sha256::parse_hex(pack.source_sha256_hex())
         .expect("a parsed artifact's recorded sha256 is always 64 hex characters");
     LoadedPack {
@@ -117,7 +119,7 @@ pub static DMS: LazyLock<LoadedPack<DmsIndexView<'static>>> = LazyLock::new(|| {
 /// The built-in frame-rewrite rule program, viewed zero-copy over the
 /// embedded derived artifact and reused for the life of the process.
 ///
-/// The source `frame-rules-v1.toml` never parses at runtime: the whole
+/// The source `frame-rules-en-v1.toml` never parses at runtime: the whole
 /// compile fence — attestation against the DMS human stream included —
 /// ran once, offline, in `corpus-tool frame-pack`. `sha256` records the
 /// **source TOML's** digest (carried in the artifact's own header), the
@@ -129,7 +131,7 @@ pub static DMS: LazyLock<LoadedPack<DmsIndexView<'static>>> = LazyLock::new(|| {
 /// this module's drift tests), not a runtime condition.
 pub static FRAME: LazyLock<LoadedPack<FramePackView<'static>>> = LazyLock::new(|| {
     let pack =
-        FramePackView::parse(FRAME_PACK_V1_BIN).expect("embedded frame-pack-v1.bin must parse");
+        FramePackView::parse(FRAME_PACK_V1_BIN).expect("embedded frame-pack-en-v1.bin must parse");
     let sha256 = Sha256::parse_hex(pack.source_sha256_hex())
         .expect("a parsed artifact's recorded sha256 is always 64 hex characters");
     LoadedPack {
@@ -142,16 +144,16 @@ pub static FRAME: LazyLock<LoadedPack<FramePackView<'static>>> = LazyLock::new(|
 /// The embedded derived attestation artifact — the bigram/skeleton
 /// tables pre-flattened by `corpus-tool attest-pack` (see the artifact
 /// layout docs in [`crate::attestation`]). The source
-/// `attestation-v1.toml` stays in `packs/` as the audited artifact
+/// `attestation-en-v1.toml` stays in `packs/` as the audited artifact
 /// `corpus-tool attest` writes, but is no longer embedded or parsed at
 /// runtime: this module's drift test re-packs it and compares bytes, so
 /// the two cannot silently diverge.
-const ATTESTATION_V1_BIN: &[u8] = include_bytes!("../packs/attestation-v1.bin");
+const ATTESTATION_V1_BIN: &[u8] = include_bytes!("../packs/attestation-en-v1.bin");
 
 /// The built-in attestation pack, viewed zero-copy over the embedded
 /// derived artifact and reused for the life of the process.
 ///
-/// This used to parse the ~1.8 MB `attestation-v1.toml` on first touch —
+/// This used to parse the ~1.8 MB `attestation-en-v1.toml` on first touch —
 /// measured ~25 ms, the largest single slice of `friction`'s fixed
 /// startup cost after [`DMS`]'s own conversion. The view does header
 /// validation plus slice splits instead; the flattening now happens
@@ -166,7 +168,7 @@ const ATTESTATION_V1_BIN: &[u8] = include_bytes!("../packs/attestation-v1.bin");
 /// round-trip and drift tests), not a runtime condition.
 pub static ATTESTATION: LazyLock<LoadedPack<AttestationPack>> = LazyLock::new(|| {
     let (pack, sha_hex) = AttestationPack::from_bin(ATTESTATION_V1_BIN)
-        .expect("embedded attestation-v1.bin must parse: see this crate's attestation tests");
+        .expect("embedded attestation-en-v1.bin must parse: see this crate's attestation tests");
     LoadedPack {
         version: "attestation-v1".into(),
         sha256: Sha256::parse_hex(sha_hex)
@@ -175,21 +177,21 @@ pub static ATTESTATION: LazyLock<LoadedPack<AttestationPack>> = LazyLock::new(||
     }
 });
 
-/// The embedded `register-v1.toml` source — written by hand (measured
+/// The embedded `register-en-v1.toml` source — written by hand (measured
 /// off-line from the train-split `docs` genre; see that file's own header
 /// comment), not generated by a `corpus-tool` subcommand.
-const REGISTER_V1_TOML: &str = include_str!("../packs/register-v1.toml");
+const REGISTER_V1_TOML: &str = include_str!("../packs/register-en-v1.toml");
 
 /// The built-in register pack, parsed once from the embedded
-/// `register-v1.toml` and reused for the life of the process.
+/// `register-en-v1.toml` and reused for the life of the process.
 ///
 /// # Panics
-/// Panics if the embedded `register-v1.toml` fails to parse — a bug in
+/// Panics if the embedded `register-en-v1.toml` fails to parse — a bug in
 /// this crate's own vendored data (covered by this crate's register
 /// tests), not a condition any caller can recover from by retrying.
 pub static REGISTER: LazyLock<LoadedPack<RegisterPack>> = LazyLock::new(|| {
     let pack = RegisterPack::parse(REGISTER_V1_TOML)
-        .expect("embedded register-v1.toml must parse: see this crate's register tests");
+        .expect("embedded register-en-v1.toml must parse: see this crate's register tests");
     LoadedPack {
         version: "register-v1".into(),
         sha256: Sha256::of_bytes(REGISTER_V1_TOML.as_bytes()),
@@ -197,21 +199,21 @@ pub static REGISTER: LazyLock<LoadedPack<RegisterPack>> = LazyLock::new(|| {
     }
 });
 
-/// The embedded `jargon-v1.toml` source — the curated metaphor-lexeme
+/// The embedded `jargon-en-v1.toml` source — the curated metaphor-lexeme
 /// pack, hand-curated (not generated by a `corpus-tool` subcommand); see
 /// that file's own header comment.
-const JARGON_V1_TOML: &str = include_str!("../packs/jargon-v1.toml");
+const JARGON_V1_TOML: &str = include_str!("../packs/jargon-en-v1.toml");
 
 /// The built-in jargon pack, parsed once from the embedded
-/// `jargon-v1.toml` and reused for the life of the process.
+/// `jargon-en-v1.toml` and reused for the life of the process.
 ///
 /// # Panics
-/// Panics if the embedded `jargon-v1.toml` fails to parse — a bug in
+/// Panics if the embedded `jargon-en-v1.toml` fails to parse — a bug in
 /// this crate's own vendored data (covered by this crate's jargon
 /// tests), not a condition any caller can recover from by retrying.
 pub static JARGON: LazyLock<LoadedPack<JargonPack>> = LazyLock::new(|| {
     let pack = JargonPack::parse(JARGON_V1_TOML)
-        .expect("embedded jargon-v1.toml must parse: see this crate's jargon tests");
+        .expect("embedded jargon-en-v1.toml must parse: see this crate's jargon tests");
     LoadedPack {
         version: "jargon-v1".into(),
         sha256: Sha256::of_bytes(JARGON_V1_TOML.as_bytes()),
@@ -219,17 +221,17 @@ pub static JARGON: LazyLock<LoadedPack<JargonPack>> = LazyLock::new(|| {
     }
 });
 
-/// The embedded `jargon-attest-v1.bin` — the web-scale compound
+/// The embedded `jargon-attest-en-v1.bin` — the web-scale compound
 /// attestation filter (`BinaryFuse8` over ~2M normalized Wikipedia-title
 /// and OpenAlex-topic keys), generated by `corpus-tool jargon-attest`;
 /// see that pack's own sidecar for full provenance.
-const JARGON_ATTEST_V1_BIN: &[u8] = include_bytes!("../packs/jargon-attest-v1.bin");
+const JARGON_ATTEST_V1_BIN: &[u8] = include_bytes!("../packs/jargon-attest-en-v1.bin");
 
-/// The embedded `jargon-attest-v1.toml` sidecar — version/key-count
+/// The embedded `jargon-attest-en-v1.toml` sidecar — version/key-count
 /// cross-check plus human-readable provenance (sources, licensing,
 /// normalization/hash spec) for [`JARGON_ATTEST_V1_BIN`]; see that file
 /// itself.
-const JARGON_ATTEST_V1_TOML: &str = include_str!("../packs/jargon-attest-v1.toml");
+const JARGON_ATTEST_V1_TOML: &str = include_str!("../packs/jargon-attest-en-v1.toml");
 
 /// The built-in jargon attestation pack, loaded once from the embedded
 /// `.bin` + `.toml` sidecar and reused for the life of the process.
@@ -248,36 +250,37 @@ pub static JARGON_ATTEST: LazyLock<JargonAttestPack> = LazyLock::new(|| {
         .expect("embedded jargon-attest-v1 pack must load: see this crate's jargon_attest tests")
 });
 
-/// The embedded `human-evidence-v1.bin` — external human-corpus unigram
+/// The embedded `human-evidence-en-v1.bin` — external human-corpus unigram
 /// and literal-probe occurrence counts, generated by `corpus-tool
 /// human-evidence` from locally-staged external corpora; see
 /// [`crate::human_evidence`]'s own module docs for the pack's two tables.
-const HUMAN_EVIDENCE_V1_BIN: &[u8] = include_bytes!("../packs/human-evidence-v1.bin");
+const HUMAN_EVIDENCE_V1_BIN: &[u8] = include_bytes!("../packs/human-evidence-en-v1.bin");
 
-/// The embedded `machine-evidence-v1.bin` — the machine half of the
+/// The embedded `machine-evidence-en-v1.bin` — the machine half of the
 /// review-register evidence pair: probe counts over the committed
 /// LLM-generated review documents in `corpus/review/machine/`, built by
 /// the same `corpus-tool human-evidence` command with
 /// `--pack-name machine-evidence-v1`. Register-matched against
 /// [`HUMAN_EVIDENCE`]'s review-register buckets, never against the DMS
 /// streams — see `crate::frame_compile`'s register-matching docs.
-const MACHINE_EVIDENCE_V1_BIN: &[u8] = include_bytes!("../packs/machine-evidence-v1.bin");
+const MACHINE_EVIDENCE_V1_BIN: &[u8] = include_bytes!("../packs/machine-evidence-en-v1.bin");
 
 /// The built-in human evidence pack.
 ///
-/// Parsed once from the embedded `human-evidence-v1.bin` and reused for
+/// Parsed once from the embedded `human-evidence-en-v1.bin` and reused for
 /// the life of the process.
 /// `crate::frame_compile::CorpusEvidence::with_external` pools it into
 /// every frame-rewrite compile fence: see that method's own docs.
 ///
 /// # Panics
-/// Panics if the embedded `human-evidence-v1.bin` fails to parse — a bug
+/// Panics if the embedded `human-evidence-en-v1.bin` fails to parse — a bug
 /// in this crate's own vendored data (covered by this crate's
 /// `human_evidence` tests), not a condition any caller can recover from
 /// by retrying.
 pub static HUMAN_EVIDENCE: LazyLock<HumanEvidencePack> = LazyLock::new(|| {
-    HumanEvidencePack::load_static(HUMAN_EVIDENCE_V1_BIN)
-        .expect("embedded human-evidence-v1.bin must load: see this crate's human_evidence tests")
+    HumanEvidencePack::load_static(HUMAN_EVIDENCE_V1_BIN).expect(
+        "embedded human-evidence-en-v1.bin must load: see this crate's human_evidence tests",
+    )
 });
 
 /// The built-in machine-review evidence pack (same on-disk format as
@@ -285,12 +288,13 @@ pub static HUMAN_EVIDENCE: LazyLock<HumanEvidencePack> = LazyLock::new(|| {
 /// for the life of the process.
 ///
 /// # Panics
-/// Panics if the embedded `machine-evidence-v1.bin` fails to parse — a
+/// Panics if the embedded `machine-evidence-en-v1.bin` fails to parse — a
 /// bug in this crate's own vendored data, not a condition any caller
 /// can recover from by retrying.
 pub static MACHINE_EVIDENCE: LazyLock<HumanEvidencePack> = LazyLock::new(|| {
-    HumanEvidencePack::load_static(MACHINE_EVIDENCE_V1_BIN)
-        .expect("embedded machine-evidence-v1.bin must load: see this crate's human_evidence tests")
+    HumanEvidencePack::load_static(MACHINE_EVIDENCE_V1_BIN).expect(
+        "embedded machine-evidence-en-v1.bin must load: see this crate's human_evidence tests",
+    )
 });
 
 #[cfg(test)]
@@ -333,7 +337,7 @@ mod tests {
     /// The in-repo source TOML, loaded at test time only — the runtime
     /// embeds the derived `.bin`, and these tests are what keep the two
     /// from diverging.
-    const DMS_INDEX_V1_TOML: &str = include_str!("../packs/dms-index-v1.toml");
+    const DMS_INDEX_V1_TOML: &str = include_str!("../packs/dms-index-en-v1.toml");
 
     #[test]
     fn dms_static_loads_and_defines_every_family() {
@@ -341,7 +345,7 @@ mod tests {
         for family in crate::ModelFamily::ALL {
             assert!(
                 DMS.pack.family_sam(family).is_some(),
-                "embedded dms-index-v1.bin has no stream for {family}"
+                "embedded dms-index-en-v1.bin has no stream for {family}"
             );
         }
     }
@@ -360,16 +364,16 @@ mod tests {
     /// to catch.
     #[test]
     fn dms_bin_is_freshly_packed_from_the_source_toml() {
-        let repacked =
-            crate::pack_dms_index_bin(DMS_INDEX_V1_TOML).expect("in-repo dms-index-v1.toml packs");
+        let repacked = crate::pack_dms_index_bin(DMS_INDEX_V1_TOML)
+            .expect("in-repo dms-index-en-v1.toml packs");
         assert_eq!(
             repacked, DMS_INDEX_V1_BIN,
-            "packs/dms-index-v1.bin is stale: re-run `corpus-tool dms-pack`"
+            "packs/dms-index-en-v1.bin is stale: re-run `corpus-tool dms-pack`"
         );
     }
 
     /// The in-repo frame rules TOML, loaded at test time only.
-    const FRAME_RULES_V1_TOML: &str = include_str!("../packs/frame-rules-v1.toml");
+    const FRAME_RULES_V1_TOML: &str = include_str!("../packs/frame-rules-en-v1.toml");
 
     #[test]
     fn frame_static_loads_with_rules_of_every_kind() {
@@ -405,16 +409,16 @@ mod tests {
     #[test]
     fn frame_pack_is_freshly_compiled_from_the_source_toml() {
         let set = crate::frame_rules::FrameRuleSet::parse(FRAME_RULES_V1_TOML)
-            .expect("in-repo frame-rules-v1.toml parses");
+            .expect("in-repo frame-rules-en-v1.toml parses");
         let rates = crate::frame_compile::CorpusEvidence::from_dms_toml(DMS_INDEX_V1_TOML)
-            .expect("in-repo dms-index-v1.toml evidence derives")
+            .expect("in-repo dms-index-en-v1.toml evidence derives")
             .with_external(
                 crate::human_evidence::HumanEvidencePack::load(HUMAN_EVIDENCE_V1_BIN)
-                    .expect("in-repo human-evidence-v1.bin loads"),
+                    .expect("in-repo human-evidence-en-v1.bin loads"),
             )
             .with_external_machine(
                 crate::human_evidence::HumanEvidencePack::load(MACHINE_EVIDENCE_V1_BIN)
-                    .expect("in-repo machine-evidence-v1.bin loads"),
+                    .expect("in-repo machine-evidence-en-v1.bin loads"),
             );
         let (pack, _) =
             crate::frame_compile::compile(&set, &rates).expect("in-repo rule set compiles");
@@ -422,7 +426,7 @@ mod tests {
         let repacked = crate::frame_bin::pack_frame_bin(&pack, &sha_hex);
         assert_eq!(
             repacked, FRAME_PACK_V1_BIN,
-            "packs/frame-pack-v1.bin is stale: re-run `corpus-tool frame-pack`"
+            "packs/frame-pack-en-v1.bin is stale: re-run `corpus-tool frame-pack`"
         );
     }
 
@@ -441,7 +445,7 @@ mod tests {
     /// The in-repo source TOML, loaded at test time only — the runtime
     /// embeds the derived `.bin`, and these tests are what keep the two
     /// from diverging (same arrangement as [`DMS_INDEX_V1_TOML`]).
-    const ATTESTATION_V1_TOML: &str = include_str!("../packs/attestation-v1.toml");
+    const ATTESTATION_V1_TOML: &str = include_str!("../packs/attestation-en-v1.toml");
 
     #[test]
     fn attestation_static_loads() {
@@ -474,10 +478,10 @@ mod tests {
     #[test]
     fn attestation_bin_is_freshly_packed_from_the_source_toml() {
         let repacked = crate::pack_attestation_bin(ATTESTATION_V1_TOML)
-            .expect("in-repo attestation-v1.toml packs");
+            .expect("in-repo attestation-en-v1.toml packs");
         assert_eq!(
             repacked, ATTESTATION_V1_BIN,
-            "packs/attestation-v1.bin is stale: re-run `corpus-tool attest-pack`"
+            "packs/attestation-en-v1.bin is stale: re-run `corpus-tool attest-pack`"
         );
     }
 
@@ -618,7 +622,7 @@ mod tests {
     }
 
     /// The shipped pack carries the staged code-review corpora (see the
-    /// `human-evidence-v1.toml` sidecar for buckets and input hashes):
+    /// `human-evidence-en-v1.toml` sidecar for buckets and input hashes):
     /// the total is pinned exactly so a staged-corpora refresh is a
     /// deliberate, visible change to this test, not a silent drift.
     #[test]

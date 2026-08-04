@@ -4,9 +4,9 @@
 //!
 //! All on the TRAIN split only, written as one markdown report for a
 //! human curator to hand-transcribe into
-//! `crates/friction-packs/packs/inventory-v1.toml`. This tool never
+//! `crates/friction-packs/packs/inventory-en-v1.toml`. This tool never
 //! writes pack TOML directly — mirroring the already
-//! established `mine` -> `mined-ngrams-v1.toml` relationship: a human
+//! established `mine` -> `mined-ngrams-en-v1.toml` relationship: a human
 //! reads the report and copies selected entries into the pack by hand.
 //!
 //! # Tokenization convention — a deliberate split from `index`

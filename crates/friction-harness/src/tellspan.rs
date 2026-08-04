@@ -224,7 +224,7 @@ mod tests {
         // guardrail against silently "fixing" that in a way that would
         // mask the fragment-rate guardrail's real role. If a newly-mined
         // pack entry ever spuriously fires on either sample, the fix is
-        // tightening that pattern in `inventory-v1.toml`, never loosening
+        // tightening that pattern in `inventory-en-v1.toml`, never loosening
         // this test.
         let chatspeak = crate::fixtures::CHATSPEAK_MD;
         let good_docs = crate::fixtures::GOOD_DOCS_MD;

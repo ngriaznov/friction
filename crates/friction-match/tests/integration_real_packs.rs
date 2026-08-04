@@ -69,7 +69,7 @@ fn scanning_a_real_document_against_the_embedded_packs_runs_to_completion() {
 }
 
 /// `"color harmony"` is a real Wikipedia article title (verified against
-/// the raw `jargon-attest-v1` input data), and, since jargon-v1.toml's
+/// the raw `jargon-attest-v1` input data), and, since jargon-en-v1.toml's
 /// `attested_exceptions` pruning, is no longer in the hand-curated TOML
 /// list either. Suppression here can only be the embedded
 /// `jargon-attest-v1` `BinaryFuse8` filter (SYNTHESIS.md §4), not the
@@ -80,7 +80,7 @@ fn color_harmony_is_suppressed_by_the_embedded_attestation_filter() {
         !friction_packs::JARGON
             .pack
             .is_attested_exception("color harmony"),
-        "color harmony was pruned from jargon-v1.toml's attested_exceptions \
+        "color harmony was pruned from jargon-en-v1.toml's attested_exceptions \
          precisely because the filter already covers it"
     );
     assert!(

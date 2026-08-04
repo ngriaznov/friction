@@ -11,7 +11,7 @@ whether the pattern is detectable.
 
 Three separate causes, in decreasing order of impact:
 
-1. **The DMS channel has no frontier index.** `dms-index-v1.toml` carries token
+1. **The DMS channel has no frontier index.** `dms-index-en-v1.toml` carries token
    streams for four families only (qwen 38 docs / 21,578 tokens; gemma 81 /
    47,126; llama 75 / 38,654; granite 36 / 21,858). The v4 evidence ledger
    already records the consequence: Claude-register text evaded the
@@ -65,7 +65,7 @@ Frontier tells that survive across model generations:
 
 This is good news for friction specifically: `corpus/SEPARATION.md` already
 computes several of these as deterministic Biber-style features, and the
-register-band operation (`register-v1.toml`) is exactly the right shape for
+register-band operation (`register-en-v1.toml`) is exactly the right shape for
 density-type tics (edit while outside the human band, stop at the band edge).
 
 ## 3. Corpus strategy — the "better training corpus" answer

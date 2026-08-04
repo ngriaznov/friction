@@ -6,7 +6,7 @@
 //!
 //! This module is the read side only: [`InventoryPack::parse`] turns the
 //! pack's TOML shape into typed, validated, deterministically-sorted
-//! in-memory tables. `crates/friction-packs/packs/inventory-v1.toml`
+//! in-memory tables. `crates/friction-packs/packs/inventory-en-v1.toml`
 //! itself is hand-edited, not generated. See that file's own header
 //! comment for the curation discipline.
 

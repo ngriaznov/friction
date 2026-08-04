@@ -987,7 +987,7 @@ mod tests {
         let violations = validate(&crate::registry::INVENTORY.pack);
         assert!(
             violations.is_empty(),
-            "embedded inventory-v1.toml has validation violations: {violations:#?}"
+            "embedded inventory-en-v1.toml has validation violations: {violations:#?}"
         );
     }
 }

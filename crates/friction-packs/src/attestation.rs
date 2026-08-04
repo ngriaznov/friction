@@ -4,7 +4,7 @@
 //! `corpus-tool attest` mines both tables from `friction_harness::clean`'s
 //! tokenization convention (bigram side) and the shipped part-of-speech
 //! tagger's coarse tags (skeleton side); this module is the read side,
-//! turning the versioned TOML pack it writes (`attestation-v1.toml`,
+//! turning the versioned TOML pack it writes (`attestation-en-v1.toml`,
 //! embedded and exposed pre-parsed as [`crate::ATTESTATION`]) into two
 //! small, queryable in-memory structures — the same "embedded TOML ->
 //! in-memory struct" shape [`crate::DmsIndex`] already established.
@@ -101,7 +101,7 @@ impl TokenVocab {
 }
 
 // ---------------------------------------------------------------------
-// Derived binary artifact (`attestation-v1.bin`).
+// Derived binary artifact (`attestation-en-v1.bin`).
 //
 // The TOML parse above stays the audited source-of-truth read side, used
 // offline by `corpus-tool` — but it paid ~25 ms on every process start

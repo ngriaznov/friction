@@ -64,15 +64,15 @@ jobs:
 
       - name: Key-count sanity band
         run: |
-          old=$(git show HEAD:crates/friction-packs/packs/jargon-attest-v1.toml | grep -m1 '^key_count' | grep -o '[0-9]*')
-          new=$(grep -m1 '^key_count' crates/friction-packs/packs/jargon-attest-v1.toml | grep -o '[0-9]*')
+          old=$(git show HEAD:crates/friction-packs/packs/jargon-attest-en-v1.toml | grep -m1 '^key_count' | grep -o '[0-9]*')
+          new=$(grep -m1 '^key_count' crates/friction-packs/packs/jargon-attest-en-v1.toml | grep -o '[0-9]*')
           echo "key_count: $old -> $new"
           python3 -c "import sys; o, n = int('$old'), int('$new'); sys.exit(0 if 0.8 * o <= n <= 1.2 * o else 1)"
 
       - name: Detect drift
         id: drift
         run: |
-          if git diff --quiet crates/friction-packs/packs/jargon-attest-v1.bin; then
+          if git diff --quiet crates/friction-packs/packs/jargon-attest-en-v1.bin; then
             echo "changed=false" >> "$GITHUB_OUTPUT"
             echo "no data drift; nothing to release"
           else

@@ -48,7 +48,7 @@ fn attest_respects_train_human_only_data_protocol() {
     let dir = tempfile::tempdir().unwrap();
     build_mini_corpus(dir.path());
 
-    let pack_path = dir.path().join("attestation-v1.toml");
+    let pack_path = dir.path().join("attestation-en-v1.toml");
     attest::run(&args(dir.path(), pack_path.clone())).unwrap();
     let text = std::fs::read_to_string(&pack_path).unwrap();
 
@@ -72,7 +72,7 @@ fn attest_output_round_trips_and_attests_known_bigrams() {
     let dir = tempfile::tempdir().unwrap();
     build_mini_corpus(dir.path());
 
-    let pack_path = dir.path().join("attestation-v1.toml");
+    let pack_path = dir.path().join("attestation-en-v1.toml");
     attest::run(&args(dir.path(), pack_path.clone())).unwrap();
     let text = std::fs::read_to_string(&pack_path).unwrap();
 
@@ -121,7 +121,7 @@ fn attest_never_touches_holdout_lock() {
     let sentinel = "h004\tdeadbeef\thuman/docs/h004.md\n";
     std::fs::write(&lock_path, sentinel).unwrap();
 
-    let pack_path = dir.path().join("attestation-v1.toml");
+    let pack_path = dir.path().join("attestation-en-v1.toml");
     attest::run(&args(dir.path(), pack_path)).unwrap();
 
     let after = std::fs::read_to_string(&lock_path).unwrap();
@@ -138,7 +138,7 @@ fn attest_handles_a_corpus_with_no_train_human_docs() {
     record.split = Some(Split::Train);
     common::write_manifest_raw(&dir.path().join("manifest.jsonl"), &[record]);
 
-    let pack_path = dir.path().join("attestation-v1.toml");
+    let pack_path = dir.path().join("attestation-en-v1.toml");
     attest::run(&args(dir.path(), pack_path.clone())).unwrap();
     let text = std::fs::read_to_string(&pack_path).unwrap();
 

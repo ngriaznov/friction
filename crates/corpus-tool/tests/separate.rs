@@ -72,7 +72,7 @@ fn separate_report_reflects_tied_metrics_and_missing_genres() {
     let dir = tempfile::tempdir().unwrap();
     build_corpus(dir.path());
 
-    let pack_path = dir.path().join("envelope-v2.toml");
+    let pack_path = dir.path().join("envelope-en-v2.toml");
     envelope::run(&envelope_args(dir.path(), pack_path.clone())).unwrap();
 
     let report_path = dir.path().join("report.md");
@@ -111,7 +111,7 @@ fn separate_report_is_deterministic_across_runs() {
     let dir = tempfile::tempdir().unwrap();
     build_corpus(dir.path());
 
-    let pack_path = dir.path().join("envelope-v2.toml");
+    let pack_path = dir.path().join("envelope-en-v2.toml");
     envelope::run(&envelope_args(dir.path(), pack_path.clone())).unwrap();
 
     let report_a = dir.path().join("a.md");
@@ -146,7 +146,7 @@ fn separate_report_shows_na_when_one_class_is_absent_in_a_genre() {
 
     common::write_manifest_raw(&dir.path().join("manifest.jsonl"), &[h_train, h_dev]);
 
-    let pack_path = dir.path().join("envelope-v2.toml");
+    let pack_path = dir.path().join("envelope-en-v2.toml");
     envelope::run(&envelope_args(dir.path(), pack_path.clone())).unwrap();
 
     let report_path = dir.path().join("report.md");
@@ -167,7 +167,7 @@ fn separate_report_states_gate_verdict_from_combined_score_aucs() {
     let dir = tempfile::tempdir().unwrap();
     build_corpus(dir.path());
 
-    let pack_path = dir.path().join("envelope-v2.toml");
+    let pack_path = dir.path().join("envelope-en-v2.toml");
     envelope::run(&envelope_args(dir.path(), pack_path.clone())).unwrap();
 
     let report_path = dir.path().join("report.md");

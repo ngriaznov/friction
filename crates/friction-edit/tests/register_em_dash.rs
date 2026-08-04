@@ -15,7 +15,7 @@ fn count_em_dashes(text: &str) -> usize {
 }
 
 /// A document well above the em-dash band (which drives to zero -- see
-/// `register-v1.toml`'s `[features.em_dash]`), one sentence per T6 case:
+/// `register-en-v1.toml`'s `[features.em_dash]`), one sentence per T6 case:
 /// a paired parenthetical, a fragment, and an independent clause.
 const ABOVE_BAND: &str = "The service reads its config from a mounted volume — not from \
      environment variables — before startup completes. The response is a registry entry — \
@@ -127,7 +127,7 @@ fn a_paired_aside_around_inline_code_is_never_split() {
 fn a_paired_aside_with_code_and_parens_inside_is_never_split() {
     let engine = Engine::new().expect("engine must load");
     let source = "Homes the `semicolon` feature toward its human band — nonzero, unlike T6's \
-                  em-dash band (see `register-v1.toml`'s `[features.semicolon]`) — by turning \
+                  em-dash band (see `register-en-v1.toml`'s `[features.semicolon]`) — by turning \
                   a semicolon that joins two independent clauses into a sentence break.\n";
     let (fixed, _) = engine.fix_document(source).expect("engine runs");
     assert_eq!(

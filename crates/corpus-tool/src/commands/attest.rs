@@ -3,7 +3,7 @@
 //!
 //! `friction_packs::attestation::AttestationPack` reconstructs those two
 //! tables from the versioned TOML pack this command writes
-//! (`attestation-v1.toml`) at load time.
+//! (`attestation-en-v1.toml`) at load time.
 //!
 //! # Tokenization convention — string-level, whole-document, like `index`
 //!
@@ -83,7 +83,7 @@ pub struct Args {
     /// Path to write the versioned attestation pack to.
     #[arg(
         long,
-        default_value = "crates/friction-packs/packs/attestation-v1.toml"
+        default_value = "crates/friction-packs/packs/attestation-en-v1.toml"
     )]
     pub pack: PathBuf,
     /// Also runs stage 2: measures the natural derivational-pivot rate a

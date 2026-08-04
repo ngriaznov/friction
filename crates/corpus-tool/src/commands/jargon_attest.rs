@@ -75,13 +75,13 @@ pub struct Args {
     /// Path to write the built filter to.
     #[arg(
         long,
-        default_value = "crates/friction-packs/packs/jargon-attest-v1.bin"
+        default_value = "crates/friction-packs/packs/jargon-attest-en-v1.bin"
     )]
     pub out_bin: PathBuf,
     /// Path to write the pack's TOML sidecar to.
     #[arg(
         long,
-        default_value = "crates/friction-packs/packs/jargon-attest-v1.toml"
+        default_value = "crates/friction-packs/packs/jargon-attest-en-v1.toml"
     )]
     pub out_sidecar: PathBuf,
 }
@@ -270,7 +270,7 @@ struct SidecarInput<'a> {
     openalex_sha256: &'a str,
 }
 
-/// Renders the `jargon-attest-v1.toml` sidecar: a `[pack]` table with the
+/// Renders the `jargon-attest-en-v1.toml` sidecar: a `[pack]` table with the
 /// two fields `JargonAttestPack::load` cross-checks (`version`,
 /// `key_count`) plus documentary provenance fields it doesn't re-parse,
 /// and one `[pack.sources.*]` table per input source recording licensing,

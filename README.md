@@ -596,33 +596,33 @@ The packs under `crates/friction-packs/packs/` are versioned, sha256-recorded,
 and audited at load time (a substitution whose replacement re-triggers any
 detection frame, or introduces an unattested content word, fails the build):
 
-- `inventory-v1.toml`: the curated tell inventory of deletion spans,
+- `inventory-en-v1.toml`: the curated tell inventory of deletion spans,
   substitution pairs, ritual frames, licensed light-verb pairs, guard-token
   classes. Hand-reviewed; every mined entry carries its corpus counts.
-- `dms-index-v1.toml`: per-family machine/human token streams for the
-  matching-statistics channel. The runtime embeds `dms-index-v1.bin`
+- `dms-index-en-v1.toml`: per-family machine/human token streams for the
+  matching-statistics channel. The runtime embeds `dms-index-en-v1.bin`
   next to it: the same streams with their suffix automata pre-built by
   `corpus-tool dms-pack` and serialized flat, loaded as a zero-copy view
   so process start pays no parse or automaton construction (a test
   re-packs the TOML and fails if the two ever diverge).
-- `attestation-v1.toml`: human-corpus bigram seams, tag-skeleton sets, and the
+- `attestation-en-v1.toml`: human-corpus bigram seams, tag-skeleton sets, and the
   near-no-op calibration.
-- `register-v1.toml`: the per-feature bands register homes toward, as the 10th
+- `register-en-v1.toml`: the per-feature bands register homes toward, as the 10th
   and 90th percentiles of the per-document rate across 58 human documentation
   files. The band, not its centre, is the target.
-- `frame-rules-v1.toml`: the adjudicated frame-rewrite rule set: 3,388
+- `frame-rules-en-v1.toml`: the adjudicated frame-rewrite rule set: 3,388
   rules in seven evidence buckets (the delivered 3,333 plus corpus-mined
   arrivals), of which only the corpus-confirmed buckets ever compile;
   the rest are staged evidence for `corpus-tool adjudicate`, the referee
   that re-derives every verdict from the corpora, from the DMS streams
   first, then from the review-register evidence pair for rules whose
   register the DMS corpora do not carry. The runtime embeds
-  `frame-pack-v1.bin` (134 KB): the surviving rule program (913 edits
+  `frame-pack-en-v1.bin` (134 KB): the surviving rule program (913 edits
   and guards plus 127 report-only rules after the rejection gauntlet),
   serialized flat by `corpus-tool frame-pack` and loaded zero-copy,
   with a drift test that recompiles the TOML and fails on any
   divergence.
-- `human-evidence-v1.bin` + `human-evidence-v1.toml`: external
+- `human-evidence-en-v1.bin` + `human-evidence-en-v1.toml`: external
   human-corpus evidence pooled into the frame-rewrite compile fences:
   unigram rates and per-word burst envelopes (the densest any single
   human document used a word, which is what arms the `overuse.word` channel)
@@ -642,20 +642,20 @@ detection frame, or introduces an unattested content word, fails the build):
   <https://doi.org/10.5281/zenodo.6900648>), both predating ChatGPT's
   release by construction. Input sha256s and per-bucket totals are in
   the `.toml` sidecar.
-- `machine-evidence-v1.bin` + `machine-evidence-v1.toml`: the machine
+- `machine-evidence-en-v1.bin` + `machine-evidence-en-v1.toml`: the machine
   half of the review-register evidence pair: the same tables, built by
   the same command over the 150 committed machine-written review
   documents in `corpus/review/machine/`. Register-matched against the
   human pack, it gives the two-sided fences (direction, guard
   confirmation) and the adjudication referee a review-register
   measurement the DMS streams cannot provide.
-- `jargon-v1.toml`: the curated metaphor-lexeme list `jargon.metaphor`
+- `jargon-en-v1.toml`: the curated metaphor-lexeme list `jargon.metaphor`
   matches against, and a small attested-exceptions allowlist of compounds it
   never flags regardless of what the filter below says. Each lexeme is
   `mined` (measured directly against this corpus) or `external` (documented
   LLM metaphor vocabulary); every entry, and every exception, carries its own
   provenance note.
-- `jargon-attest-v1.bin` + `jargon-attest-v1.toml`: the web-scale
+- `jargon-attest-en-v1.bin` + `jargon-attest-en-v1.toml`: the web-scale
   attestation oracle behind `jargon.metaphor`'s exception check: a
   `BinaryFuse8` filter (`xorf`) over ~2M normalized, multiword compound keys
   mined from Wikipedia article titles and OpenAlex Topics display names,

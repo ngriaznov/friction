@@ -84,13 +84,13 @@ enum Command {
     Attest(commands::attest::Args),
     /// Builds the derived attestation binary artifact
     /// (`friction_packs::ATTESTATION` loads at runtime) from the
-    /// vendored `attestation-v1.toml`: both membership tables
+    /// vendored `attestation-en-v1.toml`: both membership tables
     /// pre-flattened into sorted arrays, so process start pays no TOML
     /// parse or B-tree materialization.
     AttestPack(commands::attest_pack::Args),
     /// On the train split's docs genre, measures each document's
     /// per-1000-prose-word em-dash rate and reports the population's
-    /// 10th/50th/90th percentile, for `register-v1.toml`'s
+    /// 10th/50th/90th percentile, for `register-en-v1.toml`'s
     /// `[features.em_dash]`.
     RegisterBands(commands::register_bands::Args),
     /// Builds `jargon-attest-v1`: a `BinaryFuse8` filter over normalized
@@ -102,18 +102,18 @@ enum Command {
     /// runtime) from the vendored, audited `json.gz` weight artifacts.
     WeightsPack(commands::weights_pack::Args),
     /// Builds the derived DMS binary artifact (`friction_packs::DMS`
-    /// loads at runtime) from the vendored `dms-index-v1.toml`: every
+    /// loads at runtime) from the vendored `dms-index-en-v1.toml`: every
     /// stream's suffix automaton pre-built and serialized flat, so
     /// process start pays no TOML parse or automaton construction.
     DmsPack(commands::dms_pack::Args),
     /// On the train split, re-derives every frame-rewrite rule's evidence
     /// verdict from the corpora and reports where the re-measurement
     /// agrees or disagrees with the verdict recorded in
-    /// `frame-rules-v1.toml`.
+    /// `frame-rules-en-v1.toml`.
     Adjudicate(commands::adjudicate::Args),
     /// Compiles the frame-rewrite rule set through the whole compile
     /// fence and builds its derived binary artifact
-    /// (`frame-pack-v1.bin`), printing the full compile report: every
+    /// (`frame-pack-en-v1.bin`), printing the full compile report: every
     /// compiled, demoted, and rejected rule with its reason.
     FramePack(commands::frame_pack::Args),
     /// Builds `human-evidence-v1`: external human-corpus unigram and

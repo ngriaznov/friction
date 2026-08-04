@@ -62,7 +62,7 @@
 # Curation of literal machine-favored n-grams rejected a long list of
 # corpus-topic artifacts that happen to be specific to this corpus's
 # generation prompts or human source documents, not general llm-vs-human
-# register (mirrors the same discipline `mined-ngrams-v1.toml` already
+# register (mirrors the same discipline `mined-ngrams-en-v1.toml` already
 # documents for the discriminative-mining pack) - see
 # `corpus/MINING_V2.md` for the full rejected list with counts and
 # per-entry reasons (both the mine-inventory round and the mine-paired
@@ -329,7 +329,7 @@ crucial" 2-gram stock=16, antislop=8, score=2.0050, human_train_count=1; \
 the more specific 3-gram "this is crucial" (also covered by this \
 pattern) stock=8, antislop=2, score=3.6246, human_train_count=0. Spread \
 across all five paired genres, matching the same "crucial" intensifier \
-mined-ngrams-v1.toml already flags at the single-word level (z=6.4922) \
+mined-ngrams-en-v1.toml already flags at the single-word level (z=6.4922) \
 but which mine-inventory's phrase-level tables never surfaced (not one \
 "crucial for"/"is crucial" 2-/3-gram appears anywhere in \
 corpus/MINE_INVENTORY.md). Replacement "matters" occurs 12 times in the \
@@ -563,7 +563,7 @@ not an LVC (no light verb, no nominalization) and isn't covered by any \
 of the four repair operations this pack's other families use. Shipped \
 diagnostic-only (repair = "diagnostic_only"): recorded so the pack's \
 own history is legible, but must not be executed as a rewrite. Once a \
-DMS automaton (see dms-index-v1.toml / friction_packs::dms) is wired \
+DMS automaton (see dms-index-en-v1.toml / friction_packs::dms) is wired \
 into detection, a phrase this long and distinctive is exactly the kind \
 of span differential matching statistics will flag without needing a \
 literal entry at all - that wiring is out of scope this milestone.

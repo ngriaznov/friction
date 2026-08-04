@@ -11,7 +11,7 @@
 //! this command never makes a network request) — one `--input <dir>` per
 //! external corpus, each holding a `cleaned.jsonl` (one JSON object per
 //! line, `{"id": ..., "text": ...}`), plus the vendored
-//! `frame-rules-v1.toml` rule set.
+//! `frame-rules-en-v1.toml` rule set.
 //!
 //! # Tokenization parity with `dms-index-v1`
 //!
@@ -59,7 +59,7 @@
 //! been seen at least five times across every staged bucket, noise
 //! control for a table with no natural upper bound. The probe table
 //! carries no such floor: probes come from a small, fixed source
-//! (`frame-rules-v1.toml`'s own literal probes and pilot phrases), so
+//! (`frame-rules-en-v1.toml`'s own literal probes and pilot phrases), so
 //! every one of them is recorded with its real count, including an
 //! honest `0` — see `friction_packs::human_evidence`'s own module docs
 //! for why the two tables' absence therefore means two different things,
@@ -69,7 +69,7 @@
 //! # The empty pack
 //!
 //! Run with zero `--input` directories, this command builds the empty
-//! placeholder pack (`packs/human-evidence-v1.bin` as shipped today —
+//! placeholder pack (`packs/human-evidence-en-v1.bin` as shipped today —
 //! see `friction_packs::human_evidence`'s own docs): no buckets means no
 //! documents to tokenize, so this command does not even attempt to
 //! derive probes from `--rules` in that case: there is nothing to count
@@ -113,19 +113,19 @@ pub struct Args {
     /// counted against the staged corpora.
     #[arg(
         long,
-        default_value = "crates/friction-packs/packs/frame-rules-v1.toml"
+        default_value = "crates/friction-packs/packs/frame-rules-en-v1.toml"
     )]
     pub rules: PathBuf,
     /// Path to write the pack's TOML sidecar to.
     #[arg(
         long,
-        default_value = "crates/friction-packs/packs/human-evidence-v1.toml"
+        default_value = "crates/friction-packs/packs/human-evidence-en-v1.toml"
     )]
     pub out_toml: PathBuf,
     /// Path to write the built pack to.
     #[arg(
         long,
-        default_value = "crates/friction-packs/packs/human-evidence-v1.bin"
+        default_value = "crates/friction-packs/packs/human-evidence-en-v1.bin"
     )]
     pub out_bin: PathBuf,
 }
@@ -460,7 +460,7 @@ fn toml_escape(text: &str) -> String {
 }
 
 /// Renders the pack's TOML sidecar: small, human-readable provenance,
-/// mirroring `jargon-attest-v1.toml`'s own shape.
+/// mirroring `jargon-attest-en-v1.toml`'s own shape.
 fn render_toml(
     pack_name: &str,
     rules_sha256: &str,
@@ -599,7 +599,7 @@ words = ["a", "the"]
     }
 
     fn rules_fixture(dir: &std::path::Path) -> PathBuf {
-        let path = dir.join("frame-rules-v1.toml");
+        let path = dir.join("frame-rules-en-v1.toml");
         std::fs::write(&path, tiny_rule_set_toml()).expect("write rules fixture");
         path
     }

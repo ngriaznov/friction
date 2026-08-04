@@ -152,7 +152,7 @@ or `license` exactly equal to `"personal-attestation"`.
   mechanism that drops a metric from a genre's combined score: a
   train-derived rule, never a hand-picked override. Writes the result as
   a versioned TOML pack (`envelope-v2`) to `--out` (default
-  `crates/friction-packs/packs/envelope-v2.toml`). Quarantined (CC-BY-SA)
+  `crates/friction-packs/packs/envelope-en-v2.toml`). Quarantined (CC-BY-SA)
   docs are included in both estimates (quarantine restricts
   redistributing document *text*, not aggregate statistics), and a genre
   with zero train-split human docs is omitted from the pack (warning to
@@ -187,7 +187,7 @@ or `license` exactly equal to `"personal-attestation"`.
   function of its inputs, so re-running against an unchanged corpus
   reproduces a byte-identical report. This is a discovery tool only: its
   output is hand-curated afterward into pack files such as
-  `crates/friction-packs/packs/mined-ngrams-v1.toml`, never consumed
+  `crates/friction-packs/packs/mined-ngrams-en-v1.toml`, never consumed
   directly.
 - **`remove`** (`--id <id>`, repeatable): validates every requested id
   is present in the manifest before touching anything, then for each

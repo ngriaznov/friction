@@ -3,12 +3,12 @@
 # committed repository bytes, in dependency order:
 #
 #   weights-pack   json.gz weight artifacts  -> friction-nlp/weights/*.bin
-#   dms-pack       dms-index-v1.toml         -> dms-index-v1.bin
-#   attest-pack    attestation-v1.toml       -> attestation-v1.bin
-#   frame-pack     frame-rules-v1.toml (+ DMS TOML + evidence bins)
-#                                            -> frame-pack-v1.bin
+#   dms-pack       dms-index-en-v1.toml         -> dms-index-en-v1.bin
+#   attest-pack    attestation-en-v1.toml       -> attestation-en-v1.bin
+#   frame-pack     frame-rules-en-v1.toml (+ DMS TOML + evidence bins)
+#                                            -> frame-pack-en-v1.bin
 #
-# Deliberately NOT covered: jargon-attest-v1.bin (rebuilt from external
+# Deliberately NOT covered: jargon-attest-en-v1.bin (rebuilt from external
 # source dumps by .github/workflows/attest-refresh.yml) and the
 # human/machine evidence bins (rebuilt from locally staged external
 # corpora by `corpus-tool human-evidence`): neither is a function of
