@@ -305,6 +305,13 @@ impl Lexicon {
             stative_verbs,
         })
     }
+
+    /// Whether `lemma` is a known irregular verb's base form (either
+    /// table).
+    #[must_use]
+    pub fn is_irregular_verb_base(&self, lemma: &str) -> bool {
+        self.verbs.contains_key(lemma) || self.past_only.contains_key(lemma)
+    }
 }
 
 /// Validates and builds a [`WordSet`] for `section`, rejecting an empty

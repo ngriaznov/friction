@@ -30,7 +30,8 @@ use std::ops::Range;
 use friction_core::CoreError;
 use friction_core::span::{Spanned, validate_range};
 use friction_nlp::{
-    DepEdge, DepRelation, FINITE_VERB_TAGS, SentenceParse, TaggedToken, coarse_tag, has_finite_verb,
+    DepEdge, DepRelation, FINITE_VERB_TAGS, LEXICON_EN, SentenceParse, TaggedToken, coarse_tag,
+    has_finite_verb,
 };
 
 /// A proposed rewrite: replace `range` with `replacement`, moving the
@@ -424,7 +425,7 @@ fn verb_is_licensable(
         // STATIVE_OR_LINKING_LEMMA's own docs.
         return false;
     }
-    if lemma.ends_with("ed") && !IRREGULAR_PAST.iter().any(|&(base, _)| base == lemma) {
+    if lemma.ends_with("ed") && !LEXICON_EN.is_irregular_verb_base(lemma) {
         // A base-form verb essentially never ends in "-ed" ("embed" is
         // the rare exception, not worth the false negatives avoiding it
         // would cost); a lemma that does is almost always an unreduced
@@ -439,7 +440,7 @@ fn verb_is_licensable(
     let surface_lower = token_text(source, tokens, index).to_lowercase();
     if matches!(tag, "VBD" | "VBZ")
         && lemma.eq_ignore_ascii_case(&surface_lower)
-        && !IRREGULAR_PAST.iter().any(|&(base, _)| base == lemma)
+        && !LEXICON_EN.is_irregular_verb_base(lemma)
     {
         // A `VBD`/`VBZ` surface form is never identical to its base
         // lemma for a regular verb — unlike `VBP` ("we deploy"), where
@@ -1384,216 +1385,12 @@ pub fn t7_semicolon(source: &str, tokens: &[TaggedToken], parse: &SentenceParse)
 
 // ---------------------------------------------------------------------
 // Inflection. `third_sg` is unused by either transducer (T5's
-// `NOMINAL_VERB` spells out its own forms), but ships with
-// `past`/`past_participle` since the three were audited as one unit — a
-// participial transducer would need it, and splitting it out now would
-// only fragment that audit.
+// `NOMINAL_VERB` spells out its own forms), but ships alongside
+// `past`/`past_participle` since the three were audited as one unit —
+// they now live in `friction_nlp::inflect`, beside the `LEXICON_EN`
+// tables they read, and are re-exported here unchanged so external
+// callers of `friction_register::transduce::{past, past_participle,
+// third_sg}` keep working.
 // ---------------------------------------------------------------------
 
-/// Endings after which the regular third-person-singular suffix is
-/// `"-es"`, not `"-s"`. `"o"` joins the true sibilants (`"go"` ->
-/// `"goes"`) because English spelling extends the same epenthetic vowel
-/// to a trailing `"o"`, not because it's phonetically a sibilant.
-const SIBILANT_ENDINGS: &[&str] = &["s", "x", "z", "ch", "sh", "o"];
-
-/// Irregular past-tense forms (53 entries: the original 44 plus 9
-/// invariant verbs missed initially: "hit", "cost", "cast", "shut",
-/// "spread", "hurt", "quit", "burst", "shed", caught producing
-/// "hited"). `lemma + "ed"` produces real-looking but wrong words often
-/// enough — `"holded"`, `"builded"`, `"catched"` — that falling back
-/// silently would be worse than a closed table simply missing a lemma.
-const IRREGULAR_PAST: &[(&str, &str)] = &[
-    ("be", "was"),
-    ("have", "had"),
-    ("do", "did"),
-    ("make", "made"),
-    ("take", "took"),
-    ("give", "gave"),
-    ("find", "found"),
-    ("run", "ran"),
-    ("hold", "held"),
-    ("lead", "led"),
-    ("keep", "kept"),
-    ("leave", "left"),
-    ("mean", "meant"),
-    ("send", "sent"),
-    ("build", "built"),
-    ("bring", "brought"),
-    ("buy", "bought"),
-    ("catch", "caught"),
-    ("cut", "cut"),
-    ("put", "put"),
-    ("set", "set"),
-    ("let", "let"),
-    ("read", "read"),
-    ("hit", "hit"),
-    ("cost", "cost"),
-    ("cast", "cast"),
-    ("shut", "shut"),
-    ("spread", "spread"),
-    ("hurt", "hurt"),
-    ("quit", "quit"),
-    ("burst", "burst"),
-    ("shed", "shed"),
-    ("write", "wrote"),
-    // Prefixed compounds of an already-listed irregular base, common in
-    // technical prose ("rewrote the migration script") but missing from
-    // the original 44-entry port; each inflects exactly like its base.
-    ("rewrite", "rewrote"),
-    ("overwrite", "overwrote"),
-    ("undergo", "underwent"),
-    ("override", "overrode"),
-    ("drive", "drove"),
-    ("rise", "rose"),
-    ("fall", "fell"),
-    ("grow", "grew"),
-    ("show", "showed"),
-    ("see", "saw"),
-    ("get", "got"),
-    ("go", "went"),
-    ("come", "came"),
-    ("become", "became"),
-    ("begin", "began"),
-    ("choose", "chose"),
-    ("draw", "drew"),
-    ("feed", "fed"),
-    ("meet", "met"),
-    ("pay", "paid"),
-    ("sell", "sold"),
-    ("spend", "spent"),
-    ("lose", "lost"),
-    ("win", "won"),
-    ("think", "thought"),
-    ("teach", "taught"),
-];
-
-/// Irregular past-participle forms (53 entries, same addition as
-/// [`IRREGULAR_PAST`]), kept separate rather than derived: several
-/// lemmas' past tense and participle diverge (`"write"` ->
-/// `"wrote"`/`"written"`, `"drive"` -> `"drove"`/`"driven"`), so
-/// merging would silently reuse the wrong form.
-const IRREGULAR_PAST_PARTICIPLE: &[(&str, &str)] = &[
-    ("be", "been"),
-    ("have", "had"),
-    ("do", "done"),
-    ("make", "made"),
-    ("take", "taken"),
-    ("give", "given"),
-    ("find", "found"),
-    ("run", "run"),
-    ("hold", "held"),
-    ("lead", "led"),
-    ("keep", "kept"),
-    ("leave", "left"),
-    ("mean", "meant"),
-    ("send", "sent"),
-    ("build", "built"),
-    ("bring", "brought"),
-    ("buy", "bought"),
-    ("catch", "caught"),
-    ("cut", "cut"),
-    ("put", "put"),
-    ("set", "set"),
-    ("let", "let"),
-    ("read", "read"),
-    ("hit", "hit"),
-    ("cost", "cost"),
-    ("cast", "cast"),
-    ("shut", "shut"),
-    ("spread", "spread"),
-    ("hurt", "hurt"),
-    ("quit", "quit"),
-    ("burst", "burst"),
-    ("shed", "shed"),
-    ("write", "written"),
-    ("rewrite", "rewritten"),
-    ("overwrite", "overwritten"),
-    ("undergo", "undergone"),
-    ("override", "overridden"),
-    ("drive", "driven"),
-    ("rise", "risen"),
-    ("fall", "fallen"),
-    ("grow", "grown"),
-    ("show", "shown"),
-    ("see", "seen"),
-    ("get", "got"),
-    ("go", "gone"),
-    ("come", "come"),
-    ("become", "become"),
-    ("begin", "begun"),
-    ("choose", "chosen"),
-    ("draw", "drawn"),
-    ("feed", "fed"),
-    ("meet", "met"),
-    ("pay", "paid"),
-    ("sell", "sold"),
-    ("spend", "spent"),
-    ("lose", "lost"),
-    ("win", "won"),
-    ("think", "thought"),
-    ("teach", "taught"),
-];
-
-/// `lemma` ends in `"y"` preceded by a consonant, so `"y"` -> `"i"`
-/// before a vowel suffix (`"carry"` -> `"carries"`/`"carried"`), unlike
-/// a preceding vowel, which keeps the `"y"` (`"play"` ->
-/// `"plays"`/`"played"`).
-fn ends_with_consonant_y(lemma: &str) -> bool {
-    let chars: Vec<char> = lemma.chars().collect();
-    chars.len() > 1 && chars[chars.len() - 1] == 'y' && !is_vowel(chars[chars.len() - 2])
-}
-
-const fn is_vowel(c: char) -> bool {
-    matches!(c, 'a' | 'e' | 'i' | 'o' | 'u')
-}
-
-/// The regular third-person-singular present form of `lemma`
-/// (`"deploy"` -> `"deploys"`, `"carry"` -> `"carries"`).
-///
-/// Consults no irregular table: [`IRREGULAR_PAST`]/
-/// [`IRREGULAR_PAST_PARTICIPLE`] cover past forms only, and English
-/// third-singular formation is regular outside `be`/`have` (neither of
-/// which is ever a `NOMINAL_VERB` target).
-#[must_use]
-pub fn third_sg(lemma: &str) -> String {
-    if SIBILANT_ENDINGS
-        .iter()
-        .any(|suffix| lemma.ends_with(suffix))
-    {
-        format!("{lemma}es")
-    } else if ends_with_consonant_y(lemma) {
-        format!("{}ies", &lemma[..lemma.len() - 1])
-    } else {
-        format!("{lemma}s")
-    }
-}
-
-/// The past-tense form of `lemma`.
-///
-/// The irregular table's entry if one exists, otherwise the regular
-/// suffix rule, delegated to [`friction_nlp::inflect`] rather than
-/// reimplemented here.
-///
-/// This module's own suffix rule originally had no consonant-doubling
-/// logic (`"prefer"` -> `"prefered"` instead of `"preferred"`);
-/// `inflect`'s `generate_past` already handles it and is tested.
-/// `inflect` also checks its own overlapping irregular table first, an
-/// independent safety net alongside [`IRREGULAR_PAST`].
-#[must_use]
-pub fn past(lemma: &str) -> String {
-    if let Some(&(_, irregular)) = IRREGULAR_PAST.iter().find(|&&(base, _)| base == lemma) {
-        return irregular.to_string();
-    }
-    friction_nlp::inflect("used", lemma).unwrap_or_else(|| format!("{lemma}ed"))
-}
-
-/// The past-participle form of `lemma`: the irregular table's entry if
-/// one exists, otherwise the same form [`past`] produces (true for
-/// every regular English verb).
-#[must_use]
-pub fn past_participle(lemma: &str) -> String {
-    IRREGULAR_PAST_PARTICIPLE
-        .iter()
-        .find(|&&(base, _)| base == lemma)
-        .map_or_else(|| past(lemma), |&(_, participle)| participle.to_string())
-}
+pub use friction_nlp::{past, past_participle, third_sg};
