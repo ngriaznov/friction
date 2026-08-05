@@ -746,7 +746,10 @@ fn try_ritual_deletion(
             held.push(Finding::new(
                 RULE_RITUAL,
                 sentence_range,
-                format!("ritual {} recorded: diagnostic-only, no safe rewrite", frame.id),
+                format!(
+                    "ritual {} recorded: diagnostic-only, no safe rewrite",
+                    frame.id
+                ),
                 Tier::Suggest,
             ));
             return None;
@@ -960,7 +963,10 @@ fn run_deletion(
             held.push(Finding::new(
                 RULE_SPAN,
                 sentence_range.clone(),
-                format!("deletion {} recorded: diagnostic-only, no safe rewrite", span.id),
+                format!(
+                    "deletion {} recorded: diagnostic-only, no safe rewrite",
+                    span.id
+                ),
                 Tier::Suggest,
             ));
             continue;
