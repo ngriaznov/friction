@@ -161,6 +161,33 @@ source = "seed"
 # `notes` where the pair is curated-seed rather than seed).
 # --------------------------------------------------------------------
 
+[[deletion_spans]]
+id = "span.positive_contrast"
+pattern = '(?i)\bpositive contrast\b'
+anchor = "mid_sentence"
+repair = "diagnostic_only"
+source = "curated-seed"
+notes = """
+Generated-test-register malapropism of "positive control": models \
+propose "a positive contrast" where the testing term of art is a \
+positive control (an assertion proving the mechanism CAN fire, so a \
+negative result means the branch was taken rather than the lookup \
+skipped). Specimen: an LLM review comment suggesting 'a positive \
+contrast (assert an identically-seeded non-Theme context DOES surface \
+the parent stylesheet)'. Measured absence everywhere this corpus can \
+look: 0 occurrences machine-side, 0 human-side, same profile as the \
+sub.vacuous family. Diagnostic-only, deliberately: unlike "vacuous", \
+the phrase has legitimate technical lives - radiology's "positive \
+contrast agent/medium/study", display engineering's "positive contrast \
+polarity/ratio/mode" - so a bare substitution to "positive control" \
+would corrupt real domain prose, and no shipped matcher can express \
+the negative context ("not followed by agent/polarity/...") needed to \
+gate it: the regex crate has no lookaround and the frame grammar has \
+no negative positions. The safe rewrite needs the test-register corpus \
+pair (the sub.vacuous notes' follow-up arc) to adjudicate a guarded \
+frame rule; until then friction marks the span and names nothing.
+"""
+
 [[substitution_pairs]]
 id = "sub.crucial_for"
 pattern = '(?i)\bcrucial for\b'

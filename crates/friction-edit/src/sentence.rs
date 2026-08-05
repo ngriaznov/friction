@@ -17,7 +17,7 @@ use friction_core::{Finding, Patch, RuleId, Tier};
 use friction_match::token::{AnalysisTokenKind, tokenize_str};
 use friction_nlp::Tagger;
 use friction_nlp::lvc::{CandidateOutcome, classify_candidate};
-use friction_packs::{AttestationPack, InventoryPack};
+use friction_packs::{AttestationPack, InventoryPack, RepairKind};
 use std::sync::LazyLock;
 
 use friction_match::frame_rewrite::{self, FrameIndex, FrameMatch};
@@ -736,6 +736,21 @@ fn try_ritual_deletion(
         }
     }
     let frame = match (acting_frame, quoted_frame) {
+        // Same enforcement as the span loop above: a diagnostic-only
+        // ritual frame is recorded, never executed. Before this check,
+        // the shipped diagnostic-only frame ("fortunate enough to have
+        // had the opportunity to") deleted its whole sentence -- real
+        // content destroyed by an entry whose own notes forbid exactly
+        // that.
+        (Some(frame), _) if frame.repair == RepairKind::DiagnosticOnly => {
+            held.push(Finding::new(
+                RULE_RITUAL,
+                sentence_range,
+                format!("ritual {} recorded: diagnostic-only, no safe rewrite", frame.id),
+                Tier::Suggest,
+            ));
+            return None;
+        }
         (Some(frame), _) => frame,
         (None, Some(frame)) => {
             held.push(Finding::new(
@@ -936,6 +951,20 @@ fn run_deletion(
         let Some(m) = span.pattern.find(&working) else {
             continue;
         };
+        // The pack's contract for a diagnostic-only entry ("recorded
+        // for honesty but has no safe closed-set rewrite; must never be
+        // executed") is enforced here, not merely documented: the span
+        // is reported and the gates are never consulted, so no gate
+        // outcome can ever turn it into an edit.
+        if span.repair == RepairKind::DiagnosticOnly {
+            held.push(Finding::new(
+                RULE_SPAN,
+                sentence_range.clone(),
+                format!("deletion {} recorded: diagnostic-only, no safe rewrite", span.id),
+                Tier::Suggest,
+            ));
+            continue;
+        }
         if gates::in_quoted_span(&working, &m.range()) {
             held.push(Finding::new(
                 RULE_SPAN,
