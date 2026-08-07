@@ -14,7 +14,7 @@ use friction_core::Token;
 use friction_nlp::{
     Confidence, DepEdge, DepRelation, PosTag, SentenceParse, TaggedToken, classify_token_kind,
 };
-use friction_register::features::RegisterCounts;
+use friction_register::features::{CoreCounts, RegisterCounts};
 
 const FIXTURE_JSON: &str = include_str!(concat!(
     env!("CARGO_MANIFEST_DIR"),
@@ -219,4 +219,46 @@ fn feature_parity_against_reference_fixture() {
         mismatches.len(),
         mismatches.join("\n")
     );
+}
+
+/// [`CoreCounts`] is documented as the narrow four-field slice of
+/// [`RegisterCounts`] that `friction-edit`'s register pass actually reads
+/// -- this pins that pairing so the two counters can never silently
+/// disagree. Runs over the same fixture and the same `build_sentence`
+/// construction as the full parity check above, so a divergence here
+/// means the two `count` implementations themselves disagree, not that
+/// either is wrong against the fixture.
+#[test]
+fn core_counts_matches_register_counts_on_the_shared_fields() {
+    let fixture: serde_json::Value =
+        serde_json::from_str(FIXTURE_JSON).expect("feature_parity.json parses as json");
+    let sentences = fixture["sentences"]
+        .as_array()
+        .expect("fixture has a top-level `sentences` array");
+    assert!(!sentences.is_empty(), "fixture has no sentences to check");
+
+    for sentence in sentences {
+        let id = sentence["id"].as_str().expect("sentence has an id");
+        let (built_text, tagged, parse) = build_sentence(&sentence["tokens"]);
+
+        let full = RegisterCounts::count(&built_text, &tagged, &parse);
+        let core = CoreCounts::count(&built_text, &tagged, &parse);
+
+        assert_eq!(
+            core.nominalization, full.nominalization,
+            "{id}: CoreCounts.nominalization diverged from RegisterCounts.nominalization"
+        );
+        assert_eq!(
+            core.agentless_passive, full.agentless_passive,
+            "{id}: CoreCounts.agentless_passive diverged from RegisterCounts.agentless_passive"
+        );
+        assert_eq!(
+            core.em_dashes, full.em_dashes,
+            "{id}: CoreCounts.em_dashes diverged from RegisterCounts.em_dashes"
+        );
+        assert_eq!(
+            core.semicolons, full.semicolons,
+            "{id}: CoreCounts.semicolons diverged from RegisterCounts.semicolons"
+        );
+    }
 }

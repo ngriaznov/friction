@@ -184,11 +184,19 @@ impl Configuration {
             }
             Transition::LeftArc(relation) => {
                 let top = self.stack.pop().expect("is_allowed checked stack.last()");
+                debug_assert!(
+                    self.arcs[top].is_none(),
+                    "arc-eager writes each token's arc exactly once; children_bounds relies on this"
+                );
                 self.arcs[top] = Some((self.buffer, relation));
                 self.record_child(self.buffer, top);
             }
             Transition::RightArc(relation) => {
                 let top = *self.stack.last().expect("is_allowed checked !is_empty()");
+                debug_assert!(
+                    self.arcs[self.buffer].is_none(),
+                    "arc-eager writes each token's arc exactly once; children_bounds relies on this"
+                );
                 self.arcs[self.buffer] = Some((top, relation));
                 self.record_child(top, self.buffer);
                 self.stack.push(self.buffer);
@@ -356,5 +364,72 @@ pub fn derive(gold: &SentenceParse) -> Result<Vec<Transition>, DeriveError> {
         Ok(transitions)
     } else {
         Err(DeriveError)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    /// The old O(n) logic `children_bounds` replaced: `head`'s leftmost
+    /// and rightmost dependent, found by scanning every token's [`arc`](Configuration::arc)
+    /// from scratch rather than trusting the incrementally maintained index.
+    fn reference_children_bounds(
+        config: &Configuration,
+        head: usize,
+    ) -> (Option<usize>, Option<usize>) {
+        let mut bounds: Option<(usize, usize)> = None;
+        for token in 0..config.token_count() {
+            if config.arc(token).is_some_and(|(h, _)| h == head) {
+                bounds = Some(bounds.map_or((token, token), |(left, right)| {
+                    (left.min(token), right.max(token))
+                }));
+            }
+        }
+        match bounds {
+            Some((left, right)) => (Some(left), Some(right)),
+            None => (None, None),
+        }
+    }
+
+    /// Drives a [`Configuration`] through a realistic transition sequence
+    /// for "The old team shipped it quickly." — team's own left
+    /// dependents The/old, team as shipped's subject, shipped as root
+    /// with a right dependent object and adverb, in the same hand-built
+    /// style as `tests/dep_arceager.rs` — and after EVERY `apply` checks
+    /// `children_of` for every token against
+    /// [`reference_children_bounds`]'s fresh scan. Pins the incremental
+    /// `children_bounds` index to the reference semantics forever.
+    #[test]
+    fn children_of_matches_a_reference_scan_after_every_apply() {
+        let transitions = [
+            Transition::Shift,
+            Transition::Shift,
+            Transition::LeftArc(DepRelation::Amod),
+            Transition::LeftArc(DepRelation::Det),
+            Transition::Shift,
+            Transition::LeftArc(DepRelation::Nsubj),
+            Transition::Shift,
+            Transition::RightArc(DepRelation::Dobj),
+            Transition::Reduce,
+            Transition::RightArc(DepRelation::Other),
+            Transition::Reduce,
+        ];
+
+        let mut config = Configuration::new(6);
+        for &transition in &transitions {
+            assert!(
+                config.is_allowed(transition),
+                "fixture transition {transition:?} was not legal for {config:?}"
+            );
+            config.apply(transition);
+            for head in 0..config.token_count() {
+                assert_eq!(
+                    config.children_of(head),
+                    reference_children_bounds(&config, head),
+                    "children_of({head}) diverged from the reference scan after {transition:?}"
+                );
+            }
+        }
     }
 }

@@ -803,6 +803,11 @@ fn run_substitution(
 ) {
     let mut working = splicer.working_text();
     for pair in ctx.inventory.substitution_pairs() {
+        debug_assert_eq!(
+            working,
+            splicer.working_text(),
+            "hoisted working text out of sync with splicer chain"
+        );
         if !pair.pattern.is_match(&working) {
             continue;
         }
@@ -958,6 +963,11 @@ fn run_deletion(
 ) {
     let mut working = splicer.working_text();
     for span in ctx.inventory.deletion_spans() {
+        debug_assert_eq!(
+            working,
+            splicer.working_text(),
+            "hoisted working text out of sync with splicer chain"
+        );
         let Some(m) = span.pattern.find(&working) else {
             continue;
         };

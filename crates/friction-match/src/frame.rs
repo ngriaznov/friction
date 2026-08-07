@@ -231,6 +231,16 @@ pub fn scan_units(units: &[ScopedUnit<'_>]) -> Vec<MatchSpan> {
         // `range.start`, so `start` only ever walks forward across the
         // whole sentence loop instead of rescanning every token per
         // sentence: O(sentences + tokens), not O(sentences * tokens).
+        debug_assert!(
+            unit.tokens
+                .windows(2)
+                .all(|w| w[0].range.start <= w[1].range.start),
+            "scan_units's cursor relies on unit.tokens ascending by range.start"
+        );
+        debug_assert!(
+            unit.sentences.windows(2).all(|w| w[0].start <= w[1].start),
+            "scan_units's cursor relies on unit.sentences ascending by start"
+        );
         let mut start = 0usize;
         for sentence_range in &unit.sentences {
             while unit
