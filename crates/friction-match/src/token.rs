@@ -24,19 +24,28 @@
 use std::ops::Range;
 use std::sync::LazyLock;
 
+use friction_core::token_class::{PROSE_PUNCTUATION, WORD_APOSTROPHE_ASCII};
 use friction_core::{BlockKind, Document, ProseUnit};
 use friction_nlp::Segmenter;
 use regex::Regex;
 
-/// `[A-Za-z\u{2018}\u{2019}']+|[.,;:!?]` — a word run (ASCII letters plus
-/// straight or curly single quotes) or a single punctuation character.
+/// A word run (ASCII letters plus straight or curly single quotes) or a
+/// single punctuation character. Built from `friction_core::token_class`'s
+/// shared [`WORD_APOSTROPHE_ASCII`]/[`PROSE_PUNCTUATION`] fragments — the
+/// single source of truth this pattern's shape stays in lockstep with
+/// `clean::TOKEN` and `validate::WORD_TOKEN` through (see that module's
+/// docs for why all three must agree, and for the `_UNICODE` alternates
+/// staged for a future non-English language — not composed here because
+/// the English corpus carries tokenization-visible non-ASCII letters in
+/// real prose, e.g. accented proper nouns; see `token_class`'s docs).
 ///
 /// Deliberately not `(?i)`: both cases of every ASCII letter are named
 /// explicitly in the class, so no Unicode case-folding machinery is
 /// engaged — this matches `clean::tokenize`'s own `[a-z']+` acting on
 /// already-lowercased text exactly, rather than merely approximating it.
 static WORD_OR_PUNCTUATION: LazyLock<Regex> = LazyLock::new(|| {
-    Regex::new(r"[A-Za-z\u{2018}\u{2019}']+|[.,;:!?]").expect("token pattern is valid")
+    Regex::new(&format!("[{WORD_APOSTROPHE_ASCII}]+|[{PROSE_PUNCTUATION}]"))
+        .expect("token pattern is valid")
 });
 
 /// One word or single-punctuation-character token from the DMS/literal

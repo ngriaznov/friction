@@ -11,16 +11,24 @@ use std::collections::BTreeSet;
 use std::fmt;
 use std::sync::LazyLock;
 
+use friction_core::token_class::LOWERCASE_WORD_APOSTROPHE_ASCII;
 use regex::Regex;
 
 use crate::inventory::InventoryPack;
 
-/// `[a-z']+` — the same word-token shape `friction-harness::clean`'s own
-/// tokenizer uses, reimplemented locally so this crate never has to
-/// depend on `friction-harness` (which depends on this crate, not the
-/// other way around).
-static WORD_TOKEN: LazyLock<Regex> =
-    LazyLock::new(|| Regex::new(r"[a-z']+").expect("word-token pattern is valid"));
+/// The same lowercase word-token shape `friction-harness::clean`'s own
+/// tokenizer uses, built from `friction_core::token_class`'s shared
+/// [`LOWERCASE_WORD_APOSTROPHE_ASCII`] fragment — reimplemented locally
+/// (rather than calling `friction-harness::clean::tokenize` directly) so
+/// this crate never has to depend on `friction-harness` (which depends on
+/// this crate, not the other way around); the shared fragment is what
+/// keeps the two definitions in lockstep despite living in different
+/// crates. See `token_class`'s docs for the `_UNICODE` alternate staged
+/// for a future non-English language.
+static WORD_TOKEN: LazyLock<Regex> = LazyLock::new(|| {
+    Regex::new(&format!("[{LOWERCASE_WORD_APOSTROPHE_ASCII}]+"))
+        .expect("word-token pattern is valid")
+});
 
 /// One pack-audit finding.
 #[derive(Debug, Clone, PartialEq, Eq)]

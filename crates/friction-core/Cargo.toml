@@ -21,3 +21,8 @@ serde = { workspace = true, optional = true }
 
 [dev-dependencies]
 serde_json = { workspace = true }
+# Dev-only: `token_class`'s tests build the shared class fragments into
+# real `Regex`es, the way every real consumer does, to prove the
+# fragments compile and behave as documented. The shipped crate stays
+# regex-free — see that module's docs.
+regex = "1"

@@ -2,10 +2,13 @@
 //!
 //! Defines [`Document`], [`Block`]/[`BlockKind`], [`ProseUnit`]/[`Sentence`]/
 //! [`Token`], [`Patch`]/[`Tier`], [`MetricVector`], [`Envelope`], [`RuleId`],
-//! [`Finding`], and the shared [`CoreError`] error type. Every other crate
-//! in the workspace builds on these shapes; `friction-core` itself performs
-//! no parsing, NLP, or metric computation — see `friction-parse`,
-//! `friction-nlp`, and `friction-metrics` for that.
+//! [`Finding`], [`Lang`], and the shared [`CoreError`] error type. Also
+//! [`token_class`]: the canonical word/punctuation character-class
+//! fragments every regex-based word-tokenizer in the workspace composes
+//! its pattern from. Every other crate in the workspace builds on these
+//! shapes; `friction-core` itself performs no parsing, NLP, or metric
+//! computation — see `friction-parse`, `friction-nlp`, and
+//! `friction-metrics` for that.
 //!
 //! # Span honesty
 //!
@@ -51,6 +54,7 @@ mod metrics;
 mod patch;
 mod rule;
 pub mod span;
+pub mod token_class;
 
 pub use block::{Block, BlockKind};
 pub use document::{Document, ProseUnit, Sentence, Token, TokenKind};

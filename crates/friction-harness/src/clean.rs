@@ -13,6 +13,7 @@
 
 use std::sync::LazyLock;
 
+use friction_core::token_class::{LOWERCASE_WORD_APOSTROPHE_ASCII, PROSE_PUNCTUATION};
 use regex::Regex;
 
 /// `` (?s)```.*?``` `` — fenced code blocks, matched non-greedily across
@@ -32,10 +33,24 @@ static LINKS: LazyLock<Regex> =
 static SYNTAX_CHARS: LazyLock<Regex> =
     LazyLock::new(|| Regex::new(r"[#>*_|]").expect("syntax-char pattern is valid"));
 
-/// `[a-z']+|[.,;:!?]` — a lowercase word run or a single punctuation
-/// character.
-static TOKEN: LazyLock<Regex> =
-    LazyLock::new(|| Regex::new(r"[a-z']+|[.,;:!?]").expect("token pattern is valid"));
+/// A lowercase word run or a single punctuation character. Built from
+/// `friction_core::token_class`'s shared
+/// [`LOWERCASE_WORD_APOSTROPHE_ASCII`]/[`PROSE_PUNCTUATION`] fragments —
+/// the single source of truth this pattern's shape stays in lockstep with
+/// `friction_match::token::WORD_OR_PUNCTUATION` and
+/// `friction_packs::validate::WORD_TOKEN` through (see that module's docs
+/// for why all three must agree, and for the `_UNICODE` alternates staged
+/// for a future non-English language: switching this site to
+/// `LOWERCASE_WORD_APOSTROPHE_UNICODE` was measured against the full
+/// corpus byte-fence and reverted — the English corpus carries
+/// tokenization-visible non-ASCII letters in real prose, e.g. accented
+/// proper nouns, so `\p{Ll}` moved `check`'s token counts on ~50 files).
+static TOKEN: LazyLock<Regex> = LazyLock::new(|| {
+    Regex::new(&format!(
+        "[{LOWERCASE_WORD_APOSTROPHE_ASCII}]+|[{PROSE_PUNCTUATION}]"
+    ))
+    .expect("token pattern is valid")
+});
 
 /// Case-preserving cleaning: curly single quotes to straight, fenced and
 /// inline code stripped, links replaced by their anchor text, and the
