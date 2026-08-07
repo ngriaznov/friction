@@ -1,4 +1,4 @@
-//! Real cases for the four rewrite transducers, each with an asserted
+//! Real cases for the six rewrite transducers, each with an asserted
 //! output string: not smoke tests.
 //!
 //! Every parse is built by hand, not run through the shipped tagger/parser,
@@ -11,7 +11,7 @@ use friction_core::{Token, TokenKind};
 use friction_nlp::{Confidence, DepEdge, DepRelation, PosTag, SentenceParse, TaggedToken};
 use friction_register::transduce::{
     Candidate, CandidateKind, candidates, past, past_participle, t4_activize_to_passive,
-    t5_nominalization, t6_em_dash, t7_semicolon, third_sg,
+    t5_nominalization, t6_em_dash, t7_semicolon, t8_comma_and, t9_past_progressive, third_sg,
 };
 
 /// One token's dependency-tree shape and tags, spelled out by hand.
@@ -1557,4 +1557,386 @@ fn t7_declines_every_semicolon_in_a_colon_introduced_enumeration() {
     ];
     let (source, tokens, parse) = build_glued(&shapes);
     assert!(t7_semicolon(&source, &tokens, &parse).is_empty());
+}
+
+// ---------------------------------------------------------------------
+// T8: ", and " sentence-conjunction splice reduction.
+// ---------------------------------------------------------------------
+
+// 31. A `", and "` joint between two independent clauses splits into two
+// sentences, recapitalizing the new sentence's first word -- the same
+// rewrite shape T6/T7 use, one splice character later.
+#[test]
+fn t8_fires_when_both_sides_are_independent_clauses() {
+    let shapes = [
+        g(Some(1), DepRelation::Nsubj, "It", "PRP", "it"),
+        g(None, DepRelation::Root, "runs", "VBZ", "run"),
+        g(Some(1), DepRelation::Prep, "on", "IN", "on"),
+        g(Some(5), DepRelation::Det, "the", "DT", "the"),
+        g(Some(5), DepRelation::Amod, "internal", "JJ", "internal"),
+        g(Some(2), DepRelation::Pobj, "network", "NN", "network"),
+        g(Some(1), DepRelation::Punct, ",", ",", ","),
+        g(Some(1), DepRelation::Cc, "and", "CC", "and"),
+        g(Some(9), DepRelation::Nsubj, "it", "PRP", "it"),
+        g(Some(1), DepRelation::Other, "is", "VBZ", "be"),
+        g(Some(9), DepRelation::Other, "never", "RB", "never"),
+        g(Some(9), DepRelation::Other, "reached", "VBN", "reach"),
+        g(Some(11), DepRelation::Prep, "by", "IN", "by"),
+        g(Some(14), DepRelation::Other, "end", "NN", "end"),
+        g(Some(12), DepRelation::Pobj, "users", "NNS", "user"),
+        g(Some(1), DepRelation::Punct, ".", ".", "."),
+    ];
+    let (source, tokens, parse) = build_glued(&shapes);
+
+    let found = t8_comma_and(&source, &tokens, &parse);
+    assert_eq!(found.len(), 1);
+    assert_eq!(found[0].kind, CandidateKind::CommaAnd);
+    assert_eq!(&*found[0].replacement, ". It");
+    assert!(!found[0].replacement.contains(','));
+
+    let mut expected_delta = BTreeMap::new();
+    expected_delta.insert("comma_and", -1);
+    assert_eq!(found[0].delta, expected_delta);
+
+    let mut fixed = source;
+    fixed.replace_range(found[0].range.clone(), &found[0].replacement);
+    assert_eq!(
+        fixed,
+        "It runs on the internal network. It is never reached by end users."
+    );
+}
+
+// 32. A serial list ("a, b, and c") declines naturally: the last item
+// opens no clause of its own, so the right-side check alone rejects it --
+// this function never special-cases a list comma.
+#[test]
+fn t8_declines_a_serial_list() {
+    let shapes = [
+        g(Some(1), DepRelation::Det, "The", "DT", "the"),
+        g(Some(2), DepRelation::Nsubj, "kit", "NN", "kit"),
+        g(None, DepRelation::Root, "includes", "VBZ", "include"),
+        g(Some(2), DepRelation::Dobj, "screws", "NNS", "screw"),
+        g(Some(3), DepRelation::Punct, ",", ",", ","),
+        g(Some(3), DepRelation::Conj, "bolts", "NNS", "bolt"),
+        g(Some(3), DepRelation::Punct, ",", ",", ","),
+        g(Some(3), DepRelation::Cc, "and", "CC", "and"),
+        g(Some(3), DepRelation::Conj, "washers", "NNS", "washer"),
+        g(Some(2), DepRelation::Punct, ".", ".", "."),
+    ];
+    let (source, tokens, parse) = build_glued(&shapes);
+    assert!(t8_comma_and(&source, &tokens, &parse).is_empty());
+}
+
+// 33. The left-side subject guard, isolated: a finite verb with no
+// `nsubj`/`nsubjPass` edge anywhere before the comma declines even though
+// the right side is a genuine independent clause. Deliberately synthetic
+// (a finite verb with no subject at all is not a natural sentence),
+// mirroring how `t4_does_not_fire_on_an_already_passive_clause` isolates
+// one T4 guard the same way.
+#[test]
+fn t8_declines_when_the_left_side_has_no_subject_of_its_own() {
+    let shapes = [
+        g(None, DepRelation::Root, "Deploys", "VBZ", "deploy"),
+        g(Some(2), DepRelation::Det, "the", "DT", "the"),
+        g(Some(0), DepRelation::Dobj, "change", "NN", "change"),
+        g(Some(0), DepRelation::Punct, ",", ",", ","),
+        g(Some(0), DepRelation::Cc, "and", "CC", "and"),
+        g(Some(6), DepRelation::Nsubj, "it", "PRP", "it"),
+        g(Some(0), DepRelation::Other, "works", "VBZ", "work"),
+        g(Some(6), DepRelation::Other, "well", "RB", "well"),
+        g(Some(0), DepRelation::Punct, ".", ".", "."),
+    ];
+    let (source, tokens, parse) = build_glued(&shapes);
+    assert!(
+        t8_comma_and(&source, &tokens, &parse).is_empty(),
+        "a subjectless left clause must hold the candidate"
+    );
+}
+
+// 34. The word right after "and" is already capitalized (a proper noun):
+// recapitalizing is a no-op, so the trivial case just needs the period.
+#[test]
+fn t8_is_trivial_when_the_following_word_is_already_capitalized() {
+    let shapes = [
+        g(Some(1), DepRelation::Nsubj, "It", "PRP", "it"),
+        g(None, DepRelation::Root, "talks", "VBZ", "talk"),
+        g(Some(1), DepRelation::Prep, "to", "IN", "to"),
+        g(Some(4), DepRelation::Det, "the", "DT", "the"),
+        g(Some(2), DepRelation::Pobj, "cache", "NN", "cache"),
+        g(Some(1), DepRelation::Punct, ",", ",", ","),
+        g(Some(1), DepRelation::Cc, "and", "CC", "and"),
+        g(Some(8), DepRelation::Nsubj, "Redis", "NNP", "redis"),
+        g(Some(1), DepRelation::Other, "handles", "VBZ", "handle"),
+        g(Some(8), DepRelation::Other, "eviction", "NN", "eviction"),
+        g(Some(1), DepRelation::Punct, ".", ".", "."),
+    ];
+    let (source, tokens, parse) = build_glued(&shapes);
+
+    let found = t8_comma_and(&source, &tokens, &parse);
+    assert_eq!(found.len(), 1);
+    assert_eq!(&*found[0].replacement, ". Redis");
+
+    let mut fixed = source;
+    fixed.replace_range(found[0].range.clone(), &found[0].replacement);
+    assert_eq!(fixed, "It talks to the cache. Redis handles eviction.");
+}
+
+// 35. The word right after "and" starts with a digit, which can't be
+// recapitalized -- declines outright, the same no-fallback behavior
+// T7's semicolon case has (there is nothing to substitute the comma and
+// "and" for).
+#[test]
+fn t8_declines_when_the_following_word_cannot_be_capitalized() {
+    let shapes = [
+        g(Some(1), DepRelation::Det, "The", "DT", "the"),
+        g(Some(2), DepRelation::Nsubj, "queue", "NN", "queue"),
+        g(None, DepRelation::Root, "holds", "VBZ", "hold"),
+        g(Some(2), DepRelation::Dobj, "items", "NNS", "item"),
+        g(Some(2), DepRelation::Punct, ",", ",", ","),
+        g(Some(2), DepRelation::Cc, "and", "CC", "and"),
+        g(Some(7), DepRelation::Other, "3", "CD", "3"),
+        g(Some(8), DepRelation::Nsubj, "workers", "NNS", "worker"),
+        g(Some(2), DepRelation::Other, "drain", "VBP", "drain"),
+        g(Some(8), DepRelation::Dobj, "it", "PRP", "it"),
+        g(Some(8), DepRelation::Other, "fast", "RB", "fast"),
+        g(Some(2), DepRelation::Punct, ".", ".", "."),
+    ];
+    let (source, tokens, parse) = build_glued(&shapes);
+    assert!(t8_comma_and(&source, &tokens, &parse).is_empty());
+}
+
+// 36. A joint immediately followed by a backtick-flanked span never
+// produces a candidate, even when every other condition holds -- the
+// inline-code guard takes priority.
+#[test]
+fn t8_declines_when_the_span_would_cross_an_inline_code_boundary() {
+    let shapes = [
+        g(Some(1), DepRelation::Nsubj, "It", "PRP", "it"),
+        g(None, DepRelation::Root, "reads", "VBZ", "read"),
+        g(Some(3), DepRelation::Det, "the", "DT", "the"),
+        g(Some(1), DepRelation::Dobj, "flag", "NN", "flag"),
+        g(Some(1), DepRelation::Punct, ",", ",", ","),
+        g(Some(1), DepRelation::Cc, "and", "CC", "and"),
+        g(Some(7), DepRelation::Nsubj, "`debug`", "NN", "debug"),
+        g(Some(1), DepRelation::Other, "enables", "VBZ", "enable"),
+        g(Some(7), DepRelation::Amod, "verbose", "JJ", "verbose"),
+        g(Some(7), DepRelation::Dobj, "output", "NN", "output"),
+        g(Some(1), DepRelation::Punct, ".", ".", "."),
+    ];
+    let (source, tokens, parse) = build_glued(&shapes);
+    assert!(source.contains('`'));
+    assert!(t8_comma_and(&source, &tokens, &parse).is_empty());
+}
+
+// 37. `t8_comma_and` is folded into `candidates()` alongside T4-T7.
+#[test]
+fn candidates_includes_t8_comma_and_output() {
+    let shapes = [
+        g(Some(1), DepRelation::Nsubj, "It", "PRP", "it"),
+        g(None, DepRelation::Root, "runs", "VBZ", "run"),
+        g(Some(1), DepRelation::Prep, "on", "IN", "on"),
+        g(Some(5), DepRelation::Det, "the", "DT", "the"),
+        g(Some(5), DepRelation::Amod, "internal", "JJ", "internal"),
+        g(Some(2), DepRelation::Pobj, "network", "NN", "network"),
+        g(Some(1), DepRelation::Punct, ",", ",", ","),
+        g(Some(1), DepRelation::Cc, "and", "CC", "and"),
+        g(Some(9), DepRelation::Nsubj, "it", "PRP", "it"),
+        g(Some(1), DepRelation::Other, "is", "VBZ", "be"),
+        g(Some(9), DepRelation::Other, "never", "RB", "never"),
+        g(Some(9), DepRelation::Other, "reached", "VBN", "reach"),
+        g(Some(11), DepRelation::Prep, "by", "IN", "by"),
+        g(Some(14), DepRelation::Other, "end", "NN", "end"),
+        g(Some(12), DepRelation::Pobj, "users", "NNS", "user"),
+        g(Some(1), DepRelation::Punct, ".", ".", "."),
+    ];
+    let (source, tokens, parse) = build_glued(&shapes);
+    let found = candidates(&source, &tokens, &parse);
+    assert!(found.iter().any(|c| c.kind == CandidateKind::CommaAnd));
+}
+
+// ---------------------------------------------------------------------
+// T9: past-progressive simplification.
+// ---------------------------------------------------------------------
+
+// 38. A regular verb's past progressive collapses to its simple past,
+// via friction_nlp::past.
+#[test]
+fn t9_fires_on_a_regular_past_progressive() {
+    let shapes = [
+        g(Some(2), DepRelation::Nsubj, "She", "PRP", "she"),
+        g(Some(2), DepRelation::Aux, "was", "VBD", "be"),
+        g(None, DepRelation::Root, "marking", "VBG", "mark"),
+        g(Some(4), DepRelation::Det, "the", "DT", "the"),
+        g(Some(2), DepRelation::Dobj, "papers", "NNS", "paper"),
+        g(Some(2), DepRelation::Punct, ".", ".", "."),
+    ];
+    let (source, tokens, parse) = build_glued(&shapes);
+
+    let found = t9_past_progressive(&source, &tokens, &parse);
+    assert_eq!(found.len(), 1);
+    assert_eq!(found[0].kind, CandidateKind::PastProgressive);
+    assert_eq!(&*found[0].replacement, "marked");
+
+    let mut expected_delta = BTreeMap::new();
+    expected_delta.insert("past_progressive", -1);
+    assert_eq!(found[0].delta, expected_delta);
+
+    let mut fixed = source;
+    fixed.replace_range(found[0].range.clone(), &found[0].replacement);
+    assert_eq!(fixed, "She marked the papers.");
+}
+
+// 39. An irregular verb's past progressive uses the irregular table, the
+// same lookup `past` shares with `past_participle`.
+#[test]
+fn t9_fires_on_an_irregular_past_progressive() {
+    let shapes = [
+        g(Some(2), DepRelation::Nsubj, "He", "PRP", "he"),
+        g(Some(2), DepRelation::Aux, "was", "VBD", "be"),
+        g(None, DepRelation::Root, "writing", "VBG", "write"),
+        g(Some(2), DepRelation::Dobj, "docs", "NNS", "doc"),
+        g(Some(2), DepRelation::Punct, ".", ".", "."),
+    ];
+    let (source, tokens, parse) = build_glued(&shapes);
+
+    let found = t9_past_progressive(&source, &tokens, &parse);
+    assert_eq!(found.len(), 1);
+    assert_eq!(&*found[0].replacement, "wrote");
+
+    let mut fixed = source;
+    fixed.replace_range(found[0].range.clone(), &found[0].replacement);
+    assert_eq!(fixed, "He wrote docs.");
+}
+
+// 40. Capitalization transfers from the auxiliary: a sentence-initial
+// "Was" produces a capitalized replacement.
+#[test]
+fn t9_transfers_capitalization_from_the_auxiliary() {
+    let shapes = [
+        g(Some(1), DepRelation::Aux, "Was", "VBD", "be"),
+        g(None, DepRelation::Root, "marking", "VBG", "mark"),
+        g(Some(3), DepRelation::Det, "every", "DT", "every"),
+        g(Some(1), DepRelation::Dobj, "commit", "NN", "commit"),
+        g(Some(1), DepRelation::Punct, ".", ".", "."),
+    ];
+    let (source, tokens, parse) = build_glued(&shapes);
+    assert_eq!(source, "Was marking every commit.");
+
+    let found = t9_past_progressive(&source, &tokens, &parse);
+    assert_eq!(found.len(), 1);
+    assert_eq!(&*found[0].replacement, "Marked");
+
+    let mut fixed = source;
+    fixed.replace_range(found[0].range.clone(), &found[0].replacement);
+    assert_eq!(fixed, "Marked every commit.");
+}
+
+// 41. "when"/"while" anywhere in the sentence declines the whole
+// sentence: the progressive may be doing real aspectual work against a
+// temporal frame, and homing a register band never licenses a meaning
+// change.
+#[test]
+fn t9_declines_when_a_temporal_frame_word_is_anywhere_in_the_sentence() {
+    for frame_word in ["when", "while"] {
+        let shapes = [
+            g(Some(2), DepRelation::Nsubj, "It", "PRP", "it"),
+            g(Some(2), DepRelation::Aux, "was", "VBD", "be"),
+            g(None, DepRelation::Root, "marking", "VBG", "mark"),
+            g(Some(4), DepRelation::Det, "the", "DT", "the"),
+            g(Some(2), DepRelation::Dobj, "change", "NN", "change"),
+            g(Some(2), DepRelation::Other, frame_word, "WRB", frame_word),
+            g(Some(2), DepRelation::Other, "review", "NN", "review"),
+            g(Some(2), DepRelation::Other, "started", "VBD", "start"),
+            g(Some(2), DepRelation::Punct, ".", ".", "."),
+        ];
+        let (source, tokens, parse) = build_glued(&shapes);
+        assert!(
+            t9_past_progressive(&source, &tokens, &parse).is_empty(),
+            "a {frame_word:?} anywhere in the sentence must hold every candidate"
+        );
+    }
+}
+
+// 42. An adverb between the auxiliary and the participle declines:
+// collapsing "was quietly marking" forces an adverb-placement decision no
+// table can make.
+#[test]
+fn t9_declines_when_an_adverb_sits_between_the_auxiliary_and_the_participle() {
+    let shapes = [
+        g(Some(3), DepRelation::Nsubj, "She", "PRP", "she"),
+        g(Some(3), DepRelation::Aux, "was", "VBD", "be"),
+        g(Some(3), DepRelation::Other, "quietly", "RB", "quietly"),
+        g(None, DepRelation::Root, "marking", "VBG", "mark"),
+        g(Some(3), DepRelation::Dobj, "review", "NN", "review"),
+        g(Some(3), DepRelation::Punct, ".", ".", "."),
+    ];
+    let (source, tokens, parse) = build_glued(&shapes);
+    assert!(t9_past_progressive(&source, &tokens, &parse).is_empty());
+}
+
+// 43. A "being"/"going" participle declines: neither is the plain
+// progressive this transducer targets.
+#[test]
+fn t9_declines_on_being_and_going_participles() {
+    let being_shapes = [
+        g(Some(2), DepRelation::Nsubj, "She", "PRP", "she"),
+        g(Some(2), DepRelation::Aux, "was", "VBD", "be"),
+        g(None, DepRelation::Root, "being", "VBG", "be"),
+        g(Some(2), DepRelation::Other, "helpful", "JJ", "helpful"),
+        g(Some(2), DepRelation::Punct, ".", ".", "."),
+    ];
+    let going_shapes = [
+        g(Some(2), DepRelation::Nsubj, "She", "PRP", "she"),
+        g(Some(2), DepRelation::Aux, "was", "VBD", "be"),
+        g(None, DepRelation::Root, "going", "VBG", "go"),
+        g(Some(2), DepRelation::Other, "home", "NN", "home"),
+        g(Some(2), DepRelation::Punct, ".", ".", "."),
+    ];
+
+    for shapes in [&being_shapes[..], &going_shapes[..]] {
+        let (source, tokens, parse) = build_glued(shapes);
+        assert!(
+            t9_past_progressive(&source, &tokens, &parse).is_empty(),
+            "source: {source:?}"
+        );
+    }
+}
+
+// 44. An auxiliary not attached to the participle by its own `aux` edge
+// declines: a copula taking an adjectival predicate that merely happens
+// to carry a `VBG` tag ("The plan was promising") is not a genuine
+// progressive, and rewriting it to "The plan promised" changes the
+// claim's meaning outright.
+#[test]
+fn t9_declines_when_the_auxiliary_is_not_the_participles_own_aux_child() {
+    let shapes = [
+        g(Some(1), DepRelation::Det, "The", "DT", "the"),
+        g(Some(2), DepRelation::Nsubj, "plan", "NN", "plan"),
+        g(None, DepRelation::Root, "was", "VBD", "be"),
+        g(Some(2), DepRelation::Other, "promising", "VBG", "promise"),
+        g(Some(2), DepRelation::Punct, ".", ".", "."),
+    ];
+    let (source, tokens, parse) = build_glued(&shapes);
+    assert!(t9_past_progressive(&source, &tokens, &parse).is_empty());
+}
+
+// 45. `t9_past_progressive` is folded into `candidates()` alongside
+// T4-T8.
+#[test]
+fn candidates_includes_t9_past_progressive_output() {
+    let shapes = [
+        g(Some(2), DepRelation::Nsubj, "She", "PRP", "she"),
+        g(Some(2), DepRelation::Aux, "was", "VBD", "be"),
+        g(None, DepRelation::Root, "marking", "VBG", "mark"),
+        g(Some(4), DepRelation::Det, "the", "DT", "the"),
+        g(Some(2), DepRelation::Dobj, "papers", "NNS", "paper"),
+        g(Some(2), DepRelation::Punct, ".", ".", "."),
+    ];
+    let (source, tokens, parse) = build_glued(&shapes);
+    let found = candidates(&source, &tokens, &parse);
+    assert!(
+        found
+            .iter()
+            .any(|c| c.kind == CandidateKind::PastProgressive)
+    );
 }

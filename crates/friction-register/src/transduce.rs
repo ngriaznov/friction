@@ -21,6 +21,16 @@
 //! same rewrite shape on the same evidence, just for different
 //! punctuation.
 //!
+//! [`t8_comma_and`]/[`t9_past_progressive`] are later additions of the
+//! same kind: not from the original Biber-feature list either, but two
+//! more measured Claude-family tells (see `register-en-v1.toml`'s
+//! `[features.comma_and]`/`[features.past_progressive]` once wired).
+//! [`t8_comma_and`] reuses [`opens_independent_clause`] unchanged for its
+//! own right-hand licensing, the same clause-boundary check T6/T7 already
+//! share; [`t9_past_progressive`] licenses on tags and lemmas alone, no
+//! subtree walk needed, since the construction it targets is exactly two
+//! adjacent tokens.
+//!
 //! Functions here only propose candidates; none mutate `source`, choose
 //! between overlaps, or apply anything: a caller's decision.
 
@@ -89,6 +99,14 @@ pub enum CandidateKind {
     EmDash,
     /// Produced by [`t7_semicolon`].
     Semicolon,
+    /// Produced by [`t8_comma_and`]. Measured at 6309.8 per million words
+    /// in machine prose vs 3778.3 in human prose, a 1.67x rate -- see
+    /// `register-en-v1.toml`'s `[features.comma_and]` once wired.
+    CommaAnd,
+    /// Produced by [`t9_past_progressive`]. Measured at 472.1 per million
+    /// words in machine prose vs 198.9 in human prose, a 2.4x rate -- see
+    /// `register-en-v1.toml`'s `[features.past_progressive]` once wired.
+    PastProgressive,
 }
 
 // ---------------------------------------------------------------------
@@ -843,6 +861,8 @@ pub fn candidates(source: &str, tokens: &[TaggedToken], parse: &SentenceParse) -
     out.extend(t5_nominalization(source, tokens, parse));
     out.extend(t6_em_dash(source, tokens, parse));
     out.extend(t7_semicolon(source, tokens, parse));
+    out.extend(t8_comma_and(source, tokens, parse));
+    out.extend(t9_past_progressive(source, tokens, parse));
     out.sort_by_key(|candidate| (candidate.range.start, candidate.range.end));
     out
 }
@@ -1306,6 +1326,296 @@ pub fn t7_semicolon(source: &str, tokens: &[TaggedToken], parse: &SentenceParse)
     semis
         .iter()
         .filter_map(|&semi| semicolon_candidate(source, tokens, parse, semi))
+        .collect()
+}
+
+// ---------------------------------------------------------------------
+// T8: ", and " sentence-conjunction splice reduction.
+// ---------------------------------------------------------------------
+
+/// Every comma-token index in `tokens` immediately followed by a token
+/// spelled "and" (case-insensitive): the `", and "` joint
+/// [`t8_comma_and`] evaluates one at a time.
+///
+/// Adjacency is checked by token index, not byte distance: the shipped
+/// tokenizer never merges a comma with the word after it, so two
+/// adjacent indices are the same test as "immediately followed by",
+/// without re-deriving it from whitespace.
+fn comma_and_joints(source: &str, tokens: &[TaggedToken]) -> Vec<usize> {
+    (0..tokens.len().saturating_sub(1))
+        .filter(|&index| {
+            token_text(source, tokens, index) == ","
+                && token_text(source, tokens, index + 1).eq_ignore_ascii_case("and")
+        })
+        .collect()
+}
+
+/// `true` if the tokens from `0` up to (excluding) `comma` carry both a
+/// finite verb and their own subject -- T8's left-side licensing
+/// condition, the counterpart to [`opens_independent_clause`] on the
+/// right.
+///
+/// A subject check, not [`has_finite_verb_cx`] alone: an imperative
+/// clause ("Deploy the change, and monitor the rollout") reads as
+/// finite-verb-bearing under the contraction-aware scan but names no
+/// subject at all, so splitting it would strand "and monitor the
+/// rollout" as if it were a second, independently-subjected clause when
+/// it shares the same implied addressee as the imperative before it.
+/// Requiring an explicit `nsubj`/`nsubjPass` edge on the left excludes
+/// that case the same way [`opens_independent_clause`] requires one on
+/// the right.
+fn left_of_comma_is_independent_clause(
+    source: &str,
+    tokens: &[TaggedToken],
+    parse: &SentenceParse,
+    comma: usize,
+) -> bool {
+    has_finite_verb_cx(source, tokens, 0..comma)
+        && parse.edges().iter().any(|edge| {
+            edge.token < comma
+                && matches!(edge.relation, DepRelation::Nsubj | DepRelation::NsubjPass)
+        })
+}
+
+/// One `", and "` joint's own candidate: rewrites the joint -- the comma,
+/// "and", and the word right after it -- into a sentence break (`". "`),
+/// that word recapitalized. The same rewrite shape [`semicolon_candidate`]
+/// uses for a semicolon splice, one splice character later: `", and "` is
+/// ASCII English's other common way to staple two independent clauses
+/// into one sentence.
+///
+/// Declines under the same conditions [`semicolon_candidate`] does --
+/// `comma` opens the sentence or nothing follows "and" to anchor the
+/// rewrite, the span crosses inline code, or the word after "and" can't
+/// be recapitalized (no fallback: the source already has the comma and
+/// "and" to remove, nothing to substitute them for) -- plus both halves
+/// of T8's own licensing: [`left_of_comma_is_independent_clause`] on the
+/// left, [`opens_independent_clause`] (reused unchanged from T6/T7) on
+/// the right.
+fn comma_and_candidate(
+    source: &str,
+    tokens: &[TaggedToken],
+    parse: &SentenceParse,
+    comma: usize,
+) -> Option<Candidate> {
+    let next = comma + 2; // comma, "and", then the word this candidate anchors on.
+    if comma == 0 || next >= tokens.len() {
+        return None;
+    }
+    if !left_of_comma_is_independent_clause(source, tokens, parse, comma) {
+        return None;
+    }
+    if !opens_independent_clause(source, tokens, parse, next) {
+        return None;
+    }
+
+    let range = tokens[comma - 1].token.range.end..tokens[next].token.range.end;
+    if spans_inline_code(&source[range.clone()]) {
+        return None;
+    }
+
+    let next_word = token_text(source, tokens, next);
+    let first_char = next_word.chars().next()?;
+    if !first_char.is_alphabetic() {
+        return None; // no sensible fallback; see this function's own docs.
+    }
+    let replacement = if first_char.is_uppercase() {
+        // Already capitalized (a proper noun): recapitalizing is a
+        // no-op, so the trivial case just needs the period.
+        format!(". {next_word}")
+    } else {
+        format!(". {}", recapitalize(next_word))
+    };
+
+    let mut delta = BTreeMap::new();
+    delta.insert("comma_and", -1);
+    Some(Candidate {
+        kind: CandidateKind::CommaAnd,
+        range,
+        replacement: replacement.into_boxed_str(),
+        delta,
+        confidence: 0.8,
+    })
+}
+
+/// `", and "` sentence-conjunction splice reduction (T8): `"X, and Y"` ->
+/// `"X. Y"` when both clauses are independent.
+///
+/// Homes the `comma_and` feature toward its human band: machine prose
+/// coordinates two independent clauses with `, and ` well past the human
+/// rate (6309.8 vs 3778.3 per million words, a 1.67x rate -- see
+/// `register-en-v1.toml`'s `[features.comma_and]` once wired), the
+/// one-idea-per-sentence tell -- a clause that could stand on its own
+/// gets stapled onto its neighbor instead, the "X, and Y" shape reading
+/// for a considered, connected-thoughts voice that two plain declarative
+/// sentences wouldn't project.
+///
+/// # Licensing conditions
+/// Both required, or the joint is skipped (see [`comma_and_candidate`]):
+/// - the clause before the comma carries its own finite verb and subject
+///   ([`left_of_comma_is_independent_clause`])
+/// - the word after "and" opens a genuine independent clause
+///   ([`opens_independent_clause`], reused unchanged from T6/T7)
+///
+/// A serial list ("a, b, and c") declines naturally: its last item opens
+/// no clause of its own, so the right-side check alone rejects it --
+/// this function never special-cases a list comma.
+///
+/// `parse` is required, mirroring T6/T7: a sentence whose parse failed
+/// never reaches any transducer at all
+/// (`friction-edit::register::build_sentence_contexts` drops it
+/// upstream).
+#[must_use]
+pub fn t8_comma_and(source: &str, tokens: &[TaggedToken], parse: &SentenceParse) -> Vec<Candidate> {
+    comma_and_joints(source, tokens)
+        .into_iter()
+        .filter_map(|comma| comma_and_candidate(source, tokens, parse, comma))
+        .collect()
+}
+
+// ---------------------------------------------------------------------
+// T9: past-progressive simplification.
+// ---------------------------------------------------------------------
+
+/// `true` if `text`, case-folded, is "when" or "while" -- a temporal
+/// subordinator whose clause the progressive aspect may be doing real
+/// work against (see [`t9_past_progressive`]'s own docs).
+fn is_temporal_frame_word(text: &str) -> bool {
+    matches!(text.to_lowercase().as_str(), "when" | "while")
+}
+
+/// `true` if any token anywhere in the sentence is "when" or "while".
+///
+/// Sentence-wide, not clause-local: this module has no `advcl`
+/// resolution accurate enough to scope the check to just the clause the
+/// temporal subordinator introduces (see the module's own top-level docs
+/// on why `acl`/`advcl` never gate a transducer here), so this errs
+/// toward declining the whole sentence rather than risk homing a
+/// progressive that *is* doing real aspectual work against a frame
+/// elsewhere in it.
+fn sentence_has_temporal_frame(source: &str, tokens: &[TaggedToken]) -> bool {
+    (0..tokens.len()).any(|index| is_temporal_frame_word(token_text(source, tokens, index)))
+}
+
+/// `true` if `aux` is attached to `verb` by its own (non-passive) `aux`
+/// edge: the periphrastic-progressive shape ("was **marking**", `aux` on
+/// "marking" pointing at "was"), not a copula taking an adjectival
+/// predicate that merely happens to carry a `VBG` tag ("the plan was
+/// **promising**" -- an adjective, not a verb in progress, and not this
+/// transducer's business to rewrite).
+fn is_progressive_aux(parse: &SentenceParse, aux: usize, verb: usize) -> bool {
+    children_with_relation(parse, verb, DepRelation::Aux).any(|edge| edge.token == aux)
+}
+
+/// One `"was"`/`"were"` + `VBG` pair's own candidate: the periphrastic
+/// past progressive collapsed to the participle's simple past, via
+/// [`friction_nlp::past`]. Capitalization transfers from the auxiliary:
+/// a sentence-initial "Was"/"Were" produces a capitalized replacement,
+/// same as every other recapitalizing rewrite in this module.
+///
+/// # Declines
+/// - the sentence contains "when" or "while" anywhere
+///   ([`sentence_has_temporal_frame`]): the progressive may be doing real
+///   aspectual work against a temporal frame, and homing a register band
+///   never licenses a meaning change
+/// - the token right after `aux` isn't tagged `VBG` at all -- covers an
+///   adverb between them ("was quietly marking"): collapsing it forces
+///   an adverb-placement decision no table can make (before the new verb,
+///   "quietly marked", or after, "marked quietly" -- either is a
+///   judgment call this function isn't licensed to make), so it declines
+///   rather than guess, the same way it declines any other non-`VBG`
+///   token in that slot
+/// - the participle is "being" or "going": neither is the plain
+///   progressive this transducer targets -- "was being X" is a stative
+///   copula construction, and "was going" is usually the "going to"
+///   future periphrasis, not the progressive aspect
+/// - `aux` isn't attached to `verb` by its own `aux` edge
+///   ([`is_progressive_aux`])
+/// - [`friction_nlp::past`] returns an empty string for the participle's
+///   lemma (a defensive check against a malformed lemma reaching this
+///   far; the shipped lexicon never produces one today)
+fn past_progressive_candidate(
+    source: &str,
+    tokens: &[TaggedToken],
+    parse: &SentenceParse,
+    aux: usize,
+) -> Option<Candidate> {
+    let verb = aux + 1;
+    let verb_token = tokens.get(verb).filter(|t| t.pos.as_str() == "VBG")?;
+    let verb_surface_lower = token_text(source, tokens, verb).to_lowercase();
+    if matches!(verb_surface_lower.as_str(), "being" | "going") {
+        return None;
+    }
+    if !is_progressive_aux(parse, aux, verb) {
+        return None;
+    }
+
+    let past_form = friction_nlp::past(verb_token.lemma.as_ref());
+    if past_form.is_empty() {
+        return None;
+    }
+
+    let aux_surface = token_text(source, tokens, aux);
+    let replacement = if aux_surface.starts_with(char::is_uppercase) {
+        recapitalize(&past_form)
+    } else {
+        past_form
+    };
+
+    let mut delta = BTreeMap::new();
+    delta.insert("past_progressive", -1);
+    Some(Candidate {
+        kind: CandidateKind::PastProgressive,
+        range: tokens[aux].token.range.start..tokens[verb].token.range.end,
+        replacement: replacement.into_boxed_str(),
+        delta,
+        confidence: 0.8,
+    })
+}
+
+/// Every `"was"`/`"were"` token index in `tokens`, in source order,
+/// case-insensitive on the surface text.
+fn past_progressive_aux_tokens(source: &str, tokens: &[TaggedToken]) -> Vec<usize> {
+    (0..tokens.len())
+        .filter(|&index| {
+            matches!(
+                token_text(source, tokens, index).to_lowercase().as_str(),
+                "was" | "were"
+            )
+        })
+        .collect()
+}
+
+/// Past-progressive simplification (T9): `"was marking"`/`"were
+/// marking"` -> `"marked"`.
+///
+/// Homes the `past_progressive` feature toward its human band: machine
+/// prose uses the periphrastic past progressive well past the human rate
+/// (472.1 vs 198.9 per million words, a 2.4x rate -- see
+/// `register-en-v1.toml`'s `[features.past_progressive]` once wired),
+/// the progressive-softening tell -- spreading a plain past-tense claim
+/// out across an auxiliary and a participle to sound more considered
+/// than the flat simple past would.
+///
+/// One rewrite shape: an adjacent `"was"`/`"were"` + `VBG` pair collapses
+/// to the participle's simple past. See [`past_progressive_candidate`]
+/// for the full licensing/decline list. `parse` is required, mirroring
+/// every other transducer here: a sentence whose parse failed never
+/// reaches this function at all
+/// (`friction-edit::register::build_sentence_contexts` drops it
+/// upstream).
+#[must_use]
+pub fn t9_past_progressive(
+    source: &str,
+    tokens: &[TaggedToken],
+    parse: &SentenceParse,
+) -> Vec<Candidate> {
+    if sentence_has_temporal_frame(source, tokens) {
+        return Vec::new();
+    }
+    past_progressive_aux_tokens(source, tokens)
+        .into_iter()
+        .filter_map(|aux| past_progressive_candidate(source, tokens, parse, aux))
         .collect()
 }
 
