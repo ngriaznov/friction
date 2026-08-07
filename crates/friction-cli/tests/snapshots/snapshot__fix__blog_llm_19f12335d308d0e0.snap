@@ -12,7 +12,7 @@ Let’s walk through the experience, detailing how we tracked down this “ghost
 
 It started subtly. Our production monitoring system (Prometheus + Grafana) began showing a gradual increase in the memory usage of our worker process, designated "DataProcessor-1". Initially, it was just a few megabytes creeping up over several hours. We dismissed it as normal background activity – the worker was constantly processing data streams, and some overhead was expected. However, the trend persisted, and within 24 hours, the memory usage had climbed to nearly 500MB - a significant spike compared to its typical baseline of around 150MB.
 
-The Grafana dashboard highlighted the key metric: `process.memoryUsage()`. The ‘used’ column was steadily increasing, particularly the ‘heapUsed’ value. This immediately suggested a memory leak – something was accumulating within the process without being released. We set up an alert to trigger when `heapUsed` exceeded 75% of the worker's total memory, hoping to catch it early.
+The Grafana dashboard highlighted the key metric: `process.memoryUsage()`. The ‘used’ column was steadily increasing, particularly the ‘heapUsed’ value. This immediately suggested a memory leak – something accumulated within the process without being released. We set up an alert to trigger when `heapUsed` exceeded 75% of the worker's total memory, hoping to catch it early.
 
 **Digging Deeper: Log Analysis and Initial Hypotheses**
 
@@ -22,7 +22,7 @@ Our initial hypotheses ranged from database connection issues (we weren't seeing
 
 **Heap Snapshots: Narrowing Down the Scope**
 
-We decided to take a different approach.  We used a heap snapshotting tool called `heapdump-psml`. This tool allows us to capture snapshots of the Node.js process’s memory allocation at specific intervals, providing a detailed breakdown of what was consuming the most memory. 
+We decided to take a different approach.  We used a heap snapshotting tool called `heapdump-psml`. This tool allows us to capture snapshots of the Node.js process’s memory allocation at specific intervals, providing a detailed breakdown of what consumed the most memory. 
 
 Taking regular heap snapshots (every 15 minutes) allowed us to observe how the memory usage evolved over time. The first few snapshots showed a gradual increase in the number of objects allocated within the worker's heap.  We started noticing a particular pattern: a large number of objects related to our message queue – specifically, objects representing messages waiting to be processed. 
 
@@ -36,7 +36,7 @@ Here's where the ghost revealed itself: The `try...catch` block was catching exc
 
 The solution was surprisingly simple – yet incredibly common. We implemented a robust cleanup mechanism within the event listener that ensured all associated objects were released from the heap after each processed message. This involved explicitly calling `delete` on the message object and potentially triggering garbage collection to help clear out unused memory. 
 
-We also added logging around the cleanup process, allowing us to verify that it was functioning correctly.  After deploying this change, we monitored the worker's memory usage closely. The increase vanished, and the memory consumption returned to its normal baseline.
+We also added logging around the cleanup process, allowing us to verify that it functioned correctly.  After deploying this change, we monitored the worker's memory usage closely. The increase vanished, and the memory consumption returned to its normal baseline.
 
 **Lessons Learned & Best Practices**
 

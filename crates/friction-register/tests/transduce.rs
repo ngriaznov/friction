@@ -1794,6 +1794,7 @@ fn t9_fires_on_an_irregular_past_progressive() {
         g(Some(2), DepRelation::Nsubj, "He", "PRP", "he"),
         g(Some(2), DepRelation::Aux, "was", "VBD", "be"),
         g(None, DepRelation::Root, "writing", "VBG", "write"),
+        g(Some(4), DepRelation::Det, "the", "DT", "the"),
         g(Some(2), DepRelation::Dobj, "docs", "NNS", "doc"),
         g(Some(2), DepRelation::Punct, ".", ".", "."),
     ];
@@ -1805,7 +1806,32 @@ fn t9_fires_on_an_irregular_past_progressive() {
 
     let mut fixed = source;
     fixed.replace_range(found[0].range.clone(), &found[0].replacement);
-    assert_eq!(fixed, "He wrote docs.");
+    assert_eq!(fixed, "He wrote the docs.");
+}
+
+// A participle directly before a bare noun reads as an attributive
+// adjective whatever the parse says: "support were compelling factors"
+// carried a mis-attached aux edge from the real parser and produced
+// "compelled factors" on a corpus fixture during snapshot review. The
+// bare-noun decline is fail-closed: a genuine progressive with a
+// bare-plural object ("was writing docs") declines too, by design.
+#[test]
+fn t9_declines_a_participle_directly_before_a_bare_noun() {
+    let shapes = [
+        g(
+            Some(2),
+            DepRelation::Nsubj,
+            "Guarantees",
+            "NNS",
+            "guarantee",
+        ),
+        g(Some(2), DepRelation::Aux, "were", "VBD", "be"),
+        g(None, DepRelation::Root, "compelling", "VBG", "compel"),
+        g(Some(2), DepRelation::Dobj, "factors", "NNS", "factor"),
+        g(Some(2), DepRelation::Punct, ".", ".", "."),
+    ];
+    let (source, tokens, parse) = build_glued(&shapes);
+    assert!(t9_past_progressive(&source, &tokens, &parse).is_empty());
 }
 
 // 40. Capitalization transfers from the auxiliary: a sentence-initial

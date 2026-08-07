@@ -103,7 +103,7 @@ pass 2: 1 operation(s) fired
     intg.carefully         5897..5906  KEPT (frame intg.carefully: measured 117.4/M machine vs 18.4/M human; report-only)
     col.excellent-x::choice 5961..6053  KEPT (frame col.excellent-x::choice held: left seam not attested)
 pass 3: 0 operation(s) fired — converged
-  60 held:
+  61 held:
     register.unpack        99..106  KEPT (nominalization: "venture" has no licensed rewrite and the document is still above the human band (73.26 > 50.56 per 1000 words) — needs a human hand)
     register.unpack        355..363  KEPT (nominalization: "business" has no licensed rewrite and the document is still above the human band (73.26 > 50.56 per 1000 words) — needs a human hand)
     register.unpack        487..495  KEPT (nominalization: "decision" has no licensed rewrite and the document is still above the human band (73.26 > 50.56 per 1000 words) — needs a human hand (its verb is "decide"))
@@ -164,3 +164,4 @@ pass 3: 0 operation(s) fired — converged
     register.unpack        5665..5676  KEPT (nominalization: "performance" has no licensed rewrite and the document is still above the human band (73.26 > 50.56 per 1000 words) — needs a human hand)
     register.unpack        5796..5804  KEPT (nominalization: "decision" has no licensed rewrite and the document is still above the human band (73.26 > 50.56 per 1000 words) — needs a human hand (its verb is "decide"))
     register.unpack        5907..5918  KEPT (nominalization: "application" has no licensed rewrite and the document is still above the human band (73.26 > 50.56 per 1000 words) — needs a human hand)
+    register.past_progressive 3172..3182  KEPT (past_progressive: this instance has no licensed rewrite and the document is still above the human band (1.22 > 0.00 per 1000 words) — needs a human hand)

@@ -1549,6 +1549,19 @@ fn past_progressive_candidate(
     if !is_progressive_aux(parse, aux, verb) {
         return None;
     }
+    // A participle sitting directly before a bare noun is reading as an
+    // attributive adjective, whatever the parse says: "support were
+    // compelling factors" carries a mis-attached `aux` edge in the
+    // shipped parser's output, and collapsing it produced "compelled
+    // factors" on a real corpus fixture during this feature's snapshot
+    // review. A genuine progressive's bare-plural object ("was marking
+    // scope shifts") declines too -- fail-closed, the designed reading.
+    if tokens
+        .get(verb + 1)
+        .is_some_and(|t| t.pos.as_str().starts_with("NN"))
+    {
+        return None;
+    }
 
     let past_form = friction_nlp::past(verb_token.lemma.as_ref());
     if past_form.is_empty() {

@@ -422,7 +422,9 @@ fn push_contrast_closer_findings(
     total_words: i64,
     band: RegisterBand,
 ) {
-    if wilson_lower(count, total_words) <= band.high {
+    // Same arming test as every nonzero-band Decrease feature,
+    // including the two-instance floor -- see `confidently_above`.
+    if !confidently_above(count, total_words, &band) {
         return;
     }
     let feature_rate = rate(count, total_words);
@@ -770,7 +772,14 @@ fn feature_plan(
     [
         // Arming compares a Wilson confidence bound against the band, not
         // the raw point estimate — see [`WILSON_Z`]'s docs. A Decrease
-        // feature arms only when even the LOWER bound clears `band.high`;
+        // feature arms only when even the LOWER bound clears `band.high`
+        // AND the evidence is at least two instances when the band's high
+        // is nonzero (see `confidently_above`): one occurrence of a
+        // construction the median human document also uses can never be
+        // register evidence, however small the denominator makes the
+        // Wilson interval look. A zero-high band keeps single-instance
+        // arming on purpose -- there, one instance IS the whole story
+        // (the em-dash reading, documented in `register-en-v1.toml`);
         // the Increase feature arms only when even the UPPER bound sits
         // below `band.low`. Either way, the document must be confidently
         // outside the band, not just measured outside it on a sample too
@@ -788,7 +797,7 @@ fn feature_plan(
             "nominalization",
             register_pack
                 .band("nominalization")
-                .filter(|band| wilson_lower(nominalization, total_words) > band.high),
+                .filter(|band| confidently_above(nominalization, total_words, band)),
             Direction::Decrease,
             nominalization,
             CandidateKind::NominalizationUnpack,
@@ -797,7 +806,7 @@ fn feature_plan(
             "em_dash",
             register_pack
                 .band("em_dash")
-                .filter(|band| wilson_lower(em_dash, total_words) > band.high),
+                .filter(|band| confidently_above(em_dash, total_words, band)),
             Direction::Decrease,
             em_dash,
             CandidateKind::EmDash,
@@ -806,7 +815,7 @@ fn feature_plan(
             "semicolon",
             register_pack
                 .band("semicolon")
-                .filter(|band| wilson_lower(semicolon, total_words) > band.high),
+                .filter(|band| confidently_above(semicolon, total_words, band)),
             Direction::Decrease,
             semicolon,
             CandidateKind::Semicolon,
@@ -815,7 +824,7 @@ fn feature_plan(
             "comma_and",
             register_pack
                 .band("comma_and")
-                .filter(|band| wilson_lower(comma_and, total_words) > band.high),
+                .filter(|band| confidently_above(comma_and, total_words, band)),
             Direction::Decrease,
             comma_and,
             CandidateKind::CommaAnd,
@@ -824,7 +833,7 @@ fn feature_plan(
             "past_progressive",
             register_pack
                 .band("past_progressive")
-                .filter(|band| wilson_lower(past_progressive, total_words) > band.high),
+                .filter(|band| confidently_above(past_progressive, total_words, band)),
             Direction::Decrease,
             past_progressive,
             CandidateKind::PastProgressive,
@@ -892,6 +901,20 @@ const WILSON_Z: f64 = 1.96;
 /// Closed-form and deterministic: IEEE-754 `sqrt` is exactly rounded,
 /// so the same `(count, words)` produces the same bits on every
 /// platform — the byte-determinism bar every path in this crate meets.
+/// The Decrease-feature arming test: the Wilson lower bound clears the
+/// band's high, and -- for a band whose high is nonzero -- the count is
+/// at least two. A single instance in a short text can push the lower
+/// bound over a nonzero band edge on denominator noise alone (measured:
+/// one ", and " in a 20-word text bounds at 8.9 against `comma_and`'s
+/// 8.46), and one occurrence of a construction humans use at a nonzero
+/// median is not evidence of register, it is evidence of English.
+/// Zero-high bands (`em_dash`, `past_progressive`) deliberately keep
+/// single-instance arming: their populations are near-degenerate and one
+/// instance genuinely is above every human document in the measurement.
+fn confidently_above(count: i64, words: i64, band: &RegisterBand) -> bool {
+    (band.high == 0.0 || count >= 2) && wilson_lower(count, words) > band.high
+}
+
 fn wilson_lower(count: i64, words: i64) -> f64 {
     wilson_bounds(count, words).0
 }
