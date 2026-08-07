@@ -49,10 +49,10 @@ fn sentence_initial_rewrite_transfers_capitalization() {
 /// original text regardless.
 #[test]
 fn report_only_rule_emits_a_finding() {
-    let source = "This provides seamless integration with the pipeline.\n";
+    let source = "The project has a vibrant community around the toolkit.\n";
     let (fixed, report) = engine().fix_document(source).expect("engine runs");
     assert_eq!(
-        fixed, "This provides integration with the pipeline.\n",
+        fixed, "The project has a community around the toolkit.\n",
         "the adjective-deletion rewrite applies"
     );
     assert!(
@@ -60,8 +60,9 @@ fn report_only_rule_emits_a_finding() {
             .passes
             .iter()
             .flat_map(|p| &p.held)
-            .any(|f| f.rule.as_str() == "col.seamless-integration"
-                && f.message.contains("report-only")),
+            .any(
+                |f| f.rule.as_str() == "col.vibrant-community" && f.message.contains("report-only")
+            ),
         "the collocation must surface as a report finding"
     );
 }

@@ -890,9 +890,12 @@ mod tests {
         // 3,333 delivered rules plus 55 authored arrivals (the
         // honestly/honest/load-bearing batch and two corpus-mined
         // batches) plus the five-way verb-tag split of vsub.harness
-        // (net +4) — bumped only when rules are deliberately added,
-        // never by regeneration.
-        assert_eq!(total, 3392, "regeneration moves rules, never loses them");
+        // (net +4) minus two stale report-only holds
+        // (col.unwavering-commitment, col.seamless-integration) that
+        // duplicated already-shipped adjective-deletion rewrites on
+        // the identical byte range — bumped only when rules are
+        // deliberately added or removed, never by regeneration.
+        assert_eq!(total, 3390, "regeneration moves rules, never loses them");
         assert_eq!(set.rules_pilot.len(), 21, "pilot rules never move");
         assert_eq!(set.classes.len(), 34);
         assert_eq!(set.function_words.words.len(), 37);

@@ -872,9 +872,9 @@ mod tests {
     /// The multi-word collocation report rule matches as a phrase.
     #[test]
     fn multi_word_collocation_matches_as_phrase() {
-        let (matches, _) = scan("This provides seamless integration with the API.");
+        let (matches, _) = scan("This gives customers a strong value proposition.");
         assert!(
-            rule_ids(&matches).contains(&"col.seamless-integration"),
+            rule_ids(&matches).contains(&"col.value-proposition"),
             "found: {:?}",
             rule_ids(&matches)
         );
@@ -964,7 +964,7 @@ mod tests {
     fn two_word_anchor_discriminator_rejects_before_verify() {
         let view = &FRAME.pack;
         let index = FrameIndex::build(view);
-        let rule_index = find_rule_index(view, "col.seamless-integration");
+        let rule_index = find_rule_index(view, "col.value-proposition");
         let rule = view.rule(rule_index).expect("rule");
         let mut anchor = rule.anchor.clone();
         let first = anchor.next().expect("anchor has a first word");
@@ -980,19 +980,19 @@ mod tests {
             "discriminator carries the anchor's second word"
         );
 
-        // "seamless" appears, but not followed by "integration": the
+        // "value" appears, but not followed by "proposition": the
         // discriminator rejects before verification runs.
-        let (rejected, _) = scan("This provides seamless deployment with the API.");
+        let (rejected, _) = scan("This gives customers a strong value assessment.");
         assert!(
-            !rule_ids(&rejected).contains(&"col.seamless-integration"),
+            !rule_ids(&rejected).contains(&"col.value-proposition"),
             "found: {:?}",
             rule_ids(&rejected)
         );
 
         // Both anchor words present: the rule still fires.
-        let (accepted, _) = scan("This provides seamless integration with the API.");
+        let (accepted, _) = scan("This gives customers a strong value proposition.");
         assert!(
-            rule_ids(&accepted).contains(&"col.seamless-integration"),
+            rule_ids(&accepted).contains(&"col.value-proposition"),
             "found: {:?}",
             rule_ids(&accepted)
         );
