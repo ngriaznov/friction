@@ -4,6 +4,8 @@
 
 use std::sync::LazyLock;
 
+use friction_core::Lang;
+
 use crate::attestation::AttestationPack;
 use crate::dms::DmsIndex;
 use crate::dms_bin::DmsIndexView;
@@ -296,6 +298,85 @@ pub static MACHINE_EVIDENCE: LazyLock<HumanEvidencePack> = LazyLock::new(|| {
         "embedded machine-evidence-en-v1.bin must load: see this crate's human_evidence tests",
     )
 });
+
+/// Every language-scoped pack this crate ships, bundled behind one
+/// [`Lang`]-keyed access path.
+///
+/// **This is the access path for language-scoped packs.** A caller that
+/// wants "the inventory pack for the language this document is being
+/// analyzed as" reaches for `PackSet::for_lang(lang).inventory`, never
+/// [`INVENTORY`] directly — the individual statics (`INVENTORY`, `DMS`,
+/// `JARGON`, `JARGON_ATTEST`, `ATTESTATION`, `REGISTER`, `FRAME`,
+/// `HUMAN_EVIDENCE`, `MACHINE_EVIDENCE`) still exist and still do the
+/// actual embedding and parsing; they are the English backing store this
+/// struct bundles references to, kept `pub` because this crate's own
+/// tests (and the drift/freshness guards below) still address them by
+/// name.
+///
+/// v1 ships exactly one bundle ([`Lang::En`], built from those same nine
+/// statics), so `for_lang` cannot yet observe two bundles disagreeing —
+/// but every consumer that goes through it instead of the bare statics is
+/// already written the way a second language's bundle will need it read.
+pub struct PackSet {
+    /// The curated tell-span inventory (deletion spans, substitution
+    /// pairs, ritual frames, licensed LVC pairs).
+    pub inventory: &'static LoadedPack<InventoryPack>,
+    /// The DMS (differential machine score) index: per-family and pooled
+    /// suffix automata over the human/machine token streams.
+    pub dms: &'static LoadedPack<DmsIndexView<'static>>,
+    /// The curated metaphor-lexeme pack the jargon channel flags against.
+    pub jargon: &'static LoadedPack<JargonPack>,
+    /// The web-scale compound attestation filter backing the jargon
+    /// channel's real attestation oracle.
+    pub jargon_attest: &'static JargonAttestPack,
+    /// The seam-bigram and POS-skeleton attestation tables the repair
+    /// engine's gates consult.
+    pub attestation: &'static LoadedPack<AttestationPack>,
+    /// The per-1000-word human rate bands (nominalization, agentless
+    /// passive, em dash, semicolon, ...) the register pass measures
+    /// against.
+    pub register: &'static LoadedPack<RegisterPack>,
+    /// The compiled contrast-frame collocation-rewrite rule program.
+    pub frame: &'static LoadedPack<FramePackView<'static>>,
+    /// External human-corpus unigram/literal-probe evidence, pooled into
+    /// every frame-rewrite compile fence.
+    pub human_evidence: &'static HumanEvidencePack,
+    /// The machine-side half of the review-register evidence pair,
+    /// register-matched against `human_evidence`'s review buckets.
+    pub machine_evidence: &'static HumanEvidencePack,
+}
+
+/// The built-in [`PackSet`] for [`Lang::En`], bundling references to the
+/// nine statics above — built once, on first use, and reused for the life
+/// of the process. Building it does not itself force any of the
+/// individual statics; each is still parsed lazily on its own first
+/// touch, same as before this bundle existed.
+static PACK_SET_EN: LazyLock<PackSet> = LazyLock::new(|| PackSet {
+    inventory: &INVENTORY,
+    dms: &DMS,
+    jargon: &JARGON,
+    jargon_attest: &JARGON_ATTEST,
+    attestation: &ATTESTATION,
+    register: &REGISTER,
+    frame: &FRAME,
+    human_evidence: &HUMAN_EVIDENCE,
+    machine_evidence: &MACHINE_EVIDENCE,
+});
+
+impl PackSet {
+    /// Selects the built-in [`PackSet`] for `lang` — `Lang::En` ->
+    /// [`PACK_SET_EN`].
+    ///
+    /// The match is exhaustive over [`Lang`]: adding a language variant
+    /// without a pack bundle for it is a compile error here, not a
+    /// runtime surprise.
+    #[must_use]
+    pub fn for_lang(lang: Lang) -> &'static Self {
+        match lang {
+            Lang::En => &PACK_SET_EN,
+        }
+    }
+}
 
 #[cfg(test)]
 mod tests {
@@ -632,5 +713,34 @@ mod tests {
         // size; a word never written in review prose stays a real zero.
         assert!(HUMAN_EVIDENCE.unigram_count("the") > 1_000_000);
         assert_eq!(HUMAN_EVIDENCE.unigram_count("qzxwv"), 0);
+    }
+
+    /// `PackSet::for_lang(Lang::En)` bundles references to exactly the
+    /// same nine statics a direct caller would otherwise reach for.
+    #[test]
+    fn pack_set_for_lang_en_bundles_the_english_statics() {
+        let set = PackSet::for_lang(Lang::En);
+        assert!(std::ptr::eq(set.inventory, &raw const *INVENTORY));
+        assert!(std::ptr::eq(set.dms, &raw const *DMS));
+        assert!(std::ptr::eq(set.jargon, &raw const *JARGON));
+        assert!(std::ptr::eq(set.jargon_attest, &raw const *JARGON_ATTEST));
+        assert!(std::ptr::eq(set.attestation, &raw const *ATTESTATION));
+        assert!(std::ptr::eq(set.register, &raw const *REGISTER));
+        assert!(std::ptr::eq(set.frame, &raw const *FRAME));
+        assert!(std::ptr::eq(set.human_evidence, &raw const *HUMAN_EVIDENCE));
+        assert!(std::ptr::eq(
+            set.machine_evidence,
+            &raw const *MACHINE_EVIDENCE
+        ));
+    }
+
+    /// Two calls to `for_lang` return the exact same bundle (the
+    /// `LazyLock` singleton, not a fresh allocation per call).
+    #[test]
+    fn pack_set_for_lang_is_a_stable_singleton() {
+        assert!(std::ptr::eq(
+            PackSet::for_lang(Lang::En),
+            PackSet::for_lang(Lang::En)
+        ));
     }
 }

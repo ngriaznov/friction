@@ -10,17 +10,22 @@
 use std::process::ExitCode;
 
 use clap::Args;
-use friction_core::{Finding, Patch};
+use friction_core::{Finding, Lang, Patch};
 use friction_edit::EditReport;
 use serde::Serialize;
 
-use crate::common::{CliError, Format, read_input};
+use crate::common::{CliError, Format, parse_lang, read_input};
 
 /// Arguments for `friction explain`.
 #[derive(Debug, Args)]
 pub struct ExplainArgs {
     /// File to explain, or `-` to read from stdin.
     input: String,
+
+    /// Language to analyze the document as (BCP-47 primary tag). `en` is
+    /// the only supported language in v1.
+    #[arg(long, default_value = "en", value_parser = parse_lang)]
+    lang: Lang,
 
     /// Output format. `sarif` is not supported here (see `friction
     /// check`).
@@ -72,7 +77,7 @@ fn run_inner(args: &ExplainArgs) -> Result<ExitCode, CliError> {
 
     let source = read_input(&args.input)?;
     let syntax = crate::common::syntax_of(&args.input, &source);
-    let engine = friction_edit::Engine::new()?;
+    let engine = friction_edit::Engine::for_lang(args.lang)?;
     let (_output, report) = engine.fix_document_with(&source, syntax)?;
 
     let passes = pass_rows(&report);

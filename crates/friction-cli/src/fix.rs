@@ -60,18 +60,25 @@ use std::path::Path;
 use std::process::ExitCode;
 
 use clap::Args;
-use friction_core::{Finding, RuleId};
+use friction_core::{Finding, Lang, RuleId};
 use friction_edit::EditReport;
 use friction_match::{MatchScore, MatchSpan};
 use serde::Serialize;
 
-use crate::common::{CliError, Format, LineIndex, display_path, read_input, write_in_place};
+use crate::common::{
+    CliError, Format, LineIndex, display_path, parse_lang, read_input, write_in_place,
+};
 
 /// Arguments for `friction fix`.
 #[derive(Debug, Args)]
 pub struct FixArgs {
     /// File to fix, or `-` to read from stdin.
     input: String,
+
+    /// Language to analyze the document as (BCP-47 primary tag). `en` is
+    /// the only supported language in v1.
+    #[arg(long, default_value = "en", value_parser = parse_lang)]
+    lang: Lang,
 
     /// Format for the pass summary and (with `--suggest`) held-candidates
     /// list printed to stderr. `sarif` is not supported here (see
@@ -164,38 +171,31 @@ fn run_inner(args: &FixArgs) -> Result<ExitCode, CliError> {
         return Err(CliError::InPlaceStdin);
     }
 
-    // Force the embedded packs' first-touch parses on background threads
-    // so they overlap each other (and reading the input) instead of
-    // running serially on the critical path — `Engine::new` derefs
-    // INVENTORY then ATTESTATION back to back, and the paraphrase scan
-    // first touches HUMAN_EVIDENCE inside its innermost `rayon::join`
-    // arm. Every pack is a process-lifetime `LazyLock` whose value is a
-    // pure function of embedded bytes, so where (and on which thread) the
-    // first force happens can never change output: later touchers block
-    // on the same completed value. Plain `std::thread`, not the rayon
-    // pool: these must not occupy pool workers the engine may want. The
-    // threads are deliberately detached: every pack forced below is
-    // consumed later in this function, so the process never exits with
-    // one of them still mid-parse on the success path.
-    let _ = std::thread::spawn(|| {
-        let _ = std::sync::LazyLock::force(&friction_packs::ATTESTATION);
-    });
-    let _ = std::thread::spawn(|| {
-        let _ = std::sync::LazyLock::force(&friction_packs::HUMAN_EVIDENCE);
-        let _ = std::sync::LazyLock::force(&friction_packs::JARGON);
-        let _ = std::sync::LazyLock::force(&friction_packs::JARGON_ATTEST);
-    });
-    let _ = std::thread::spawn(|| {
-        let _ = std::sync::LazyLock::force(&friction_packs::INVENTORY);
-        let _ = std::sync::LazyLock::force(&friction_packs::REGISTER);
-        let _ = std::sync::LazyLock::force(&friction_packs::FRAME);
-        let _ = std::sync::LazyLock::force(&friction_packs::DMS);
+    // Warms the embedded pack bundle's first-touch parse on a background
+    // thread so it overlaps reading the input and loading the tagger/
+    // parser (`friction_edit::Engine::for_lang`) instead of running
+    // serially on the critical path. `friction_packs::PackSet::for_lang`
+    // is one process-lifetime `LazyLock` bundling every language-scoped
+    // pack this run touches (inventory, attestation, register, frame,
+    // DMS, jargon, jargon-attest, human evidence — see that type's own
+    // docs); it is a pure function of embedded bytes, so which thread
+    // forces it first can never change output: the later touch below (via
+    // `Engine::for_lang` and `scan_paraphrase_spans`) just blocks on the
+    // same completed value. Plain `std::thread`, not the rayon pool: this
+    // must not occupy a pool worker the engine may want. Detached
+    // deliberately: the pack bundle forced here is consumed later in this
+    // function on the success path, so the process never exits with it
+    // still mid-parse.
+    let lang = args.lang;
+    let _ = std::thread::spawn(move || {
+        let _ = friction_packs::PackSet::for_lang(lang);
     });
 
     let source = read_input(&args.input)?;
     let syntax = crate::common::syntax_of(&args.input, &source);
-    let engine = friction_edit::Engine::new()?;
+    let engine = friction_edit::Engine::for_lang(args.lang)?;
     let (output, report) = engine.fix_document_with(&source, syntax)?;
+    let packs = friction_packs::PackSet::for_lang(args.lang);
 
     if args.in_place {
         write_in_place(Path::new(&args.input), &output)?;
@@ -207,8 +207,10 @@ fn run_inner(args: &FixArgs) -> Result<ExitCode, CliError> {
     let paraphrase_spans = scan_paraphrase_spans(
         &output,
         syntax,
+        args.lang,
         engine.tagger(),
         report.reusable_scan.as_ref(),
+        packs,
     )?;
     print_summary(
         args.format,
@@ -463,10 +465,12 @@ fn reused_tags(
 fn scan_paraphrase_spans(
     output: &str,
     syntax: friction_parse::Syntax,
+    lang: Lang,
     tagger: &dyn friction_nlp::Tagger,
     reusable: Option<&friction_edit::ReusableScan>,
+    packs: &friction_packs::PackSet,
 ) -> Result<Vec<ParaphraseSpan>, CliError> {
-    let segmenter = friction_nlp::SrxSegmenter::new();
+    let segmenter = friction_nlp::SrxSegmenter::for_lang(lang);
 
     // Deferred-init: exactly one of these two arms runs, and `document`
     // borrows whichever one supplied the parse — the reused
@@ -481,7 +485,7 @@ fn scan_paraphrase_spans(
     let units = friction_match::token::prose_scope(document, &segmenter);
 
     let (dms_spans, (frame_spans, (jargon_spans, overuse_spans))) = rayon::join(
-        || dms_spans_machine(&units),
+        || dms_spans_machine(&units, packs),
         || {
             rayon::join(
                 || friction_match::frame::scan_units(&units),
@@ -504,15 +508,15 @@ fn scan_paraphrase_spans(
                             friction_match::jargon::scan_units(
                                 &tagged_sentences,
                                 document.source(),
-                                &friction_packs::JARGON.pack,
-                                &friction_packs::JARGON_ATTEST,
+                                &packs.jargon.pack,
+                                packs.jargon_attest,
                             )
                         },
                         || {
                             friction_match::overuse::scan_units(
                                 &tagged_sentences,
                                 document.source(),
-                                &friction_packs::HUMAN_EVIDENCE,
+                                packs.human_evidence,
                             )
                         },
                     )
@@ -536,8 +540,11 @@ fn scan_paraphrase_spans(
 /// scanning every family and unioning the results used to flag (see
 /// `friction_match::dms`'s own module docs for why), so this is strictly
 /// less work for a result that was already a superset by construction.
-fn dms_spans_machine(units: &[friction_match::token::ScopedUnit<'_>]) -> Vec<MatchSpan> {
-    friction_match::dms_spans_pooled(units, &friction_packs::DMS.pack)
+fn dms_spans_machine(
+    units: &[friction_match::token::ScopedUnit<'_>],
+    packs: &friction_packs::PackSet,
+) -> Vec<MatchSpan> {
+    friction_match::dms_spans_pooled(units, &packs.dms.pack)
 }
 
 /// A [`MatchSpan`]'s DMS differential score. Always

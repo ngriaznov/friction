@@ -9,6 +9,7 @@ use std::path::{Path, PathBuf};
 use std::process::ExitCode;
 
 use clap::ValueEnum;
+use friction_core::Lang;
 use friction_nlp::{PerceptronTagError, PerceptronTagger, SrxSegmenter};
 use friction_packs::{ENVELOPE_V2, EnvelopePack, PackError};
 
@@ -64,6 +65,18 @@ pub fn resolve_genre(explicit: Option<Genre>) -> Genre {
         );
         Genre::DEFAULT
     })
+}
+
+/// `clap` `value_parser` for `--lang`: parses a BCP-47 primary tag into a
+/// [`Lang`], surfacing [`friction_core::UnknownLang`]'s own message
+/// (naming the offending tag and that `en` is the only supported
+/// language) as the flag's parse-failure error.
+///
+/// # Errors
+/// Returns the tag's `Display`ed [`friction_core::UnknownLang`] error if
+/// `s` names no supported language.
+pub fn parse_lang(s: &str) -> Result<Lang, String> {
+    s.parse::<Lang>().map_err(|err| err.to_string())
 }
 
 /// Output shapes shared by `check`/`fix`/`explain`. Not every subcommand
@@ -293,15 +306,15 @@ pub struct Engine {
 }
 
 impl Engine {
-    /// Loads the segmenter and tagger.
+    /// Loads the segmenter and tagger for `lang`.
     ///
     /// # Errors
-    /// Returns [`CliError::Tagger`] if the embedded English tagger model
+    /// Returns [`CliError::Tagger`] if `lang`'s embedded tagger model
     /// fails to load.
-    pub fn load() -> Result<Self, CliError> {
+    pub fn load(lang: Lang) -> Result<Self, CliError> {
         Ok(Self {
-            segmenter: SrxSegmenter::new(),
-            tagger: PerceptronTagger::new()?,
+            segmenter: SrxSegmenter::for_lang(lang),
+            tagger: PerceptronTagger::for_lang(lang)?,
         })
     }
 }

@@ -112,6 +112,7 @@
 use std::collections::HashMap;
 use std::io::Read as _;
 
+use friction_core::Lang;
 use serde::{Deserialize, Serialize};
 
 use crate::dep::{DepParseError, DepParser, DepRelation, SentenceParse};
@@ -746,33 +747,51 @@ pub struct PerceptronParser {
 }
 
 impl PerceptronParser {
-    /// Loads the parser from its embedded, derived `.bin` artifact — a
-    /// version-2 serialized hash-table view (see this module's docs for
-    /// the byte layout), gated on a source-sha256 header check against
-    /// the embedded `json.gz` (`crate::weights_bin`'s module docs). This
-    /// is the fast path every normal caller wants: [`ParserView::from_payload`]
-    /// only slices the embedded `'static` bytes, with no `HashMap` built
-    /// and no per-feature array allocated. See [`Self::from_json_gz`] for
-    /// the slower, audited-source path.
+    /// Loads the parser for [`Lang::En`], the only supported language in
+    /// v1 — shorthand for `Self::for_lang(Lang::En)`.
+    ///
+    /// # Errors
+    /// See [`Self::for_lang`].
+    pub fn new() -> Result<Self, PerceptronParseError> {
+        Self::for_lang(Lang::En)
+    }
+
+    /// Loads the parser for `lang`, from its embedded, derived `.bin`
+    /// artifact — a version-2 serialized hash-table view (see this
+    /// module's docs for the byte layout), gated on a source-sha256
+    /// header check against the embedded `json.gz`
+    /// (`crate::weights_bin`'s module docs). This is the fast path every
+    /// normal caller wants: [`ParserView::from_payload`] only slices the
+    /// embedded `'static` bytes, with no `HashMap` built and no
+    /// per-feature array allocated. See [`Self::from_json_gz`] for the
+    /// slower, audited-source path.
+    ///
+    /// The match is exhaustive over [`Lang`]: adding a language variant
+    /// without a retrained artifact for it is a compile error here, not a
+    /// runtime surprise.
     ///
     /// # Errors
     /// [`PerceptronParseError::Header`] if the embedded `.bin`'s header or
     /// payload is malformed; [`PerceptronParseError::StaleBin`] if its
     /// recorded source sha256 doesn't match the currently embedded
     /// `json.gz`. Neither should happen for the vendored artifact.
-    pub fn new() -> Result<Self, PerceptronParseError> {
-        let (source_sha256, payload) =
-            crate::weights_bin::split_header(WEIGHTS_BIN, ARTIFACT_MAGIC)?;
-        if source_sha256 != SOURCE_JSON_GZ_SHA256 {
-            return Err(PerceptronParseError::StaleBin {
-                found: Box::from(source_sha256),
-                expected: SOURCE_JSON_GZ_SHA256,
-            });
+    pub fn for_lang(lang: Lang) -> Result<Self, PerceptronParseError> {
+        match lang {
+            Lang::En => {
+                let (source_sha256, payload) =
+                    crate::weights_bin::split_header(WEIGHTS_BIN, ARTIFACT_MAGIC)?;
+                if source_sha256 != SOURCE_JSON_GZ_SHA256 {
+                    return Err(PerceptronParseError::StaleBin {
+                        found: Box::from(source_sha256),
+                        expected: SOURCE_JSON_GZ_SHA256,
+                    });
+                }
+                let view = ParserView::from_payload(payload)?;
+                Ok(Self {
+                    backend: Box::new(ViewBackend { view }),
+                })
+            }
         }
-        let view = ParserView::from_payload(payload)?;
-        Ok(Self {
-            backend: Box::new(ViewBackend { view }),
-        })
     }
 
     /// Loads the parser directly from `json.gz` bytes (the audited

@@ -18,12 +18,13 @@ use std::path::PathBuf;
 use std::process::ExitCode;
 
 use clap::Args;
-use friction_core::MetricVector;
+use friction_core::{Lang, MetricVector};
 use friction_match::{Channel, DocumentReport, MatchEngine, MatchScore, MatchSpan};
 use serde::Serialize;
 
 use crate::common::{
-    CliError, Engine, Format, Genre, LineIndex, Pack, display_path, read_input, resolve_genre,
+    CliError, Engine, Format, Genre, LineIndex, Pack, display_path, parse_lang, read_input,
+    resolve_genre,
 };
 use crate::diagnostics::{color_enabled, render_spans};
 use crate::{sarif, table};
@@ -33,6 +34,11 @@ use crate::{sarif, table};
 pub struct CheckArgs {
     /// File to check, or `-` to read from stdin.
     input: String,
+
+    /// Language to analyze the document as (BCP-47 primary tag). `en` is
+    /// the only supported language in v1.
+    #[arg(long, default_value = "en", value_parser = parse_lang)]
+    lang: Lang,
 
     /// Genre to check against (defaults to `docs` with a printed note if
     /// omitted).
@@ -126,18 +132,19 @@ fn run_inner(args: &CheckArgs) -> Result<ExitCode, CliError> {
     let source = read_input(&args.input)?;
     let genre = resolve_genre(args.genre);
     let pack = Pack::load(args.pack.as_deref())?;
-    let engine = Engine::load()?;
+    let engine = Engine::load(args.lang)?;
+    let packs = friction_packs::PackSet::for_lang(args.lang);
 
     let syntax = crate::common::syntax_of(&args.input, &source);
     let document = friction_parse::parse_with(source.clone(), syntax)?;
     let metrics = friction_metrics::compute(&document, &engine.segmenter, &engine.tagger);
 
     let match_engine = MatchEngine::new(
-        &friction_packs::INVENTORY.pack,
-        &friction_packs::DMS.pack,
-        &friction_packs::JARGON.pack,
-        &friction_packs::JARGON_ATTEST,
-        &friction_packs::HUMAN_EVIDENCE,
+        &packs.inventory.pack,
+        &packs.dms.pack,
+        &packs.jargon.pack,
+        packs.jargon_attest,
+        packs.human_evidence,
         &engine.tagger,
         &engine.segmenter,
     )?;
@@ -160,7 +167,13 @@ fn run_inner(args: &CheckArgs) -> Result<ExitCode, CliError> {
             if args.residual {
                 print!(
                     "{}",
-                    render_residual(&residual_spans(&source, &document, &report.spans, &engine))
+                    render_residual(&residual_spans(
+                        &source,
+                        &document,
+                        &report.spans,
+                        &engine,
+                        packs
+                    ))
                 );
             }
         }
@@ -331,10 +344,11 @@ fn residual_spans<'a>(
     document: &friction_core::Document,
     spans: &'a [MatchSpan],
     engine: &Engine,
+    packs: &friction_packs::PackSet,
 ) -> Vec<ResidualSpan<'a>> {
     let units = friction_match::token::prose_scope(document, &engine.segmenter);
     let tagged = friction_match::tagging::tag_units(&units, source, &engine.tagger);
-    let view = &friction_packs::FRAME.pack;
+    let view = &packs.frame.pack;
     let index = friction_match::frame_rewrite::FrameIndex::build(view);
     let mut frame_ranges: Vec<std::ops::Range<usize>> = Vec::new();
     for sentence in &tagged {

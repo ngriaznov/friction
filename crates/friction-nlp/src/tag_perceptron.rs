@@ -111,7 +111,7 @@ use std::collections::{BTreeMap, HashMap};
 use std::io::Read as _;
 use std::ops::Range;
 
-use friction_core::{Token, TokenKind};
+use friction_core::{Lang, Token, TokenKind};
 use serde::{Deserialize, Serialize};
 
 use crate::tag::{PosTag, TaggedToken, Tagger, classify_token_kind, is_prose_punctuation};
@@ -995,15 +995,29 @@ pub fn pack_perceptron_tagger_bin(
 }
 
 impl PerceptronTagger {
-    /// Loads the tagger from its embedded, derived `.bin` artifact — a
-    /// version-2 serialized hash-table view (see this module's docs for
-    /// the byte layout), gated on a source-sha256 header check against
-    /// the embedded `json.gz` (`crate::weights_bin`'s module docs). This
-    /// is the fast path every normal caller wants: no `HashMap` is built,
-    /// no feature string is re-hashed, no per-feature `Vec` is allocated
-    /// — [`TaggerView::from_payload`] only slices the embedded `'static`
+    /// Loads the tagger for [`Lang::En`], the only supported language in
+    /// v1 — shorthand for `Self::for_lang(Lang::En)`.
+    ///
+    /// # Errors
+    /// See [`Self::for_lang`].
+    pub fn new() -> Result<Self, PerceptronTagError> {
+        Self::for_lang(Lang::En)
+    }
+
+    /// Loads the tagger for `lang`, from its embedded, derived `.bin`
+    /// artifact — a version-2 serialized hash-table view (see this
+    /// module's docs for the byte layout), gated on a source-sha256
+    /// header check against the embedded `json.gz`
+    /// (`crate::weights_bin`'s module docs). This is the fast path every
+    /// normal caller wants: no `HashMap` is built, no feature string is
+    /// re-hashed, no per-feature `Vec` is allocated —
+    /// [`TaggerView::from_payload`] only slices the embedded `'static`
     /// bytes. See [`Self::from_json_gz`] for the slower, audited-source
     /// path.
+    ///
+    /// The match is exhaustive over [`Lang`]: adding a language variant
+    /// without a retrained artifact for it is a compile error here, not a
+    /// runtime surprise.
     ///
     /// # Errors
     /// [`PerceptronTagError::Header`] if the embedded `.bin`'s header or
@@ -1011,19 +1025,23 @@ impl PerceptronTagger {
     /// recorded source sha256 doesn't match the currently embedded
     /// `json.gz`. Neither should happen for the vendored artifact,
     /// covered by this module's own tests.
-    pub fn new() -> Result<Self, PerceptronTagError> {
-        let (source_sha256, payload) =
-            crate::weights_bin::split_header(WEIGHTS_BIN, ARTIFACT_MAGIC)?;
-        if source_sha256 != SOURCE_JSON_GZ_SHA256 {
-            return Err(PerceptronTagError::StaleBin {
-                found: Box::from(source_sha256),
-                expected: SOURCE_JSON_GZ_SHA256,
-            });
+    pub fn for_lang(lang: Lang) -> Result<Self, PerceptronTagError> {
+        match lang {
+            Lang::En => {
+                let (source_sha256, payload) =
+                    crate::weights_bin::split_header(WEIGHTS_BIN, ARTIFACT_MAGIC)?;
+                if source_sha256 != SOURCE_JSON_GZ_SHA256 {
+                    return Err(PerceptronTagError::StaleBin {
+                        found: Box::from(source_sha256),
+                        expected: SOURCE_JSON_GZ_SHA256,
+                    });
+                }
+                let view = TaggerView::from_payload(payload)?;
+                Ok(Self {
+                    backend: Box::new(ViewBackend { view }),
+                })
+            }
         }
-        let view = TaggerView::from_payload(payload)?;
-        Ok(Self {
-            backend: Box::new(ViewBackend { view }),
-        })
     }
 
     /// Loads the tagger directly from `json.gz` bytes (the audited

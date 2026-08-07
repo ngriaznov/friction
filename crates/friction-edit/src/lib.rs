@@ -26,6 +26,7 @@ pub use document::{EditReport, PassReport, edit_document};
 pub use error::EditError;
 pub use register::{RegisterSentenceTags, ReusableScan};
 
+use friction_core::Lang;
 use friction_nlp::{PerceptronParser, PerceptronTagger, SrxSegmenter};
 use friction_packs::{AttestationPack, InventoryPack, RegisterPack};
 
@@ -42,23 +43,39 @@ pub struct Engine {
 }
 
 impl Engine {
-    /// Builds an engine over the embedded, process-lifetime inventory,
-    /// attestation, and register packs.
+    /// Builds an engine over the embedded, process-lifetime English
+    /// inventory, attestation, and register packs — shorthand for
+    /// `Self::for_lang(Lang::En)`, kept so every existing caller (and this
+    /// crate's own tests) needs no `Lang` argument.
     ///
     /// # Errors
-    /// Returns [`EditError::Tagger`] if the embedded tagger weights fail
-    /// to load, or [`EditError::Parser`] if the embedded dependency-parser
-    /// weights fail to load.
+    /// See [`Self::for_lang`].
     pub fn new() -> Result<Self, EditError> {
-        let tagger = PerceptronTagger::new()?;
-        let parser = PerceptronParser::new()?;
+        Self::for_lang(Lang::En)
+    }
+
+    /// Builds an engine over `lang`'s embedded, process-lifetime
+    /// inventory, attestation, and register packs —
+    /// [`friction_packs::PackSet::for_lang`] for the data,
+    /// [`PerceptronTagger::for_lang`]/[`PerceptronParser::for_lang`]/
+    /// [`SrxSegmenter::for_lang`] for the NLP layer. `friction-cli`
+    /// threads its `--lang` flag value through here.
+    ///
+    /// # Errors
+    /// Returns [`EditError::Tagger`] if `lang`'s embedded tagger weights
+    /// fail to load, or [`EditError::Parser`] if `lang`'s embedded
+    /// dependency-parser weights fail to load.
+    pub fn for_lang(lang: Lang) -> Result<Self, EditError> {
+        let tagger = PerceptronTagger::for_lang(lang)?;
+        let parser = PerceptronParser::for_lang(lang)?;
+        let packs = friction_packs::PackSet::for_lang(lang);
         Ok(Self {
-            inventory: &friction_packs::INVENTORY.pack,
-            attestation: &friction_packs::ATTESTATION.pack,
-            register_pack: &friction_packs::REGISTER.pack,
+            inventory: &packs.inventory.pack,
+            attestation: &packs.attestation.pack,
+            register_pack: &packs.register.pack,
             tagger,
             parser,
-            segmenter: SrxSegmenter::new(),
+            segmenter: SrxSegmenter::for_lang(lang),
         })
     }
 
@@ -130,6 +147,18 @@ mod tests {
         let (out1, _) = engine.fix_document("Run the scanner.").unwrap();
         let (out2, _) = engine.fix_document("Run the scanner.").unwrap();
         assert_eq!(out1, out2);
+    }
+
+    /// `new()` and `for_lang(Lang::En)` produce engines that fix the same
+    /// input identically: `new()` is just the default-language shorthand.
+    #[test]
+    fn for_lang_en_matches_new() {
+        let via_new = Engine::new().expect("engine must load");
+        let via_for_lang = Engine::for_lang(Lang::En).expect("engine must load");
+        let input = "Run the scanner.";
+        let (out_new, _) = via_new.fix_document(input).unwrap();
+        let (out_for_lang, _) = via_for_lang.fix_document(input).unwrap();
+        assert_eq!(out_new, out_for_lang);
     }
 
     #[test]

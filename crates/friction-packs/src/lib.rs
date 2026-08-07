@@ -2,6 +2,16 @@
 //! index streams, the human-corpus attestation data, and the
 //! per-`(genre, metric)` human envelope bands.
 //!
+//! # Language-scoped access
+//!
+//! [`PackSet`] bundles every language-scoped pack (inventory, DMS,
+//! jargon, jargon-attestation, seam-bigram/skeleton attestation, register
+//! bands, the frame-rewrite program, and the human/machine review
+//! evidence pair) behind one [`friction_core::Lang`]-keyed entry point,
+//! `PackSet::for_lang`. It is the access path a language-aware caller
+//! should use; the individual statics below (`INVENTORY`, `DMS`, ...)
+//! are the English backing store it bundles references to.
+//!
 //! # Envelope bands
 //!
 //! [`EnvelopePack`] parses the TOML file `corpus-tool envelope` writes
@@ -149,7 +159,7 @@ pub use jargon_attest::{BuiltPack, JargonAttestPack, build_pack_bytes, normalize
 pub use register::{RegisterBand, RegisterPack};
 pub use registry::{
     ATTESTATION, DMS, FRAME, HUMAN_EVIDENCE, INVENTORY, JARGON, JARGON_ATTEST, LoadedPack,
-    MACHINE_EVIDENCE, REGISTER, load_dms_pack,
+    MACHINE_EVIDENCE, PackSet, REGISTER, load_dms_pack,
 };
 pub use validate::{
     ClosureViolation, DisjointnessViolation, FrequencyHygieneReason, FrequencyHygieneViolation,

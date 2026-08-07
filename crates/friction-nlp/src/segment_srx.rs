@@ -3,6 +3,7 @@
 use std::ops::Range;
 use std::sync::OnceLock;
 
+use friction_core::Lang;
 use srx::SRX;
 
 use crate::segment::Segmenter;
@@ -15,23 +16,32 @@ use crate::segment::Segmenter;
 /// build or run time. The bytes are baked into the compiled binary.
 const RULESET_XML: &str = include_str!("../data/friction-en.srx");
 
-/// Parses [`RULESET_XML`] and extracts its English rules, once, caching
-/// the result for the process lifetime.
+/// Parses [`RULESET_XML`] and extracts `lang`'s rules, once per language,
+/// caching the result for the process lifetime.
+///
+/// The match is exhaustive over [`Lang`], one arm per language, each with
+/// its own `OnceLock`: adding a language variant is a compile error here
+/// until its ruleset (and cache cell) is added, and every already-cached
+/// language keeps its own independent one-parse-per-process guarantee.
 ///
 /// # Panics
-/// Panics if [`RULESET_XML`] fails to parse as valid SRX or contains a
-/// rule whose regex fails to compile. Both are invariants of the vendored
-/// file this crate ships; `segment_srx::tests::ruleset_parses` below
-/// exercises exactly this parse so a broken ruleset fails CI rather than
-/// surfacing here at first use.
-fn english_rules() -> &'static srx::Rules {
-    static RULES: OnceLock<srx::Rules> = OnceLock::new();
-    RULES.get_or_init(|| {
-        let srx: SRX = RULESET_XML
-            .parse()
-            .expect("vendored data/friction-en.srx is well-formed SRX with valid rule regexes");
-        srx.language_rules("en")
-    })
+/// Panics if the selected ruleset fails to parse as valid SRX or contains
+/// a rule whose regex fails to compile. Both are invariants of the
+/// vendored file(s) this crate ships; `segment_srx::tests::ruleset_parses`
+/// below exercises exactly this parse so a broken ruleset fails CI rather
+/// than surfacing here at first use.
+fn rules_for(lang: Lang) -> &'static srx::Rules {
+    match lang {
+        Lang::En => {
+            static RULES: OnceLock<srx::Rules> = OnceLock::new();
+            RULES.get_or_init(|| {
+                let srx: SRX = RULESET_XML.parse().expect(
+                    "vendored data/friction-en.srx is well-formed SRX with valid rule regexes",
+                );
+                srx.language_rules(Lang::En.as_str())
+            })
+        }
+    }
 }
 
 /// Sentence segmentation via a small, self-authored SRX (Segmentation
@@ -46,26 +56,37 @@ fn english_rules() -> &'static srx::Rules {
 /// `data/friction-en.srx`'s header comment for the full rule cascade, and
 /// `tests/segment_golden.rs` for the golden set it's verified against.
 ///
-/// Stateless and `Copy`; construct with [`SrxSegmenter::new`] or
+/// Stateless (beyond its selected [`Lang`]) and `Copy`; construct with
+/// [`SrxSegmenter::new`], [`SrxSegmenter::for_lang`], or
 /// [`SrxSegmenter::default`].
 #[derive(Debug, Clone, Copy, Default)]
-pub struct SrxSegmenter;
+pub struct SrxSegmenter {
+    lang: Lang,
+}
 
 impl SrxSegmenter {
-    /// Creates a new SRX-backed segmenter.
+    /// Creates a new SRX-backed segmenter for [`Lang::En`], the only
+    /// supported language in v1.
     ///
     /// The ruleset is embedded in the binary; parsing it and compiling its
     /// regexes happens lazily, once, on first use of any `SrxSegmenter`
-    /// instance (see [`english_rules`]), not on every construction.
+    /// instance for a given language (see [`rules_for`]), not on every
+    /// construction.
     #[must_use]
     pub const fn new() -> Self {
-        Self
+        Self::for_lang(Lang::En)
+    }
+
+    /// Creates a new SRX-backed segmenter for `lang`.
+    #[must_use]
+    pub const fn for_lang(lang: Lang) -> Self {
+        Self { lang }
     }
 }
 
 impl Segmenter for SrxSegmenter {
     fn segment(&self, text: &str, base_offset: usize) -> Vec<Range<usize>> {
-        english_rules()
+        rules_for(self.lang)
             .split_ranges(text)
             .into_iter()
             .filter_map(|range| trim_whitespace(text, range))
@@ -95,11 +116,22 @@ mod tests {
     use super::*;
 
     /// The vendored ruleset parses and yields a non-empty English rule
-    /// set; the sole guard against [`english_rules`]'s panic ever firing
-    /// in a real build.
+    /// set; the sole guard against [`rules_for`]'s panic ever firing in a
+    /// real build.
     #[test]
     fn ruleset_parses() {
-        assert!(!english_rules().is_empty());
+        assert!(!rules_for(Lang::En).is_empty());
+    }
+
+    /// `for_lang(Lang::En)` and `new()` segment identically: `new()` is
+    /// just `for_lang`'s default-language shorthand.
+    #[test]
+    fn for_lang_en_matches_new() {
+        let text = "First one. Second one.";
+        assert_eq!(
+            SrxSegmenter::new().segment(text, 0),
+            SrxSegmenter::for_lang(Lang::En).segment(text, 0)
+        );
     }
 
     /// A single unpunctuated sentence segments to itself, trimmed.

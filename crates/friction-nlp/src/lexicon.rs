@@ -187,6 +187,31 @@ struct RawPack {
 const SUPPORTED_VERSION: &str = "lexicon-en-v1";
 
 impl Lexicon {
+    /// Selects the embedded lexicon pack for `lang` — `Lang::En` ->
+    /// [`LEXICON_EN`].
+    ///
+    /// This is the seam a language-aware caller should reach for. It is
+    /// deliberately not yet wired into this crate's own English-only
+    /// morphology code (`inflect.rs`, `chunk.rs`), which still reaches
+    /// for [`LEXICON_EN`] directly: those modules are generative-English
+    /// grammar in code (suffix orthography, finiteness tests) that a
+    /// second language cannot simply supply a new lexicon file for — a
+    /// later phase moves them behind a per-language profile trait
+    /// (`docs/research/LANGUAGES.md`, "Layer C"), and rewriting their
+    /// call sites to go through `for_lang` now would only add a layer of
+    /// indirection over a `lang` that, for them, can only ever be `En`
+    /// until that trait exists.
+    ///
+    /// The match is exhaustive over [`friction_core::Lang`]: adding a
+    /// language variant without a lexicon pack for it is a compile error
+    /// here, not a runtime surprise.
+    #[must_use]
+    pub fn for_lang(lang: friction_core::Lang) -> &'static Self {
+        match lang {
+            friction_core::Lang::En => &LEXICON_EN,
+        }
+    }
+
     /// Parses a pack from its TOML text.
     ///
     /// # Errors
@@ -476,6 +501,13 @@ mod tests {
     #[test]
     fn embedded_pack_parses() {
         Lexicon::parse(LEXICON_EN_TOML).expect("embedded pack must parse");
+    }
+
+    /// `for_lang(Lang::En)` selects the same static [`LEXICON_EN`] holds.
+    #[test]
+    fn for_lang_en_selects_lexicon_en() {
+        let selected: &Lexicon = Lexicon::for_lang(friction_core::Lang::En);
+        assert!(std::ptr::eq(selected, &raw const *LEXICON_EN));
     }
 
     /// Every section's entry count matches the pinned expectation, so a
