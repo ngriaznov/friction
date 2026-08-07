@@ -28,17 +28,6 @@
 //! lemmas alone, no subtree walk needed, since the construction it
 //! targets is exactly two adjacent tokens.
 //!
-//! [`t10_contrast_tail`] is a partial repair for `contrast_closer` (see
-//! `register-en-v1.toml`'s `[features.contrast_closer]`), a feature that
-//! was detect-only until this addition: most "rather than"/", not "
-//! instances are still a held finding, since deleting the negative half
-//! of a contrast can delete real content ("use A rather than B"). Two
-//! narrow sentence-final tail shapes are the exception, measured well
-//! below the frame channel's 100/M anchor ceiling -- strong enough
-//! evidence to license clause-level deletion, which no per-instance
-//! frame rule can express. Like T9, it licenses on tags and lemmas
-//! alone, no subtree walk.
-//!
 //! Functions here only propose candidates; none mutate `source`, choose
 //! between overlaps, or apply anything: a caller's decision.
 
@@ -111,17 +100,6 @@ pub enum CandidateKind {
     /// words in machine prose vs 198.9 in human prose, a 2.4x rate -- see
     /// `register-en-v1.toml`'s `[features.past_progressive]` once wired.
     PastProgressive,
-    /// Produced by [`t10_contrast_tail`]. Two narrow sentence-final tail
-    /// shapes of the `contrast_closer` see-saw tell, each measured well
-    /// below the frame channel's 100/M anchor ceiling (corpus/llm +
-    /// corpus/review/machine, 404,607 words, vs corpus/human, 306,754
-    /// words): sentence-final `", not <tail up to 5 tokens>."` at
-    /// 410.3/M machine vs 48.9/M human (8.4x), and sentence-final
-    /// `"rather than <tail up to 5 tokens>."` at 622.8/M vs 58.7/M
-    /// (10.6x -- the VBG-tail subset alone measures 16.0x). Every other
-    /// `contrast_closer` instance stays a held finding; see
-    /// `t10_contrast_tail`'s own docs for the full licensing conditions.
-    ContrastTail,
 }
 
 // ---------------------------------------------------------------------
@@ -877,7 +855,6 @@ pub fn candidates(source: &str, tokens: &[TaggedToken], parse: &SentenceParse) -
     out.extend(t6_em_dash(source, tokens, parse));
     out.extend(t7_semicolon(source, tokens, parse));
     out.extend(t9_past_progressive(source, tokens, parse));
-    out.extend(t10_contrast_tail(source, tokens, parse));
     out.sort_by_key(|candidate| (candidate.range.start, candidate.range.end));
     out
 }
@@ -1501,221 +1478,6 @@ pub fn t9_past_progressive(
         .into_iter()
         .filter_map(|aux| past_progressive_candidate(source, tokens, parse, aux))
         .collect()
-}
-
-// ---------------------------------------------------------------------
-// T10: contrast-closer tail deletion.
-// ---------------------------------------------------------------------
-
-/// The choice-verb lemmas Shape B's guard checks for -- see
-/// [`choice_verb_precedes`]'s own docs.
-const CHOICE_VERB_LEMMAS: [&str; 8] = [
-    "use",
-    "choose",
-    "prefer",
-    "pick",
-    "opt",
-    "select",
-    "favor",
-    "recommend",
-];
-
-/// `true` if any tail token index in `first..=last` carries a verb tag
-/// (`VB`, `VBD`, `VBG`, `VBN`, `VBP`, `VBZ`) or `MD` -- Shape A's ban.
-///
-/// Broader than [`FINITE_VERB_TAGS`] on purpose: even a bare non-finite
-/// verb in the tail ("hint, not deployed yet") reads as a second clause
-/// fragment, not a restated noun phrase, so Shape A excludes every verb
-/// form. Shape B's own ban ([`t10_contrast_tail`]'s docs) is narrower --
-/// a VBG tail is exactly the 16x-measured shape it must keep firing on.
-fn tail_has_verb_or_modal(tokens: &[TaggedToken], first: usize, last: usize) -> bool {
-    (first..=last).any(|index| {
-        let tag = tokens[index].pos.as_str();
-        tag.starts_with("VB") || tag == "MD"
-    })
-}
-
-/// The token index right before the sentence's own terminal punctuation
-/// -- `None` if `tokens` is too short to have one. Mirrors how T6's
-/// fragment logic (`fragment_candidate`) treats `tokens[tokens.len() -
-/// 1]` as the sentence's own end: this module's callers only ever reach
-/// a transducer on a range already confirmed sentence-terminal
-/// (`friction-edit::register::collect_candidates`'s own
-/// `ends_with_sentence_terminal_punctuation` guard), so the last token
-/// itself is that punctuation, and this is the token directly before it.
-const fn token_before_sentence_end(tokens: &[TaggedToken]) -> Option<usize> {
-    tokens.len().checked_sub(2)
-}
-
-/// `true` if any token before `boundary` (exclusive) has a lemma in
-/// [`CHOICE_VERB_LEMMAS`] -- Shape B's hard guard.
-///
-/// A "rather than" naming a real, informative alternative under a choice
-/// verb ("We chose polling rather than webhooks") is the rare case
-/// (measured at ~6% of instances, roughly evenly split between this side
-/// and the tail) where the closer states the sentence's actual point
-/// rather than restating its positive half negatively -- deleting it
-/// would delete content the frame grammar has no way to recover. This
-/// guard only reaches the side actually available before the deletion
-/// point (`0..boundary`, i.e. before "rather"); it fails closed rather
-/// than risk the catastrophic case for a construction this rare.
-fn choice_verb_precedes(tokens: &[TaggedToken], boundary: usize) -> bool {
-    (0..boundary).any(|index| CHOICE_VERB_LEMMAS.contains(&tokens[index].lemma.as_ref()))
-}
-
-/// Shape A's own candidate: `", not <tail>."` with `comma` a candidate
-/// comma token's index. `None` unless every condition in
-/// [`t10_contrast_tail`]'s own docs holds for this exact comma.
-fn not_tail_candidate(source: &str, tokens: &[TaggedToken], comma: usize) -> Option<Candidate> {
-    if comma == 0 || comma + 1 >= tokens.len() {
-        return None;
-    }
-    if token_text(source, tokens, comma) != "," {
-        return None;
-    }
-    if token_text(source, tokens, comma + 1) != "not" {
-        return None;
-    }
-    let last = token_before_sentence_end(tokens)?;
-    let tail_first = comma + 2;
-    if tail_first > last {
-        return None; // an empty tail: "..., not."
-    }
-    if last - tail_first + 1 > 5 {
-        return None; // too long to be this construction's tail.
-    }
-    if tail_has_verb_or_modal(tokens, tail_first, last) {
-        return None;
-    }
-    if !has_finite_verb_cx(source, tokens, 0..comma) {
-        return None; // the sentence must stand on its own after deletion.
-    }
-
-    let range = tokens[comma - 1].token.range.end..tokens[last].token.range.end;
-    if spans_inline_code(&source[range.clone()]) {
-        return None;
-    }
-
-    let mut delta = BTreeMap::new();
-    delta.insert("contrast_closer", -1);
-    Some(Candidate {
-        kind: CandidateKind::ContrastTail,
-        range,
-        replacement: Box::from(""),
-        delta,
-        confidence: 0.8,
-    })
-}
-
-/// Shape B's own candidate: `"rather than <tail>."` with `rather` a
-/// candidate "rather" token's index. `None` unless every condition in
-/// [`t10_contrast_tail`]'s own docs holds for this exact "rather".
-fn rather_than_tail_candidate(
-    source: &str,
-    tokens: &[TaggedToken],
-    rather: usize,
-) -> Option<Candidate> {
-    if rather == 0 || rather + 1 >= tokens.len() {
-        return None;
-    }
-    if !token_text(source, tokens, rather).eq_ignore_ascii_case("rather") {
-        return None;
-    }
-    if !token_text(source, tokens, rather + 1).eq_ignore_ascii_case("than") {
-        return None;
-    }
-    let last = token_before_sentence_end(tokens)?;
-    let tail_first = rather + 2;
-    if tail_first > last {
-        return None; // an empty tail: "... rather than."
-    }
-    if last - tail_first + 1 > 5 {
-        return None; // too long to be this construction's tail.
-    }
-    if (tail_first..=last).any(|index| FINITE_VERB_TAGS.contains(&tokens[index].pos.as_str())) {
-        return None; // a finite verb in the tail: a real clause, not a tail.
-    }
-    if !has_finite_verb_cx(source, tokens, 0..rather) {
-        return None; // the sentence must stand on its own after deletion.
-    }
-    if choice_verb_precedes(tokens, rather) {
-        return None; // the informative-choice case; see this guard's own docs.
-    }
-
-    let range = tokens[rather - 1].token.range.end..tokens[last].token.range.end;
-    if spans_inline_code(&source[range.clone()]) {
-        return None;
-    }
-
-    let mut delta = BTreeMap::new();
-    delta.insert("contrast_closer", -1);
-    Some(Candidate {
-        kind: CandidateKind::ContrastTail,
-        range,
-        replacement: Box::from(""),
-        delta,
-        confidence: 0.8,
-    })
-}
-
-/// Contrast-closer tail deletion (T10).
-///
-/// A partial repair for `contrast_closer`, a see-saw tell ("X rather
-/// than Y" / "X, not Y") otherwise detect-only (see
-/// `register-en-v1.toml`'s `[features.contrast_closer]`) because
-/// deleting the negative half of a contrast can delete real content
-/// ("use A rather than B"). Two narrow sentence-final tail shapes are
-/// the exception -- both measured well below the frame channel's 100/M
-/// anchor ceiling, evidence strong enough to license clause-level
-/// deletion the frame grammar can't express:
-///
-/// - Shape A, `", not <tail>."`: 1..=5 tail tokens after a comma+"not",
-///   none carrying a verb tag (`VB*`) or `MD` -- see
-///   [`not_tail_candidate`]. `"The cache is a hint, not a contract."` ->
-///   `"The cache is a hint."`.
-/// - Shape B, `"rather than <tail>."`: 1..=5 tail tokens after
-///   "rather"+"than", none carrying a FINITE verb tag -- a `VBG` tail
-///   (`"rather than degrading"`) is the measured 16x shape and stays
-///   licensed -- plus the choice-verb guard: declines if a choice-verb
-///   lemma (use/choose/prefer/pick/opt/select/favor/recommend) precedes
-///   "rather", the rare (~6%) case where the tail names a real
-///   alternative rather than restating the sentence's point negatively.
-///   See [`rather_than_tail_candidate`]. `"It fails fast rather than
-///   degrading."` -> `"It fails fast."`.
-///
-/// Both shapes: strictly sentence-final (the tail must run all the way
-/// to the token right before the sentence's own terminal punctuation --
-/// see [`token_before_sentence_end`]; a mid-sentence "rather than" or
-/// ", not" is never licensed and keeps surfacing as a held finding), the
-/// remainder of the sentence before the construction must carry its own
-/// finite verb ([`has_finite_verb_cx`] -- the sentence must stand after
-/// deletion), and the span must not cross inline code
-/// ([`spans_inline_code`]). Each licensed candidate deletes the whole
-/// construction (comma/"not" or "rather than" plus its tail), leaving
-/// the sentence's terminal punctuation untouched, and moves
-/// `contrast_closer` by -1.
-///
-/// Every other `contrast_closer` instance -- mid-sentence, a tail over 5
-/// tokens, a tail with a licensing verb, the choice-verb guard --
-/// produces no candidate here and stays a held finding, reported by
-/// `friction-edit::register`'s standard remainder machinery.
-///
-/// `parse` is accepted for the same dispatch-uniformity reason
-/// [`t9_past_progressive`]'s docs give, but unused: like T9, this
-/// licenses on tags and lemmas alone, no subtree walk needed.
-#[must_use]
-pub fn t10_contrast_tail(
-    source: &str,
-    tokens: &[TaggedToken],
-    _parse: &SentenceParse,
-) -> Vec<Candidate> {
-    let mut out = Vec::new();
-    for index in 0..tokens.len() {
-        out.extend(not_tail_candidate(source, tokens, index));
-        out.extend(rather_than_tail_candidate(source, tokens, index));
-    }
-    out.sort_by_key(|candidate| candidate.range.start);
-    out
 }
 
 // ---------------------------------------------------------------------

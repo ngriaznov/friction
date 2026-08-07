@@ -7,14 +7,6 @@
 //! documents, and the two-instance arming floor keeps a single instance
 //! of a nonzero-band construction from ever counting as register
 //! evidence.
-//!
-//! The arc has since shipped a second repair on top: `contrast_closer`
-//! was detect-only when this file was first written, but two narrow
-//! sentence-final tail shapes (`", not <tail>."`, `"rather than
-//! <tail>."`) now have their own transducer (T10). The stuffed-document
-//! test below pins both halves of that split: a licensed sentence-final
-//! tail gets deleted, while a mid-sentence "rather than" -- unlicensed,
-//! since more clause follows it -- still surfaces as a held finding.
 
 use friction_edit::Engine;
 
@@ -41,12 +33,9 @@ fn the_two_staged_features_carry_the_measured_bands() {
 /// A document confidently above both bands: T9 collapses the past
 /// progressive it can reach in one pass (same-sentence conflicts hold
 /// the second instance for a later pass, unrelated to T8's removal),
-/// the licensed ", and " splice -- no longer a register tell this engine
-/// acts on -- survives untouched, and the two `contrast_closer`
-/// instances split exactly along T10's own licensing line: the
-/// sentence-final ", not a contract." tail is deleted, while the
-/// mid-sentence "rather than degrading" -- more clause follows it, so it
-/// never reaches the sentence's own end -- stays a held finding.
+/// the see-saw closers surface as held findings, never edits, and the
+/// licensed ", and " splice -- no longer a register tell this engine
+/// acts on -- survives untouched.
 #[test]
 fn a_document_stuffed_with_both_staged_constructs_is_byte_identical() {
     let source = "The tool was crashing on start. The parser was failing on every line, \
@@ -65,20 +54,16 @@ fn a_document_stuffed_with_both_staged_constructs_is_byte_identical() {
         "the ', and ' joint must survive untouched: {once:?}"
     );
     assert!(
-        once.contains("rather than degrading"),
-        "a mid-sentence \"rather than\" is never licensed and must survive untouched: {once:?}"
-    );
-    assert!(
-        once.contains("the cache is a hint.") && !once.contains("not a contract"),
-        "a licensed sentence-final \", not <tail>.\" tail must be deleted: {once:?}"
-    );
-    assert!(
         report
             .passes
             .iter()
             .flat_map(|p| &p.held)
             .any(|f| f.rule.as_str() == "register.contrast_closer"),
-        "the still-unlicensed mid-sentence \"rather than\" must surface as a held finding"
+        "the see-saw closers must surface as held findings"
+    );
+    assert!(
+        once.contains("rather than"),
+        "contrast closers are detect-only and must never be edited"
     );
 }
 

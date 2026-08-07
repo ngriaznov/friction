@@ -82,15 +82,10 @@ median = 0.0
 # they measure 8.5x and 5.0x machine-tilted respectively, but 43 of the
 # 58 human docs still use at least neither and the 90th percentile lands
 # at 1.8382 per 1000 prose words (max observed: 6.7416): humans genuinely
-# reach for the construction, machines lean on it. Mostly still detect-
-# only: deleting the negative half of a contrast can delete real
-# instructional content ("use A rather than B"), so most above-band
-# instances still surface as a held finding. Two narrow sentence-final
-# tail shapes are the exception -- T10 (`friction_register::transduce::
-# t10_contrast_tail`) deletes a sentence-final ", not <tail up to 5
-# tokens>." or "rather than <tail up to 5 tokens>." outright, each
-# measured well below this band's own edge and licensed only when the
-# rest of the sentence still stands on its own after the deletion.
+# reach for the construction, machines lean on it. Detect-only: there is
+# no transducer, because deleting the negative half of a contrast can
+# delete real instructional content ("use A rather than B"); an
+# above-band document gets one held finding per instance instead.
 [features.contrast_closer]
 low = 0.0
 high = 1.8382

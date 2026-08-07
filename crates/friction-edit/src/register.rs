@@ -64,6 +64,9 @@ const RULE_UNPACK: RuleId = RuleId::new("register.unpack");
 const RULE_EM_DASH: RuleId = RuleId::new("register.em_dash");
 const RULE_SEMICOLON: RuleId = RuleId::new("register.semicolon");
 const RULE_PAST_PROGRESSIVE: RuleId = RuleId::new("register.past_progressive");
+/// `contrast_closer` is detect-only -- no transducer, no [`CandidateKind`]
+/// (see the held-finding block at the end of [`run_register`]) -- so this
+/// rule id is never returned by [`rule_for`], only used directly there.
 const RULE_CONTRAST: RuleId = RuleId::new("register.contrast_closer");
 
 const fn rule_for(kind: CandidateKind) -> RuleId {
@@ -73,7 +76,6 @@ const fn rule_for(kind: CandidateKind) -> RuleId {
         CandidateKind::EmDash => RULE_EM_DASH,
         CandidateKind::Semicolon => RULE_SEMICOLON,
         CandidateKind::PastProgressive => RULE_PAST_PROGRESSIVE,
-        CandidateKind::ContrastTail => RULE_CONTRAST,
     }
 }
 
@@ -181,10 +183,11 @@ enum Direction {
     Increase,
     /// Above `high`: [`CandidateKind::NominalizationUnpack`]
     /// (nominalization), [`CandidateKind::EmDash`] (em dash),
-    /// [`CandidateKind::Semicolon`] (semicolon),
-    /// [`CandidateKind::PastProgressive`] (past-progressive), and
-    /// [`CandidateKind::ContrastTail`] (contrast closer) all move this
-    /// way.
+    /// [`CandidateKind::Semicolon`] (semicolon), and
+    /// [`CandidateKind::PastProgressive`] (past-progressive) all move
+    /// this way. `contrast_closer` also moves this way but has no
+    /// `CandidateKind` at all -- it is detect-only (see the held-finding
+    /// block at the end of [`run_register`]).
     Decrease,
 }
 
@@ -319,11 +322,6 @@ fn remainder_instance_ranges(
                     out.push(ctx.range.start + local.start..ctx.range.start + local.end);
                 }
             }
-            CandidateKind::ContrastTail => {
-                for local in contrast_closers(text) {
-                    out.push(ctx.range.start + local.start..ctx.range.start + local.end);
-                }
-            }
             // An Increase feature never leaves "instances to remove", so
             // no remainder findings exist for it.
             CandidateKind::ActivizeToPassive => {}
@@ -391,6 +389,62 @@ fn push_remainder_findings(
     }
 }
 
+/// Emits one Suggest finding per surviving `contrast_closer` instance
+/// once the document's rate clears the band -- the see-saw tell's own
+/// counterpart to [`push_remainder_findings`], called separately because
+/// `contrast_closer` has no [`CandidateKind`] at all: no transducer
+/// exists for it (there is no single-word substitute that states a
+/// "X rather than Y" / "X, not Y" contrast without picking a side), so
+/// every instance is a remainder from the moment it's counted, never a
+/// pool candidate `select_and_apply` might have applied first.
+///
+/// Arms on the same Wilson-bound evidence bar every Decrease feature
+/// uses ([`wilson_lower`] against `band.high`). `count`/`total_words` are
+/// the FINAL values [`run_register`] has after every armed feature's own
+/// selection loop: those loops may have shifted the word-count
+/// denominator, but never `contrast_closer`'s own count, since nothing
+/// upstream ever edits its instances.
+fn push_contrast_closer_findings(
+    held: &mut Vec<Finding>,
+    sentences: &[SentenceCtx],
+    source: &str,
+    accepted: &[PositionedCandidate],
+    count: i64,
+    total_words: i64,
+    band: RegisterBand,
+) {
+    // Same arming test as every nonzero-band Decrease feature,
+    // including the two-instance floor -- see `confidently_above`.
+    if !confidently_above(count, total_words, &band) {
+        return;
+    }
+    let feature_rate = rate(count, total_words);
+    for ctx in sentences {
+        let text = &source[ctx.range.clone()];
+        for local in contrast_closers(text) {
+            let range = ctx.range.start + local.start..ctx.range.start + local.end;
+            if accepted
+                .iter()
+                .any(|c| ranges_overlap(&c.doc_range, &range))
+            {
+                continue;
+            }
+            held.push(Finding {
+                rule: RULE_CONTRAST,
+                range,
+                message: format!(
+                    "contrast_closer: a contrast closer (\"X rather than Y\" / \"X, not Y\") \
+                     and the document is still above the human band ({feature_rate:.2} > \
+                     {:.2} per 1000 words) -- no licensed rewrite: state one side; needs a \
+                     human hand",
+                    band.high
+                ),
+                tier: Tier::Suggest,
+            });
+        }
+    }
+}
+
 /// The document-wide totals [`count_features`] returns: total prose
 /// words, plus one count per register feature.
 ///
@@ -398,7 +452,10 @@ fn push_remainder_findings(
 /// from five elements to eight across three features landing in one
 /// change, and a positional `(i64, i64, i64, i64, i64, i64, i64, i64)`
 /// at that width is a transposition bug waiting to happen at every call
-/// site.
+/// site. `contrast_closer` gets a field like every other feature even
+/// though it is detect-only downstream (see [`run_register`]'s final
+/// held-finding block) -- the count itself is computed the same way
+/// regardless of whether a transducer ever consumes it.
 #[derive(Debug, Clone, Copy, Default)]
 struct FeatureCounts {
     total_words: i64,
@@ -590,6 +647,22 @@ pub fn run_register(
         }
     }
 
+    // `contrast_closer` is DETECT-ONLY: no transducer, no `CandidateKind`
+    // exists for it, so nothing here was ever a candidate for
+    // `select_and_apply` -- see `push_contrast_closer_findings`'s own
+    // docs for why and how it arms.
+    if let Some(band) = register_pack.band("contrast_closer") {
+        push_contrast_closer_findings(
+            &mut held,
+            &sentences,
+            source,
+            &accepted,
+            counts.contrast_closer,
+            total_words,
+            band,
+        );
+    }
+
     let patches: Vec<Patch> = accepted
         .iter()
         .map(|c| {
@@ -642,14 +715,10 @@ fn empty_pass() -> crate::document::PassReport {
 /// `bool` alongside the `Option` would leave two values that must
 /// agree, and reading the band back out would mean asserting they do.
 ///
-/// `contrast_closer` arms the same way every other Decrease feature does
-/// even though [`CandidateKind::ContrastTail`] only ever licenses two
-/// narrow sentence-final tail shapes: [`select_and_apply`] simply runs
-/// out of licensed candidates once those are exhausted, and
-/// [`push_remainder_findings`] reports whatever instances are still
-/// above band as held findings -- the same shape every other Decrease
-/// feature already handles when its own transducer can't reach every
-/// instance.
+/// `contrast_closer` has no row here despite being a [`FeatureCounts`]
+/// field: it has no `CandidateKind`, so it never enters
+/// [`select_and_apply`]'s pool -- see the held-finding block at the end
+/// of [`run_register`] instead.
 fn feature_plan(
     register_pack: &RegisterPack,
     counts: FeatureCounts,
@@ -659,7 +728,7 @@ fn feature_plan(
     Direction,
     i64,
     CandidateKind,
-); 6] {
+); 5] {
     let FeatureCounts {
         total_words,
         nominalization,
@@ -667,7 +736,7 @@ fn feature_plan(
         em_dash,
         semicolon,
         past_progressive,
-        contrast_closer,
+        contrast_closer: _,
     } = counts;
     [
         // Arming compares a Wilson confidence bound against the band, not
@@ -728,15 +797,6 @@ fn feature_plan(
             Direction::Decrease,
             past_progressive,
             CandidateKind::PastProgressive,
-        ),
-        (
-            "contrast_closer",
-            register_pack
-                .band("contrast_closer")
-                .filter(|band| confidently_above(contrast_closer, total_words, band)),
-            Direction::Decrease,
-            contrast_closer,
-            CandidateKind::ContrastTail,
         ),
     ]
 }
@@ -893,9 +953,6 @@ fn collect_candidates(
             CandidateKind::PastProgressive => {
                 transduce::t9_past_progressive(text, &ctx.tokens, &ctx.parse)
             }
-            CandidateKind::ContrastTail => {
-                transduce::t10_contrast_tail(text, &ctx.tokens, &ctx.parse)
-            }
         };
 
         for candidate in candidates {
@@ -1010,15 +1067,13 @@ fn closure_violation(
                 derived.insert(past(token.lemma.as_ref()).to_lowercase().into_boxed_str());
             }
         }
-        CandidateKind::EmDash | CandidateKind::Semicolon | CandidateKind::ContrastTail => {
+        CandidateKind::EmDash | CandidateKind::Semicolon => {
             // No derived words: every T6/T7 replacement is punctuation
             // (",", ". ", "; ", ": ") plus, at most, a word already
             // present in `original_span_text` (T6's interpolated middle,
             // either kind's recapitalized or unchanged following word) --
             // there is no inflection table to consult, unlike the other
-            // two kinds. T10's replacement is always "": pure deletion,
-            // strictly narrower than either -- it introduces nothing at
-            // all, so it needs no derived-word table either.
+            // two kinds.
         }
     }
 
