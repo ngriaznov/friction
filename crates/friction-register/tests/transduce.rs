@@ -1,4 +1,4 @@
-//! Real cases for the five rewrite transducers, each with an asserted
+//! Real cases for the six rewrite transducers, each with an asserted
 //! output string: not smoke tests.
 //!
 //! Every parse is built by hand, not run through the shipped tagger/parser,
@@ -11,7 +11,7 @@ use friction_core::{Token, TokenKind};
 use friction_nlp::{Confidence, DepEdge, DepRelation, PosTag, SentenceParse, TaggedToken};
 use friction_register::transduce::{
     Candidate, CandidateKind, candidates, past, past_participle, t4_activize_to_passive,
-    t5_nominalization, t6_em_dash, t7_semicolon, t9_past_progressive, third_sg,
+    t5_nominalization, t6_em_dash, t7_semicolon, t9_past_progressive, t10_contrast_tail, third_sg,
 };
 
 /// One token's dependency-tree shape and tags, spelled out by hand.
@@ -1770,4 +1770,225 @@ fn candidates_includes_t9_past_progressive_output() {
             .iter()
             .any(|c| c.kind == CandidateKind::PastProgressive)
     );
+}
+
+// ---------------------------------------------------------------------
+// T10: contrast-closer tail deletion.
+// ---------------------------------------------------------------------
+
+// 46. Shape A fires: a sentence-final ", not <tail>." deletes cleanly,
+// leaving the sentence's own terminal punctuation untouched.
+#[test]
+fn t10_fires_on_a_sentence_final_not_tail() {
+    let shapes = [
+        g(Some(1), DepRelation::Det, "The", "DT", "the"),
+        g(Some(2), DepRelation::Nsubj, "cache", "NN", "cache"),
+        g(None, DepRelation::Root, "is", "VBZ", "be"),
+        g(Some(4), DepRelation::Det, "a", "DT", "a"),
+        g(Some(2), DepRelation::Dobj, "hint", "NN", "hint"),
+        g(Some(2), DepRelation::Punct, ",", ",", ","),
+        g(Some(2), DepRelation::Other, "not", "RB", "not"),
+        g(Some(8), DepRelation::Det, "a", "DT", "a"),
+        g(Some(2), DepRelation::Other, "contract", "NN", "contract"),
+        g(Some(2), DepRelation::Punct, ".", ".", "."),
+    ];
+    let (source, tokens, parse) = build_glued(&shapes);
+    assert_eq!(source, "The cache is a hint, not a contract.");
+
+    let found = t10_contrast_tail(&source, &tokens, &parse);
+    assert_eq!(found.len(), 1);
+    assert_eq!(found[0].kind, CandidateKind::ContrastTail);
+    assert_eq!(&*found[0].replacement, "");
+
+    let mut expected_delta = BTreeMap::new();
+    expected_delta.insert("contrast_closer", -1);
+    assert_eq!(found[0].delta, expected_delta);
+
+    let mut fixed = source;
+    fixed.replace_range(found[0].range.clone(), &found[0].replacement);
+    assert_eq!(fixed, "The cache is a hint.");
+}
+
+// 47. Shape B fires: a sentence-final "rather than <tail>." deletes
+// cleanly. The tail is a bare VBG -- the measured 16x subset -- and it
+// still fires, unlike Shape A's ban on any verb tag.
+#[test]
+fn t10_fires_on_a_sentence_final_rather_than_tail_with_a_vbg_tail() {
+    let shapes = [
+        g(Some(1), DepRelation::Nsubj, "It", "PRP", "it"),
+        g(None, DepRelation::Root, "fails", "VBZ", "fail"),
+        g(Some(1), DepRelation::Other, "fast", "RB", "fast"),
+        g(Some(1), DepRelation::Other, "rather", "RB", "rather"),
+        g(Some(3), DepRelation::Other, "than", "IN", "than"),
+        g(Some(3), DepRelation::Pobj, "degrading", "VBG", "degrade"),
+        g(Some(1), DepRelation::Punct, ".", ".", "."),
+    ];
+    let (source, tokens, parse) = build_glued(&shapes);
+    assert_eq!(source, "It fails fast rather than degrading.");
+
+    let found = t10_contrast_tail(&source, &tokens, &parse);
+    assert_eq!(found.len(), 1);
+    assert_eq!(found[0].kind, CandidateKind::ContrastTail);
+    assert_eq!(&*found[0].replacement, "");
+
+    let mut expected_delta = BTreeMap::new();
+    expected_delta.insert("contrast_closer", -1);
+    assert_eq!(found[0].delta, expected_delta);
+
+    let mut fixed = source;
+    fixed.replace_range(found[0].range.clone(), &found[0].replacement);
+    assert_eq!(fixed, "It fails fast.");
+}
+
+// 48. A mid-sentence "rather than" -- more clause follows its tail --
+// never fires, whatever the tail would otherwise look like: the tail
+// reaches all the way to the sentence's own end by construction, so
+// anything trailing the true tail necessarily pushes it over the 5-token
+// cap (here, on top of carrying its own finite verb). It stays a held
+// finding. The same sentence's sentence-final ", not a contract." still
+// fires -- the real fixture this shape was measured on
+// (`friction-edit`'s `register_tell_activation` test).
+#[test]
+fn t10_declines_a_mid_sentence_rather_than_but_still_fires_on_the_sentence_final_not_tail() {
+    let shapes = [
+        g(Some(1), DepRelation::Nsubj, "It", "PRP", "it"),
+        g(None, DepRelation::Root, "fails", "VBZ", "fail"),
+        g(Some(1), DepRelation::Other, "fast", "RB", "fast"),
+        g(Some(1), DepRelation::Other, "rather", "RB", "rather"),
+        g(Some(3), DepRelation::Other, "than", "IN", "than"),
+        g(Some(3), DepRelation::Pobj, "degrading", "VBG", "degrade"),
+        g(Some(1), DepRelation::Punct, ",", ",", ","),
+        g(Some(1), DepRelation::Cc, "and", "CC", "and"),
+        g(Some(10), DepRelation::Det, "the", "DT", "the"),
+        g(Some(10), DepRelation::Nsubj, "cache", "NN", "cache"),
+        g(Some(1), DepRelation::Conj, "is", "VBZ", "be"),
+        g(Some(12), DepRelation::Det, "a", "DT", "a"),
+        g(Some(10), DepRelation::Dobj, "hint", "NN", "hint"),
+        g(Some(10), DepRelation::Punct, ",", ",", ","),
+        g(Some(10), DepRelation::Other, "not", "RB", "not"),
+        g(Some(16), DepRelation::Det, "a", "DT", "a"),
+        g(Some(10), DepRelation::Other, "contract", "NN", "contract"),
+        g(Some(10), DepRelation::Punct, ".", ".", "."),
+    ];
+    let (source, tokens, parse) = build_glued(&shapes);
+    assert_eq!(
+        source,
+        "It fails fast rather than degrading, and the cache is a hint, not a contract."
+    );
+
+    let found = t10_contrast_tail(&source, &tokens, &parse);
+    assert_eq!(
+        found.len(),
+        1,
+        "the mid-sentence \"rather than\" must hold, only the final tail fires: {found:?}"
+    );
+    assert_eq!(&*found[0].replacement, "");
+
+    let mut fixed = source;
+    fixed.replace_range(found[0].range.clone(), &found[0].replacement);
+    assert_eq!(
+        fixed,
+        "It fails fast rather than degrading, and the cache is a hint."
+    );
+}
+
+// 49. A tail over 5 tokens -- no verb anywhere in it -- still declines:
+// the length cap, not just the verb ban, gates this construction.
+#[test]
+fn t10_declines_a_rather_than_tail_over_five_tokens() {
+    let shapes = [
+        g(Some(1), DepRelation::Nsubj, "It", "PRP", "it"),
+        g(None, DepRelation::Root, "fails", "VBZ", "fail"),
+        g(Some(1), DepRelation::Other, "rather", "RB", "rather"),
+        g(Some(2), DepRelation::Other, "than", "IN", "than"),
+        g(Some(3), DepRelation::Pobj, "backing", "VBG", "back"),
+        g(Some(4), DepRelation::Other, "off", "RP", "off"),
+        g(Some(4), DepRelation::Other, "slowly", "RB", "slowly"),
+        g(Some(4), DepRelation::Prep, "under", "IN", "under"),
+        g(Some(9), DepRelation::Other, "load", "NN", "load"),
+        g(Some(7), DepRelation::Pobj, "conditions", "NNS", "condition"),
+        g(Some(1), DepRelation::Punct, ".", ".", "."),
+    ];
+    let (source, tokens, parse) = build_glued(&shapes);
+    assert!(t10_contrast_tail(&source, &tokens, &parse).is_empty());
+}
+
+// 50. A finite verb anywhere in the "rather than" tail holds the
+// candidate -- pinned against "rather than we expected", where the tail
+// is a real clause, not a restated noun phrase.
+#[test]
+fn t10_declines_a_rather_than_tail_carrying_a_finite_verb() {
+    let shapes = [
+        g(Some(1), DepRelation::Nsubj, "It", "PRP", "it"),
+        g(None, DepRelation::Root, "shipped", "VBD", "ship"),
+        g(Some(1), DepRelation::Other, "rather", "RB", "rather"),
+        g(Some(2), DepRelation::Other, "than", "IN", "than"),
+        g(Some(5), DepRelation::Nsubj, "we", "PRP", "we"),
+        g(Some(3), DepRelation::Pobj, "expected", "VBD", "expect"),
+        g(Some(1), DepRelation::Punct, ".", ".", "."),
+    ];
+    let (source, tokens, parse) = build_glued(&shapes);
+    assert_eq!(source, "It shipped rather than we expected.");
+    assert!(t10_contrast_tail(&source, &tokens, &parse).is_empty());
+}
+
+// 51. The choice-verb guard: a choice-verb lemma before "rather" means
+// the tail names a real, informative alternative -- deleting it would
+// delete content, so this holds even though the tail itself is otherwise
+// licensable (one token, no verb).
+#[test]
+fn t10_declines_when_a_choice_verb_precedes_rather_than() {
+    let shapes = [
+        g(Some(1), DepRelation::Nsubj, "We", "PRP", "we"),
+        g(None, DepRelation::Root, "chose", "VBD", "choose"),
+        g(Some(1), DepRelation::Dobj, "polling", "NN", "polling"),
+        g(Some(1), DepRelation::Other, "rather", "RB", "rather"),
+        g(Some(3), DepRelation::Other, "than", "IN", "than"),
+        g(Some(4), DepRelation::Pobj, "webhooks", "NNS", "webhook"),
+        g(Some(1), DepRelation::Punct, ".", ".", "."),
+    ];
+    let (source, tokens, parse) = build_glued(&shapes);
+    assert_eq!(source, "We chose polling rather than webhooks.");
+    assert!(t10_contrast_tail(&source, &tokens, &parse).is_empty());
+}
+
+// 52. A candidate whose span would cross an inline-code boundary never
+// fires, even though every other Shape A condition holds.
+#[test]
+fn t10_declines_when_the_span_would_cross_an_inline_code_boundary() {
+    let shapes = [
+        g(Some(1), DepRelation::Det, "The", "DT", "the"),
+        g(Some(2), DepRelation::Nsubj, "cache", "NN", "cache"),
+        g(None, DepRelation::Root, "is", "VBZ", "be"),
+        g(Some(4), DepRelation::Det, "a", "DT", "a"),
+        g(Some(2), DepRelation::Dobj, "hint", "NN", "hint"),
+        g(Some(2), DepRelation::Punct, ",", ",", ","),
+        g(Some(2), DepRelation::Other, "not", "RB", "not"),
+        g(Some(2), DepRelation::Other, "`raw`", "NN", "raw"),
+        g(Some(2), DepRelation::Punct, ".", ".", "."),
+    ];
+    let (source, tokens, parse) = build_glued(&shapes);
+    assert!(source.contains('`'));
+    assert!(t10_contrast_tail(&source, &tokens, &parse).is_empty());
+}
+
+// 53. `t10_contrast_tail` is folded into `candidates()` alongside
+// T4/T5/T6/T7/T9.
+#[test]
+fn candidates_includes_t10_contrast_tail_output() {
+    let shapes = [
+        g(Some(1), DepRelation::Det, "The", "DT", "the"),
+        g(Some(2), DepRelation::Nsubj, "cache", "NN", "cache"),
+        g(None, DepRelation::Root, "is", "VBZ", "be"),
+        g(Some(4), DepRelation::Det, "a", "DT", "a"),
+        g(Some(2), DepRelation::Dobj, "hint", "NN", "hint"),
+        g(Some(2), DepRelation::Punct, ",", ",", ","),
+        g(Some(2), DepRelation::Other, "not", "RB", "not"),
+        g(Some(8), DepRelation::Det, "a", "DT", "a"),
+        g(Some(2), DepRelation::Other, "contract", "NN", "contract"),
+        g(Some(2), DepRelation::Punct, ".", ".", "."),
+    ];
+    let (source, tokens, parse) = build_glued(&shapes);
+    let found = candidates(&source, &tokens, &parse);
+    assert!(found.iter().any(|c| c.kind == CandidateKind::ContrastTail));
 }
