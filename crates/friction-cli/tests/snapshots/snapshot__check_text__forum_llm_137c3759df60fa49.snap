@@ -27,8 +27,9 @@ top_opener_concentration      0.1220  [0.0694, 0.1818]    in
 
 dms: mean_machine=20.8374  mean_human=1.6522  differential=19.1853  tokens=529
 
-tell counts (18 span(s) total):
+tell counts (19 span(s) total):
   dms: 17
+  span: 1
   sub: 1
 dms.machine
 
@@ -158,6 +159,17 @@ dms.machine
  32 │    Here, the compiler infers that `x` and `y` are independent references. Thus, `x` receives the default lifetime `'a`, while `y` gets a new lifetime `'b`. This ensures that if one reference goes out of scope, it doesn’t affect the other.
     ·                                                                                                                                                           ──────────────────────────────────────────┬─────────────────────────────────────────
     ·                                                                                                                                                                                                     ╰── Dms tell: dms.machine
+ 33 │ 
+    ╰────
+
+span.this_ensures
+
+  ⚠ Literal tell: span.this_ensures
+    ╭─[corpus/llm/forum/137c3759df60fa49.md:32:157]
+ 31 │    
+ 32 │    Here, the compiler infers that `x` and `y` are independent references. Thus, `x` receives the default lifetime `'a`, while `y` gets a new lifetime `'b`. This ensures that if one reference goes out of scope, it doesn’t affect the other.
+    ·                                                                                                                                                             ──────┬─────
+    ·                                                                                                                                                                   ╰── Literal tell: span.this_ensures
  33 │ 
     ╰────
 

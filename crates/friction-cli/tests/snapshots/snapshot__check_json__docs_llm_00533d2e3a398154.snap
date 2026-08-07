@@ -246,6 +246,15 @@ expression: stdout
       "score": 1133
     },
     {
+      "channel": "literal",
+      "frame_id": "span.this_ensures",
+      "start": 1828,
+      "end": 1840,
+      "line": 20,
+      "column": 173,
+      "score": null
+    },
+    {
       "channel": "dms",
       "frame_id": "dms.machine",
       "start": 1940,
@@ -428,6 +437,7 @@ expression: stdout
   ],
   "tell_counts": {
     "dms": 29,
+    "span": 1,
     "sub": 1
   },
   "dms": {

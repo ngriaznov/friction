@@ -27,8 +27,9 @@ top_opener_concentration      0.1852  [0.0545, 0.1613]    OUT
 
 dms: mean_machine=23.7850  mean_human=1.6888  differential=22.0963  tokens=935
 
-tell counts (30 span(s) total):
+tell counts (31 span(s) total):
   dms: 29
+  span: 1
   sub: 1
 dms.machine
 
@@ -137,6 +138,17 @@ dms.machine
  20 │ * **Cache Key Generation:**  A unique key is generated for each query based on its SQL statement, the parameters passed to the query (if any), and potentially a timestamp. This ensures that different queries with identical parameters are treated as distinct entries in the cache.
     ·     ─────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────┬─────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
     ·                                                                                                                                              ╰── Dms tell: dms.machine
+ 21 │ * **Cache Storage:** The Query Result Cache utilizes an in-memory data structure – likely a dictionary or hashmap – for fast lookups.  The key is the generated query key, and the value is the result set returned by the database.
+    ╰────
+
+span.this_ensures
+
+  ⚠ Literal tell: span.this_ensures
+    ╭─[corpus/llm/docs/00533d2e3a398154.md:20:173]
+ 19 │ 
+ 20 │ * **Cache Key Generation:**  A unique key is generated for each query based on its SQL statement, the parameters passed to the query (if any), and potentially a timestamp. This ensures that different queries with identical parameters are treated as distinct entries in the cache.
+    ·                                                                                                                                                                             ──────┬─────
+    ·                                                                                                                                                                                   ╰── Literal tell: span.this_ensures
  21 │ * **Cache Storage:** The Query Result Cache utilizes an in-memory data structure – likely a dictionary or hashmap – for fast lookups.  The key is the generated query key, and the value is the result set returned by the database.
     ╰────
 
