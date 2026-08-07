@@ -182,8 +182,9 @@ Mapping frontier tics onto the five existing operations:
 
 1. **Frontier DMS index**: generate Claude/GPT corpora on the existing genre
    battery, `corpus-tool index` with new families. Highest use, zero new
-   code, single-digit-dollar token cost. Immediately un-blinds `friction check
-   --family claude`.
+   code, single-digit-dollar token cost. Immediately un-blinds `friction
+   check` on Claude-register text (the pooled automaton absorbs every
+   indexed family; the retired `--family` flag is not coming back).
 2. **Re-mine** (`mine`, `mine-inventory`) frontier-vs-human, curate new
    inventory entries with existing provenance discipline, and import external
    lists (§3.4) through the same cross-check.

@@ -326,9 +326,9 @@ friction fix: 2 pass(es), 0 patch(es) applied
 ### `friction check` — detect and measure, change nothing
 
 ```
-friction check draft.md --family qwen --genre blog
-friction check draft.md --family gemma --format sarif > report.sarif
-friction check draft.md --family qwen --residual
+friction check draft.md --genre blog
+friction check draft.md --format sarif > report.sarif
+friction check draft.md --residual
 ```
 
 Reports detected spans with byte-exact locations, tell counts,
@@ -341,10 +341,9 @@ compiled frame rule covers. The machine tells the rule set cannot yet
 explain or rewrite, which is exactly the evidence queue the next
 rule-generation batch should start from.
 
-`--family` is still required by the interface but no longer selects an
-index: since 0.5.0 every scan runs against one pooled machine automaton
-built from all mined family corpora (`qwen`, `gemma`, `llama`, `granite`,
-`claude`), and the flag only labels the report. Text from a generator
+Every scan runs against one pooled machine automaton built from all
+mined family corpora (`qwen`, `gemma`, `llama`, `granite`, `claude`);
+there is no per-family targeting to configure. Text from a generator
 whose register none of the mined corpora resemble can still evade the
 statistical channel. See limits below.
 
