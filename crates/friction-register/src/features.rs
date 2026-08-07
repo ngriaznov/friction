@@ -757,3 +757,292 @@ mod semicolon_tests {
         assert_eq!(semicolons("The build finished without incident.").len(), 0);
     }
 }
+
+/// Byte offsets of every case-insensitive, ASCII occurrence of `pattern`
+/// in `text`. Every caller here matches a pure-ASCII phrase, so a
+/// non-ASCII byte in `text` simply never matches -- there's no wider
+/// case-folding to get right.
+fn find_ascii_case_insensitive(text: &str, pattern: &str) -> Vec<usize> {
+    let mut out = Vec::new();
+    if pattern.is_empty() {
+        return out;
+    }
+    for index in 0..text.len() {
+        if !text.is_char_boundary(index) {
+            continue;
+        }
+        let Some(end) = index.checked_add(pattern.len()) else {
+            break;
+        };
+        let Some(candidate) = text.get(index..end) else {
+            continue;
+        };
+        if candidate.eq_ignore_ascii_case(pattern) {
+            out.push(index);
+        }
+    }
+    out
+}
+
+/// See-saw contrast-closer tells: "rather than" and ", not ".
+///
+/// "rather than" is matched case-insensitively. ", not " is the literal
+/// sequence comma, space, lowercase "not", space, matched
+/// case-sensitively: sentence-medial "not" is always lowercase, and a
+/// capitalized ", Not " belongs to a quotation or title, not this
+/// construction.
+///
+/// Corpus-measured over corpus/llm + corpus/review/machine (404,607
+/// words) vs corpus/human (306,754 words): "rather than" 1527.4/M
+/// machine vs 179.3/M human (8.5x); ", not " 716.7/M vs 143.4/M (5.0x).
+/// Both are the closing half of a see-saw contrast ("not X, but rather
+/// Y" / "X, not Y") -- a construction machine prose reaches for far more
+/// often than human prose does.
+///
+/// Returns byte offsets from both patterns combined, sorted -- like
+/// [`em_dashes`], not token indices, since counting by character avoids
+/// depending on how either phrase happens to tokenize. Pure text scan,
+/// no tags: like [`em_dashes`].
+#[must_use]
+pub fn contrast_closers(text: &str) -> Vec<usize> {
+    let mut out = find_ascii_case_insensitive(text, "rather than");
+    out.extend(text.match_indices(", not ").map(|(index, _)| index));
+    out.sort_unstable();
+    out
+}
+
+/// Mid-sentence coordination via comma-space-"and"-space (lowercase
+/// "and" only, matched case-sensitively).
+///
+/// Corpus-measured over corpus/llm + corpus/review/machine (404,607
+/// words) vs corpus/human (306,754 words): 6309.8/M machine vs 3778.3/M
+/// human (1.67x) -- the mildest of these three tells, present in both
+/// bands rather than nearly absent from one (contrast
+/// [`contrast_closers`]'s 8.5x and 5.0x). A serial-list ", and " ("A, B,
+/// and C") still counts here: this function counts occurrences, not
+/// licenses to rewrite -- deciding which occurrence is safe to touch is
+/// a downstream layer's job, not this one's.
+///
+/// Returns byte offsets, like [`em_dashes`], not token indices. Pure
+/// text scan, no tags: like [`em_dashes`].
+#[must_use]
+pub fn comma_and_offsets(text: &str) -> Vec<usize> {
+    text.match_indices(", and ")
+        .map(|(index, _)| index)
+        .collect()
+}
+
+/// Past-progressive softening: a `VBG` token immediately preceded by a
+/// token whose lowercase surface is "was" or "were".
+///
+/// Corpus-measured over corpus/llm + corpus/review/machine (404,607
+/// words) vs corpus/human (306,754 words): (was|were + Ving) 472.1/M
+/// machine vs 198.9/M human (2.4x).
+///
+/// Excludes a `VBG` spelled "being" ("was being marked" is a passive
+/// progressive, a different construction) and one spelled "going" ("was
+/// going to" is future-in-past, not progressive softening).
+///
+/// The two tokens must be adjacent: an intervening adverb ("was quietly
+/// marking") does not count. That strictness is deliberate, not an
+/// oversight -- the downstream transducer declines an
+/// adverb-intervening case for placement safety (moving "marking"
+/// without also deciding where "quietly" lands risks a malformed
+/// rewrite), and the counter and the transducer must agree on what got
+/// counted, or the band the transducer targets and the count this
+/// function reports would silently diverge.
+///
+/// Returns token indices into `tokens`, like every other tag-level
+/// detector in this module except [`em_dashes`] and [`semicolons`].
+#[must_use]
+pub fn past_progressives(text: &str, tokens: &[TaggedToken]) -> Vec<usize> {
+    const AUX_WORDS: [&str; 2] = ["was", "were"];
+    const EXCLUDED_VBG: [&str; 2] = ["being", "going"];
+
+    let mut out = Vec::new();
+    for index in 1..tokens.len() {
+        if tokens[index].pos.as_str() != "VBG" {
+            continue;
+        }
+        if is_one_of(surface_of(text, tokens, index), &EXCLUDED_VBG) {
+            continue;
+        }
+        if is_one_of(surface_of(text, tokens, index - 1), &AUX_WORDS) {
+            out.push(index);
+        }
+    }
+    out
+}
+
+#[cfg(test)]
+mod contrast_closer_tests {
+    use super::contrast_closers;
+
+    /// Both patterns fire together; "rather than" matches regardless of
+    /// case.
+    #[test]
+    fn contrast_closers_counts_both_patterns() {
+        let text = "We chose caching Rather Than a cache-aside pattern, not manual polling.";
+        assert_eq!(contrast_closers(text).len(), 2);
+    }
+
+    /// ", not " alone counts, lowercase "not".
+    #[test]
+    fn contrast_closers_counts_comma_not_alone() {
+        assert_eq!(contrast_closers("The cache is warm, not cold.").len(), 1);
+    }
+
+    /// A capitalized ", Not " -- a quotation or title, not sentence-medial
+    /// negation -- never counts.
+    #[test]
+    fn contrast_closers_ignores_capitalized_not() {
+        assert_eq!(
+            contrast_closers("The section is titled \"Yes, Not Never\" in the appendix.").len(),
+            0
+        );
+    }
+
+    /// No occurrence at all is the common case in ordinary prose.
+    #[test]
+    fn contrast_closers_is_zero_for_ordinary_text() {
+        assert_eq!(
+            contrast_closers("The build finished without incident.").len(),
+            0
+        );
+    }
+
+    #[test]
+    fn contrast_closers_is_zero_for_empty_text() {
+        assert_eq!(contrast_closers("").len(), 0);
+    }
+
+    /// Offsets are byte positions, correct even with multibyte text
+    /// preceding the match.
+    #[test]
+    fn contrast_closers_offsets_correct_on_multibyte_text() {
+        let text = "café — chose caching rather than polling.";
+        let offsets = contrast_closers(text);
+        assert_eq!(offsets.len(), 1);
+        let index = offsets[0];
+        assert_eq!(&text[index..index + "rather than".len()], "rather than");
+    }
+}
+
+#[cfg(test)]
+mod comma_and_offset_tests {
+    use super::comma_and_offsets;
+
+    /// Ordinary mid-sentence coordination.
+    #[test]
+    fn comma_and_offsets_counts_basic_case() {
+        assert_eq!(
+            comma_and_offsets("It retries once, and the caller sees no error.").len(),
+            1
+        );
+    }
+
+    /// A serial-list ", and " ("A, B, and C") still counts -- counting
+    /// and licensing a rewrite are different layers; this function only
+    /// does the former.
+    #[test]
+    fn comma_and_offsets_counts_serial_list_and() {
+        assert_eq!(comma_and_offsets("It handles A, B, and C.").len(), 1);
+    }
+
+    /// Uppercase "And" never counts: only the lowercase, mid-sentence
+    /// form does.
+    #[test]
+    fn comma_and_offsets_ignores_capitalized_and() {
+        assert_eq!(comma_and_offsets("It failed, And nobody noticed.").len(), 0);
+    }
+
+    #[test]
+    fn comma_and_offsets_is_zero_for_empty_text() {
+        assert_eq!(comma_and_offsets("").len(), 0);
+    }
+
+    /// Offsets are byte positions, correct even with multibyte text
+    /// preceding the match.
+    #[test]
+    fn comma_and_offsets_offsets_correct_on_multibyte_text() {
+        let text = "naïve — it retries once, and the caller sees no error.";
+        let offsets = comma_and_offsets(text);
+        assert_eq!(offsets.len(), 1);
+        let index = offsets[0];
+        assert_eq!(&text[index..index + ", and ".len()], ", and ");
+    }
+}
+
+#[cfg(test)]
+mod past_progressive_tests {
+    use super::past_progressives;
+    use friction_core::{Token, TokenKind};
+    use friction_nlp::{PosTag, TaggedToken};
+
+    /// Builds one [`TaggedToken`] per whitespace-separated word in
+    /// `text`, tagged in order from `tags`. Fine for this module's
+    /// fixtures, none of which glue trailing punctuation onto a word
+    /// the detector itself inspects.
+    fn tokens_for(text: &str, tags: &[&str]) -> Vec<TaggedToken> {
+        assert_eq!(text.split_whitespace().count(), tags.len());
+        let mut cursor = 0;
+        let mut out = Vec::new();
+        for (word, tag) in text.split_whitespace().zip(tags) {
+            let start = cursor + text[cursor..].find(word).unwrap();
+            let end = start + word.len();
+            cursor = end;
+            out.push(TaggedToken {
+                token: Token::new(start..end, TokenKind::Word),
+                pos: PosTag::new(*tag),
+                lemma: word.to_lowercase().into_boxed_str(),
+            });
+        }
+        out
+    }
+
+    /// "was" immediately before a `VBG` counts.
+    #[test]
+    fn past_progressives_counts_was_plus_vbg() {
+        let text = "It was marking every line.";
+        let tokens = tokens_for(text, &["PRP", "VBD", "VBG", "DT", "NN"]);
+        assert_eq!(past_progressives(text, &tokens), vec![2]);
+    }
+
+    /// "were" immediately before a `VBG` counts, matched
+    /// case-insensitively on the auxiliary.
+    #[test]
+    fn past_progressives_counts_were_plus_vbg_case_insensitively() {
+        let text = "WERE repeating the same steps.";
+        let tokens = tokens_for(text, &["VBD", "VBG", "DT", "JJ", "NNS"]);
+        assert_eq!(past_progressives(text, &tokens), vec![1]);
+    }
+
+    /// "being" after "was" is a passive progressive, not counted.
+    #[test]
+    fn past_progressives_excludes_being() {
+        let text = "It was being marked as done.";
+        let tokens = tokens_for(text, &["PRP", "VBD", "VBG", "VBN", "IN", "VBN"]);
+        assert_eq!(past_progressives(text, &tokens), Vec::<usize>::new());
+    }
+
+    /// "going" after "was" is future-in-past, not counted.
+    #[test]
+    fn past_progressives_excludes_going() {
+        let text = "She was going to leave.";
+        let tokens = tokens_for(text, &["PRP", "VBD", "VBG", "TO", "VB"]);
+        assert_eq!(past_progressives(text, &tokens), Vec::<usize>::new());
+    }
+
+    /// An intervening adverb breaks adjacency; the pair does not count.
+    #[test]
+    fn past_progressives_excludes_adverb_intervening() {
+        let text = "It was quietly marking each line.";
+        let tokens = tokens_for(text, &["PRP", "VBD", "RB", "VBG", "DT", "NN"]);
+        assert_eq!(past_progressives(text, &tokens), Vec::<usize>::new());
+    }
+
+    #[test]
+    fn past_progressives_is_empty_for_no_tokens() {
+        assert_eq!(past_progressives("", &[]), Vec::<usize>::new());
+    }
+}
