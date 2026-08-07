@@ -58,6 +58,7 @@ use std::path::PathBuf;
 
 use anyhow::Context as _;
 use clap::Args as ClapArgs;
+use friction_core::Lang;
 use friction_nlp::{PerceptronTagger, Tagger, coarse_tag};
 
 use crate::corpus_layout::relpath;
@@ -101,6 +102,15 @@ pub struct Args {
     /// stage-1 pack to exist first.
     #[arg(long)]
     pub calibrate_near_noop: bool,
+    /// BCP-47 language to build the attestation pack for: corpus
+    /// records are filtered to `record.lang == lang.as_str()` (raw
+    /// string comparison — see `manifest::filter_lang`) before anything
+    /// else runs, for both the stage-1 build and the stage-2
+    /// `--calibrate-near-noop` pass. Defaults to `en`; every record in
+    /// the corpus is tagged `en` today, so this selects the whole
+    /// corpus and changes no output.
+    #[arg(long, default_value = "en")]
+    pub lang: Lang,
 }
 
 /// One sentence's independently-computed bigram tokens and skeleton tags.
@@ -226,6 +236,7 @@ pub fn run(args: &Args) -> anyhow::Result<()> {
     let manifest_path = args.corpus_dir.join("manifest.jsonl");
     let manifest_bytes = std::fs::read(&manifest_path).unwrap_or_default();
     let records = manifest::read_manifest(&manifest_path)?.unwrap_or_default();
+    let records = manifest::filter_lang(records, args.lang);
 
     let mut train_human: Vec<&ManifestRecord> = records
         .iter()

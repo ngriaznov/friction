@@ -13,6 +13,7 @@
 use std::path::Path;
 
 use corpus_tool::commands::mine::{self, Args, NgramOrderArg};
+use friction_core::Lang;
 
 /// The exact flags `crates/friction-packs/packs/mined-ngrams-en-v1.toml`'s
 /// provenance comment claims `corpus/MINING.md` was produced with:
@@ -58,6 +59,7 @@ fn mining_report_matches_documented_provenance_command() {
         top: DOCUMENTED_TOP,
         min_count: DOCUMENTED_MIN_COUNT,
         report: regenerated_path.clone(),
+        lang: Lang::En,
     };
     mine::run(&args).expect("mine against the real corpus");
     let regenerated = std::fs::read_to_string(&regenerated_path).expect("read regenerated report");

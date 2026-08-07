@@ -78,7 +78,7 @@ use std::path::{Path, PathBuf};
 
 use anyhow::Context as _;
 use clap::Args as ClapArgs;
-use friction_core::Document;
+use friction_core::{Document, Lang};
 use friction_nlp::{PerceptronTagger, Tagger};
 use friction_packs::HumanEvidencePack;
 use friction_packs::frame_rules::{
@@ -124,6 +124,13 @@ pub struct Args {
     /// `corpus-tool frame-pack` afterwards.**
     #[arg(long)]
     pub regenerate: bool,
+    /// BCP-47 language to adjudicate: corpus records are filtered to
+    /// `record.lang == lang.as_str()` (raw string comparison — see
+    /// `manifest::filter_lang`) before anything else runs. Defaults to
+    /// `en`; every record in the corpus is tagged `en` today, so this
+    /// selects the whole corpus and changes no output.
+    #[arg(long, default_value = "en")]
+    pub lang: Lang,
 }
 
 /// The seven buckets `frame-rules-en-v1.toml` carries, in the fixed order
@@ -896,6 +903,7 @@ pub fn run(args: &Args) -> anyhow::Result<()> {
 
     let manifest_path = args.corpus_dir.join("manifest.jsonl");
     let records = manifest::read_manifest(&manifest_path)?.unwrap_or_default();
+    let records = manifest::filter_lang(records, args.lang);
     let mut docs: Vec<&ManifestRecord> = records
         .iter()
         .filter(|r| matches!(r.split, Some(Split::Train | Split::Dev)))

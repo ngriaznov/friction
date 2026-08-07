@@ -11,6 +11,7 @@ mod common;
 use corpus_tool::commands::mine_paired::{self, Args};
 use corpus_tool::manifest::{Genre, ModelInfo, Split};
 use corpus_tool::paired_manifest::{self, PairedManifestRecord, Side};
+use friction_core::Lang;
 
 fn args(
     corpus_dir: &std::path::Path,
@@ -27,6 +28,7 @@ fn args(
         min_stock_count_n3: 5,
         min_stock_count_n4: 4,
         top: 50,
+        lang: Lang::En,
     }
 }
 

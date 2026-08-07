@@ -43,6 +43,7 @@ use std::fmt::Write as _;
 use std::path::PathBuf;
 
 use clap::Args as ClapArgs;
+use friction_core::Lang;
 use friction_packs::{DmsIndex, ModelFamily};
 
 use crate::corpus_layout::relpath;
@@ -71,6 +72,15 @@ pub struct Args {
     /// pack itself. Slower; off by default.
     #[arg(long, default_value_t = false)]
     pub calibrate: bool,
+    /// BCP-47 language to build the index for: corpus records are
+    /// filtered to `record.lang == lang.as_str()` (raw string
+    /// comparison — see `manifest::filter_lang`) before anything else
+    /// runs. Defaults to `en`; every record in the corpus is tagged `en`
+    /// today, so this selects the whole corpus and changes no output —
+    /// including `corpus_manifest_sha256`, which hashes the raw
+    /// manifest file regardless of this filter.
+    #[arg(long, default_value = "en")]
+    pub lang: Lang,
 }
 
 /// Maps a manifest `model.name` (an Ollama tag, e.g. `"gemma2:9b"`, or an
@@ -146,6 +156,7 @@ pub fn run(args: &Args) -> anyhow::Result<()> {
     let manifest_path = args.corpus_dir.join("manifest.jsonl");
     let manifest_bytes = std::fs::read(&manifest_path).unwrap_or_default();
     let records = manifest::read_manifest(&manifest_path)?.unwrap_or_default();
+    let records = manifest::filter_lang(records, args.lang);
 
     let mut train: Vec<&ManifestRecord> = records
         .iter()

@@ -48,6 +48,38 @@ fn stats_report_written_to_file_with_counts() {
     assert!(report.contains("| llm | blog | 1 |"));
 }
 
+/// `stats` prints a per-`lang` doc count table, and (unlike the
+/// mining/report commands) never filters by language itself: a corpus
+/// mixing a raw non-`en` `lang` tag alongside `en` records shows up as
+/// two rows, both counted.
+#[test]
+fn stats_report_includes_per_lang_counts_for_a_mixed_corpus() {
+    let dir = tempfile::tempdir().unwrap();
+    let words = common::filler_words(320);
+
+    let sha1 = common::write_doc(dir.path(), "human/docs/h001.md", &words);
+    let sha2 = common::write_doc(dir.path(), "human/docs/h002.md", &words);
+
+    let h1 = common::human_record("h001", Genre::Docs, sha1);
+    let mut h2 = common::human_record("h002", Genre::Docs, sha2);
+    // A raw, unvalidated tag — `stats` never runs `Lang::from_str`, it
+    // only tallies the manifest's own string field (see `commands::stats`'s
+    // module docs and `manifest::filter_lang`'s doc comment for why every
+    // command in this crate treats the raw tag this way rather than
+    // parsing it).
+    h2.lang = "xx".to_string();
+
+    common::write_manifest_raw(&dir.path().join("manifest.jsonl"), &[h1, h2]);
+
+    let report_path = dir.path().join("report.md");
+    stats::run(&args(dir.path(), Some(report_path.clone()))).unwrap();
+
+    let report = std::fs::read_to_string(&report_path).unwrap();
+    assert!(report.contains("## By language"));
+    assert!(report.contains("| en | 1 |"));
+    assert!(report.contains("| xx | 1 |"));
+}
+
 /// Running `stats` twice on the same corpus produces
 /// byte-identical reports (deterministic ordering, no ambient state).
 #[test]

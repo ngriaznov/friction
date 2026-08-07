@@ -4,6 +4,7 @@ mod common;
 
 use corpus_tool::commands::output_bands::{self, Args};
 use corpus_tool::manifest::{Genre, Split};
+use friction_core::Lang;
 
 fn build_mini_corpus(dir: &std::path::Path) {
     let train_text = "Our development plan covers the rollout. Development matters to us, \
@@ -27,6 +28,7 @@ fn args(corpus_dir: &std::path::Path, report: std::path::PathBuf) -> Args {
         report,
         frames: Vec::new(),
         ceiling_multiplier: 3.0,
+        lang: Lang::En,
     }
 }
 

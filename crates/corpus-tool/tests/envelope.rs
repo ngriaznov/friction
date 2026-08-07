@@ -4,6 +4,7 @@ mod common;
 
 use corpus_tool::commands::envelope::{self, Args};
 use corpus_tool::manifest::{Genre, Split};
+use friction_core::Lang;
 
 fn args(corpus_dir: &std::path::Path, out: std::path::PathBuf) -> Args {
     Args {
@@ -12,6 +13,7 @@ fn args(corpus_dir: &std::path::Path, out: std::path::PathBuf) -> Args {
         lo_percentile: 10.0,
         hi_percentile: 90.0,
         auc_include_threshold: 0.55,
+        lang: Lang::En,
     }
 }
 

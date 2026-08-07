@@ -7,6 +7,7 @@ mod common;
 
 use corpus_tool::commands::mine_inventory::{self, Args};
 use corpus_tool::manifest::{Genre, Split};
+use friction_core::Lang;
 
 fn args(corpus_dir: &std::path::Path, report: std::path::PathBuf) -> Args {
     Args {
@@ -20,6 +21,7 @@ fn args(corpus_dir: &std::path::Path, report: std::path::PathBuf) -> Args {
         top: 50,
         min_lvc_count: 2,
         skeleton: false,
+        lang: Lang::En,
     }
 }
 

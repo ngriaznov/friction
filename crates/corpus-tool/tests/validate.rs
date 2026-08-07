@@ -226,6 +226,26 @@ fn validate_word_count_out_of_range_is_warn_only() {
     assert!(validate::run(&args(dir.path())).is_ok());
 }
 
+/// A record whose `lang` tag isn't a known `friction_core::Lang` is
+/// rejected, with the record's id named in the error.
+#[test]
+fn validate_unknown_lang_rejected() {
+    let dir = tempfile::tempdir().unwrap();
+    let words = common::filler_words(320);
+    let sha = common::write_doc(dir.path(), "human/docs/h001.md", &words);
+
+    let mut record = common::human_record("h001", Genre::Docs, sha);
+    record.lang = "tlh".to_string();
+    common::write_manifest_raw(
+        &dir.path().join("manifest.jsonl"),
+        std::slice::from_ref(&record),
+    );
+
+    let err = validate::run(&args(dir.path())).unwrap_err();
+    let printed = err.to_string();
+    assert!(printed.contains("error(s)"));
+}
+
 /// The manifest itself must parse strictly — an unknown field
 /// anywhere in the JSONL file is a hard error via `manifest::read_manifest`.
 #[test]

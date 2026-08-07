@@ -82,6 +82,7 @@ use std::path::PathBuf;
 
 use anyhow::Context as _;
 use clap::Args as ClapArgs;
+use friction_core::Lang;
 use friction_packs::frame_rules::{FrameRuleSet, literal_probes, parse_pattern};
 
 use crate::hashing::sha256_hex;
@@ -128,6 +129,17 @@ pub struct Args {
         default_value = "crates/friction-packs/packs/human-evidence-en-v1.bin"
     )]
     pub out_bin: PathBuf,
+    /// BCP-47 language this pack is built for. Present for consistency
+    /// with the corpus-tool commands that build language-scoped
+    /// artifacts (`mine`, `index`, `attest`, ...), and defaults to
+    /// `en` the same way they do — but unlike those, this command has
+    /// nothing to filter it against: every input here is an externally
+    /// staged `--input <dir>` bucket (see the module docs), never
+    /// `corpus/manifest.jsonl`, and those buckets carry no per-document
+    /// `lang` field of their own. Currently a no-op recorded here so a
+    /// future per-bucket language tag has a flag to bind to.
+    #[arg(long, default_value = "en")]
+    pub lang: Lang,
 }
 
 /// One `cleaned.jsonl` document: only the two fields this command reads.
@@ -635,6 +647,7 @@ words = ["a", "the"]
             pack_name: "human-evidence-v1".to_string(),
             out_toml,
             out_bin: out_bin.clone(),
+            lang: Lang::En,
         };
         run(&args).expect("run succeeds with zero input dirs");
         let pack = friction_packs::human_evidence::HumanEvidencePack::load(
@@ -669,6 +682,7 @@ words = ["a", "the"]
             pack_name: "human-evidence-v1".to_string(),
             out_toml,
             out_bin: out_bin.clone(),
+            lang: Lang::En,
         };
         run(&args).expect("run succeeds");
         let pack = friction_packs::human_evidence::HumanEvidencePack::load(
@@ -700,6 +714,7 @@ words = ["a", "the"]
             pack_name: "human-evidence-v1".to_string(),
             out_toml,
             out_bin: out_bin.clone(),
+            lang: Lang::En,
         };
         run(&args).expect("run succeeds");
         let pack = friction_packs::human_evidence::HumanEvidencePack::load(
@@ -732,6 +747,7 @@ words = ["a", "the"]
             pack_name: "human-evidence-v1".to_string(),
             out_toml: out_toml_a,
             out_bin: out_bin_a.clone(),
+            lang: Lang::En,
         })
         .expect("run a succeeds");
         let out_bin_b = dir.path().join("b.bin");
@@ -742,6 +758,7 @@ words = ["a", "the"]
             pack_name: "human-evidence-v1".to_string(),
             out_toml: out_toml_b,
             out_bin: out_bin_b.clone(),
+            lang: Lang::En,
         })
         .expect("run b succeeds");
         assert_eq!(

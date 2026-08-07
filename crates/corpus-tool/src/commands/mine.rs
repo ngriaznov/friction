@@ -61,6 +61,7 @@ use std::fmt::Write as _;
 use std::path::PathBuf;
 
 use clap::Args as ClapArgs;
+use friction_core::Lang;
 
 use crate::manifest::{self, Class, ManifestRecord, Split};
 use crate::metric_source::load_document;
@@ -111,12 +112,20 @@ pub struct Args {
     /// Path to write the markdown mining report to.
     #[arg(long)]
     pub report: PathBuf,
+    /// BCP-47 language to mine: corpus records are filtered to
+    /// `record.lang == lang.as_str()` (raw string comparison — see
+    /// `manifest::filter_lang`) before anything else runs. Defaults to
+    /// `en`; every record in the corpus is tagged `en` today, so this
+    /// selects the whole corpus and changes no output.
+    #[arg(long, default_value = "en")]
+    pub lang: Lang,
 }
 
 /// Runs `mine`.
 ///
-/// Reads the manifest, restricts to `train`-split documents of either
-/// class, tokenizes each document's prose (see the module docs), and
+/// Reads the manifest, filters to `--lang` (default `en`), restricts to
+/// `train`-split documents of either class, tokenizes each document's
+/// prose (see the module docs), and
 /// accumulates per-order, per-class n-gram counts. For each requested
 /// order, scores every n-gram meeting `--min-count` via [`log_odds_z`],
 /// and writes the top `--top` llm-favored and human-favored n-grams
@@ -129,6 +138,7 @@ pub struct Args {
 pub fn run(args: &Args) -> anyhow::Result<()> {
     let manifest_path = args.corpus_dir.join("manifest.jsonl");
     let records = manifest::read_manifest(&manifest_path)?.unwrap_or_default();
+    let records = manifest::filter_lang(records, args.lang);
 
     let mut train: Vec<&ManifestRecord> = records
         .iter()

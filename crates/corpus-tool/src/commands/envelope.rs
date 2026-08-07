@@ -15,7 +15,7 @@ use crate::corpus_layout::relpath;
 use crate::hashing::sha256_hex;
 use crate::manifest::{self, Class, Genre, ManifestRecord, Split};
 use crate::metric_source::{FrictionMetricsSource, MetricSource, load_document};
-use friction_core::MetricVector;
+use friction_core::{Lang, MetricVector};
 
 /// The fixed set of five genres, for warning about a genre with no
 /// train-split human docs at all (there's no `Genre::VARIANTS` in
@@ -57,6 +57,13 @@ pub struct Args {
     /// in `[0.5, 1.0]` (an oriented AUC is never below 0.5).
     #[arg(long, default_value_t = 0.55)]
     pub auc_include_threshold: f64,
+    /// BCP-47 language to build the envelope for: corpus records are
+    /// filtered to `record.lang == lang.as_str()` (raw string
+    /// comparison — see `manifest::filter_lang`) before anything else
+    /// runs. Defaults to `en`; every record in the corpus is tagged `en`
+    /// today, so this selects the whole corpus and changes no output.
+    #[arg(long, default_value = "en")]
+    pub lang: Lang,
 }
 
 /// Runs `envelope`.
@@ -134,6 +141,7 @@ fn run_with_source(args: &Args, source: &dyn MetricSource) -> anyhow::Result<()>
     let manifest_path = args.corpus_dir.join("manifest.jsonl");
     let manifest_bytes = std::fs::read(&manifest_path).unwrap_or_default();
     let records = manifest::read_manifest(&manifest_path)?.unwrap_or_default();
+    let records = manifest::filter_lang(records, args.lang);
 
     let mut train: Vec<&ManifestRecord> = records
         .iter()

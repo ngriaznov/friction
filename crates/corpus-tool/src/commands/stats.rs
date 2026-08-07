@@ -67,8 +67,12 @@ struct CellStats {
 ///
 /// Prints per-`(class, genre)` doc counts, word-count summary stats
 /// (min/mean/max), and split counts, in deterministic
-/// (`(class, genre)`-sorted) order. Writes a markdown report to
-/// `--report <path>` if given, else prints it to stdout.
+/// (`(class, genre)`-sorted) order, plus a per-`lang` doc count table (raw
+/// manifest `lang` string, sorted) so a corpus mixing languages is
+/// visible at a glance — `stats` never filters by language itself,
+/// unlike the mining/report commands (`mine`, `envelope`, ...), since its
+/// whole job is a census of everything in the corpus. Writes a markdown
+/// report to `--report <path>` if given, else prints it to stdout.
 ///
 /// # Errors
 ///
@@ -79,6 +83,7 @@ pub fn run(args: &Args) -> anyhow::Result<()> {
     let records = manifest::read_manifest(&manifest_path)?.unwrap_or_default();
 
     let mut cells: BTreeMap<(Class, Genre), CellStats> = BTreeMap::new();
+    let mut by_lang: BTreeMap<String, usize> = BTreeMap::new();
     for record in &records {
         let cell = cells.entry((record.class, record.genre)).or_default();
         cell.docs += 1;
@@ -93,9 +98,10 @@ pub fn run(args: &Args) -> anyhow::Result<()> {
         {
             cell.words.push(word_count(text));
         }
+        *by_lang.entry(record.lang.clone()).or_default() += 1;
     }
 
-    let report = render_markdown(&records, &cells);
+    let report = render_markdown(&records, &cells, &by_lang);
 
     match &args.report {
         Some(path) => std::fs::write(path, &report)?,
@@ -108,6 +114,7 @@ pub fn run(args: &Args) -> anyhow::Result<()> {
 fn render_markdown(
     records: &[ManifestRecord],
     cells: &BTreeMap<(Class, Genre), CellStats>,
+    by_lang: &BTreeMap<String, usize>,
 ) -> String {
     let mut out = String::new();
     writeln!(out, "# Corpus statistics").expect("write to String is infallible");
@@ -135,6 +142,15 @@ fn render_markdown(
             cell.unsplit,
         )
         .expect("write to String is infallible");
+    }
+
+    writeln!(out).expect("write to String is infallible");
+    writeln!(out, "## By language").expect("write to String is infallible");
+    writeln!(out).expect("write to String is infallible");
+    writeln!(out, "| lang | docs |").expect("write to String is infallible");
+    writeln!(out, "|---|---|").expect("write to String is infallible");
+    for (lang, count) in by_lang {
+        writeln!(out, "| {lang} | {count} |").expect("write to String is infallible");
     }
     out
 }

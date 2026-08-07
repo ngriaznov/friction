@@ -53,6 +53,7 @@ use std::fmt::Write as _;
 use std::path::{Path, PathBuf};
 
 use clap::Args as ClapArgs;
+use friction_core::Lang;
 
 use crate::commands::mine::{ClassCounts, accumulate_ngrams};
 use crate::commands::mine_inventory::word_runs;
@@ -95,6 +96,16 @@ pub struct Args {
     /// How many entries to report per order/direction.
     #[arg(long, default_value_t = 50)]
     pub top: usize,
+    /// BCP-47 language for the human-train cross-check pass (see the
+    /// module docs): `corpus/manifest.jsonl` records are filtered to
+    /// `record.lang == lang.as_str()` (raw string comparison — see
+    /// `manifest::filter_lang`) before that pass runs. The paired
+    /// corpus's own manifest carries no `lang` field of its own, so
+    /// this has no effect on the stock/antislop mining itself. Defaults
+    /// to `en`; every record in the corpus is tagged `en` today, so this
+    /// selects the whole cross-check corpus and changes no output.
+    #[arg(long, default_value = "en")]
+    pub lang: Lang,
 }
 
 /// Minimum stock-side occurrence count for n-gram order `order` (2, 3,
@@ -121,7 +132,7 @@ pub fn run(args: &Args) -> anyhow::Result<()> {
 
     let (stock_docs, antislop_docs, sentences) = collect_paired_sentences(args, &records)?;
     let counts = accumulate_by_order(&sentences);
-    let human_train_counts = human_train_ngram_counts(&args.corpus_dir)?;
+    let human_train_counts = human_train_ngram_counts(&args.corpus_dir, args.lang)?;
 
     let orders: Vec<PairedOrderReport> = [2, 3, 4]
         .into_iter()
@@ -220,7 +231,7 @@ fn accumulate_by_order(sentences: &[SentenceRecord]) -> BTreeMap<usize, ClassCou
     counts
 }
 
-/// Read-only pass over `corpus/manifest.jsonl`, restricted to
+/// Read-only pass over `corpus/manifest.jsonl`, restricted to `lang`,
 /// `Class::Human && Split::Train` docs, producing per-order (2..=4)
 /// n-gram counts: the human-train cross-check reference (see the
 /// module docs). Never touches `corpus/llm`.
@@ -229,9 +240,11 @@ fn accumulate_by_order(sentences: &[SentenceRecord]) -> BTreeMap<usize, ClassCou
 /// `manifest.jsonl` at all.
 fn human_train_ngram_counts(
     corpus_dir: &Path,
+    lang: Lang,
 ) -> anyhow::Result<BTreeMap<usize, BTreeMap<String, u64>>> {
     let manifest_path = corpus_dir.join("manifest.jsonl");
     let records = manifest::read_manifest(&manifest_path)?.unwrap_or_default();
+    let records = manifest::filter_lang(records, lang);
 
     let mut train: Vec<&ManifestRecord> = records
         .iter()
@@ -500,6 +513,7 @@ mod tests {
             min_stock_count_n3: 5,
             min_stock_count_n4: 4,
             top: 50,
+            lang: Lang::En,
         };
         assert_eq!(min_stock_count(2, &args), 8);
         assert_eq!(min_stock_count(3, &args), 5);

@@ -34,7 +34,7 @@ use std::path::PathBuf;
 
 use anyhow::Context as _;
 use clap::Args as ClapArgs;
-use friction_core::{Block, BlockKind, Document, TokenKind};
+use friction_core::{Block, BlockKind, Document, Lang, TokenKind};
 use friction_nlp::lvc::{DERIVATIONAL_LEXICON, LightVerbForm, conjugate, scan_construction_shape};
 use friction_nlp::{PerceptronTagger, Tagger};
 
@@ -88,6 +88,13 @@ pub struct Args {
     /// from the command line even though it defaults on.
     #[arg(long, action = clap::ArgAction::Set, default_value_t = true)]
     pub skeleton: bool,
+    /// BCP-47 language to mine: corpus records are filtered to
+    /// `record.lang == lang.as_str()` (raw string comparison — see
+    /// `manifest::filter_lang`) before anything else runs. Defaults to
+    /// `en`; every record in the corpus is tagged `en` today, so this
+    /// selects the whole corpus and changes no output.
+    #[arg(long, default_value = "en")]
+    pub lang: Lang,
 }
 
 /// Minimum machine-side occurrence count for n-gram order `order` (2, 3,
@@ -105,6 +112,9 @@ const fn min_machine_count(order: usize, args: &Args) -> u64 {
 
 /// Runs `mine-inventory`.
 ///
+/// Filters the manifest to `--lang` (default `en`) before restricting to
+/// the train split.
+///
 /// # Errors
 ///
 /// Returns an error if the manifest or a referenced document can't be
@@ -116,6 +126,7 @@ pub fn run(args: &Args) -> anyhow::Result<()> {
 
     let manifest_path = args.corpus_dir.join("manifest.jsonl");
     let records = manifest::read_manifest(&manifest_path)?.unwrap_or_default();
+    let records = manifest::filter_lang(records, args.lang);
 
     let mut train: Vec<&ManifestRecord> = records
         .iter()
@@ -1152,6 +1163,7 @@ mod tests {
             top: 50,
             min_lvc_count: 2,
             skeleton: true,
+            lang: Lang::En,
         };
         assert_eq!(min_machine_count(2, &args), 8);
         assert_eq!(min_machine_count(3, &args), 5);

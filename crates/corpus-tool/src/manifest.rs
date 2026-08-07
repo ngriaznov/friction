@@ -8,6 +8,7 @@ use std::fmt;
 use std::io;
 use std::path::{Path, PathBuf};
 
+use friction_core::Lang;
 use serde::{Deserialize, Serialize};
 
 /// License string that satisfies the human-provenance rule for
@@ -211,6 +212,28 @@ pub fn write_manifest(path: &Path, records: &[ManifestRecord]) -> Result<(), Man
     })
 }
 
+/// Filters `records` down to those tagged for `lang`.
+///
+/// Compares the record's raw `lang` string field against `lang.as_str()`
+/// directly — it does **not** run the record's tag through
+/// [`Lang::from_str`](std::str::FromStr::from_str). That's deliberate: a
+/// manifest record carrying a language this binary doesn't know yet
+/// (say, a `"de"` record staged ahead of the code that adds a
+/// `Lang::De` variant) must not make an older `corpus-tool` binary
+/// panic or error just because some command asked to build an
+/// English-scoped artifact — it should simply fail to match `"en"` and
+/// be excluded, exactly as any other language it isn't selecting for
+/// would be. `corpus-tool validate` (see `commands::validate`) is the
+/// strict gate that rejects an unrecognized tag outright; this
+/// function's job is selection over an already-validated corpus, not
+/// validation, so the two deliberately disagree on how an unrecognized
+/// tag is treated.
+#[must_use]
+pub fn filter_lang(records: Vec<ManifestRecord>, lang: Lang) -> Vec<ManifestRecord> {
+    let tag = lang.as_str();
+    records.into_iter().filter(|r| r.lang == tag).collect()
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -283,6 +306,31 @@ mod tests {
         let dir = tempfile::tempdir().unwrap();
         let path = dir.path().join("does-not-exist.jsonl");
         assert!(read_manifest(&path).unwrap().is_none());
+    }
+
+    /// `filter_lang` keeps a record whose raw `lang` field matches the
+    /// requested language's tag, and drops one that doesn't — including a
+    /// record whose `lang` names a language `Lang` can't parse at all
+    /// (constructed directly here, since `Lang::from_str` would reject
+    /// it). The filter must never try to parse the record's tag: see the
+    /// function's own doc comment for why.
+    #[test]
+    fn filter_lang_excludes_records_with_a_different_raw_lang_tag() {
+        let mut en_record: ManifestRecord = serde_json::from_str(sample_human_json()).unwrap();
+        en_record.id = "en1".to_string();
+        let mut other_record: ManifestRecord = serde_json::from_str(sample_human_json()).unwrap();
+        other_record.id = "xx1".to_string();
+        other_record.lang = "xx".to_string();
+
+        let filtered = filter_lang(vec![en_record, other_record], Lang::En);
+        assert_eq!(filtered.len(), 1);
+        assert_eq!(filtered[0].id, "en1");
+    }
+
+    /// An empty input filters to an empty output, no panic.
+    #[test]
+    fn filter_lang_on_empty_records_is_empty() {
+        assert!(filter_lang(Vec::new(), Lang::En).is_empty());
     }
 
     /// Blank lines between records are skipped rather than

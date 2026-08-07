@@ -15,7 +15,7 @@ use serde::Deserialize;
 use crate::corpus_layout::relpath;
 use crate::manifest::{self, Class, Genre, ManifestRecord, Split};
 use crate::metric_source::{FrictionMetricsSource, MetricSource, load_document};
-use friction_core::{Envelope, MetricVector};
+use friction_core::{Envelope, Lang, MetricVector};
 
 /// The fixed set of five genres, in the report's section order (matches
 /// their declaration order in `crate::manifest::Genre`, not alphabetical
@@ -48,6 +48,13 @@ pub struct Args {
     /// Path to write the markdown separation report to.
     #[arg(long)]
     pub report: PathBuf,
+    /// BCP-47 language to measure: corpus records are filtered to
+    /// `record.lang == lang.as_str()` (raw string comparison — see
+    /// `manifest::filter_lang`) before anything else runs. Defaults to
+    /// `en`; every record in the corpus is tagged `en` today, so this
+    /// selects the whole corpus and changes no output.
+    #[arg(long, default_value = "en")]
+    pub lang: Lang,
 }
 
 /// Runs `separate`.
@@ -105,6 +112,7 @@ pub fn run(args: &Args) -> anyhow::Result<()> {
 fn run_with_source(args: &Args, source: &dyn MetricSource) -> anyhow::Result<()> {
     let manifest_path = args.corpus_dir.join("manifest.jsonl");
     let records = manifest::read_manifest(&manifest_path)?.unwrap_or_default();
+    let records = manifest::filter_lang(records, args.lang);
 
     let mut dev: Vec<&ManifestRecord> = records
         .iter()

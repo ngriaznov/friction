@@ -4,6 +4,7 @@ mod common;
 
 use corpus_tool::commands::{envelope, separate};
 use corpus_tool::manifest::{Genre, Split};
+use friction_core::Lang;
 
 fn envelope_args(corpus_dir: &std::path::Path, out: std::path::PathBuf) -> envelope::Args {
     envelope::Args {
@@ -12,6 +13,7 @@ fn envelope_args(corpus_dir: &std::path::Path, out: std::path::PathBuf) -> envel
         lo_percentile: 10.0,
         hi_percentile: 90.0,
         auc_include_threshold: 0.55,
+        lang: Lang::En,
     }
 }
 
@@ -24,6 +26,7 @@ fn separate_args(
         corpus_dir: corpus_dir.to_path_buf(),
         envelope: envelope_pack,
         report,
+        lang: Lang::En,
     }
 }
 

@@ -25,9 +25,11 @@ pub struct Args {
 ///
 /// Hard failures (non-zero exit): the manifest fails to parse strictly;
 /// a referenced file is missing; a file's sha256 doesn't match; a
-/// license is empty; a `human` doc has neither `provenance_evidence` nor
-/// `license: "personal-attestation"`; an `llm` doc is missing
-/// `model`, `prompt_id`, or `gen_config`; or an `id` is duplicated.
+/// license is empty; a record's `lang` doesn't parse as a
+/// [`friction_core::Lang`]; a `human` doc has neither
+/// `provenance_evidence` nor `license: "personal-attestation"`; an `llm`
+/// doc is missing `model`, `prompt_id`, or `gen_config`; or an `id` is
+/// duplicated.
 ///
 /// Word counts outside `[300, 2000]` are warned to stderr, not failed.
 /// An absent or empty manifest prints `"empty corpus"` and
@@ -96,6 +98,10 @@ fn validate_record(record: &ManifestRecord, corpus_dir: &Path, errors: &mut Vec<
         errors.push(format!("{}: empty license", record.id));
     }
 
+    if let Err(err) = record.lang.parse::<friction_core::Lang>() {
+        errors.push(format!("{}: {err}", record.id));
+    }
+
     match record.class {
         Class::Human => {
             let attested = record.license.trim() == PERSONAL_ATTESTATION_LICENSE;
@@ -131,5 +137,51 @@ fn validate_record(record: &ManifestRecord, corpus_dir: &Path, errors: &mut Vec<
             }
         }
         Err(_) => errors.push(format!("{}: file is not valid UTF-8", record.id)),
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::manifest::{Genre, PERSONAL_ATTESTATION_LICENSE};
+
+    /// A record whose `lang` doesn't parse as a `friction_core::Lang`
+    /// pushes an error naming both the record's id and the bad tag —
+    /// `validate` is the strict gate `manifest::filter_lang` deliberately
+    /// isn't (see that function's doc comment).
+    #[test]
+    fn validate_record_rejects_unknown_lang_with_id_and_tag_in_the_message() {
+        let record = ManifestRecord {
+            id: "h042".to_string(),
+            class: Class::Human,
+            genre: Genre::Docs,
+            source: "test".to_string(),
+            model: None,
+            prompt_id: None,
+            license: PERSONAL_ATTESTATION_LICENSE.to_string(),
+            lang: "tlh".to_string(),
+            split: None,
+            sha256: sha256_hex(b"body"),
+            provenance_evidence: None,
+            style_prompted: false,
+            gen_config: None,
+        };
+        // `validate_record` resolves the file via `relpath`, which is
+        // `human/docs/h042.md` for this record — write it there so the
+        // lang check is reached rather than short-circuiting on a
+        // missing file.
+        let dir = tempfile::tempdir().unwrap();
+        std::fs::create_dir_all(dir.path().join("human/docs")).unwrap();
+        std::fs::write(dir.path().join("human/docs/h042.md"), "body").unwrap();
+
+        let mut errors = Vec::new();
+        validate_record(&record, dir.path(), &mut errors);
+
+        assert!(
+            errors
+                .iter()
+                .any(|e| e.contains("h042") && e.contains("tlh")),
+            "expected an error naming both the record id and the bad lang tag, got: {errors:?}"
+        );
     }
 }

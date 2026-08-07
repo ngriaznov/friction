@@ -4,12 +4,14 @@ mod common;
 
 use corpus_tool::commands::attest::{self, Args};
 use corpus_tool::manifest::{Genre, Split};
+use friction_core::Lang;
 
 fn args(corpus_dir: &std::path::Path, pack: std::path::PathBuf) -> Args {
     Args {
         corpus_dir: corpus_dir.to_path_buf(),
         pack,
         calibrate_near_noop: false,
+        lang: Lang::En,
     }
 }
 
