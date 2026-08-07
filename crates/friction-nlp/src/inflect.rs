@@ -200,14 +200,19 @@ pub fn lemmatize(surface: &str, pos: &str) -> Box<str> {
         return Box::from(singular);
     }
 
-    let (candidates, probe): (Vec<String>, &str) = match pos {
-        "VBG" => (ing_candidates(&lower), "using"),
-        "VBD" | "VBN" => (past_candidates(&lower), "used"),
-        "VBZ" | "NNS" => (suffix_s_candidates(&lower), "uses"),
-        _ => (Vec::new(), ""),
+    // `probe` is always one of three fixed literals below, so its `Form`
+    // is hardcoded rather than rediscovered by `inflect`'s own
+    // `classify_surface_form` call on every candidate — pinned against
+    // that classification by `lemmatize_probe_forms_match_classification`
+    // in this module's tests.
+    let (candidates, form, probe): (Vec<String>, Form, &str) = match pos {
+        "VBG" => (ing_candidates(&lower), Form::Ing, "using"),
+        "VBD" | "VBN" => (past_candidates(&lower), Form::Past, "used"),
+        "VBZ" | "NNS" => (suffix_s_candidates(&lower), Form::SuffixS, "uses"),
+        _ => (Vec::new(), Form::Base, ""),
     };
     for candidate in candidates {
-        if inflect(probe, &candidate).as_deref() == Some(lower.as_str()) {
+        if inflect_as(form, &candidate, probe).as_deref() == Some(lower.as_str()) {
             return candidate.into_boxed_str();
         }
     }
@@ -327,14 +332,23 @@ fn suffix_s_candidates(word: &str) -> Vec<String> {
 /// ```
 #[must_use]
 pub fn inflect(surface: &str, target_lemma: &str) -> Option<String> {
-    if !surface.chars().any(char::is_alphabetic) || !target_lemma.chars().any(char::is_alphabetic) {
+    if !surface.chars().any(char::is_alphabetic) {
         return None;
     }
+    let form = classify_surface_form(&surface.to_lowercase());
+    inflect_as(form, target_lemma, surface)
+}
 
-    let surface_lower = surface.to_lowercase();
-    let lemma_lower = target_lemma.to_lowercase();
-    let form = classify_surface_form(&surface_lower);
-    let generated = generate(&lemma_lower, form);
+/// [`inflect`]'s generation half, taking an already-known `Form` rather
+/// than classifying `surface` itself — split out so [`lemmatize`]'s
+/// round-trip loop can hardcode the `Form` for its fixed probe literals
+/// and skip [`classify_surface_form`]'s table scan entirely, once per
+/// candidate, on every call.
+fn inflect_as(form: Form, target_lemma: &str, surface: &str) -> Option<String> {
+    if !target_lemma.chars().any(char::is_alphabetic) {
+        return None;
+    }
+    let generated = generate(&target_lemma.to_lowercase(), form);
     Some(apply_capitalization(
         &generated,
         detect_capitalization(surface),
@@ -853,6 +867,19 @@ mod tests {
                 "lemmatize({surface:?}, {pos:?})"
             );
         }
+    }
+
+    /// [`lemmatize`] hardcodes `Form::Ing`/`Form::Past`/`Form::SuffixS` for
+    /// its `"using"`/`"used"`/`"uses"` probes instead of calling
+    /// [`classify_surface_form`] on them (see its own comment). Pins that
+    /// the hardcoded value actually matches what classification would
+    /// produce, so a future `LEXICON_EN` edit that changed it fails here
+    /// instead of silently mis-lemmatizing.
+    #[test]
+    fn lemmatize_probe_forms_match_classification() {
+        assert_eq!(classify_surface_form("using"), Form::Ing);
+        assert_eq!(classify_surface_form("used"), Form::Past);
+        assert_eq!(classify_surface_form("uses"), Form::SuffixS);
     }
 
     #[test]

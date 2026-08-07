@@ -70,6 +70,16 @@ pub struct Configuration {
     /// Per-token `(head, relation)` once assigned; `None` until then (and,
     /// for a genuine root token, forever — see [`Configuration::finish`]).
     arcs: Vec<Option<(usize, DepRelation)>>,
+    /// Per-head `(leftmost, rightmost)` dependent token index, indexed by
+    /// head — updated incrementally in [`Configuration::apply`] as each
+    /// arc is created, so [`Configuration::children_of`] never scans.
+    /// Sound only because arc-eager never removes or reassigns an arc
+    /// (verified by reading every arm of `apply` — `Reduce` only pops the
+    /// stack; `LeftArc`/`RightArc` each write `arcs[child]` exactly once,
+    /// since [`Configuration::is_allowed`] blocks `LeftArc` on an
+    /// already-headed stack top and `RightArc`'s target is a buffer token
+    /// that has never been assigned).
+    children_bounds: Vec<(Option<usize>, Option<usize>)>,
 }
 
 impl Configuration {
@@ -82,6 +92,7 @@ impl Configuration {
             buffer: 0,
             len: token_count,
             arcs: vec![None; token_count],
+            children_bounds: vec![(None, None); token_count],
         }
     }
 
@@ -110,6 +121,15 @@ impl Configuration {
     #[must_use]
     pub fn arc(&self, token: usize) -> Option<(usize, DepRelation)> {
         self.arcs[token]
+    }
+
+    /// `head`'s leftmost and rightmost assigned dependents so far, by token
+    /// index — an O(1) lookup against the bound [`Configuration::apply`]
+    /// maintains incrementally as each arc is created (see the
+    /// `children_bounds` field's own docs for why that's sound).
+    #[must_use]
+    pub fn children_of(&self, head: usize) -> (Option<usize>, Option<usize>) {
+        self.children_bounds[head]
     }
 
     /// Whether `transition` may legally be applied:
@@ -165,10 +185,12 @@ impl Configuration {
             Transition::LeftArc(relation) => {
                 let top = self.stack.pop().expect("is_allowed checked stack.last()");
                 self.arcs[top] = Some((self.buffer, relation));
+                self.record_child(self.buffer, top);
             }
             Transition::RightArc(relation) => {
                 let top = *self.stack.last().expect("is_allowed checked !is_empty()");
                 self.arcs[self.buffer] = Some((top, relation));
+                self.record_child(top, self.buffer);
                 self.stack.push(self.buffer);
                 self.buffer += 1;
             }
@@ -176,6 +198,15 @@ impl Configuration {
                 self.stack.pop();
             }
         }
+    }
+
+    /// Widens `head`'s recorded `(leftmost, rightmost)` dependent bound to
+    /// include `child` — called once per arc, from `apply`'s
+    /// `LeftArc`/`RightArc` arms only.
+    fn record_child(&mut self, head: usize, child: usize) {
+        let (left, right) = &mut self.children_bounds[head];
+        *left = Some(left.map_or(child, |existing| existing.min(child)));
+        *right = Some(right.map_or(child, |existing| existing.max(child)));
     }
 
     /// Whether no further transition is legal: buffer exhausted and the

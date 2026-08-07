@@ -257,31 +257,19 @@ struct View<'a> {
     t: &'a str,
 }
 
-fn at<'a>(words: &'a [Box<str>], tags: &'a [Box<str>], idx: Option<usize>) -> View<'a> {
+fn at<'a>(words: &'a [Box<str>], tags: &'a [&'a str], idx: Option<usize>) -> View<'a> {
     idx.map_or(View { w: NONE, t: NONE }, |i| View {
         w: &words[i],
-        t: &tags[i],
+        t: tags[i],
     })
 }
 
 /// `head`'s leftmost and rightmost assigned dependents in `config`, by
-/// token index — a linear scan, since [`Configuration`] only exposes the
-/// forward `token -> (head, relation)` index ([`Configuration::arc`]), not
-/// a reverse head -> children one.
+/// token index — an O(1) lookup: [`Configuration`] maintains the bound
+/// incrementally as arcs are created (see [`Configuration::children_of`]),
+/// so this no longer needs its own scan.
 fn children_of(config: &Configuration, head: usize) -> (Option<usize>, Option<usize>) {
-    let mut left = None;
-    let mut right = None;
-    for token in 0..config.token_count() {
-        if let Some((token_head, _)) = config.arc(token)
-            && token_head == head
-        {
-            if left.is_none() {
-                left = Some(token);
-            }
-            right = Some(token);
-        }
-    }
-    (left, right)
+    config.children_of(head)
 }
 
 /// Emits `{prefix}.t=` and `{prefix}.rel=` features for `child`'s tag and
@@ -295,12 +283,12 @@ fn push_child_features(
     emit: &mut impl FnMut(&str),
     prefix: &str,
     config: &Configuration,
-    tags: &[Box<str>],
+    tags: &[&str],
     child: Option<usize>,
 ) {
     let (tag, relation) = child.map_or((NONE, NONE), |index| {
         let relation = config.arc(index).map_or(NONE, |(_, rel)| rel.as_str());
-        (tags[index].as_ref(), relation)
+        (tags[index], relation)
     });
     // Direct byte pushes, not `write!` — see `build_features`' own note.
     buf.clear();
@@ -348,7 +336,7 @@ const fn bucket_distance(diff: usize) -> &'static str {
 /// only `config` changes step to step.
 fn build_features(
     words: &[Box<str>],
-    tags: &[Box<str>],
+    tags: &[&str],
     config: &Configuration,
     buf: &mut String,
     mut emit: impl FnMut(&str),
@@ -446,7 +434,14 @@ fn extract_features(
 ) -> Vec<Box<str>> {
     let mut feats = Vec::with_capacity(30);
     let mut buf = String::with_capacity(64);
-    build_features(words, tags, config, &mut buf, |s| feats.push(Box::from(s)));
+    // Training/tests still pass owned `Box<str>` tags (mirroring the gold
+    // file's own storage); only the hot inference path in `DepParser::parse`
+    // avoids that allocation. Borrow here instead of threading `Box<str>`
+    // back into `build_features`.
+    let tag_refs: Vec<&str> = tags.iter().map(Box::as_ref).collect();
+    build_features(words, &tag_refs, config, &mut buf, |s| {
+        feats.push(Box::from(s));
+    });
     feats
 }
 
@@ -823,10 +818,10 @@ impl DepParser for PerceptronParser {
             .iter()
             .map(|token| Box::from(source[token.token.range.clone()].to_lowercase()))
             .collect();
-        let tags: Vec<Box<str>> = tokens
-            .iter()
-            .map(|token| Box::from(token.pos.as_str()))
-            .collect();
+        // Borrowed, not boxed: `TaggedToken::pos` already owns its string,
+        // so a fresh allocation per token here would just copy data the
+        // sentence already has.
+        let tags: Vec<&str> = tokens.iter().map(|token| token.pos.as_str()).collect();
 
         let mut config = Configuration::new(tokens.len());
         // Reused across every step of this sentence: `build_features`

@@ -1135,7 +1135,10 @@ impl Tagger for PerceptronTagger {
             let lemma = if scan_token.kind == TokenKind::Word {
                 crate::inflect::lemmatize(surface, &assigned)
             } else {
-                Box::from(surface.to_lowercase())
+                // `surfaces[i]` is already this same token's lowercased
+                // text (built above) — clone the `Box<str>` (memcpy)
+                // instead of re-folding case a second time.
+                surfaces[i].clone()
             };
             out.push(TaggedToken {
                 token: Token::new(range, scan_token.kind),
