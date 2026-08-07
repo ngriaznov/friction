@@ -74,7 +74,7 @@ pub struct ContrastQuestion {
 
 /// `true` if the token at `idx` is a guarded (non-dismissive) use of a
 /// marker word. See this module's own docs.
-fn marker_is_guarded(tokens: &[AnalysisToken], idx: usize) -> bool {
+fn marker_is_guarded(tokens: &[&AnalysisToken], idx: usize) -> bool {
     let prev_not = idx > 0
         && tokens[idx - 1].kind == AnalysisTokenKind::Word
         && tokens[idx - 1].text.as_ref() == "not";
@@ -97,7 +97,7 @@ fn marker_is_guarded(tokens: &[AnalysisToken], idx: usize) -> bool {
 /// between the two; the sentence must end in `?` with a non-empty second
 /// disjunct.
 #[must_use]
-pub fn find_contrast_question(tokens: &[AnalysisToken]) -> Option<ContrastQuestion> {
+pub fn find_contrast_question(tokens: &[&AnalysisToken]) -> Option<ContrastQuestion> {
     let last = tokens.last()?;
     if !(last.kind == AnalysisTokenKind::Punctuation && last.text.as_ref() == "?") {
         return None;
@@ -217,16 +217,6 @@ fn correction_span(range: Range<usize>) -> MatchSpan {
     }
 }
 
-/// Every [`AnalysisToken`] in `unit.tokens` whose range falls entirely
-/// within `sentence_range`, in source order.
-fn sentence_tokens(unit: &ScopedUnit<'_>, sentence_range: &Range<usize>) -> Vec<AnalysisToken> {
-    unit.tokens
-        .iter()
-        .filter(|t| t.range.start >= sentence_range.start && t.range.end <= sentence_range.end)
-        .cloned()
-        .collect()
-}
-
 /// Scans every unit for both templates, returning [`Channel::Frame`]
 /// spans in unit/sentence order.
 ///
@@ -237,9 +227,30 @@ fn sentence_tokens(unit: &ScopedUnit<'_>, sentence_range: &Range<usize>) -> Vec<
 pub fn scan_units(units: &[ScopedUnit<'_>]) -> Vec<MatchSpan> {
     let mut spans = Vec::new();
     for unit in units {
+        // `unit.tokens` and `unit.sentences` are both ascending by
+        // `range.start`, so `start` only ever walks forward across the
+        // whole sentence loop instead of rescanning every token per
+        // sentence: O(sentences + tokens), not O(sentences * tokens).
+        let mut start = 0usize;
         for sentence_range in &unit.sentences {
-            let tokens = sentence_tokens(unit, sentence_range);
-            if let Some(question) = find_contrast_question(&tokens) {
+            while unit
+                .tokens
+                .get(start)
+                .is_some_and(|t| t.range.end < sentence_range.start)
+            {
+                start += 1;
+            }
+            // A token straddling the sentence boundary must stay
+            // excluded, so the exact membership check (not just the
+            // start bound above) still runs per token in the window.
+            let sentence_tokens: Vec<&AnalysisToken> = unit.tokens[start..]
+                .iter()
+                .take_while(|t| t.range.start < sentence_range.end)
+                .filter(|t| {
+                    t.range.start >= sentence_range.start && t.range.end <= sentence_range.end
+                })
+                .collect();
+            if let Some(question) = find_contrast_question(&sentence_tokens) {
                 spans.push(MatchSpan {
                     range: question.range,
                     channel: Channel::Frame,
@@ -261,6 +272,10 @@ mod tests {
 
     fn sentence_tokens_from(text: &str) -> Vec<AnalysisToken> {
         tokenize_str(text, 0)
+    }
+
+    fn token_refs(owned: &[AnalysisToken]) -> Vec<&AnalysisToken> {
+        owned.iter().collect()
     }
 
     fn scoped_document(source: &str) -> friction_core::Document {
@@ -288,6 +303,7 @@ mod tests {
         let text = "is provenance just frontmatter metadata, or does every derived graph edge \
                      retain immutable lineage?";
         let tokens = sentence_tokens_from(text);
+        let tokens = token_refs(&tokens);
         let m = find_contrast_question(&tokens).expect("template must match");
         assert_eq!(&*m.marker, "just");
         assert_eq!(&text[m.marker_range.clone()], "just");
@@ -298,6 +314,7 @@ mod tests {
     fn contrast_question_negative_plain_either_or_has_no_marker() {
         let text = "is it A or B?";
         let tokens = sentence_tokens_from(text);
+        let tokens = token_refs(&tokens);
         assert!(find_contrast_question(&tokens).is_none());
     }
 
@@ -305,6 +322,7 @@ mod tests {
     fn contrast_question_only_is_detected_as_a_frame() {
         let text = "is it only one replica, or does it shard across the cluster?";
         let tokens = sentence_tokens_from(text);
+        let tokens = token_refs(&tokens);
         let m = find_contrast_question(&tokens).expect("only licenses detection");
         assert_eq!(&*m.marker, "only");
     }
@@ -313,6 +331,7 @@ mod tests {
     fn contrast_question_guard_just_as_declines() {
         let text = "is it just as fast, or slower?";
         let tokens = sentence_tokens_from(text);
+        let tokens = token_refs(&tokens);
         assert!(find_contrast_question(&tokens).is_none());
     }
 
@@ -320,6 +339,7 @@ mod tests {
     fn contrast_question_guard_just_about_declines() {
         let text = "is it just about done, or does it need another pass?";
         let tokens = sentence_tokens_from(text);
+        let tokens = token_refs(&tokens);
         assert!(find_contrast_question(&tokens).is_none());
     }
 
@@ -327,6 +347,7 @@ mod tests {
     fn contrast_question_guard_not_just_declines() {
         let text = "is it not just fast, or is it also correct?";
         let tokens = sentence_tokens_from(text);
+        let tokens = token_refs(&tokens);
         assert!(find_contrast_question(&tokens).is_none());
     }
 
@@ -334,6 +355,7 @@ mod tests {
     fn contrast_question_requires_a_question_mark() {
         let text = "is provenance just frontmatter metadata, or does it retain full lineage.";
         let tokens = sentence_tokens_from(text);
+        let tokens = token_refs(&tokens);
         assert!(find_contrast_question(&tokens).is_none());
     }
 
@@ -342,6 +364,7 @@ mod tests {
         let text = "A few architecture questions: is provenance just frontmatter metadata, or \
                      does every derived graph edge retain immutable lineage?";
         let tokens = sentence_tokens_from(text);
+        let tokens = token_refs(&tokens);
         let m = find_contrast_question(&tokens).expect("template must match past the lead-in");
         assert_eq!(
             &text[m.range.start..],
@@ -355,6 +378,7 @@ mod tests {
         let text = "And is retrieval one flat embedding manifold, or do you partition memory \
                      into semantic wells?";
         let tokens = sentence_tokens_from(text);
+        let tokens = token_refs(&tokens);
         assert!(find_contrast_question(&tokens).is_none());
     }
 
@@ -410,14 +434,14 @@ mod tests {
         let tokens = sentence_tokens_from("it is not just fast");
         // tokens: it, is, not, just, fast
         let just_idx = tokens.iter().position(|t| &*t.text == "just").unwrap();
-        assert!(marker_is_guarded(&tokens, just_idx));
+        assert!(marker_is_guarded(&token_refs(&tokens), just_idx));
 
         let tokens2 = sentence_tokens_from("it is just about done");
         let just_idx2 = tokens2.iter().position(|t| &*t.text == "just").unwrap();
-        assert!(marker_is_guarded(&tokens2, just_idx2));
+        assert!(marker_is_guarded(&token_refs(&tokens2), just_idx2));
 
         let tokens3 = sentence_tokens_from("it is just fast");
         let just_idx3 = tokens3.iter().position(|t| &*t.text == "just").unwrap();
-        assert!(!marker_is_guarded(&tokens3, just_idx3));
+        assert!(!marker_is_guarded(&token_refs(&tokens3), just_idx3));
     }
 }

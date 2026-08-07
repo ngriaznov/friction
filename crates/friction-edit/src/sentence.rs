@@ -1041,7 +1041,8 @@ fn run_frame_dejust(
 ) {
     let working = splicer.working_text();
     let tokens = tokenize_str(&working, 0);
-    let Some(question) = friction_match::frame::find_contrast_question(&tokens) else {
+    let token_refs: Vec<&_> = tokens.iter().collect();
+    let Some(question) = friction_match::frame::find_contrast_question(&token_refs) else {
         return;
     };
     if !DEJUST_MARKERS.contains(&question.marker.as_ref()) {

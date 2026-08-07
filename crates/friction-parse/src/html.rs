@@ -290,13 +290,13 @@ fn consume_markup(
                 if excluded {
                     *excluded_depth -= 1;
                 }
-                let end = raw_text_end(source, tag_end, &name);
+                let close_start = close_tag_start(source, tag_end, &name);
+                let end = raw_text_end(source, close_start);
                 if name == "script"
                     && attribute_value(&source[at..tag_end], "type")
                         .is_some_and(|t| is_json_data_type(&t))
                 {
-                    let content_end = close_tag_start(source, tag_end, &name);
-                    scan_json_data_block(source, tag_end, content_end, blocks, prose);
+                    scan_json_data_block(source, tag_end, close_start, blocks, prose);
                 }
                 return end;
             }
@@ -411,20 +411,26 @@ fn consume_attributes(bytes: &[u8], at: usize) -> (usize, bool) {
 /// content starts at `content_start`, scanning case-insensitively: i.e.
 /// the end of the element's content. Unterminated raw text runs to the
 /// end of the input.
+///
+/// Scans the byte window in place instead of lowercasing all of `source`
+/// — a raw-text element (script/style/textarea/title) lowercasing the
+/// whole document once per occurrence made script-heavy pages quadratic
+/// in source length.
 fn close_tag_start(source: &str, content_start: usize, name: &str) -> usize {
-    let lower = source.to_ascii_lowercase();
+    let bytes = source.as_bytes();
     let needle = format!("</{name}");
-    lower[content_start..]
-        .find(&needle)
-        .map_or(source.len(), |found| content_start + found)
+    let needle = needle.as_bytes();
+    bytes[content_start..]
+        .windows(needle.len())
+        .position(|window| window.eq_ignore_ascii_case(needle))
+        .map_or(source.len(), |i| content_start + i)
 }
 
-/// The position just past `</name ... >` for a raw-text element opened
-/// at `content_start`, scanning case-insensitively. Unterminated raw
-/// text swallows the rest of the input — the safe direction, since none
-/// of it becomes prose.
-fn raw_text_end(source: &str, content_start: usize, name: &str) -> usize {
-    let close_start = close_tag_start(source, content_start, name);
+/// The position just past `</name ... >` for a raw-text element whose
+/// closing tag starts at `close_start` (from [`close_tag_start`]).
+/// Unterminated raw text swallows the rest of the input — the safe
+/// direction, since none of it becomes prose.
+fn raw_text_end(source: &str, close_start: usize) -> usize {
     if close_start >= source.len() {
         return source.len();
     }

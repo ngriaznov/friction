@@ -54,10 +54,6 @@
 //! crate docs: every gate is the curated inventory pack and the corpus-
 //! attested seam-bigram/skeleton tables, never a metric or genre
 //! envelope); this crate still only detects and reports, never rewrites.
-//! [`dms_spans_for_family`] (single-family, pre-pooling) is kept for
-//! compatibility but no longer called by this workspace's own CLI — see
-//! [`dms`]'s own module docs for why the five per-family automata were
-//! pooled into one.
 
 mod dms;
 mod error;
@@ -267,33 +263,4 @@ pub fn dms_spans_pooled(units: &[ScopedUnit<'_>], dms: &DmsIndexView<'_>) -> Vec
     let human_sam = dms.human_sam();
     let vocab = dms.vocab();
     dms::scan_units(units, machine_sam, human_sam, vocab)
-}
-
-/// Returns [`Channel::Dms`] spans for exactly `family` over `units`.
-///
-/// `units` is already scoped by [`token::prose_scope`]; this scans `dms`'s
-/// per-family stream for `family` against the same pack's human baseline
-/// stream: a single-family, pre-pooling walk. `None` if `dms` has no
-/// stream for `family` — a caller-supplied override pack may define fewer
-/// than [`ModelFamily::ALL`], and a caller checking every family already
-/// expects to skip the ones a given pack lacks rather than treat that as
-/// an error.
-///
-/// Kept for compatibility (`dms`'s per-family sections are still
-/// serialized and still readable — see [`dms`]'s own module docs) but no
-/// longer called by this workspace's own CLI, which now uses
-/// [`dms_spans_pooled`] instead. `scan_units`'s own frame id is always
-/// the constant `"dms.machine"` regardless of which automaton it walked,
-/// so a caller using this function alongside [`dms_spans_pooled`] cannot
-/// tell a per-family span from a pooled one by its `frame_id` alone.
-#[must_use]
-pub fn dms_spans_for_family(
-    units: &[ScopedUnit<'_>],
-    dms: &DmsIndexView<'_>,
-    family: ModelFamily,
-) -> Option<Vec<MatchSpan>> {
-    let target_sam = dms.family_sam(family)?;
-    let human_sam = dms.human_sam();
-    let vocab = dms.vocab();
-    Some(dms::scan_units(units, target_sam, human_sam, vocab))
 }
