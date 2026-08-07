@@ -6,13 +6,8 @@ use std::sync::OnceLock;
 
 use friction_match::MatchEngine;
 use friction_nlp::{PerceptronTagger, SrxSegmenter};
-use friction_packs::ModelFamily;
 
-/// Builds a `MatchEngine` bound to the embedded inventory and DMS packs,
-/// targeting `ModelFamily::Qwen` (the pack defines every family, so the
-/// choice here is arbitrary — nothing in this crate decides *which*
-/// family to scan against for a given input document. That is a caller
-/// concern).
+/// Builds a `MatchEngine` bound to the embedded inventory and DMS packs.
 #[allow(dead_code)]
 pub fn engine() -> MatchEngine<'static> {
     static TAGGER: OnceLock<PerceptronTagger> = OnceLock::new();
@@ -28,7 +23,6 @@ pub fn engine() -> MatchEngine<'static> {
         &friction_packs::JARGON.pack,
         &friction_packs::JARGON_ATTEST,
         &friction_packs::HUMAN_EVIDENCE,
-        ModelFamily::Qwen,
         tagger,
         segmenter,
     )

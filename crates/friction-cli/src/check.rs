@@ -20,12 +20,10 @@ use std::process::ExitCode;
 use clap::Args;
 use friction_core::MetricVector;
 use friction_match::{Channel, DocumentReport, MatchEngine, MatchScore, MatchSpan};
-use friction_packs::ModelFamily;
 use serde::Serialize;
 
 use crate::common::{
-    CliError, Engine, Family, Format, Genre, LineIndex, Pack, display_path, read_input,
-    resolve_genre,
+    CliError, Engine, Format, Genre, LineIndex, Pack, display_path, read_input, resolve_genre,
 };
 use crate::diagnostics::{color_enabled, render_spans};
 use crate::{sarif, table};
@@ -40,14 +38,6 @@ pub struct CheckArgs {
     /// omitted).
     #[arg(long, value_enum)]
     genre: Option<Genre>,
-
-    /// Which generator family to record on the report. Still required,
-    /// still parsed — but the DMS channel now scans one pooled
-    /// machine-vs-human automaton across every family (see
-    /// `friction_match::dms`'s own module docs), so this no longer
-    /// changes what gets flagged.
-    #[arg(long, value_enum)]
-    family: Family,
 
     /// Override the embedded envelope pack with one loaded from `PATH`.
     #[arg(long, value_name = "PATH")]
@@ -118,7 +108,6 @@ struct DmsMachineRow {
 #[derive(Debug, Serialize)]
 struct CheckReport {
     genre: &'static str,
-    family: &'static str,
     metrics: Vec<MetricRow>,
     spans: Vec<SpanRow>,
     tell_counts: BTreeMap<String, usize>,
@@ -136,7 +125,6 @@ pub fn run(args: &CheckArgs) -> ExitCode {
 fn run_inner(args: &CheckArgs) -> Result<ExitCode, CliError> {
     let source = read_input(&args.input)?;
     let genre = resolve_genre(args.genre);
-    let family: ModelFamily = args.family.into();
     let pack = Pack::load(args.pack.as_deref())?;
     let engine = Engine::load()?;
 
@@ -150,7 +138,6 @@ fn run_inner(args: &CheckArgs) -> Result<ExitCode, CliError> {
         &friction_packs::JARGON.pack,
         &friction_packs::JARGON_ATTEST,
         &friction_packs::HUMAN_EVIDENCE,
-        family,
         &engine.tagger,
         &engine.segmenter,
     )?;
@@ -180,7 +167,6 @@ fn run_inner(args: &CheckArgs) -> Result<ExitCode, CliError> {
         Format::Json => {
             let check_report = CheckReport {
                 genre: genre.as_str(),
-                family: family.as_str(),
                 metrics: rows,
                 spans: span_rows(&source, &report.spans),
                 tell_counts: tell_counts(&report.spans),

@@ -1,11 +1,10 @@
 //! Byte-determinism under rayon: `friction fix`/`friction check` over a
 //! real corpus document must produce identical output regardless of how
 //! many worker threads rayon's per-sentence parallelism (the register
-//! pass's sentence-context build, `fix`'s DMS-family/frame/jargon
-//! paraphrase scan, `check`'s six detection channels plus the DMS
-//! document-report's per-family walk — see `friction-edit::register`,
-//! `friction-match`, and `friction-cli::fix`'s own docs) actually runs
-//! on.
+//! pass's sentence-context build, `fix`'s DMS/frame/jargon paraphrase
+//! scan, `check`'s six detection channels plus the DMS document-report's
+//! own `par_iter` — see `friction-edit::register`, `friction-match`, and
+//! `friction-cli::fix`'s own docs) actually runs on.
 //!
 //! Each combination below is a fresh child process (via `assert_cmd`),
 //! not an in-process thread-pool rebuild: rayon's global pool reads
@@ -26,7 +25,7 @@ use assert_cmd::Command;
 /// process per count — 1 (no parallelism at all, the sequential-code
 /// baseline every other count must match), 2 (the smallest genuine
 /// parallel split), and 8 (comfortably above this corpus document's own
-/// sentence/family/channel counts, so every parallel site's tasks are
+/// sentence/channel counts, so every parallel site's tasks are
 /// oversubscribed across threads at least once).
 const THREAD_COUNTS: [&str; 3] = ["1", "2", "8"];
 
@@ -106,7 +105,7 @@ fn assert_identical_across_thread_counts_and_reruns(command_label: &str, args: &
 
 /// `friction fix`: exercises the register pass's rayon-parallel
 /// sentence-context build (`friction_edit::register::build_sentence_contexts`)
-/// and the paraphrase scan's concurrent DMS-family/frame/jargon tasks
+/// and the paraphrase scan's concurrent DMS/frame/jargon tasks
 /// (`friction_cli::fix::scan_paraphrase_spans`, itself calling
 /// `friction_match::jargon::scan_units`'s own per-sentence `par_iter`).
 #[test]
@@ -116,13 +115,11 @@ fn fix_is_byte_identical_across_thread_counts() {
 
 /// `friction check`: exercises `friction_match::MatchEngine::scan`'s
 /// seven concurrent `rayon::scope` tasks (six detection channels plus the
-/// DMS document-report, itself a `par_iter` over every family).
+/// DMS document-report, itself a `par_iter` over every unit).
 #[test]
 fn check_is_byte_identical_across_thread_counts() {
     assert_identical_across_thread_counts_and_reruns(
         "check",
-        &[
-            "check", "--format", "json", "--genre", "blog", "--family", "qwen",
-        ],
+        &["check", "--format", "json", "--genre", "blog"],
     );
 }

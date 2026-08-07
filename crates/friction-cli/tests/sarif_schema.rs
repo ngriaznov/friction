@@ -31,8 +31,7 @@ const MESSY_BLOG: &str = "This guide will walk you through configuring the backu
                            please reach out to our support team.";
 
 /// The `near_noop_clean_text` fixture from `docs/research/fixtures.json`,
-/// copied here verbatim: produces zero detection spans against every
-/// generator family.
+/// copied here verbatim: produces zero detection spans.
 const CLEAN: &str = "Run the scanner from the project root. Results stream in as they are \
                       found, and nothing is deleted without confirmation.";
 
@@ -47,7 +46,7 @@ fn sarif_output_with_spans_validates_against_the_schema() {
         .expect("the friction binary builds")
         .arg("check")
         .arg(&path)
-        .args(["--genre", "blog", "--family", "qwen", "--format", "sarif"])
+        .args(["--genre", "blog", "--format", "sarif"])
         .output()
         .expect("friction runs");
 
@@ -78,7 +77,7 @@ fn sarif_output_with_no_spans_validates_against_the_schema() {
         .expect("the friction binary builds")
         .arg("check")
         .arg(&path)
-        .args(["--genre", "docs", "--family", "qwen", "--format", "sarif"])
+        .args(["--genre", "docs", "--format", "sarif"])
         .output()
         .expect("friction runs");
 

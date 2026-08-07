@@ -26,12 +26,12 @@ const MESSY_BLOG: &str = "This guide will walk you through configuring the backu
                            consistent. If you have any questions or require further assistance, \
                            please reach out to our support team.";
 
-/// A short document with zero detected spans against every generator
-/// family — the `near_noop_clean_text` fixture from
-/// `docs/research/fixtures.json`, copied here verbatim. Its metrics are
-/// not necessarily inside any real genre's envelope (it's short), so
-/// `check`'s exit-code tests that need spans *and* metrics both clean use
-/// this together with an empty `--pack` override (see [`empty_pack`]).
+/// A short document with zero detected spans — the `near_noop_clean_text`
+/// fixture from `docs/research/fixtures.json`, copied here verbatim. Its
+/// metrics are not necessarily inside any real genre's envelope (it's
+/// short), so `check`'s exit-code tests that need spans *and* metrics both
+/// clean use this together with an empty `--pack` override (see
+/// [`empty_pack`]).
 const CLEAN: &str = "Run the scanner from the project root. Results stream in as they are \
                       found, and nothing is deleted without confirmation.";
 
@@ -101,7 +101,7 @@ fn check_exits_zero_for_a_clean_document() {
     friction()
         .arg("check")
         .arg(&path)
-        .args(["--genre", "docs", "--family", "qwen", "--pack"])
+        .args(["--genre", "docs", "--pack"])
         .arg(&pack)
         .assert()
         .success();
@@ -117,7 +117,7 @@ fn check_exits_one_and_lists_spans_for_a_messy_document() {
     friction()
         .arg("check")
         .arg(&path)
-        .args(["--genre", "blog", "--family", "qwen"])
+        .args(["--genre", "blog"])
         .assert()
         .code(1)
         .stdout(predicate::str::contains("tell:"));
@@ -130,24 +130,10 @@ fn check_reads_stdin_and_defaults_genre_with_a_note() {
     friction()
         .arg("check")
         .arg("-")
-        .args(["--family", "qwen"])
         .write_stdin(MESSY_BLOG)
         .assert()
         .code(1)
         .stderr(predicate::str::contains("defaulting to"));
-}
-
-/// `check --family` is required: omitting it is a clap usage error (exit
-/// `2`), not a silently-defaulted family.
-#[test]
-fn check_requires_family() {
-    friction()
-        .arg("check")
-        .arg("-")
-        .args(["--genre", "docs"])
-        .write_stdin(CLEAN)
-        .assert()
-        .code(2);
 }
 
 /// `check --format json` never fails to parse as JSON, and two runs over
@@ -162,7 +148,7 @@ fn check_json_output_is_byte_identical_across_runs() {
         friction()
             .arg("check")
             .arg(&path)
-            .args(["--genre", "blog", "--family", "qwen", "--format", "json"])
+            .args(["--genre", "blog", "--format", "json"])
             .output()
             .expect("friction runs")
     };
@@ -173,7 +159,6 @@ fn check_json_output_is_byte_identical_across_runs() {
     let value: serde_json::Value =
         serde_json::from_slice(&first.stdout).expect("check --format json prints valid JSON");
     assert_eq!(value["genre"], "blog");
-    assert_eq!(value["family"], "qwen");
     assert!(!value["spans"].as_array().unwrap().is_empty());
     // `dms` is the single pooled machine-vs-human report object now, not
     // one entry per family — see `friction_match::dms`'s own module docs
@@ -195,7 +180,7 @@ fn check_text_output_is_never_colorized_when_piped() {
     let output = friction()
         .arg("check")
         .arg(&path)
-        .args(["--genre", "blog", "--family", "qwen"])
+        .args(["--genre", "blog"])
         .output()
         .expect("friction runs");
     assert!(
@@ -211,7 +196,7 @@ fn check_exits_two_for_a_missing_file() {
     friction()
         .arg("check")
         .arg("/no/such/file/anywhere.md")
-        .args(["--genre", "docs", "--family", "qwen"])
+        .args(["--genre", "docs"])
         .assert()
         .code(2)
         .stdout(predicate::str::is_empty())

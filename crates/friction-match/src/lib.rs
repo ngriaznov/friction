@@ -79,7 +79,7 @@ use friction_packs::{
 use crate::token::ScopedUnit;
 
 /// Built once (compiles the literal automaton once) and reused across
-/// every document scanned against the same pack/family/tagger/segmenter.
+/// every document scanned against the same pack/tagger/segmenter.
 ///
 /// This crate only detects and reports spans with frame ids: it never
 /// rewrites text. A repair layer built on top of this crate's output is a
@@ -90,7 +90,6 @@ pub struct MatchEngine<'a> {
     jargon: &'a JargonPack,
     jargon_attest: &'a JargonAttestPack,
     human_evidence: &'a HumanEvidencePack,
-    target_family: ModelFamily,
     tagger: &'a dyn Tagger,
     segmenter: &'a dyn Segmenter,
     automaton: literal::LiteralAutomaton,
@@ -98,37 +97,25 @@ pub struct MatchEngine<'a> {
 
 impl<'a> MatchEngine<'a> {
     /// Builds an engine bound to `inventory`, `dms`, `jargon`,
-    /// `jargon_attest`, `human_evidence`, `target_family`, `tagger`, and
-    /// `segmenter` for its whole lifetime: the literal automaton is
-    /// compiled exactly once here. `target_family` is validated against
-    /// `dms` and stored on [`DocumentReport::dms`]'s
-    /// [`span::DmsReport::target_family`] field, but no longer selects
-    /// which automaton [`Self::scan`]'s DMS channel walks — that is
-    /// always [`friction_packs::DmsIndexView::pooled_machine_sam`] now
-    /// (see [`dms`]'s own module docs).
+    /// `jargon_attest`, `human_evidence`, `tagger`, and `segmenter` for its
+    /// whole lifetime: the literal automaton is compiled exactly once
+    /// here. [`Self::scan`]'s DMS channel always walks
+    /// [`friction_packs::DmsIndexView::pooled_machine_sam`] (see [`dms`]'s
+    /// own module docs) — there is no per-family selection to make.
     ///
     /// # Errors
-    /// [`MatchError::FamilyNotInPack`] if `dms` has no stream for
-    /// `target_family`; [`MatchError::Automaton`] if the inventory's
-    /// literal-eligible patterns fail to compile (should not happen for
-    /// the embedded pack, covered by this crate's own tests).
-    #[allow(
-        clippy::too_many_arguments,
-        reason = "one parameter per embedded pack the engine is bound to; a builder would only rename the same eight bindings"
-    )]
+    /// [`MatchError::Automaton`] if the inventory's literal-eligible
+    /// patterns fail to compile (should not happen for the embedded pack,
+    /// covered by this crate's own tests).
     pub fn new(
         inventory: &'a InventoryPack,
         dms: &'a DmsIndexView<'a>,
         jargon: &'a JargonPack,
         jargon_attest: &'a JargonAttestPack,
         human_evidence: &'a HumanEvidencePack,
-        target_family: ModelFamily,
         tagger: &'a dyn Tagger,
         segmenter: &'a dyn Segmenter,
     ) -> Result<Self, MatchError> {
-        if dms.family_sam(target_family).is_none() {
-            return Err(MatchError::FamilyNotInPack(target_family));
-        }
         let automaton = literal::LiteralAutomaton::build(inventory)?;
         Ok(Self {
             inventory,
@@ -136,7 +123,6 @@ impl<'a> MatchEngine<'a> {
             jargon,
             jargon_attest,
             human_evidence,
-            target_family,
             tagger,
             segmenter,
             automaton,
@@ -189,12 +175,7 @@ impl<'a> MatchEngine<'a> {
                 dms_spans = dms::scan_units(&units, machine_sam, human_sam, vocab);
             });
             s.spawn(|_| {
-                dms_report = Some(dms::document_report(
-                    &units,
-                    self.dms,
-                    self.target_family,
-                    vocab,
-                ));
+                dms_report = Some(dms::document_report(&units, self.dms, vocab));
             });
             s.spawn(|_| {
                 literal_ac_spans = self.automaton.scan_units(&units);

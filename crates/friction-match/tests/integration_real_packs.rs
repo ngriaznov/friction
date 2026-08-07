@@ -40,9 +40,8 @@ fn scanning_a_real_document_against_the_embedded_packs_runs_to_completion() {
     let report = engine().scan(&document).expect("scan runs to completion");
 
     // The document-level DMS report is the single pooled machine-vs-human
-    // statistic; `target_family` is retained but no longer selects which
-    // automaton the scan walked (see `friction_match::dms`'s own docs).
-    assert_eq!(report.dms.target_family, ModelFamily::Qwen);
+    // statistic — no per-family breakdown (see `friction_match::dms`'s own
+    // docs).
     assert!(
         report.dms.machine.token_count > 0,
         "the document has prose, so the pooled machine report must cover at least one token"

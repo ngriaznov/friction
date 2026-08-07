@@ -1,7 +1,7 @@
-//! Shared plumbing for `check`, `fix`, and `explain`: genre/family/format
-//! value types, input reading (file or stdin), envelope pack loading, and
-//! the segmenter/tagger handle `check`/`explain` need for metric
-//! computation and detection.
+//! Shared plumbing for `check`, `fix`, and `explain`: genre/format value
+//! types, input reading (file or stdin), envelope pack loading, and the
+//! segmenter/tagger handle `check`/`explain` need for metric computation
+//! and detection.
 
 use std::fmt;
 use std::io::{Read as _, Write as _};
@@ -10,7 +10,7 @@ use std::process::ExitCode;
 
 use clap::ValueEnum;
 use friction_nlp::{PerceptronTagError, PerceptronTagger, SrxSegmenter};
-use friction_packs::{ENVELOPE_V2, EnvelopePack, ModelFamily, PackError};
+use friction_packs::{ENVELOPE_V2, EnvelopePack, PackError};
 
 /// The genres a document may be classified as, matching
 /// `friction-packs`' envelope-pack genre keys exactly.
@@ -64,35 +64,6 @@ pub fn resolve_genre(explicit: Option<Genre>) -> Genre {
         );
         Genre::DEFAULT
     })
-}
-
-/// The generator family `friction check --family` names. Retained for
-/// compatibility (the flag is still required, still parsed, still
-/// recorded on the report) but no longer selects which automaton the DMS
-/// channel scans against: `friction_match`'s DMS channel now walks one
-/// pooled machine-vs-human automaton over every family, so the product
-/// question is only "does this read machine-generated" — see
-/// `friction_match::dms`'s own module docs for why.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, ValueEnum)]
-#[value(rename_all = "lower")]
-pub enum Family {
-    Qwen,
-    Gemma,
-    Llama,
-    Granite,
-    Claude,
-}
-
-impl From<Family> for ModelFamily {
-    fn from(family: Family) -> Self {
-        match family {
-            Family::Qwen => Self::Qwen,
-            Family::Gemma => Self::Gemma,
-            Family::Llama => Self::Llama,
-            Family::Granite => Self::Granite,
-            Family::Claude => Self::Claude,
-        }
-    }
 }
 
 /// Output shapes shared by `check`/`fix`/`explain`. Not every subcommand
@@ -402,15 +373,6 @@ mod tests {
         assert_eq!(Genre::Readme.as_str(), "readme");
         assert_eq!(Genre::Email.as_str(), "email");
         assert_eq!(Genre::Forum.as_str(), "forum");
-    }
-
-    #[test]
-    fn family_converts_to_model_family() {
-        assert_eq!(ModelFamily::from(Family::Qwen), ModelFamily::Qwen);
-        assert_eq!(ModelFamily::from(Family::Gemma), ModelFamily::Gemma);
-        assert_eq!(ModelFamily::from(Family::Llama), ModelFamily::Llama);
-        assert_eq!(ModelFamily::from(Family::Granite), ModelFamily::Granite);
-        assert_eq!(ModelFamily::from(Family::Claude), ModelFamily::Claude);
     }
 
     #[test]

@@ -14,7 +14,6 @@
 use std::ops::Range;
 
 use friction_core::span::Spanned;
-use friction_packs::ModelFamily;
 
 /// Which detection channel produced a [`MatchSpan`].
 ///
@@ -108,13 +107,6 @@ pub struct DmsMachineReport {
 /// no per-family breakdown.
 #[derive(Debug, Clone)]
 pub struct DmsReport {
-    /// The family [`crate::MatchEngine`]/`--family` was constructed with.
-    /// Retained for API compatibility only — the pooled scan [`machine`]
-    /// below no longer varies by family, so this field no longer changes
-    /// what gets reported (see [`crate::dms`]'s own module docs).
-    ///
-    /// [`machine`]: DmsReport::machine
-    pub target_family: ModelFamily,
     /// The pooled machine-vs-human statistics.
     pub machine: DmsMachineReport,
 }

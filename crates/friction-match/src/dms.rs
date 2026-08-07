@@ -33,11 +33,12 @@
 //! what scanning every family separately and unioning the results would
 //! have flagged — the intended semantics this round; recalibrating the
 //! thresholds for the pooled distribution is explicitly out of scope.
-//! [`ModelFamily`]/`family_sam`/`--family` are kept for compatibility
-//! (`corpus-tool dms-pack` still serializes every per-family section),
-//! but no longer change what a scan reports.
+//! `ModelFamily`/`family_sam` are kept for compatibility (`corpus-tool
+//! dms-pack` still serializes every per-family section), but no longer
+//! change what a scan reports; the CLI's own `--family` flag was retired
+//! for the same reason.
 
-use friction_packs::{DmsIndexView, ModelFamily, SamView, VocabView};
+use friction_packs::{DmsIndexView, SamView, VocabView};
 use rayon::prelude::*;
 
 use crate::span::{Channel, DmsMachineReport, DmsReport, MatchScore, MatchSpan};
@@ -190,7 +191,6 @@ pub fn scan_units(
 pub fn document_report(
     units: &[ScopedUnit<'_>],
     index: &DmsIndexView<'_>,
-    target_family: ModelFamily,
     vocab: VocabView<'_>,
 ) -> DmsReport {
     let machine_sam = index.pooled_machine_sam();
@@ -223,7 +223,6 @@ pub fn document_report(
     };
 
     DmsReport {
-        target_family,
         machine: DmsMachineReport {
             mean_machine,
             mean_human,

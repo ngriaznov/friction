@@ -5,7 +5,6 @@ mod support;
 
 use friction_match::MatchEngine;
 use friction_nlp::{PerceptronTagger, SrxSegmenter};
-use friction_packs::ModelFamily;
 use support::engine;
 
 const SOURCE: &str = "\
@@ -46,7 +45,6 @@ fn two_independently_constructed_engines_from_the_same_pack_bytes_agree() {
         &friction_packs::JARGON.pack,
         &friction_packs::JARGON_ATTEST,
         &friction_packs::HUMAN_EVIDENCE,
-        ModelFamily::Qwen,
         &tagger_a,
         &segmenter_a,
     )
@@ -60,7 +58,6 @@ fn two_independently_constructed_engines_from_the_same_pack_bytes_agree() {
         &friction_packs::JARGON.pack,
         &friction_packs::JARGON_ATTEST,
         &friction_packs::HUMAN_EVIDENCE,
-        ModelFamily::Qwen,
         &tagger_b,
         &segmenter_b,
     )

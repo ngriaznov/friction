@@ -16,11 +16,12 @@
 //! lists every remaining held candidate (rule, span, reason) and every
 //! flagged paraphrase span (frame id, score, snippet) on stderr.
 //!
-//! No `--family` either: the paraphrase report (below) scans the one
-//! pooled machine-vs-human automaton the embedded DMS pack builds from
-//! every family it defines — DMS no longer varies by family (see
-//! `friction_match::dms`'s own module docs), so there is no target family
-//! to declare.
+//! No `--family` (the CLI never had this flag for `fix`, and `check`'s
+//! own `--family` flag has been retired too): the paraphrase report
+//! (below) scans the one pooled machine-vs-human automaton the embedded
+//! DMS pack builds from every family it defines — DMS no longer varies by
+//! family (see `friction_match::dms`'s own module docs), so there was
+//! never a target family to declare here.
 //!
 //! # DMS, contrast frames, jargon, and overuse surface paraphrase candidates, never edits
 //!
