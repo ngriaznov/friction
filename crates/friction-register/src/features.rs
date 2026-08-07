@@ -24,6 +24,8 @@
 //! a subordinator attached with `prep` rather than `mark` can't be told
 //! apart from a genuine prepositional `since` -- see [`prepositions`].
 
+use std::ops::Range;
+
 use friction_nlp::{DepEdge, DepRelation, SentenceParse, TaggedToken};
 
 /// Per-feature counts of the register-marking constructions this module
@@ -799,15 +801,27 @@ fn find_ascii_case_insensitive(text: &str, pattern: &str) -> Vec<usize> {
 /// Y" / "X, not Y") -- a construction machine prose reaches for far more
 /// often than human prose does.
 ///
-/// Returns byte offsets from both patterns combined, sorted -- like
-/// [`em_dashes`], not token indices, since counting by character avoids
-/// depending on how either phrase happens to tokenize. Pure text scan,
-/// no tags: like [`em_dashes`].
+/// Returns byte ranges, not offsets, unlike every other detector in this
+/// module: [`em_dashes`]/[`semicolons`]/[`comma_and_offsets`] each match a
+/// single fixed-width literal, so a bare start offset plus that literal's
+/// known length was enough for a caller to recover the match. This
+/// detector's two patterns have different lengths ("rather than" vs
+/// ", not "), so a caller needing the matched span -- `friction-edit`'s
+/// register pass, pointing a held finding at the exact instance -- cannot
+/// recover it from a start offset alone; the range says so directly.
+/// Sorted by start offset, both patterns combined. Pure text scan, no
+/// tags: like [`em_dashes`].
 #[must_use]
-pub fn contrast_closers(text: &str) -> Vec<usize> {
-    let mut out = find_ascii_case_insensitive(text, "rather than");
-    out.extend(text.match_indices(", not ").map(|(index, _)| index));
-    out.sort_unstable();
+pub fn contrast_closers(text: &str) -> Vec<Range<usize>> {
+    let mut out: Vec<Range<usize>> = find_ascii_case_insensitive(text, "rather than")
+        .into_iter()
+        .map(|start| start..start + "rather than".len())
+        .collect();
+    out.extend(
+        text.match_indices(", not ")
+            .map(|(start, matched)| start..start + matched.len()),
+    );
+    out.sort_by_key(|range| range.start);
     out
 }
 
@@ -916,15 +930,14 @@ mod contrast_closer_tests {
         assert_eq!(contrast_closers("").len(), 0);
     }
 
-    /// Offsets are byte positions, correct even with multibyte text
+    /// Ranges are byte positions, correct even with multibyte text
     /// preceding the match.
     #[test]
     fn contrast_closers_offsets_correct_on_multibyte_text() {
         let text = "café — chose caching rather than polling.";
-        let offsets = contrast_closers(text);
-        assert_eq!(offsets.len(), 1);
-        let index = offsets[0];
-        assert_eq!(&text[index..index + "rather than".len()], "rather than");
+        let ranges = contrast_closers(text);
+        assert_eq!(ranges.len(), 1);
+        assert_eq!(&text[ranges[0].clone()], "rather than");
     }
 }
 

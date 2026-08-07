@@ -47,7 +47,10 @@ use friction_core::{Document, Finding, Patch, RuleId, Tier};
 use friction_match::token::{AnalysisTokenKind, prose_scope, tokenize_str};
 use friction_nlp::{DepParser, FINITE_VERB_TAGS, Segmenter, SentenceParse, TaggedToken, Tagger};
 use friction_packs::{RegisterBand, RegisterPack};
-use friction_register::features::{RegisterCounts, em_dashes, nominalizations, semicolons};
+use friction_register::features::{
+    RegisterCounts, comma_and_offsets, contrast_closers, em_dashes, nominalizations,
+    past_progressives, semicolons,
+};
 use friction_register::transduce::{
     self, CandidateKind, PERMITTED_FUNCTION_WORDS, past, past_participle, third_sg,
 };
@@ -61,6 +64,12 @@ const RULE_PASSIVIZE: RuleId = RuleId::new("register.passivize");
 const RULE_UNPACK: RuleId = RuleId::new("register.unpack");
 const RULE_EM_DASH: RuleId = RuleId::new("register.em_dash");
 const RULE_SEMICOLON: RuleId = RuleId::new("register.semicolon");
+const RULE_COMMA_AND: RuleId = RuleId::new("register.comma_and");
+const RULE_PAST_PROGRESSIVE: RuleId = RuleId::new("register.past_progressive");
+/// `contrast_closer` is detect-only -- no transducer, no [`CandidateKind`]
+/// (see the held-finding block at the end of [`run_register`]) -- so this
+/// rule id is never returned by [`rule_for`], only used directly there.
+const RULE_CONTRAST: RuleId = RuleId::new("register.contrast_closer");
 
 const fn rule_for(kind: CandidateKind) -> RuleId {
     match kind {
@@ -68,6 +77,8 @@ const fn rule_for(kind: CandidateKind) -> RuleId {
         CandidateKind::NominalizationUnpack => RULE_UNPACK,
         CandidateKind::EmDash => RULE_EM_DASH,
         CandidateKind::Semicolon => RULE_SEMICOLON,
+        CandidateKind::CommaAnd => RULE_COMMA_AND,
+        CandidateKind::PastProgressive => RULE_PAST_PROGRESSIVE,
     }
 }
 
@@ -174,8 +185,12 @@ enum Direction {
     /// this way (agentless passive).
     Increase,
     /// Above `high`: [`CandidateKind::NominalizationUnpack`]
-    /// (nominalization), [`CandidateKind::EmDash`] (em dash), and
-    /// [`CandidateKind::Semicolon`] (semicolon) all move this way.
+    /// (nominalization), [`CandidateKind::EmDash`] (em dash),
+    /// [`CandidateKind::Semicolon`] (semicolon), [`CandidateKind::CommaAnd`]
+    /// (comma-and), and [`CandidateKind::PastProgressive`]
+    /// (past-progressive) all move this way. `contrast_closer` also moves
+    /// this way but has no `CandidateKind` at all -- it is detect-only
+    /// (see the held-finding block at the end of [`run_register`]).
     Decrease,
 }
 
@@ -304,6 +319,18 @@ fn remainder_instance_ranges(
                     out.push(start..start + 1);
                 }
             }
+            CandidateKind::CommaAnd => {
+                for byte in comma_and_offsets(text) {
+                    let start = ctx.range.start + byte;
+                    out.push(start..start + ", and ".len());
+                }
+            }
+            CandidateKind::PastProgressive => {
+                for index in past_progressives(text, &ctx.tokens) {
+                    let local = &ctx.tokens[index].token.range;
+                    out.push(ctx.range.start + local.start..ctx.range.start + local.end);
+                }
+            }
             // An Increase feature never leaves "instances to remove", so
             // no remainder findings exist for it.
             CandidateKind::ActivizeToPassive => {}
@@ -371,31 +398,101 @@ fn push_remainder_findings(
     }
 }
 
-/// The document-wide `(total_words, nominalization_count,
-/// agentless_passive_count, em_dash_count, semicolon_count)` totals over
-/// `sentences`.
-fn count_features(sentences: &[SentenceCtx], source: &str) -> (i64, i64, i64, i64, i64) {
-    let mut total_words: i64 = 0;
-    let mut count_nominalization: i64 = 0;
-    let mut count_agentless_passive: i64 = 0;
-    let mut count_em_dash: i64 = 0;
-    let mut count_semicolon: i64 = 0;
+/// Emits one Suggest finding per surviving `contrast_closer` instance
+/// once the document's rate clears the band -- the see-saw tell's own
+/// counterpart to [`push_remainder_findings`], called separately because
+/// `contrast_closer` has no [`CandidateKind`] at all: no transducer
+/// exists for it (there is no single-word substitute that states a
+/// "X rather than Y" / "X, not Y" contrast without picking a side), so
+/// every instance is a remainder from the moment it's counted, never a
+/// pool candidate `select_and_apply` might have applied first.
+///
+/// Arms on the same Wilson-bound evidence bar every Decrease feature
+/// uses ([`wilson_lower`] against `band.high`). `count`/`total_words` are
+/// the FINAL values [`run_register`] has after every armed feature's own
+/// selection loop: those loops may have shifted the word-count
+/// denominator, but never `contrast_closer`'s own count, since nothing
+/// upstream ever edits its instances.
+fn push_contrast_closer_findings(
+    held: &mut Vec<Finding>,
+    sentences: &[SentenceCtx],
+    source: &str,
+    accepted: &[PositionedCandidate],
+    count: i64,
+    total_words: i64,
+    band: RegisterBand,
+) {
+    if wilson_lower(count, total_words) <= band.high {
+        return;
+    }
+    let feature_rate = rate(count, total_words);
     for ctx in sentences {
         let text = &source[ctx.range.clone()];
-        let counts = RegisterCounts::count(text, &ctx.tokens, &ctx.parse);
-        count_nominalization += i64::try_from(counts.nominalization).unwrap_or(i64::MAX);
-        count_agentless_passive += i64::try_from(counts.agentless_passive).unwrap_or(i64::MAX);
-        count_em_dash += i64::try_from(counts.em_dashes).unwrap_or(i64::MAX);
-        count_semicolon += i64::try_from(counts.semicolons).unwrap_or(i64::MAX);
-        total_words += word_count(text);
+        for local in contrast_closers(text) {
+            let range = ctx.range.start + local.start..ctx.range.start + local.end;
+            if accepted
+                .iter()
+                .any(|c| ranges_overlap(&c.doc_range, &range))
+            {
+                continue;
+            }
+            held.push(Finding {
+                rule: RULE_CONTRAST,
+                range,
+                message: format!(
+                    "contrast_closer: a contrast closer (\"X rather than Y\" / \"X, not Y\") \
+                     and the document is still above the human band ({feature_rate:.2} > \
+                     {:.2} per 1000 words) -- no licensed rewrite: state one side; needs a \
+                     human hand",
+                    band.high
+                ),
+                tier: Tier::Suggest,
+            });
+        }
     }
-    (
-        total_words,
-        count_nominalization,
-        count_agentless_passive,
-        count_em_dash,
-        count_semicolon,
-    )
+}
+
+/// The document-wide totals [`count_features`] returns: total prose
+/// words, plus one count per register feature.
+///
+/// A named struct, not a positional tuple: the tuple this replaced grew
+/// from five elements to eight across three features landing in one
+/// change, and a positional `(i64, i64, i64, i64, i64, i64, i64, i64)`
+/// at that width is a transposition bug waiting to happen at every call
+/// site. `contrast_closer` gets a field like every other feature even
+/// though it is detect-only downstream (see [`run_register`]'s final
+/// held-finding block) -- the count itself is computed the same way
+/// regardless of whether a transducer ever consumes it.
+#[derive(Debug, Clone, Copy, Default)]
+struct FeatureCounts {
+    total_words: i64,
+    nominalization: i64,
+    agentless_passive: i64,
+    em_dash: i64,
+    semicolon: i64,
+    contrast_closer: i64,
+    comma_and: i64,
+    past_progressive: i64,
+}
+
+/// The document-wide [`FeatureCounts`] over `sentences`.
+fn count_features(sentences: &[SentenceCtx], source: &str) -> FeatureCounts {
+    let mut counts = FeatureCounts::default();
+    for ctx in sentences {
+        let text = &source[ctx.range.clone()];
+        let register_counts = RegisterCounts::count(text, &ctx.tokens, &ctx.parse);
+        counts.nominalization += i64::try_from(register_counts.nominalization).unwrap_or(i64::MAX);
+        counts.agentless_passive +=
+            i64::try_from(register_counts.agentless_passive).unwrap_or(i64::MAX);
+        counts.em_dash += i64::try_from(register_counts.em_dashes).unwrap_or(i64::MAX);
+        counts.semicolon += i64::try_from(register_counts.semicolons).unwrap_or(i64::MAX);
+        counts.contrast_closer += i64::try_from(contrast_closers(text).len()).unwrap_or(i64::MAX);
+        counts.comma_and += i64::try_from(comma_and_offsets(text).len()).unwrap_or(i64::MAX);
+        counts.past_progressive +=
+            i64::try_from(past_progressives(text, &ctx.tokens).len()).unwrap_or(i64::MAX);
+        counts.total_words += word_count(text);
+    }
+    counts
 }
 
 /// The document-wide em-dash rate (per 1000 prose words), computed
@@ -418,8 +515,8 @@ pub fn measure_em_dash_rate(
     let document = friction_parse::parse(source)?;
     let units = prose_scope(&document, segmenter);
     let sentences = build_sentence_contexts(source, &units, tagger, parser);
-    let (total_words, _, _, count_em_dash, _) = count_features(&sentences, source);
-    Ok(rate(count_em_dash, total_words))
+    let counts = count_features(&sentences, source);
+    Ok(rate(counts.em_dash, counts.total_words))
 }
 
 /// The document-wide semicolon rate (per 1000 prose words), computed
@@ -437,8 +534,65 @@ pub fn measure_semicolon_rate(
     let document = friction_parse::parse(source)?;
     let units = prose_scope(&document, segmenter);
     let sentences = build_sentence_contexts(source, &units, tagger, parser);
-    let (total_words, _, _, _, count_semicolon) = count_features(&sentences, source);
-    Ok(rate(count_semicolon, total_words))
+    let counts = count_features(&sentences, source);
+    Ok(rate(counts.semicolon, counts.total_words))
+}
+
+/// The document-wide contrast-closer rate (per 1000 prose words), computed
+/// through the same path [`measure_em_dash_rate`] does, for the same
+/// band-measurement contract.
+///
+/// # Errors
+/// Returns [`EditError`] if `source` fails to parse or segment.
+pub fn measure_contrast_closer_rate(
+    source: &str,
+    tagger: &dyn Tagger,
+    parser: &dyn DepParser,
+    segmenter: &dyn Segmenter,
+) -> Result<f64, EditError> {
+    let document = friction_parse::parse(source)?;
+    let units = prose_scope(&document, segmenter);
+    let sentences = build_sentence_contexts(source, &units, tagger, parser);
+    let counts = count_features(&sentences, source);
+    Ok(rate(counts.contrast_closer, counts.total_words))
+}
+
+/// The document-wide comma-and rate (per 1000 prose words), computed
+/// through the same path [`measure_em_dash_rate`] does, for the same
+/// band-measurement contract.
+///
+/// # Errors
+/// Returns [`EditError`] if `source` fails to parse or segment.
+pub fn measure_comma_and_rate(
+    source: &str,
+    tagger: &dyn Tagger,
+    parser: &dyn DepParser,
+    segmenter: &dyn Segmenter,
+) -> Result<f64, EditError> {
+    let document = friction_parse::parse(source)?;
+    let units = prose_scope(&document, segmenter);
+    let sentences = build_sentence_contexts(source, &units, tagger, parser);
+    let counts = count_features(&sentences, source);
+    Ok(rate(counts.comma_and, counts.total_words))
+}
+
+/// The document-wide past-progressive rate (per 1000 prose words),
+/// computed through the same path [`measure_em_dash_rate`] does, for the
+/// same band-measurement contract.
+///
+/// # Errors
+/// Returns [`EditError`] if `source` fails to parse or segment.
+pub fn measure_past_progressive_rate(
+    source: &str,
+    tagger: &dyn Tagger,
+    parser: &dyn DepParser,
+    segmenter: &dyn Segmenter,
+) -> Result<f64, EditError> {
+    let document = friction_parse::parse(source)?;
+    let units = prose_scope(&document, segmenter);
+    let sentences = build_sentence_contexts(source, &units, tagger, parser);
+    let counts = count_features(&sentences, source);
+    Ok(rate(counts.past_progressive, counts.total_words))
 }
 
 /// Runs the register pass once over `source`.
@@ -464,13 +618,8 @@ pub fn run_register(
     let document = friction_parse::parse_with(source, syntax)?;
     let units = prose_scope(&document, segmenter);
     let sentences = build_sentence_contexts(source, &units, tagger, parser);
-    let (
-        mut total_words,
-        count_nominalization,
-        count_agentless_passive,
-        count_em_dash,
-        count_semicolon,
-    ) = count_features(&sentences, source);
+    let counts = count_features(&sentences, source);
+    let mut total_words = counts.total_words;
 
     let mut held: Vec<Finding> = Vec::new();
     if total_words == 0 {
@@ -484,14 +633,7 @@ pub fn run_register(
         return Ok((source.to_string(), empty_pass(), Some(reusable)));
     }
 
-    let features = feature_plan(
-        register_pack,
-        total_words,
-        count_agentless_passive,
-        count_nominalization,
-        count_em_dash,
-        count_semicolon,
-    );
+    let features = feature_plan(register_pack, counts);
 
     let needed: Vec<CandidateKind> = features
         .iter()
@@ -532,7 +674,22 @@ pub fn run_register(
             }
         }
     }
-    let _ = total_words;
+
+    // `contrast_closer` is DETECT-ONLY: no transducer, no `CandidateKind`
+    // exists for it, so nothing here was ever a candidate for
+    // `select_and_apply` -- see `push_contrast_closer_findings`'s own
+    // docs for why and how it arms.
+    if let Some(band) = register_pack.band("contrast_closer") {
+        push_contrast_closer_findings(
+            &mut held,
+            &sentences,
+            source,
+            &accepted,
+            counts.contrast_closer,
+            total_words,
+            band,
+        );
+    }
 
     let patches: Vec<Patch> = accepted
         .iter()
@@ -585,20 +742,31 @@ fn empty_pass() -> crate::document::PassReport {
 /// decided that also carries the band a later step needs. A separate
 /// `bool` alongside the `Option` would leave two values that must
 /// agree, and reading the band back out would mean asserting they do.
+///
+/// `contrast_closer` has no row here despite being a [`FeatureCounts`]
+/// field: it has no `CandidateKind`, so it never enters
+/// [`select_and_apply`]'s pool -- see the held-finding block at the end
+/// of [`run_register`] instead.
 fn feature_plan(
     register_pack: &RegisterPack,
-    total_words: i64,
-    count_agentless_passive: i64,
-    count_nominalization: i64,
-    count_em_dash: i64,
-    count_semicolon: i64,
+    counts: FeatureCounts,
 ) -> [(
     &'static str,
     Option<RegisterBand>,
     Direction,
     i64,
     CandidateKind,
-); 4] {
+); 6] {
+    let FeatureCounts {
+        total_words,
+        nominalization,
+        agentless_passive,
+        em_dash,
+        semicolon,
+        comma_and,
+        past_progressive,
+        contrast_closer: _,
+    } = counts;
     [
         // Arming compares a Wilson confidence bound against the band, not
         // the raw point estimate — see [`WILSON_Z`]'s docs. A Decrease
@@ -611,37 +779,55 @@ fn feature_plan(
             "agentless_passive",
             register_pack
                 .band("agentless_passive")
-                .filter(|band| wilson_upper(count_agentless_passive, total_words) < band.low),
+                .filter(|band| wilson_upper(agentless_passive, total_words) < band.low),
             Direction::Increase,
-            count_agentless_passive,
+            agentless_passive,
             CandidateKind::ActivizeToPassive,
         ),
         (
             "nominalization",
             register_pack
                 .band("nominalization")
-                .filter(|band| wilson_lower(count_nominalization, total_words) > band.high),
+                .filter(|band| wilson_lower(nominalization, total_words) > band.high),
             Direction::Decrease,
-            count_nominalization,
+            nominalization,
             CandidateKind::NominalizationUnpack,
         ),
         (
             "em_dash",
             register_pack
                 .band("em_dash")
-                .filter(|band| wilson_lower(count_em_dash, total_words) > band.high),
+                .filter(|band| wilson_lower(em_dash, total_words) > band.high),
             Direction::Decrease,
-            count_em_dash,
+            em_dash,
             CandidateKind::EmDash,
         ),
         (
             "semicolon",
             register_pack
                 .band("semicolon")
-                .filter(|band| wilson_lower(count_semicolon, total_words) > band.high),
+                .filter(|band| wilson_lower(semicolon, total_words) > band.high),
             Direction::Decrease,
-            count_semicolon,
+            semicolon,
             CandidateKind::Semicolon,
+        ),
+        (
+            "comma_and",
+            register_pack
+                .band("comma_and")
+                .filter(|band| wilson_lower(comma_and, total_words) > band.high),
+            Direction::Decrease,
+            comma_and,
+            CandidateKind::CommaAnd,
+        ),
+        (
+            "past_progressive",
+            register_pack
+                .band("past_progressive")
+                .filter(|band| wilson_lower(past_progressive, total_words) > band.high),
+            Direction::Decrease,
+            past_progressive,
+            CandidateKind::PastProgressive,
         ),
     ]
 }
@@ -780,6 +966,10 @@ fn collect_candidates(
             }
             CandidateKind::EmDash => transduce::t6_em_dash(text, &ctx.tokens, &ctx.parse),
             CandidateKind::Semicolon => transduce::t7_semicolon(text, &ctx.tokens, &ctx.parse),
+            CandidateKind::CommaAnd => transduce::t8_comma_and(text, &ctx.tokens, &ctx.parse),
+            CandidateKind::PastProgressive => {
+                transduce::t9_past_progressive(text, &ctx.tokens, &ctx.parse)
+            }
         };
 
         for candidate in candidates {
@@ -885,13 +1075,22 @@ fn closure_violation(
                 }
             }
         }
-        CandidateKind::EmDash | CandidateKind::Semicolon => {
-            // No derived words: every T6/T7 replacement is punctuation
+        CandidateKind::PastProgressive => {
+            // T9's only derived form: the participle's simple past, via
+            // the same `past` table T4 draws from -- "was marking" ->
+            // "marked", where "marked" is absent from
+            // `original_span_text` ("was marking") itself.
+            for token in span_tokens {
+                derived.insert(past(token.lemma.as_ref()).to_lowercase().into_boxed_str());
+            }
+        }
+        CandidateKind::EmDash | CandidateKind::Semicolon | CandidateKind::CommaAnd => {
+            // No derived words: every T6/T7/T8 replacement is punctuation
             // (",", ". ", "; ", ": ") plus, at most, a word already
             // present in `original_span_text` (T6's interpolated middle,
-            // either kind's recapitalized or unchanged following word)
-            // -- there is no inflection table to consult, unlike the
-            // other two kinds.
+            // T8's recapitalized word after "and", either kind's
+            // recapitalized or unchanged following word) -- there is no
+            // inflection table to consult, unlike the other two kinds.
         }
     }
 
@@ -1127,6 +1326,44 @@ mod tests {
         assert_eq!(wilson_bounds(4, 58), wilson_bounds(4, 58));
         let (lower, upper) = wilson_bounds(4, 58);
         assert!(lower < rate(4, 58) && rate(4, 58) < upper);
+    }
+
+    // --- Band-measurement determinism ---
+
+    /// Every `measure_*_rate` function, run twice on the same text through
+    /// the same tagger/parser/segmenter, must return bit-identical `f64`s
+    /// -- the byte-determinism bar this crate holds everywhere else (see
+    /// `build_sentence_contexts`'s own docs on why `corpus-tool
+    /// register-bands` can trust a remeasurement not to silently diverge
+    /// from a previous run over the same corpus).
+    type Measure = fn(&str, &dyn Tagger, &dyn DepParser, &dyn Segmenter) -> Result<f64, EditError>;
+
+    // Exact `f64` equality is the correct check here, not an approximation
+    // bug: the claim under test IS bit-identical output from two calls
+    // with identical inputs, not "close enough".
+    #[allow(clippy::float_cmp)]
+    #[test]
+    fn measure_functions_are_deterministic() {
+        let tagger = friction_nlp::PerceptronTagger::new().expect("tagger loads");
+        let parser = friction_nlp::PerceptronParser::new().expect("parser loads");
+        let segmenter = friction_nlp::SrxSegmenter::new();
+        let text = "The scanner reads each file once, and it never touches what it reads. It \
+                     was checking every line before it moved to the next file. The team chose \
+                     caching rather than a cache-aside pattern for the lookup; the report is \
+                     clear, not vague, about what changed — even so.";
+
+        let measures: [(&str, Measure); 5] = [
+            ("em_dash", measure_em_dash_rate),
+            ("semicolon", measure_semicolon_rate),
+            ("contrast_closer", measure_contrast_closer_rate),
+            ("comma_and", measure_comma_and_rate),
+            ("past_progressive", measure_past_progressive_rate),
+        ];
+        for (name, measure) in measures {
+            let a = measure(text, &tagger, &parser, &segmenter).expect("measurement succeeds");
+            let b = measure(text, &tagger, &parser, &segmenter).expect("measurement succeeds");
+            assert_eq!(a, b, "{name} must be deterministic across repeated calls");
+        }
     }
 
     /// A candidate introducing a word outside the input, the inflection
