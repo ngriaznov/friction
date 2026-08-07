@@ -380,6 +380,8 @@ impl BigramTable {
     /// The number of distinct left tokens with at least one attested
     /// right token (including `"<s>"` if any sentence's first word was
     /// mined).
+    ///
+    /// Parity-test introspection only; no runtime consumer.
     #[must_use]
     pub fn distinct_lefts(&self) -> usize {
         match &self.repr {
@@ -390,6 +392,8 @@ impl BigramTable {
 
     /// The total number of `(left, right)` pairs attested across every
     /// left token.
+    ///
+    /// Parity-test introspection only; no runtime consumer.
     #[must_use]
     pub fn edge_count(&self) -> usize {
         match &self.repr {
@@ -400,6 +404,8 @@ impl BigramTable {
 
     /// This table's word vocabulary size (including the reserved `"<s>"`
     /// entry).
+    ///
+    /// Parity-test introspection only; no runtime consumer.
     #[must_use]
     pub const fn vocab_len(&self) -> usize {
         match &self.repr {
@@ -531,6 +537,8 @@ impl SkeletonSet {
     }
 
     /// The number of distinct attested 5-gram tag windows.
+    ///
+    /// Parity-test introspection only; no runtime consumer.
     #[must_use]
     pub fn tag5_len(&self) -> usize {
         match &self.repr {
@@ -540,6 +548,8 @@ impl SkeletonSet {
     }
 
     /// The number of distinct attested 4-gram tag windows.
+    ///
+    /// Parity-test introspection only; no runtime consumer.
     #[must_use]
     pub fn tag4_len(&self) -> usize {
         match &self.repr {
@@ -550,6 +560,8 @@ impl SkeletonSet {
 
     /// This set's coarse-tag vocabulary size (including the `<S>`/`<E>`
     /// sentinels).
+    ///
+    /// Parity-test introspection only; no runtime consumer.
     #[must_use]
     pub const fn tag_vocab_len(&self) -> usize {
         match &self.repr {

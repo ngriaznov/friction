@@ -353,12 +353,6 @@ impl Sha256 {
         Ok(Self(bytes))
     }
 
-    /// The checksum's raw bytes.
-    #[must_use]
-    pub const fn as_bytes(&self) -> &[u8; 32] {
-        &self.0
-    }
-
     /// Returns `true` if `bytes` hashes to this checksum.
     #[must_use]
     pub fn verify(&self, bytes: &[u8]) -> bool {

@@ -206,7 +206,10 @@ pub fn pack_frame_bin(pack: &CompiledPack, source_sha256_hex: &str) -> Vec<u8> {
 
     // Interner.
     write_string_table(&mut out, sorted.iter().map(|(word, _)| word.as_str()));
-    // Class names.
+    // Class names. Kept in the on-disk format for format stability and
+    // external tooling even though `FramePackView` has no reader for it —
+    // dropping the table would bump FORMAT_VERSION and force regenerating
+    // every shipped artifact.
     write_string_table(&mut out, pack.class_names.iter().map(String::as_str));
     // Classes: per-class byte offsets, then the member blob.
     let mut class_blob = Vec::new();
@@ -434,9 +437,6 @@ pub struct FramePackView<'a> {
     word_offsets: &'a [u8],
     word_pool: &'a str,
     word_count: u32,
-    class_name_offsets: &'a [u8],
-    class_name_pool: &'a str,
-    class_name_count: u32,
     class_offsets: &'a [u8],
     class_blob: &'a [u8],
     class_count: u16,
@@ -675,8 +675,9 @@ impl<'a> FramePackView<'a> {
         let source_sha256_hex = r.str(SHA256_HEX_LEN, "header")?;
 
         let (word_count, word_offsets, word_pool) = read_string_table(&mut r, "interner")?;
-        let (class_name_count, class_name_offsets, class_name_pool) =
-            read_string_table(&mut r, "class names")?;
+        // Class names are format-stable for tooling but have no runtime
+        // reader here; parse and drop the table just to advance past it.
+        read_string_table(&mut r, "class names")?;
 
         let class_count = r.u16("classes")?;
         let class_offsets = r.take((usize::from(class_count) + 1) * 4, "classes")?;
@@ -699,9 +700,6 @@ impl<'a> FramePackView<'a> {
             word_offsets,
             word_pool,
             word_count,
-            class_name_offsets,
-            class_name_pool,
-            class_name_count,
             class_offsets,
             class_blob,
             class_count,
@@ -734,8 +732,13 @@ impl<'a> FramePackView<'a> {
     }
 
     /// The id of this word, by binary search (words are sorted).
+    ///
+    /// Only used by this module's own tests — the crate's one production
+    /// consumer (`friction_match::frame_rewrite::FrameIndex`) builds its
+    /// own hash-map lookup instead, so this stays private.
+    #[cfg(test)]
     #[must_use]
-    pub fn word_id(&self, word: &str) -> Option<u32> {
+    fn word_id(&self, word: &str) -> Option<u32> {
         let mut lo = 0u32;
         let mut hi = self.word_count;
         while lo < hi {
@@ -753,17 +756,6 @@ impl<'a> FramePackView<'a> {
     #[must_use]
     pub const fn class_count(&self) -> u16 {
         self.class_count
-    }
-
-    /// The class name with this index.
-    #[must_use]
-    pub fn class_name(&self, class: u16) -> Option<&'a str> {
-        string_at(
-            self.class_name_offsets,
-            self.class_name_pool,
-            self.class_name_count,
-            u32::from(class),
-        )
     }
 
     /// The members of this class: each member is a word-id sequence.

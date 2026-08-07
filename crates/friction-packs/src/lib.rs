@@ -153,5 +153,6 @@ pub use registry::{
 };
 pub use validate::{
     ClosureViolation, DisjointnessViolation, FrequencyHygieneReason, FrequencyHygieneViolation,
-    Violation, check_closure, check_disjointness, check_frequency_hygiene, validate,
+    GuardTokenExposureViolation, Violation, check_closure, check_disjointness,
+    check_frequency_hygiene, check_guard_token_exposure, validate,
 };

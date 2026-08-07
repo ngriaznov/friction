@@ -541,8 +541,9 @@ fn dms_spans_machine(units: &[friction_match::token::ScopedUnit<'_>]) -> Vec<Mat
 
 /// A [`MatchSpan`]'s DMS differential score. Always
 /// [`MatchScore::Differential`] for the [`Channel::Dms`](friction_match::Channel::Dms)
-/// spans [`scan_paraphrase_spans`] collects; `0` for the `Present` variant
-/// is a defensive fallback that never fires in practice.
+/// spans [`scan_paraphrase_spans`] collects; `0` for every span from the
+/// frame, jargon, and overuse channels, which construct their `MatchSpan`s
+/// exclusively with the presence-only `MatchScore::Present`.
 const fn dms_score(span: &MatchSpan) -> i64 {
     match span.score {
         MatchScore::Differential(d) => d,
