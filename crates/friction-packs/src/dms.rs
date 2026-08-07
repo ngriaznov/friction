@@ -481,11 +481,12 @@ impl DmsIndex {
     }
 
     /// The suffix automaton for `family`, or `None` if this pack defines
-    /// no stream for that family. Kept for compatibility (`corpus-tool
-    /// dms-pack` still serializes every per-family section, and
-    /// `friction check --family` still parses its flag) — the runtime
-    /// detection pass reads [`Self::pooled_machine_sam`] instead; see that
-    /// method's own docs.
+    /// no stream for that family. Kept for `corpus-tool` (`dms-pack`
+    /// still serializes every per-family section, and the index report
+    /// reads them back per family) — the runtime detection pass reads
+    /// [`Self::pooled_machine_sam`] instead; see that method's own docs.
+    /// The CLI's `--family` flag is retired; nothing user-facing selects
+    /// a family stream anymore.
     #[must_use]
     pub fn family_sam(&self, family: ModelFamily) -> Option<&Sam> {
         self.families.get(&family)

@@ -57,8 +57,9 @@
 //! present family stream's ids concatenated in fixed alphabetical order
 //! with the document separator between streams (see that method's own
 //! docs). The five per-family sections from version 1 are unchanged and
-//! still written — kept for `family_sam`/`--family` compatibility: the
-//! pooled stream is additive, not a replacement. A version-1 artifact (no
+//! still written — kept for [`DmsIndexView::family_sam`], which
+//! `corpus-tool`'s per-family index reporting still reads: the pooled
+//! stream is additive, not a replacement. A version-1 artifact (no
 //! pooled section) is rejected by [`DmsIndexView::parse`] as a
 //! [`DmsBinError::VersionMismatch`]; there is no reader that accepts
 //! both, since every producer (`corpus-tool dms-pack`) and consumer (this
@@ -620,8 +621,8 @@ impl<'a> DmsIndexView<'a> {
     }
 
     /// The suffix automaton for `family`, or `None` if this pack defines
-    /// no stream for that family. Kept for `family_sam`/`--family`
-    /// compatibility; the runtime detection pass reads
+    /// no stream for that family. Kept for `corpus-tool`'s per-family
+    /// index reporting; the runtime detection pass reads
     /// [`Self::pooled_machine_sam`] instead.
     #[must_use]
     pub fn family_sam(&self, family: ModelFamily) -> Option<SamView<'a>> {
