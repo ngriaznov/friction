@@ -48,7 +48,8 @@ Seven operations edit text. Nothing else does.
    *"worth checking"*, *"Honestly,"* → deleted.
 7. **Register rephrasing**: homes punctuation and constructions the models
    over- or under-use toward bands measured from human writing: em dashes,
-   semicolons, the agentless passive.
+   semicolons, the agentless passive, and the past progressive (*"the
+   tool was crashing on start"* → *"the tool crashed on start"*).
 
 Every candidate passes hard gates: meaning preserved, clauses complete, code
 spans, links, numbers, and quotes untouched, near-no-op on human text. When a
@@ -75,7 +76,7 @@ your lockfile:
     "lint:docs": "friction fix README.md | cmp -s - README.md"
   },
   "devDependencies": {
-    "friction-cli": "0.5.3"
+    "friction-cli": "0.5.4"
   }
 }
 ```
