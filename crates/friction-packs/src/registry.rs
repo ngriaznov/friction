@@ -320,37 +320,39 @@ pub static MACHINE_EVIDENCE: LazyLock<HumanEvidencePack> = LazyLock::new(|| {
 pub struct PackSet {
     /// The curated tell-span inventory (deletion spans, substitution
     /// pairs, ritual frames, licensed LVC pairs).
-    pub inventory: &'static LoadedPack<InventoryPack>,
+    pub inventory: &'static LazyLock<LoadedPack<InventoryPack>>,
     /// The DMS (differential machine score) index: per-family and pooled
     /// suffix automata over the human/machine token streams.
-    pub dms: &'static LoadedPack<DmsIndexView<'static>>,
+    pub dms: &'static LazyLock<LoadedPack<DmsIndexView<'static>>>,
     /// The curated metaphor-lexeme pack the jargon channel flags against.
-    pub jargon: &'static LoadedPack<JargonPack>,
+    pub jargon: &'static LazyLock<LoadedPack<JargonPack>>,
     /// The web-scale compound attestation filter backing the jargon
     /// channel's real attestation oracle.
-    pub jargon_attest: &'static JargonAttestPack,
+    pub jargon_attest: &'static LazyLock<JargonAttestPack>,
     /// The seam-bigram and POS-skeleton attestation tables the repair
     /// engine's gates consult.
-    pub attestation: &'static LoadedPack<AttestationPack>,
+    pub attestation: &'static LazyLock<LoadedPack<AttestationPack>>,
     /// The per-1000-word human rate bands (nominalization, agentless
     /// passive, em dash, semicolon, ...) the register pass measures
     /// against.
-    pub register: &'static LoadedPack<RegisterPack>,
+    pub register: &'static LazyLock<LoadedPack<RegisterPack>>,
     /// The compiled contrast-frame collocation-rewrite rule program.
-    pub frame: &'static LoadedPack<FramePackView<'static>>,
+    pub frame: &'static LazyLock<LoadedPack<FramePackView<'static>>>,
     /// External human-corpus unigram/literal-probe evidence, pooled into
     /// every frame-rewrite compile fence.
-    pub human_evidence: &'static HumanEvidencePack,
+    pub human_evidence: &'static LazyLock<HumanEvidencePack>,
     /// The machine-side half of the review-register evidence pair,
     /// register-matched against `human_evidence`'s review buckets.
-    pub machine_evidence: &'static HumanEvidencePack,
+    pub machine_evidence: &'static LazyLock<HumanEvidencePack>,
 }
 
 /// The built-in [`PackSet`] for [`Lang::En`], bundling references to the
-/// nine statics above — built once, on first use, and reused for the life
-/// of the process. Building it does not itself force any of the
-/// individual statics; each is still parsed lazily on its own first
-/// touch, same as before this bundle existed.
+/// nine statics above. The fields are the `LazyLock` handles themselves,
+/// not their forced contents, so building or copying the bundle parses
+/// nothing: each pack still pays its parse on its own first touch,
+/// exactly as it did before this bundle existed. Call [`PackSet::warm`]
+/// to move those first touches onto parallel background threads when
+/// startup latency matters.
 static PACK_SET_EN: LazyLock<PackSet> = LazyLock::new(|| PackSet {
     inventory: &INVENTORY,
     dms: &DMS,
@@ -374,6 +376,42 @@ impl PackSet {
     pub fn for_lang(lang: Lang) -> &'static Self {
         match lang {
             Lang::En => &PACK_SET_EN,
+        }
+    }
+
+    /// Starts forcing `lang`'s packs on detached background threads, so a
+    /// later [`PackSet::for_lang`] finds them already parsed instead of
+    /// paying every parse serially on its own thread.
+    ///
+    /// Grouping mirrors `friction fix`'s touch order: the attestation
+    /// tables (the repair gates' first block) get a thread to themselves,
+    /// the paraphrase-scan packs share one, and the rest fill the third.
+    /// Every pack is a pure function of embedded bytes, so which thread
+    /// forces one first can never change output — later touchers block on
+    /// the same completed value. Plain `std::thread`, not the rayon pool:
+    /// warm-up must not occupy pool workers the engine may want. Threads
+    /// are deliberately detached; callers consume the packs afterward, so
+    /// the process never exits with a parse mid-flight on the success
+    /// path.
+    pub fn warm(lang: Lang) {
+        match lang {
+            Lang::En => {
+                drop(std::thread::spawn(|| {
+                    let _ = LazyLock::force(&ATTESTATION);
+                }));
+                drop(std::thread::spawn(|| {
+                    let _ = LazyLock::force(&HUMAN_EVIDENCE);
+                    let _ = LazyLock::force(&JARGON);
+                    let _ = LazyLock::force(&JARGON_ATTEST);
+                }));
+                drop(std::thread::spawn(|| {
+                    let _ = LazyLock::force(&INVENTORY);
+                    let _ = LazyLock::force(&REGISTER);
+                    let _ = LazyLock::force(&FRAME);
+                    let _ = LazyLock::force(&DMS);
+                    let _ = LazyLock::force(&MACHINE_EVIDENCE);
+                }));
+            }
         }
     }
 }
@@ -715,22 +753,24 @@ mod tests {
         assert_eq!(HUMAN_EVIDENCE.unigram_count("qzxwv"), 0);
     }
 
-    /// `PackSet::for_lang(Lang::En)` bundles references to exactly the
-    /// same nine statics a direct caller would otherwise reach for.
+    /// `PackSet::for_lang(Lang::En)` bundles the exact `LazyLock` handles
+    /// a direct caller would otherwise reach for — the handles, not their
+    /// forced contents, so this test (like bundle construction itself)
+    /// parses no pack.
     #[test]
     fn pack_set_for_lang_en_bundles_the_english_statics() {
         let set = PackSet::for_lang(Lang::En);
-        assert!(std::ptr::eq(set.inventory, &raw const *INVENTORY));
-        assert!(std::ptr::eq(set.dms, &raw const *DMS));
-        assert!(std::ptr::eq(set.jargon, &raw const *JARGON));
-        assert!(std::ptr::eq(set.jargon_attest, &raw const *JARGON_ATTEST));
-        assert!(std::ptr::eq(set.attestation, &raw const *ATTESTATION));
-        assert!(std::ptr::eq(set.register, &raw const *REGISTER));
-        assert!(std::ptr::eq(set.frame, &raw const *FRAME));
-        assert!(std::ptr::eq(set.human_evidence, &raw const *HUMAN_EVIDENCE));
+        assert!(std::ptr::eq(set.inventory, &raw const INVENTORY));
+        assert!(std::ptr::eq(set.dms, &raw const DMS));
+        assert!(std::ptr::eq(set.jargon, &raw const JARGON));
+        assert!(std::ptr::eq(set.jargon_attest, &raw const JARGON_ATTEST));
+        assert!(std::ptr::eq(set.attestation, &raw const ATTESTATION));
+        assert!(std::ptr::eq(set.register, &raw const REGISTER));
+        assert!(std::ptr::eq(set.frame, &raw const FRAME));
+        assert!(std::ptr::eq(set.human_evidence, &raw const HUMAN_EVIDENCE));
         assert!(std::ptr::eq(
             set.machine_evidence,
-            &raw const *MACHINE_EVIDENCE
+            &raw const MACHINE_EVIDENCE
         ));
     }
 

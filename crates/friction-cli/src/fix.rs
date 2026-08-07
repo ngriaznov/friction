@@ -171,25 +171,12 @@ fn run_inner(args: &FixArgs) -> Result<ExitCode, CliError> {
         return Err(CliError::InPlaceStdin);
     }
 
-    // Warms the embedded pack bundle's first-touch parse on a background
-    // thread so it overlaps reading the input and loading the tagger/
-    // parser (`friction_edit::Engine::for_lang`) instead of running
-    // serially on the critical path. `friction_packs::PackSet::for_lang`
-    // is one process-lifetime `LazyLock` bundling every language-scoped
-    // pack this run touches (inventory, attestation, register, frame,
-    // DMS, jargon, jargon-attest, human evidence — see that type's own
-    // docs); it is a pure function of embedded bytes, so which thread
-    // forces it first can never change output: the later touch below (via
-    // `Engine::for_lang` and `scan_paraphrase_spans`) just blocks on the
-    // same completed value. Plain `std::thread`, not the rayon pool: this
-    // must not occupy a pool worker the engine may want. Detached
-    // deliberately: the pack bundle forced here is consumed later in this
-    // function on the success path, so the process never exits with it
-    // still mid-parse.
-    let lang = args.lang;
-    let _ = std::thread::spawn(move || {
-        let _ = friction_packs::PackSet::for_lang(lang);
-    });
+    // Warms the language's packs on parallel background threads so their
+    // first-touch parses overlap reading the input and loading the
+    // tagger/parser (`friction_edit::Engine::for_lang`) instead of
+    // running serially on the critical path — see `PackSet::warm`'s own
+    // docs for the thread grouping and why this can never change output.
+    friction_packs::PackSet::warm(args.lang);
 
     let source = read_input(&args.input)?;
     let syntax = crate::common::syntax_of(&args.input, &source);

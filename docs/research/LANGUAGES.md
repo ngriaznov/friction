@@ -106,10 +106,20 @@ went through.
 ## Phasing
 
 - **Phase 0 — groundwork inside English, all byte-fenced:** unify the
-  tokenizer on Unicode classes; introduce `Lang` + the pack bundle +
+  tokenizer definitions; introduce `Lang` + the pack bundle +
   `Engine::load(lang)` with `en` as the only member; start reading
   `manifest.lang` in corpus-tool; parameterize the SRX language tag and
-  the `LEXICON_EN` call sites. English output must not move a byte.
+  the lexicon/weights constructors. English output must not move a byte.
+  **Status: done on this branch.** One measured refinement: switching
+  the shared word classes to Unicode (`\p{L}`) is NOT byte-neutral —
+  the English corpus contains real non-ASCII prose ("Nicolò", "Condé",
+  "Jùnliàng"), and the A/B fence showed 51 files' `check` metrics
+  shift (fix untouched). So `friction_core::token_class` ships the
+  legacy ASCII classes for `en` with tested Unicode alternates staged;
+  adopting Unicode for any language — including English — is a
+  pack-and-band re-derivation decision, not a drop-in swap. The 51
+  diffing files are listed in the tokenizer commit body as Phase 1
+  evidence.
 - **Phase 1 — first target language, check-only:** stage its human +
   machine corpus per genre (the same discipline the English corpus
   went through — this, not code, is the expensive part); retrain
