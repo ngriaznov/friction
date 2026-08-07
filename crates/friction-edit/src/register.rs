@@ -48,8 +48,7 @@ use friction_match::token::{AnalysisTokenKind, prose_scope, tokenize_str};
 use friction_nlp::{DepParser, FINITE_VERB_TAGS, Segmenter, SentenceParse, TaggedToken, Tagger};
 use friction_packs::{RegisterBand, RegisterPack};
 use friction_register::features::{
-    RegisterCounts, comma_and_offsets, contrast_closers, em_dashes, nominalizations,
-    past_progressives, semicolons,
+    RegisterCounts, contrast_closers, em_dashes, nominalizations, past_progressives, semicolons,
 };
 use friction_register::transduce::{
     self, CandidateKind, PERMITTED_FUNCTION_WORDS, past, past_participle, third_sg,
@@ -64,7 +63,6 @@ const RULE_PASSIVIZE: RuleId = RuleId::new("register.passivize");
 const RULE_UNPACK: RuleId = RuleId::new("register.unpack");
 const RULE_EM_DASH: RuleId = RuleId::new("register.em_dash");
 const RULE_SEMICOLON: RuleId = RuleId::new("register.semicolon");
-const RULE_COMMA_AND: RuleId = RuleId::new("register.comma_and");
 const RULE_PAST_PROGRESSIVE: RuleId = RuleId::new("register.past_progressive");
 /// `contrast_closer` is detect-only -- no transducer, no [`CandidateKind`]
 /// (see the held-finding block at the end of [`run_register`]) -- so this
@@ -77,7 +75,6 @@ const fn rule_for(kind: CandidateKind) -> RuleId {
         CandidateKind::NominalizationUnpack => RULE_UNPACK,
         CandidateKind::EmDash => RULE_EM_DASH,
         CandidateKind::Semicolon => RULE_SEMICOLON,
-        CandidateKind::CommaAnd => RULE_COMMA_AND,
         CandidateKind::PastProgressive => RULE_PAST_PROGRESSIVE,
     }
 }
@@ -186,11 +183,11 @@ enum Direction {
     Increase,
     /// Above `high`: [`CandidateKind::NominalizationUnpack`]
     /// (nominalization), [`CandidateKind::EmDash`] (em dash),
-    /// [`CandidateKind::Semicolon`] (semicolon), [`CandidateKind::CommaAnd`]
-    /// (comma-and), and [`CandidateKind::PastProgressive`]
-    /// (past-progressive) all move this way. `contrast_closer` also moves
-    /// this way but has no `CandidateKind` at all -- it is detect-only
-    /// (see the held-finding block at the end of [`run_register`]).
+    /// [`CandidateKind::Semicolon`] (semicolon), and
+    /// [`CandidateKind::PastProgressive`] (past-progressive) all move
+    /// this way. `contrast_closer` also moves this way but has no
+    /// `CandidateKind` at all -- it is detect-only (see the held-finding
+    /// block at the end of [`run_register`]).
     Decrease,
 }
 
@@ -317,12 +314,6 @@ fn remainder_instance_ranges(
                 for byte in semicolons(text) {
                     let start = ctx.range.start + byte;
                     out.push(start..start + 1);
-                }
-            }
-            CandidateKind::CommaAnd => {
-                for byte in comma_and_offsets(text) {
-                    let start = ctx.range.start + byte;
-                    out.push(start..start + ", and ".len());
                 }
             }
             CandidateKind::PastProgressive => {
@@ -473,7 +464,6 @@ struct FeatureCounts {
     em_dash: i64,
     semicolon: i64,
     contrast_closer: i64,
-    comma_and: i64,
     past_progressive: i64,
 }
 
@@ -489,7 +479,6 @@ fn count_features(sentences: &[SentenceCtx], source: &str) -> FeatureCounts {
         counts.em_dash += i64::try_from(register_counts.em_dashes).unwrap_or(i64::MAX);
         counts.semicolon += i64::try_from(register_counts.semicolons).unwrap_or(i64::MAX);
         counts.contrast_closer += i64::try_from(contrast_closers(text).len()).unwrap_or(i64::MAX);
-        counts.comma_and += i64::try_from(comma_and_offsets(text).len()).unwrap_or(i64::MAX);
         counts.past_progressive +=
             i64::try_from(past_progressives(text, &ctx.tokens).len()).unwrap_or(i64::MAX);
         counts.total_words += word_count(text);
@@ -557,25 +546,6 @@ pub fn measure_contrast_closer_rate(
     let sentences = build_sentence_contexts(source, &units, tagger, parser);
     let counts = count_features(&sentences, source);
     Ok(rate(counts.contrast_closer, counts.total_words))
-}
-
-/// The document-wide comma-and rate (per 1000 prose words), computed
-/// through the same path [`measure_em_dash_rate`] does, for the same
-/// band-measurement contract.
-///
-/// # Errors
-/// Returns [`EditError`] if `source` fails to parse or segment.
-pub fn measure_comma_and_rate(
-    source: &str,
-    tagger: &dyn Tagger,
-    parser: &dyn DepParser,
-    segmenter: &dyn Segmenter,
-) -> Result<f64, EditError> {
-    let document = friction_parse::parse(source)?;
-    let units = prose_scope(&document, segmenter);
-    let sentences = build_sentence_contexts(source, &units, tagger, parser);
-    let counts = count_features(&sentences, source);
-    Ok(rate(counts.comma_and, counts.total_words))
 }
 
 /// The document-wide past-progressive rate (per 1000 prose words),
@@ -758,14 +728,13 @@ fn feature_plan(
     Direction,
     i64,
     CandidateKind,
-); 6] {
+); 5] {
     let FeatureCounts {
         total_words,
         nominalization,
         agentless_passive,
         em_dash,
         semicolon,
-        comma_and,
         past_progressive,
         contrast_closer: _,
     } = counts;
@@ -819,15 +788,6 @@ fn feature_plan(
             Direction::Decrease,
             semicolon,
             CandidateKind::Semicolon,
-        ),
-        (
-            "comma_and",
-            register_pack
-                .band("comma_and")
-                .filter(|band| confidently_above(comma_and, total_words, band)),
-            Direction::Decrease,
-            comma_and,
-            CandidateKind::CommaAnd,
         ),
         (
             "past_progressive",
@@ -905,9 +865,10 @@ const WILSON_Z: f64 = 1.96;
 /// band's high, and -- for a band whose high is nonzero -- the count is
 /// at least two. A single instance in a short text can push the lower
 /// bound over a nonzero band edge on denominator noise alone (measured:
-/// one ", and " in a 20-word text bounds at 8.9 against `comma_and`'s
-/// 8.46), and one occurrence of a construction humans use at a nonzero
-/// median is not evidence of register, it is evidence of English.
+/// one semicolon splice in a 20-word text bounds at ~8.9, clear of
+/// `semicolon`'s 3.6563 high), and one occurrence of a construction
+/// humans use at a nonzero median is not evidence of register, it is
+/// evidence of English.
 /// Zero-high bands (`em_dash`, `past_progressive`) deliberately keep
 /// single-instance arming: their populations are near-degenerate and one
 /// instance genuinely is above every human document in the measurement.
@@ -989,7 +950,6 @@ fn collect_candidates(
             }
             CandidateKind::EmDash => transduce::t6_em_dash(text, &ctx.tokens, &ctx.parse),
             CandidateKind::Semicolon => transduce::t7_semicolon(text, &ctx.tokens, &ctx.parse),
-            CandidateKind::CommaAnd => transduce::t8_comma_and(text, &ctx.tokens, &ctx.parse),
             CandidateKind::PastProgressive => {
                 transduce::t9_past_progressive(text, &ctx.tokens, &ctx.parse)
             }
@@ -1107,13 +1067,13 @@ fn closure_violation(
                 derived.insert(past(token.lemma.as_ref()).to_lowercase().into_boxed_str());
             }
         }
-        CandidateKind::EmDash | CandidateKind::Semicolon | CandidateKind::CommaAnd => {
-            // No derived words: every T6/T7/T8 replacement is punctuation
+        CandidateKind::EmDash | CandidateKind::Semicolon => {
+            // No derived words: every T6/T7 replacement is punctuation
             // (",", ". ", "; ", ": ") plus, at most, a word already
             // present in `original_span_text` (T6's interpolated middle,
-            // T8's recapitalized word after "and", either kind's
-            // recapitalized or unchanged following word) -- there is no
-            // inflection table to consult, unlike the other two kinds.
+            // either kind's recapitalized or unchanged following word) --
+            // there is no inflection table to consult, unlike the other
+            // two kinds.
         }
     }
 
@@ -1375,11 +1335,10 @@ mod tests {
                      caching rather than a cache-aside pattern for the lookup; the report is \
                      clear, not vague, about what changed — even so.";
 
-        let measures: [(&str, Measure); 5] = [
+        let measures: [(&str, Measure); 4] = [
             ("em_dash", measure_em_dash_rate),
             ("semicolon", measure_semicolon_rate),
             ("contrast_closer", measure_contrast_closer_rate),
-            ("comma_and", measure_comma_and_rate),
             ("past_progressive", measure_past_progressive_rate),
         ];
         for (name, measure) in measures {

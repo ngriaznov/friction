@@ -802,9 +802,9 @@ fn find_ascii_case_insensitive(text: &str, pattern: &str) -> Vec<usize> {
 /// often than human prose does.
 ///
 /// Returns byte ranges, not offsets, unlike every other detector in this
-/// module: [`em_dashes`]/[`semicolons`]/[`comma_and_offsets`] each match a
-/// single fixed-width literal, so a bare start offset plus that literal's
-/// known length was enough for a caller to recover the match. This
+/// module: [`em_dashes`]/[`semicolons`] each match a single fixed-width
+/// literal, so a bare start offset plus that literal's known length was
+/// enough for a caller to recover the match. This
 /// detector's two patterns have different lengths ("rather than" vs
 /// ", not "), so a caller needing the matched span -- `friction-edit`'s
 /// register pass, pointing a held finding at the exact instance -- cannot
@@ -823,27 +823,6 @@ pub fn contrast_closers(text: &str) -> Vec<Range<usize>> {
     );
     out.sort_by_key(|range| range.start);
     out
-}
-
-/// Mid-sentence coordination via comma-space-"and"-space (lowercase
-/// "and" only, matched case-sensitively).
-///
-/// Corpus-measured over corpus/llm + corpus/review/machine (404,607
-/// words) vs corpus/human (306,754 words): 6309.8/M machine vs 3778.3/M
-/// human (1.67x) -- the mildest of these three tells, present in both
-/// bands rather than nearly absent from one (contrast
-/// [`contrast_closers`]'s 8.5x and 5.0x). A serial-list ", and " ("A, B,
-/// and C") still counts here: this function counts occurrences, not
-/// licenses to rewrite -- deciding which occurrence is safe to touch is
-/// a downstream layer's job, not this one's.
-///
-/// Returns byte offsets, like [`em_dashes`], not token indices. Pure
-/// text scan, no tags: like [`em_dashes`].
-#[must_use]
-pub fn comma_and_offsets(text: &str) -> Vec<usize> {
-    text.match_indices(", and ")
-        .map(|(index, _)| index)
-        .collect()
 }
 
 /// Past-progressive softening: a `VBG` token immediately preceded by a
@@ -938,51 +917,6 @@ mod contrast_closer_tests {
         let ranges = contrast_closers(text);
         assert_eq!(ranges.len(), 1);
         assert_eq!(&text[ranges[0].clone()], "rather than");
-    }
-}
-
-#[cfg(test)]
-mod comma_and_offset_tests {
-    use super::comma_and_offsets;
-
-    /// Ordinary mid-sentence coordination.
-    #[test]
-    fn comma_and_offsets_counts_basic_case() {
-        assert_eq!(
-            comma_and_offsets("It retries once, and the caller sees no error.").len(),
-            1
-        );
-    }
-
-    /// A serial-list ", and " ("A, B, and C") still counts -- counting
-    /// and licensing a rewrite are different layers; this function only
-    /// does the former.
-    #[test]
-    fn comma_and_offsets_counts_serial_list_and() {
-        assert_eq!(comma_and_offsets("It handles A, B, and C.").len(), 1);
-    }
-
-    /// Uppercase "And" never counts: only the lowercase, mid-sentence
-    /// form does.
-    #[test]
-    fn comma_and_offsets_ignores_capitalized_and() {
-        assert_eq!(comma_and_offsets("It failed, And nobody noticed.").len(), 0);
-    }
-
-    #[test]
-    fn comma_and_offsets_is_zero_for_empty_text() {
-        assert_eq!(comma_and_offsets("").len(), 0);
-    }
-
-    /// Offsets are byte positions, correct even with multibyte text
-    /// preceding the match.
-    #[test]
-    fn comma_and_offsets_offsets_correct_on_multibyte_text() {
-        let text = "naïve — it retries once, and the caller sees no error.";
-        let offsets = comma_and_offsets(text);
-        assert_eq!(offsets.len(), 1);
-        let index = offsets[0];
-        assert_eq!(&text[index..index + ", and ".len()], ", and ");
     }
 }
 

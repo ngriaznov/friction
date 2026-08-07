@@ -91,19 +91,6 @@ low = 0.0
 high = 1.8382
 median = 0.0
 
-# `comma_and` was measured the same way. The feature counts literal
-# ", and " joints (T8 then licenses only those splicing two independent
-# clauses); 47 of the 58 human docs use it, the median document 2.5381
-# per 1000 prose words, and the 90th percentile is 8.4615 (max observed:
-# 18.1219). A wide, healthy human band: the one-idea-per-sentence tell is
-# a rate excess (1.67x corpus-wide), never a banned construction, so only
-# a document confidently above 8.4615 arms the splitter and it stops at
-# the band edge like every other feature.
-[features.comma_and]
-low = 0.0
-high = 8.4615
-median = 2.5381
-
 # `past_progressive` was measured the same way, and the population is
 # near-degenerate the same way em_dash's is: 57 of the 58 human docs
 # contain zero adjacent was/were+VBG pairs at all; the one that doesn't

@@ -1,15 +1,14 @@
 //! `corpus-tool register-bands` — measures the per-document em-dash,
-//! semicolon, contrast-closer, comma-and, and past-progressive rates over
-//! the train-split human docs-genre population.
+//! semicolon, contrast-closer, and past-progressive rates over the
+//! train-split human docs-genre population.
 //!
 //! For hand-transcribing into
 //! `crates/friction-packs/packs/register-en-v1.toml`'s
 //! `[features.em_dash]`, `[features.semicolon]`, `[features.contrast_closer]`,
-//! `[features.comma_and]`, and `[features.past_progressive]`. Runs through
+//! and `[features.past_progressive]`. Runs through
 //! [`friction_edit::register::measure_em_dash_rate`]/
 //! [`friction_edit::register::measure_semicolon_rate`]/
 //! [`friction_edit::register::measure_contrast_closer_rate`]/
-//! [`friction_edit::register::measure_comma_and_rate`]/
 //! [`friction_edit::register::measure_past_progressive_rate`] — the same
 //! sentence-context build, tagging, parsing, and counting path
 //! `friction-edit`'s register pass itself uses at runtime — so a
@@ -39,7 +38,6 @@ struct DocRates {
     em_dash: f64,
     semicolon: f64,
     contrast_closer: f64,
-    comma_and: f64,
     past_progressive: f64,
 }
 
@@ -49,8 +47,8 @@ struct DocRates {
 /// each record's path via [`relpath`] — some live under
 /// `corpus/quarantine/docs/` rather than `corpus/human/docs/`), measures
 /// each document's per-1000-prose-word em-dash, semicolon,
-/// contrast-closer, comma-and, and past-progressive rates, and prints
-/// each document's five rates plus every population's 10th/50th/90th
+/// contrast-closer, and past-progressive rates, and prints each
+/// document's four rates plus every population's 10th/50th/90th
 /// percentile (nearest-rank, the same method `register-en-v1.toml`'s
 /// existing bands were measured with).
 ///
@@ -90,15 +88,12 @@ pub fn run(args: &Args) -> anyhow::Result<()> {
             &text, &tagger, &parser, &segmenter,
         )
         .map_err(|e| anyhow::anyhow!("register-bands: {}: {e}", record.id))?;
-        let comma_and =
-            friction_edit::register::measure_comma_and_rate(&text, &tagger, &parser, &segmenter)
-                .map_err(|e| anyhow::anyhow!("register-bands: {}: {e}", record.id))?;
         let past_progressive = friction_edit::register::measure_past_progressive_rate(
             &text, &tagger, &parser, &segmenter,
         )
         .map_err(|e| anyhow::anyhow!("register-bands: {}: {e}", record.id))?;
         println!(
-            "{em_dash:>10.4}  {semicolon:>10.4}  {contrast_closer:>10.4}  {comma_and:>10.4}  \
+            "{em_dash:>10.4}  {semicolon:>10.4}  {contrast_closer:>10.4}  \
              {past_progressive:>10.4}  {}",
             record.id
         );
@@ -106,7 +101,6 @@ pub fn run(args: &Args) -> anyhow::Result<()> {
             em_dash,
             semicolon,
             contrast_closer,
-            comma_and,
             past_progressive,
         });
     }
@@ -131,10 +125,6 @@ pub fn run(args: &Args) -> anyhow::Result<()> {
             .iter()
             .map(|d| d.contrast_closer)
             .collect::<Vec<_>>(),
-    );
-    report_feature(
-        "comma_and",
-        measured.iter().map(|d| d.comma_and).collect::<Vec<_>>(),
     );
     report_feature(
         "past_progressive",
