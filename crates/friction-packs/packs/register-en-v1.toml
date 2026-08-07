@@ -86,6 +86,20 @@ median = 0.0
 # no transducer, because deleting the negative half of a contrast can
 # delete real instructional content ("use A rather than B"); an
 # above-band document gets one held finding per instance instead.
+#
+# A tail repair WAS built and refuted on corpus review (branch history:
+# T10, reverted): sentence-final ", not <NP>." and "rather than <tail>."
+# measure 8.4x and 10.6x machine-tilted with human rates under 100/M,
+# but reading the actual deletions showed the shape is meaning-bearing
+# in this register - "the problem is grip or tension, not a blockage"
+# is a differential diagnosis, "close to the controller, not at the
+# probe end" is placement instruction, "rather than microSD cards" names
+# a rejected alternative the next sentence refers back to. Machine-tilted
+# is not meaning-free: machines both overuse the rhetorical closer and
+# write informative contrasts in the same byte shape, and no tag-level
+# license separated them. The maxim variant the tell describes lives in
+# reflective chat prose, a register this pack does not target. Detection
+# with "state one side" advice is the honest ceiling here.
 [features.contrast_closer]
 low = 0.0
 high = 1.8382
