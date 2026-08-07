@@ -188,6 +188,60 @@ pair (the sub.vacuous notes' follow-up arc) to adjudicate a guarded \
 frame rule; until then friction marks the span and names nothing.
 """
 
+[[deletion_spans]]
+id = "span.this_ensures"
+pattern = '(?i)\bthis ensures\b'
+anchor = "mid_sentence"
+repair = "diagnostic_only"
+source = "curated-seed"
+notes = """
+Anaphoric shell demonstrative: "this" points back at whatever the \
+previous clause said instead of naming it, then decorates the unnamed \
+referent with "ensures" - a verb of guarantee the sentence never earns, \
+because nothing in it identifies the mechanism doing the ensuring. \
+Specimens (machine side): "the cache store needs to be updated \
+accordingly. This ensures that cached results are not returned for \
+queries that rely on outdated data." and "select the model of your \
+handheld transceiver from the dropdown menu under \"Device.\" This \
+ensures compatibility with the correct firmware settings." - in both, \
+"this" stands in for the prior sentence's whole action, and "ensures" \
+asserts a guarantee no evidence in the sentence supports. Measured \
+fresh against this pack's own committed corpora (machine = corpus/llm + \
+corpus/review/machine, 404,607 words; human = corpus/human, 306,754 \
+words), case-insensitive whole-corpus grep: "this ensures" count_M=19 \
+(46.96/M), count_H=1 (3.26/M), ratio 14.4x - clears the admission bar \
+(count_M >= 10, ratio >= 4x) by a wide margin, consistent with the \
+14.4x figure this same construction produced in the self-analysis of \
+machine prose tells that first flagged the anaphoric-shell-demonstrative \
+pattern. The single human occurrence is not a counterexample of the \
+same shape: "Vue automatically binds the `this` value for `methods` so \
+that it always refers to the component instance. This ensures that a \
+method retains the correct `this` value..." names its referent in the \
+prior sentence explicitly (the `this`-binding just described) rather \
+than gesturing at an unspecified antecedent.
+
+Diagnostic-only, deliberately, the same way span.positive_contrast is: \
+naming the referent a bare "this" is standing in for is human work - it \
+requires reading back through prior sentences, picking out which claim \
+"ensures" is meant to attach to, and rewriting the sentence around a \
+named subject. No mechanical deletion or substitution can do that; \
+friction marks the span and edits nothing.
+
+Sibling phrases measured on the same two admission criteria and \
+rejected: "this allows" count_M=24 (59.31/M), count_H=20 (65.19/M), \
+ratio 0.90x - fails the ratio gate, human-favored if anything. "this \
+means" count_M=41 (101.33/M), count_H=46 (149.95/M), ratio 0.67x - \
+fails the ratio gate, human-favored. "this approach" count_M=26 \
+(64.25/M), count_H=9 (29.33/M), ratio 2.19x - fails the ratio gate \
+(machine-tilted but well under 4x). "this makes it" count_M=7 (17.30/M), \
+count_H=5 (16.29/M) - fails the count gate (< 10 machine). "this \
+provides" count_M=3 (7.41/M), count_H=4 (13.03/M) - fails the count \
+gate. "this enables" count_M=0 (0/M), count_H=2 (6.51/M) - fails the \
+count gate, and is human-favored on what little signal exists. Only \
+"this ensures" clears both bars; the rest of the anaphoric-"this" family \
+is left unadmitted rather than curated past its own measurement.
+"""
+
 [[substitution_pairs]]
 id = "sub.crucial_for"
 pattern = '(?i)\bcrucial for\b'
