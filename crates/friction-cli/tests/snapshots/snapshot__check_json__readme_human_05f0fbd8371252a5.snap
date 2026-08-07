@@ -4,7 +4,6 @@ expression: stdout
 ---
 {
   "genre": "readme",
-  "family": "qwen",
   "metrics": [
     {
       "name": "sentence_length_mean",
