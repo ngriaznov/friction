@@ -73,7 +73,7 @@ pub use span::{Channel, DmsMachineReport, DmsReport, DocumentReport, MatchScore,
 use friction_core::Document;
 use friction_nlp::{Segmenter, Tagger};
 use friction_packs::{
-    DmsIndexView, HumanEvidencePack, InventoryPack, JargonAttestPack, JargonPack, ModelFamily,
+    DmsIndexView, HumanEvidencePack, InventoryPack, JargonAttestPack, JargonPack,
 };
 
 use crate::token::ScopedUnit;

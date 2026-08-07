@@ -55,7 +55,9 @@ Every candidate passes hard gates: meaning preserved, clauses complete, code
 spans, links, numbers, and quotes untouched, near-no-op on human text. When a
 gate says no, friction reports instead of rewriting, and seven detection
 channels only ever report. [docs/OPERATIONS.md](docs/OPERATIONS.md) covers
-each operation, gate, and channel in depth.
+each operation, gate, and channel in depth;
+[docs/EXTENDING.md](docs/EXTENDING.md) maps where new rules, features,
+metrics, and transducers go and the verification each one owes.
 
 ## Install
 
