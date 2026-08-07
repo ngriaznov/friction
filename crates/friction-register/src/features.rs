@@ -113,6 +113,39 @@ impl RegisterCounts {
     }
 }
 
+/// The four [`RegisterCounts`] fields `friction-edit`'s register pass
+/// actually reads (`count_features` in `friction-edit/src/register.rs`).
+///
+/// [`RegisterCounts::count`] runs all nineteen detectors -- several
+/// walking the parse tree -- every sentence regardless of which fields a
+/// caller keeps; this counts only the four, so the fifteen unused
+/// detectors are never run at all.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+pub struct CoreCounts {
+    pub nominalization: usize,
+    pub agentless_passive: usize,
+    pub em_dashes: usize,
+    pub semicolons: usize,
+}
+
+impl CoreCounts {
+    /// Counts exactly the four fields above.
+    ///
+    /// Calls the same detector functions this module exposes
+    /// individually and takes their lengths, so counting and "which
+    /// token" can't quietly disagree -- the same property
+    /// [`RegisterCounts::count`] documents for its own, full set.
+    #[must_use]
+    pub fn count(text: &str, tokens: &[TaggedToken], parse: &SentenceParse) -> Self {
+        Self {
+            nominalization: nominalizations(text, tokens, parse).len(),
+            agentless_passive: agentless_passives(text, tokens, parse).len(),
+            em_dashes: em_dashes(text).len(),
+            semicolons: semicolons(text).len(),
+        }
+    }
+}
+
 // Coarse part-of-speech reconstruction; see the module doc for why.
 
 /// A coarse part-of-speech, reconstructed from a Penn tag and, where

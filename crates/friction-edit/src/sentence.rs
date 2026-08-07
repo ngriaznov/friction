@@ -801,8 +801,8 @@ fn run_substitution(
     ctx: &EditContext<'_>,
     original: &OriginalState,
 ) {
+    let mut working = splicer.working_text();
     for pair in ctx.inventory.substitution_pairs() {
-        let working = splicer.working_text();
         if !pair.pattern.is_match(&working) {
             continue;
         }
@@ -844,6 +844,9 @@ fn run_substitution(
                 Tier::Suggest,
             ));
         }
+        if ranges.is_empty() {
+            continue;
+        }
         for range in ranges.into_iter().rev() {
             let mut replacement = pair.replacement.to_string();
             if opens_line_or_sentence(&working, range.start)
@@ -856,6 +859,10 @@ fn run_substitution(
             }
             splicer.apply(range, &replacement, RULE_SUB, Tier::Fix);
         }
+        // At least one non-quoted match just applied (the loop above is
+        // only reached with a non-empty `ranges`): the chain changed, so
+        // the next pattern in this same pass must see the updated text.
+        working = splicer.working_text();
     }
 }
 
@@ -949,8 +956,8 @@ fn run_deletion(
     ctx: &EditContext<'_>,
     original: &OriginalState,
 ) {
+    let mut working = splicer.working_text();
     for span in ctx.inventory.deletion_spans() {
-        let working = splicer.working_text();
         let Some(m) = span.pattern.find(&working) else {
             continue;
         };
@@ -990,6 +997,9 @@ fn run_deletion(
         match outcome {
             DeletionGateOutcome::Allowed => {
                 splicer.apply(m.range(), "", RULE_SPAN, Tier::Fix);
+                // The chain changed: the next span's pattern must match
+                // against the post-deletion text.
+                working = splicer.working_text();
             }
             DeletionGateOutcome::SeamNotAttested
             | DeletionGateOutcome::SkeletonNotAttested
@@ -1619,13 +1629,8 @@ fn check_rewrite_gates(
         .filter(|t| t.token.range.start >= core_start && t.token.range.end <= core_end)
         .count();
     let hi = lo + inside + 1;
-    let mut coarse: Vec<String> = Vec::with_capacity(candidate_tags.len() + 2);
-    coarse.push("<S>".to_string());
-    for t in &candidate_tags {
-        coarse.push(friction_nlp::coarse_tag(&t.pos).to_string());
-    }
-    coarse.push("<E>".to_string());
-    let coarse_refs: Vec<&str> = coarse.iter().map(String::as_str).collect();
+    let coarse = gates::coarse_tag_window(&candidate_tags);
+    let coarse_refs: Vec<&str> = coarse.iter().map(AsRef::as_ref).collect();
     if !attestation.skeleton().window_attested(
         &coarse_refs,
         lo,

@@ -99,6 +99,23 @@ pub enum DeletionGateOutcome {
     ClauseIncomplete,
 }
 
+/// The `<S>`-prefixed, `<E>`-suffixed coarse-tag window over `tags`, for
+/// [`friction_packs::AttestationPack`]'s `skeleton().window_attested`.
+///
+/// Pushes [`coarse_tag`]'s own `Box<str>` straight in — one allocation
+/// per token, not a second `String` copy on top of it. Shared by the
+/// deletion gate below and the frame-rewrite skeleton check
+/// (`sentence.rs`), which each build the identical wrapped window before
+/// converting it to the `&[&str]` `window_attested` takes.
+#[must_use]
+pub(crate) fn coarse_tag_window(tags: &[TaggedToken]) -> Vec<Box<str>> {
+    let mut window: Vec<Box<str>> = Vec::with_capacity(tags.len() + 2);
+    window.push(Box::from("<S>"));
+    window.extend(tags.iter().map(|t| coarse_tag(&t.pos)));
+    window.push(Box::from("<E>"));
+    window
+}
+
 /// Checks every gate required for deleting
 /// `match_range` (a byte range into `working_text`) with no replacement.
 ///
@@ -160,13 +177,8 @@ pub fn check_deletion_gates(
         .count();
     let hi = lo + 1;
 
-    let mut coarse: Vec<String> = Vec::with_capacity(ct_tags.len() + 2);
-    coarse.push("<S>".to_string());
-    for t in &ct_tags {
-        coarse.push(coarse_tag(&t.pos).to_string());
-    }
-    coarse.push("<E>".to_string());
-    let coarse_refs: Vec<&str> = coarse.iter().map(String::as_str).collect();
+    let coarse = coarse_tag_window(&ct_tags);
+    let coarse_refs: Vec<&str> = coarse.iter().map(AsRef::as_ref).collect();
 
     // Deliberately unshifted: `lo`/`hi` are indices into the UNWRAPPED
     // token list, reused unshifted as indices into the `<S>`-prefixed

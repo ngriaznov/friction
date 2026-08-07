@@ -1,8 +1,8 @@
 //! Rewrite transducers for the register pass.
 //!
 //! Each proposes a candidate edit predicting an exact per-feature count
-//! delta, with a confidence and the byte range it would replace. Two of
-//! a possible five register transducers are implemented — the cut is
+//! delta and the byte range it would replace. Two of a possible five
+//! register transducers are implemented — the cut is
 //! parser accuracy, not effort:
 //!
 //! [`t4_activize_to_passive`]/[`t5_nominalization`] depend on
@@ -47,7 +47,7 @@ use friction_nlp::{
 /// Deliberately separate from `friction_core::Patch` despite the same
 /// shape: a `Patch` is a decision already applied, a `Candidate` is
 /// unselected — merging them would make "chosen yet" untyped.
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Candidate {
     /// Which transducer produced this candidate.
     pub kind: CandidateKind,
@@ -59,11 +59,6 @@ pub struct Candidate {
     /// by name. A [`BTreeMap`], not `HashMap` — alphabetical-by-name is
     /// a fixed, meaningful order, which this workspace always prefers.
     pub delta: BTreeMap<&'static str, i32>,
-    /// Hand-set trust in this rewrite class, `[0.0, 1.0]`. A plain
-    /// `f32`, not [`friction_nlp::Confidence`]: that type means a
-    /// parse edge's margin over its alternative, not a fixed
-    /// per-transducer level.
-    pub confidence: f32,
 }
 
 impl Candidate {
@@ -705,7 +700,6 @@ pub fn t4_activize_to_passive(
             range: tokens[subj_first].token.range.start..tokens[obj_last].token.range.end,
             replacement: replacement.into_boxed_str(),
             delta,
-            confidence: 0.8,
         });
     }
 
@@ -837,7 +831,6 @@ pub fn t5_nominalization(
             range: tokens[det.token].token.range.start..tokens[arg_last].token.range.end,
             replacement: replacement.into_boxed_str(),
             delta,
-            confidence: 0.85,
         });
     }
 
@@ -982,7 +975,6 @@ fn paired_parenthetical_candidate(
         range,
         replacement: replacement.into_boxed_str(),
         delta,
-        confidence: 0.9,
     })
 }
 
@@ -1002,7 +994,6 @@ fn lead_in_candidate(source: &str, tokens: &[TaggedToken], dash: usize) -> Optio
         range,
         replacement: Box::from(": "),
         delta,
-        confidence: 0.85,
     })
 }
 
@@ -1033,7 +1024,6 @@ fn fragment_candidate(source: &str, tokens: &[TaggedToken], dash: usize) -> Opti
         range,
         replacement: Box::from(replacement),
         delta,
-        confidence: 0.85,
     })
 }
 
@@ -1087,7 +1077,6 @@ fn independent_clause_candidate(
         range,
         replacement: replacement.into_boxed_str(),
         delta,
-        confidence: 0.8,
     })
 }
 
@@ -1249,7 +1238,6 @@ fn semicolon_candidate(
         range,
         replacement: replacement.into_boxed_str(),
         delta,
-        confidence: 0.8,
     })
 }
 
@@ -1430,7 +1418,6 @@ fn past_progressive_candidate(
         range: tokens[aux].token.range.start..tokens[verb].token.range.end,
         replacement: replacement.into_boxed_str(),
         delta,
-        confidence: 0.8,
     })
 }
 

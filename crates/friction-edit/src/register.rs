@@ -48,7 +48,7 @@ use friction_match::token::{AnalysisTokenKind, prose_scope, tokenize_str};
 use friction_nlp::{DepParser, FINITE_VERB_TAGS, Segmenter, SentenceParse, TaggedToken, Tagger};
 use friction_packs::{RegisterBand, RegisterPack};
 use friction_register::features::{
-    RegisterCounts, contrast_closers, em_dashes, nominalizations, past_progressives, semicolons,
+    CoreCounts, contrast_closers, em_dashes, nominalizations, past_progressives, semicolons,
 };
 use friction_register::transduce::{
     self, CandidateKind, PERMITTED_FUNCTION_WORDS, past, past_participle, third_sg,
@@ -281,7 +281,8 @@ fn build_sentence_ctx(
 /// The document-absolute byte range of every remaining instance of a
 /// Decrease feature, in document order.
 ///
-/// Calls the same detector functions [`RegisterCounts::count`] takes its
+/// Calls the same detector functions
+/// [`friction_register::features::RegisterCounts::count`] takes its
 /// lengths from, so the listed positions and the counted rate can't
 /// quietly disagree. Instances overlapping an `accepted` rewrite are
 /// dropped — those bytes are about to change, so pointing a finding at
@@ -472,7 +473,7 @@ fn count_features(sentences: &[SentenceCtx], source: &str) -> FeatureCounts {
     let mut counts = FeatureCounts::default();
     for ctx in sentences {
         let text = &source[ctx.range.clone()];
-        let register_counts = RegisterCounts::count(text, &ctx.tokens, &ctx.parse);
+        let register_counts = CoreCounts::count(text, &ctx.tokens, &ctx.parse);
         counts.nominalization += i64::try_from(register_counts.nominalization).unwrap_or(i64::MAX);
         counts.agentless_passive +=
             i64::try_from(register_counts.agentless_passive).unwrap_or(i64::MAX);
