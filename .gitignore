@@ -36,3 +36,6 @@ __pycache__/
 # Generated npm platform packages (built in CI by npm/build.mjs)
 npm-dist/
 npm/**/*.tgz
+
+# Local research staging (external repos, corpora experiments) - never tracked
+/.research/
