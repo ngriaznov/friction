@@ -112,7 +112,13 @@ fn is_list_coordinator(token: &TaggedToken, source: &str) -> bool {
 /// sentence, walking prose units and then sentences in source (document)
 /// order — the same order every metric below accumulates in, so float
 /// accumulation is order-stable across runs.
-fn tagged_sentences(document: &Document, tagger: &dyn Tagger) -> Vec<Vec<TaggedToken>> {
+///
+/// `pub` rather than private, though this module isn't re-exported from
+/// `lib.rs`: `compute::compute_segmented` tags the document once and
+/// threads the result into both [`triad_rate_from_tagged`] and
+/// [`participial_closer_rate_from_tagged`], instead of each `pub fn` here
+/// re-running this perceptron-tagging pass on its own.
+pub fn tagged_sentences(document: &Document, tagger: &dyn Tagger) -> Vec<Vec<TaggedToken>> {
     document
         .prose()
         .iter()
@@ -246,6 +252,27 @@ fn count_triads(tokens: &[TaggedToken], source: &str) -> usize {
     count
 }
 
+/// [`triad_rate`]'s computation over an already-tagged `sentences`: the
+/// total number of matches found by [`count_triads`] across every one,
+/// divided by the sentence count. `0.0` for no sentences.
+///
+/// Split out so [`crate::compute::compute_segmented`] can tag `document`
+/// once and share the result with
+/// [`participial_closer_rate_from_tagged`], instead of each of this
+/// module's `pub fn`s re-tagging the same document on its own.
+pub fn triad_rate_from_tagged(sentences: &[Vec<TaggedToken>], source: &str) -> f64 {
+    if sentences.is_empty() {
+        return 0.0;
+    }
+    let mut triads = 0usize;
+    for tokens in sentences {
+        triads += count_triads(tokens, source);
+    }
+    #[allow(clippy::cast_precision_loss)]
+    let rate = triads as f64 / sentences.len() as f64;
+    rate
+}
+
 /// Rate of triad coordination patterns (`"X, Y, and Z"`) per sentence.
 ///
 /// The total number of matches found by [`count_triads`] across every
@@ -255,16 +282,7 @@ fn count_triads(tokens: &[TaggedToken], source: &str) -> usize {
 pub fn triad_rate(document: &Document, tagger: &dyn Tagger) -> f64 {
     let source = document.source();
     let sentences = tagged_sentences(document, tagger);
-    if sentences.is_empty() {
-        return 0.0;
-    }
-    let mut triads = 0usize;
-    for tokens in &sentences {
-        triads += count_triads(tokens, source);
-    }
-    #[allow(clippy::cast_precision_loss)]
-    let rate = triads as f64 / sentences.len() as f64;
-    rate
+    triad_rate_from_tagged(&sentences, source)
 }
 
 // ---------------------------------------------------------------------
@@ -302,13 +320,13 @@ fn is_participial_closer(tokens: &[TaggedToken], source: &str) -> bool {
     participle < end && tokens[participle].pos.as_str() == "VBG"
 }
 
-/// Rate of participial-closer sentences (see [`is_participial_closer`]) per
-/// sentence: the fraction of `document`'s sentences that end this way.
-/// `0.0` for a document with no sentences.
-#[must_use]
-pub fn participial_closer_rate(document: &Document, tagger: &dyn Tagger) -> f64 {
-    let source = document.source();
-    let sentences = tagged_sentences(document, tagger);
+/// [`participial_closer_rate`]'s computation over an already-tagged
+/// `sentences`: the fraction that end in a participial closer (see
+/// [`is_participial_closer`]). `0.0` for no sentences.
+///
+/// See [`triad_rate_from_tagged`] for why this is split out from the `pub
+/// fn`.
+pub fn participial_closer_rate_from_tagged(sentences: &[Vec<TaggedToken>], source: &str) -> f64 {
     if sentences.is_empty() {
         return 0.0;
     }
@@ -319,6 +337,16 @@ pub fn participial_closer_rate(document: &Document, tagger: &dyn Tagger) -> f64 
     #[allow(clippy::cast_precision_loss)]
     let rate = hits as f64 / sentences.len() as f64;
     rate
+}
+
+/// Rate of participial-closer sentences (see [`is_participial_closer`]) per
+/// sentence: the fraction of `document`'s sentences that end this way.
+/// `0.0` for a document with no sentences.
+#[must_use]
+pub fn participial_closer_rate(document: &Document, tagger: &dyn Tagger) -> f64 {
+    let source = document.source();
+    let sentences = tagged_sentences(document, tagger);
+    participial_closer_rate_from_tagged(&sentences, source)
 }
 
 // ---------------------------------------------------------------------

@@ -21,7 +21,6 @@ mod rhythm;
 
 pub use rhythm::{
     RhythmStats, em_dash_density, paragraph_shape, semicolon_density, sentence_length_by_document,
-    sentence_length_by_paragraph,
 };
 
 // Structural/mined-phrase/opener signal metrics.

@@ -124,37 +124,14 @@ pub fn sentence_length_by_document(document: &Document) -> RhythmStats {
     RhythmStats::from_observations(&document_sentence_lengths(document))
 }
 
-/// Sentence length (in tokens) [`RhythmStats`] computed separately for
-/// each paragraph in `document`, in source order.
-///
-/// A paragraph is one [`friction_core::ProseUnit`]. Paragraphs with no
-/// sentences (e.g. a heading) get no entry: an all-zero entry would
-/// misrepresent a zero-sentence paragraph as one with a single
-/// zero-token sentence.
-#[must_use]
-pub fn sentence_length_by_paragraph(document: &Document) -> Vec<RhythmStats> {
-    document
-        .prose()
-        .iter()
-        .filter(|unit| !unit.sentences.is_empty())
-        .map(|unit| {
-            let lengths: Vec<f64> = unit
-                .sentences
-                .iter()
-                .map(|sentence| {
-                    #[allow(clippy::cast_precision_loss)]
-                    let len = token_count(sentence_text(document, sentence)) as f64;
-                    len
-                })
-                .collect();
-            RhythmStats::from_observations(&lengths)
-        })
-        .collect()
-}
-
 /// Paragraph-shape [`RhythmStats`] (mean/cv of sentences-per-paragraph)
-/// over paragraphs in `document` with at least one sentence (see
-/// [`sentence_length_by_paragraph`] for why), in source order.
+/// over paragraphs in `document` with at least one sentence, in source
+/// order.
+///
+/// A paragraph is one [`friction_core::ProseUnit`]; one with no sentences
+/// (e.g. a heading) is excluded rather than counted as zero — an all-zero
+/// entry would misrepresent a zero-sentence paragraph as one with a
+/// single zero-token sentence.
 ///
 /// `stddev` is reported like any [`RhythmStats`], but the metric vector
 /// only surfaces `mean` and `cv` here.
@@ -302,7 +279,7 @@ mod tests {
 
     use super::{
         RhythmStats, em_dash_density, paragraph_shape, semicolon_density,
-        sentence_length_by_document, sentence_length_by_paragraph,
+        sentence_length_by_document,
     };
 
     /// Builds a one-block, one-paragraph document from `sentences` (joined
@@ -372,51 +349,6 @@ mod tests {
         assert!((stats.mean - expected_mean).abs() < EPSILON);
         assert!((stats.stddev - expected_stddev).abs() < EPSILON);
         assert!((stats.cv - expected_cv).abs() < EPSILON);
-    }
-
-    /// Two paragraphs: first has sentences 3, 10 (`mean = 6.5`, `stddev =
-    /// 3.5` exactly, `cv = 7/13`); second has one sentence of length 3
-    /// (`stddev = 0`, `cv = 0`, single-observation convention).
-    // Exact-zero guarantee, not an approximation.
-    #[allow(clippy::float_cmp)]
-    #[test]
-    fn sentence_length_by_paragraph_matches_hand_computation() {
-        let s1 = "The cat sat.";
-        let s2 = "It was a very old cat, and it liked naps.";
-        let s3 = "Naps are great.";
-        let para1 = format!("{s1} {s2}");
-        let para2 = s3.to_string();
-        let source = format!("{para1}\n\n{para2}");
-
-        let s1_range = 0..s1.len();
-        let s2_start = s1_range.end + 1;
-        let s2_range = s2_start..s2_start + s2.len();
-        let para1_range = 0..para1.len();
-
-        let para2_start = para1.len() + 2;
-        let s3_range = para2_start..para2_start + s3.len();
-        let para2_range = para2_start..para2_start + para2.len();
-
-        let doc = doc_multi_paragraph(
-            &source,
-            &[
-                (para1_range, &[s1_range, s2_range]),
-                (para2_range, &[s3_range]),
-            ],
-        );
-        let stats = sentence_length_by_paragraph(&doc);
-
-        assert_eq!(stats.len(), 2);
-
-        assert_eq!(stats[0].n, 2);
-        assert!((stats[0].mean - 6.5).abs() < EPSILON);
-        assert!((stats[0].stddev - 3.5).abs() < EPSILON);
-        assert!((stats[0].cv - 7.0 / 13.0).abs() < EPSILON);
-
-        assert_eq!(stats[1].n, 1);
-        assert!((stats[1].mean - 3.0).abs() < EPSILON);
-        assert_eq!(stats[1].stddev, 0.0);
-        assert_eq!(stats[1].cv, 0.0);
     }
 
     /// Three paragraphs with 2, 4, and 3 sentences: `mean = 3`;
@@ -523,7 +455,6 @@ mod tests {
                 n: 0,
             }
         );
-        assert!(sentence_length_by_paragraph(&doc).is_empty());
 
         let shape_stats = paragraph_shape(&doc);
         assert_eq!(shape_stats.n, 0);

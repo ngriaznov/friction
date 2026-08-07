@@ -18,10 +18,14 @@ use crate::rhythm::{
     em_dash_density, paragraph_shape, semicolon_density, sentence_length_by_document,
 };
 use crate::signals::{
-    bold_span_density, heading_density, human_favored_phrase_rate, list_item_density,
-    llm_favored_phrase_rate, sentence_opener_repeat_rate, top_opener_concentration,
+    bold_span_density_with_total, heading_density_with_total, human_favored_phrase_rate_with_total,
+    list_item_density_with_total, llm_favored_phrase_rate_with_total, sentence_opener_repeat_rate,
+    top_opener_concentration, total_word_tokens,
 };
-use crate::symmetry::{bullet_parallelism, participial_closer_rate, triad_rate};
+use crate::symmetry::{
+    bullet_parallelism, participial_closer_rate_from_tagged, tagged_sentences,
+    triad_rate_from_tagged,
+};
 
 /// Computes the full 21-field [`MetricVector`] for `document`, document-wide.
 ///
@@ -52,8 +56,7 @@ pub fn compute(
 ///
 /// A paragraph is a [`friction_core::ProseUnit`] that segments to at least
 /// one sentence; one with none (e.g. a heading) contributes no entry — same
-/// convention as [`crate::rhythm::sentence_length_by_paragraph`] and
-/// [`crate::rhythm::paragraph_shape`].
+/// convention as [`crate::rhythm::paragraph_shape`].
 ///
 /// Each vector is [`compute_segmented`] run on a single-paragraph
 /// sub-document, so every family's document-wide definition also serves,
@@ -87,29 +90,41 @@ pub fn compute_by_paragraph(
 /// metric family's document-level function over an already-segmented
 /// `document` and assembles the result into one [`MetricVector`]. Each
 /// field below is written by exactly one family's call.
+///
+/// `triad_rate`/`participial_closer_rate` and the five `_with_total`
+/// density calls each depend on a full pass over `document` (a
+/// perceptron-tagging pass, a word-tokenization pass) that's identical
+/// across every metric that needs it. Rather than let each of those seven
+/// `pub fn`s in [`crate::symmetry`]/[`crate::signals`] repeat its own pass,
+/// this function runs it once — [`tagged_sentences`] and
+/// [`total_word_tokens`] — and threads the shared result into the
+/// `_from_tagged`/`_with_total` variant of each.
 fn compute_segmented(document: &Document, tagger: &dyn Tagger) -> MetricVector {
     let sentence_stats = sentence_length_by_document(document);
     let shape_stats = paragraph_shape(document);
+    let source = document.source();
+    let pos_tagged_sentences = tagged_sentences(document, tagger);
+    let total_tokens = total_word_tokens(document);
     MetricVector {
         sentence_length_mean: sentence_stats.mean,
         sentence_length_stddev: sentence_stats.stddev,
         sentence_length_cv: sentence_stats.cv,
         discourse_marker_density: discourse_marker_density(document),
-        triad_rate: triad_rate(document, tagger),
+        triad_rate: triad_rate_from_tagged(&pos_tagged_sentences, source),
         contraction_ratio: contraction_ratio(document),
         bullet_parallelism: bullet_parallelism(document, tagger),
         paragraph_shape_mean: shape_stats.mean,
         paragraph_shape_cv: shape_stats.cv,
         em_dash_density: em_dash_density(document),
         semicolon_density: semicolon_density(document),
-        participial_closer_rate: participial_closer_rate(document, tagger),
+        participial_closer_rate: participial_closer_rate_from_tagged(&pos_tagged_sentences, source),
         not_just_but_rate: not_just_but_rate(document),
         ritual_marker_rate: ritual_marker_rate(document),
-        llm_favored_phrase_rate: llm_favored_phrase_rate(document),
-        human_favored_phrase_rate: human_favored_phrase_rate(document),
-        heading_density: heading_density(document),
-        list_item_density: list_item_density(document),
-        bold_span_density: bold_span_density(document),
+        llm_favored_phrase_rate: llm_favored_phrase_rate_with_total(document, total_tokens),
+        human_favored_phrase_rate: human_favored_phrase_rate_with_total(document, total_tokens),
+        heading_density: heading_density_with_total(document, total_tokens),
+        list_item_density: list_item_density_with_total(document, total_tokens),
+        bold_span_density: bold_span_density_with_total(document, total_tokens),
         sentence_opener_repeat_rate: sentence_opener_repeat_rate(document),
         top_opener_concentration: top_opener_concentration(document),
     }

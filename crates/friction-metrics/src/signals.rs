@@ -74,7 +74,13 @@ fn count_phrase_occurrences(tokens: &[String], phrase: &[String]) -> usize {
 
 /// Total word-token count across every sentence in `document` — the
 /// shared denominator for every "per 1000 tokens" density in this module.
-fn total_word_tokens(document: &Document) -> u64 {
+///
+/// `pub`, not private, though this module isn't re-exported from `lib.rs`:
+/// it's a full re-tokenization of `document`, so
+/// `compute::compute_segmented` calls this once and threads the result
+/// through the `_with_total` variant of every density metric below rather
+/// than letting each of the five `pub fn`s it calls recompute it.
+pub fn total_word_tokens(document: &Document) -> u64 {
     document
         .prose()
         .iter()
@@ -84,11 +90,9 @@ fn total_word_tokens(document: &Document) -> u64 {
         .sum()
 }
 
-/// `occurrences` scaled to a rate per 1000 word tokens in `document` (see
-/// [`total_word_tokens`]). `0.0` for a document with no word tokens, never
-/// `NaN`.
-fn density_per_1000_tokens(document: &Document, occurrences: u64) -> f64 {
-    let total = total_word_tokens(document);
+/// `occurrences` scaled to a rate per 1000 word tokens, given `total` (see
+/// [`total_word_tokens`]). `0.0` when `total` is `0`, never `NaN`.
+fn density_from_total(occurrences: u64, total: u64) -> f64 {
     if total == 0 {
         return 0.0;
     }
@@ -157,10 +161,16 @@ static HUMAN_FAVORED_PHRASES: LazyLock<Vec<Vec<String>>> = LazyLock::new(|| {
         .collect()
 });
 
-/// Total occurrences of every phrase in `phrases` in `document`, per
-/// sentence (matches never cross a sentence boundary, per
-/// [`crate::lexical::contraction_ratio`]), scaled per 1000 word tokens.
-fn phrase_rate(document: &Document, phrases: &[Vec<String>]) -> f64 {
+/// [`phrase_rate`]'s computation given a precomputed `total` (see
+/// [`total_word_tokens`]): total occurrences of every phrase in `phrases`
+/// in `document`, per sentence (matches never cross a sentence boundary,
+/// per [`crate::lexical::contraction_ratio`]), scaled per 1000 word
+/// tokens.
+///
+/// Split out so [`crate::compute::compute_segmented`] can tokenize
+/// `document` once and share the count with every other density metric in
+/// this module, instead of each `pub fn` re-tokenizing on its own.
+fn phrase_rate_with_total(document: &Document, phrases: &[Vec<String>], total: u64) -> f64 {
     let mut matches = 0u64;
     for unit in document.prose() {
         for sentence in &unit.sentences {
@@ -173,7 +183,13 @@ fn phrase_rate(document: &Document, phrases: &[Vec<String>]) -> f64 {
             }
         }
     }
-    density_per_1000_tokens(document, matches)
+    density_from_total(matches, total)
+}
+
+/// Total occurrences of every phrase in `phrases` in `document`, scaled per
+/// 1000 word tokens. See [`phrase_rate_with_total`] for the matching rule.
+fn phrase_rate(document: &Document, phrases: &[Vec<String>]) -> f64 {
+    phrase_rate_with_total(document, phrases, total_word_tokens(document))
 }
 
 /// Rate of llm-favored n-grams, per 1000 word tokens.
@@ -186,12 +202,24 @@ pub fn llm_favored_phrase_rate(document: &Document) -> f64 {
     phrase_rate(document, &LLM_FAVORED_PHRASES)
 }
 
+/// [`llm_favored_phrase_rate`] given a precomputed `total` (see
+/// [`total_word_tokens`]).
+pub fn llm_favored_phrase_rate_with_total(document: &Document, total: u64) -> f64 {
+    phrase_rate_with_total(document, &LLM_FAVORED_PHRASES, total)
+}
+
 /// Rate of human-favored n-grams (the pack's `human_favored` list), per
 /// 1000 word tokens. See [`llm_favored_phrase_rate`] for the matching
 /// rule.
 #[must_use]
 pub fn human_favored_phrase_rate(document: &Document) -> f64 {
     phrase_rate(document, &HUMAN_FAVORED_PHRASES)
+}
+
+/// [`human_favored_phrase_rate`] given a precomputed `total` (see
+/// [`total_word_tokens`]).
+pub fn human_favored_phrase_rate_with_total(document: &Document, total: u64) -> f64 {
+    phrase_rate_with_total(document, &HUMAN_FAVORED_PHRASES, total)
 }
 
 // ---------------------------------------------------------------------
@@ -209,14 +237,25 @@ const fn is_list_item(block: &Block) -> bool {
 }
 
 /// The count of `document.blocks()` entries matching `predicate`, scaled
-/// to a rate per 1000 word tokens (see [`density_per_1000_tokens`]).
-fn block_kind_density(document: &Document, predicate: fn(&Block) -> bool) -> f64 {
+/// to a rate per 1000 word tokens, given a precomputed `total` (see
+/// [`total_word_tokens`]).
+fn block_kind_density_with_total(
+    document: &Document,
+    predicate: fn(&Block) -> bool,
+    total: u64,
+) -> f64 {
     let count = document
         .blocks()
         .iter()
         .filter(|block| predicate(block))
         .count() as u64;
-    density_per_1000_tokens(document, count)
+    density_from_total(count, total)
+}
+
+/// The count of `document.blocks()` entries matching `predicate`, scaled
+/// to a rate per 1000 word tokens (see [`total_word_tokens`]).
+fn block_kind_density(document: &Document, predicate: fn(&Block) -> bool) -> f64 {
+    block_kind_density_with_total(document, predicate, total_word_tokens(document))
 }
 
 /// Heading-block density: [`friction_core::BlockKind::Heading`] blocks
@@ -226,12 +265,24 @@ pub fn heading_density(document: &Document) -> f64 {
     block_kind_density(document, is_heading)
 }
 
+/// [`heading_density`] given a precomputed `total` (see
+/// [`total_word_tokens`]).
+pub fn heading_density_with_total(document: &Document, total: u64) -> f64 {
+    block_kind_density_with_total(document, is_heading, total)
+}
+
 /// List-item-block density: [`friction_core::BlockKind::ListItem`] blocks
 /// in `document` — every list item, top-level or nested — per 1000 word
 /// tokens.
 #[must_use]
 pub fn list_item_density(document: &Document) -> f64 {
     block_kind_density(document, is_list_item)
+}
+
+/// [`list_item_density`] given a precomputed `total` (see
+/// [`total_word_tokens`]).
+pub fn list_item_density_with_total(document: &Document, total: u64) -> f64 {
+    block_kind_density_with_total(document, is_list_item, total)
 }
 
 /// Counts bold/strong-emphasis spans in `text` by counting delimiters
@@ -249,10 +300,9 @@ fn count_strong_delimiter_spans(text: &str) -> usize {
     usize::midpoint(double_star, double_underscore)
 }
 
-/// Bold/strong-emphasis span density: [`count_strong_delimiter_spans`]
-/// summed over every sentence in `document`, per 1000 word tokens.
-#[must_use]
-pub fn bold_span_density(document: &Document) -> f64 {
+/// [`bold_span_density`] given a precomputed `total` (see
+/// [`total_word_tokens`]).
+pub fn bold_span_density_with_total(document: &Document, total: u64) -> f64 {
     let mut spans = 0u64;
     for unit in document.prose() {
         for sentence in &unit.sentences {
@@ -262,7 +312,14 @@ pub fn bold_span_density(document: &Document) -> f64 {
             spans += count_strong_delimiter_spans(text) as u64;
         }
     }
-    density_per_1000_tokens(document, spans)
+    density_from_total(spans, total)
+}
+
+/// Bold/strong-emphasis span density: [`count_strong_delimiter_spans`]
+/// summed over every sentence in `document`, per 1000 word tokens.
+#[must_use]
+pub fn bold_span_density(document: &Document) -> f64 {
+    bold_span_density_with_total(document, total_word_tokens(document))
 }
 
 // ---------------------------------------------------------------------
