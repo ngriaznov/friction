@@ -128,6 +128,21 @@ and does not care about the host's glibc. Each archive ships a `.sha256`.
 The macOS binaries are **unsigned**, so Gatekeeper refuses the first run. Either
 `xattr -cr ./friction` or right-click → Open once.
 
+### Claude Code plugin
+
+[friction-skill](https://github.com/ngriaznov/friction-skill) teaches
+Claude Code to run friction on the technical prose it writes: apply the
+deterministic fixes, then revise the constructions friction can only
+detect, and converge before presenting.
+
+```
+/plugin marketplace add ngriaznov/friction-skill
+/plugin install friction-skill@friction-skill
+```
+
+The skill invokes `npx friction-cli@latest`, so it needs no local
+install and always runs the newest release.
+
 ### From source
 
 ```bash
