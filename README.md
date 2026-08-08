@@ -43,7 +43,7 @@ Seven operations edit text. Nothing else does.
    *"validates the config file"*.
 5. **Frame-gated `just`-deletion**: *"is provenance just metadata, or…?"* →
    *"is provenance metadata, or…?"*; the question itself is never touched.
-6. **Frame rewriting**: 913 corpus-adjudicated rules with measured rates:
+6. **Frame rewriting**: 920 corpus-adjudicated rules with measured rates:
    *"We utilized the cache"* → *"We used the cache"*, *"worth confirming"* →
    *"worth checking"*, *"Honestly,"* → deleted.
 7. **Register rephrasing**: homes punctuation and constructions the models
@@ -78,7 +78,7 @@ your lockfile:
     "lint:docs": "friction fix README.md | cmp -s - README.md"
   },
   "devDependencies": {
-    "friction-cli": "0.5.4"
+    "friction-cli": "0.6.0"
   }
 }
 ```
@@ -138,7 +138,7 @@ The binary lands at `target/release/friction`; MSRV is 1.96.
 
 Either way the result is self-contained: the part-of-speech tagger (1.4 MB),
 the dependency parser (6.5 MB), the matching-statistics automata
-(dms-index, 25.8 MB: per-family streams plus the pooled machine automaton
+(dms-index, 26.2 MB: per-family streams plus the pooled machine automaton
 the runtime scans), the compound-attestation filter (2.3 MB), and the
 evidence packs are all compiled into the binary, and nothing is downloaded
 at build or run time. Everything is fixed tables, so the runtime stays
@@ -147,8 +147,9 @@ accounts for the binary being around 59 MB (about a 27 MB compressed
 download).
 
 A typical README (3–7 KB) runs through `friction fix` in about 30 ms; a
-10 MB document takes about 2.4 s. <sub>Measured on an M-series MacBook
-Pro, process start included.</sub>
+10 MB document takes seconds — around 2.5 s for repetitive text, around
+6.5 s for a dense, varied corpus concatenation. <sub>Measured on an
+M-series MacBook Pro, process start included.</sub>
 
 ## Usage
 
