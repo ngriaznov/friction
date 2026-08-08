@@ -168,9 +168,9 @@ expression: stdout
     "sub": 1
   },
   "dms": {
-    "mean_machine": 1.4544883866917766,
+    "mean_machine": 1.4689265536723164,
     "mean_human": 32.56497175141243,
-    "differential": -31.110483364720654,
+    "differential": -31.096045197740114,
     "token_count": 1593
   }
 }

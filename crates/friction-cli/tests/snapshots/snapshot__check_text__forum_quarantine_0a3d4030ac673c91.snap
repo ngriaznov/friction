@@ -25,6 +25,6 @@ bold_span_density            10.4822  [0.0000, 10.4822]   in
 sentence_opener_repeat_rate   0.0351  [0.0000, 0.1111]    in    
 top_opener_concentration      0.1207  [0.0694, 0.1818]    in    
 
-dms: mean_machine=1.4559  mean_human=16.5403  differential=-15.0844  tokens=533
+dms: mean_machine=1.4653  mean_human=16.5403  differential=-15.0750  tokens=533
 
 tell counts (0 span(s) total):

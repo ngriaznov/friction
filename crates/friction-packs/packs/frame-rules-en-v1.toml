@@ -221,6 +221,18 @@ rules_ship = [
 { id="vsub.harness::vbg", p="VBG[harness_v] X", t="VBG[use] X", k="r", m_pm=44.3, h_pm=4.4, v="CONFIRMED", n="verb-tag split of vsub.harness" },
 { id="vsub.harness::vbn", p="VBN[harness_v] X", t="VBN[use] X", k="r", m_pm=44.3, h_pm=4.4, v="CONFIRMED", n="verb-tag split of vsub.harness" },
 { id="vsub.harness::vbd", p="VBD[harness_v] X", t="VBD[use] X", k="r", m_pm=44.3, h_pm=4.4, v="CONFIRMED", n="verb-tag split of vsub.harness" },
+# The surface_v family is detection-only (t=REVIEW): the verb splits between
+# transitive uses ("surfaced four latent bugs" -> revealed/turned up) and
+# intransitive ones ("surfaced as a significant contributor" -> emerged;
+# "never surfaced anywhere" -> showed up), so no single target is licensed.
+# The tag split keeps the noun (attack surface, surface area) out entirely.
+# Rates measured 2026-08-08 over machine 442k words (incl. the sonnet-5
+# round) vs human 307k: family 22 occ (~50/M) vs 1 occ (~3.3/M).
+{ id="vsub.surface::vb", p="VB[surface_v] X", t="\"REVIEW\"", k="r", m_pm=49.8, h_pm=3.3, v="CONFIRMED", n="verb-tag split like vsub.harness; transitivity-mixed, no licensed single target" },
+{ id="vsub.surface::vbz", p="VBZ[surface_v] X", t="\"REVIEW\"", k="r", m_pm=49.8, h_pm=3.3, v="CONFIRMED", n="verb-tag split like vsub.harness; transitivity-mixed, no licensed single target" },
+{ id="vsub.surface::vbg", p="VBG[surface_v] X", t="\"REVIEW\"", k="r", m_pm=49.8, h_pm=3.3, v="CONFIRMED", n="verb-tag split like vsub.harness; transitivity-mixed, no licensed single target" },
+{ id="vsub.surface::vbn", p="VBN[surface_v] X", t="\"REVIEW\"", k="r", m_pm=49.8, h_pm=3.3, v="CONFIRMED", n="verb-tag split like vsub.harness; transitivity-mixed, no licensed single target" },
+{ id="vsub.surface::vbd", p="VBD[surface_v] X", t="\"REVIEW\"", k="r", m_pm=49.8, h_pm=3.3, v="CONFIRMED", n="verb-tag split like vsub.harness; transitivity-mixed, no licensed single target" },
 { id="vsub.acquire", p="\"acquire\" X", t="\"get\" X", k="r", m_pm=73.8, h_pm=7.0, v="CONFIRMED" },
 { id="red.point-in-time", p="\"point in time\"", t="\"point\"", k="r", m_pm=29.5, h_pm=3.6, v="CONFIRMED" },
 { id="phg.by-and-large", p="\"by and large\"", t="=", k="g", m_pm=0.0, h_pm=0.3, v="guard-confirmed" },
@@ -3434,6 +3446,7 @@ insight_adj = ["actionable", "valuable", "meaningful", "rich", "key"]
 insight_n = ["insight", "takeaway", "learning"]
 intricate_adj = ["intricate", "nuanced", "multifaceted"]
 landscape_n = ["landscape", "realm", "world", "domain", "arena", "sphere"]
+surface_v = ["surface"]
 leverage_v = ["leverage", "harness", "utilize", "employ"]
 meticulous_adj = ["meticulous", "painstaking"]
 musthave_adj = ["must-have", "must-see", "must-visit", "must-read", "must-try"]

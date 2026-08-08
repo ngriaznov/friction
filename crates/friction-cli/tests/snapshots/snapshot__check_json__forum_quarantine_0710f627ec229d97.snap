@@ -168,9 +168,9 @@ expression: stdout
     "span": 1
   },
   "dms": {
-    "mean_machine": 1.5260586319218241,
+    "mean_machine": 1.5390879478827362,
     "mean_human": 13.817589576547231,
-    "differential": -12.291530944625407,
+    "differential": -12.278501628664495,
     "token_count": 614
   }
 }

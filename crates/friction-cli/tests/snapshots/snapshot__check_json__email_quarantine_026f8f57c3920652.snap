@@ -156,9 +156,9 @@ expression: stdout
   "spans": [],
   "tell_counts": {},
   "dms": {
-    "mean_machine": 1.2181818181818183,
+    "mean_machine": 1.2343434343434343,
     "mean_human": 6.915151515151515,
-    "differential": -5.696969696969697,
+    "differential": -5.680808080808081,
     "token_count": 990
   }
 }

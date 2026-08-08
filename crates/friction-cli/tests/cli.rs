@@ -36,13 +36,13 @@ const CLEAN: &str = "Run the scanner from the project root. Results stream in as
                       found, and nothing is deleted without confirmation.";
 
 /// Two paragraphs, copied from `corpus/llm/docs/57397cc503b594ba.md`, that
-/// the DMS channel reliably flags one span in each of (originally verified
-/// against the `claude` family stream with `friction check --family claude
-/// --genre docs`, back when the channel was still per-family; the pooled
-/// machine automaton the channel now scans against subsumes that stream,
-/// so the same two spans still fire — see this module's own `dms.machine`
-/// assertions): confirms `fix`'s paraphrase report actually fires on real
-/// corpus text, not only on synthetic unit-test spans. Zero-patch fixture
+/// the DMS channel reliably flags spans in (originally two spans against
+/// the per-family `claude` stream; four since the sonnet-5 corpus round
+/// enlarged the pooled machine stream — the count assertions below pin
+/// the current index's behavior and move only when the index is
+/// deliberately regenerated): confirms `fix`'s paraphrase report actually
+/// fires on real corpus text, not only on synthetic unit-test spans.
+/// Zero-patch fixture
 /// on purpose (`fix` applies no repair-engine edit to either paragraph) so
 /// the fixed output is byte-identical to the input, isolating the
 /// paraphrase report from the repair engine's own output.
@@ -320,7 +320,7 @@ fn fix_reports_paraphrase_count_without_changing_stdout() {
 
     let stderr = String::from_utf8(output.stderr).expect("valid UTF-8");
     assert!(
-        stderr.contains("paraphrase: 2 span(s) flagged for manual rewrite"),
+        stderr.contains("paraphrase: 4 span(s) flagged for manual rewrite"),
         "the paraphrase count line must be present, got: {stderr}"
     );
     assert!(
@@ -355,11 +355,11 @@ fn fix_json_paraphrase_array_is_byte_identical_across_runs() {
     let stderr = String::from_utf8(first.stderr).expect("valid UTF-8");
     let value: serde_json::Value = serde_json::from_str(&stderr)
         .expect("fix --format json stderr parses as one JSON document");
-    assert_eq!(value["paraphrase_count"], 2);
+    assert_eq!(value["paraphrase_count"], 4);
     let rows = value["paraphrase"]
         .as_array()
         .expect("paraphrase array is embedded in the summary document");
-    assert_eq!(rows.len(), 2);
+    assert_eq!(rows.len(), 4);
     for row in rows {
         assert_eq!(row["frame_id"], "dms.machine");
         assert!(row["score"].as_i64().unwrap() > 0);

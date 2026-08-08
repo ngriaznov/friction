@@ -893,11 +893,14 @@ mod tests {
         // (net +4) minus two stale report-only holds
         // (col.unwavering-commitment, col.seamless-integration) that
         // duplicated already-shipped adjective-deletion rewrites on
-        // the identical byte range — bumped only when rules are
-        // deliberately added or removed, never by regeneration.
-        assert_eq!(total, 3390, "regeneration moves rules, never loses them");
+        // the identical byte range, plus the five-way detection-only
+        // vsub.surface family (the verb "surface", transitivity-mixed,
+        // measured after the sonnet-5 corpus round) — bumped only when
+        // rules are deliberately added or removed, never by
+        // regeneration.
+        assert_eq!(total, 3395, "regeneration moves rules, never loses them");
         assert_eq!(set.rules_pilot.len(), 21, "pilot rules never move");
-        assert_eq!(set.classes.len(), 34);
+        assert_eq!(set.classes.len(), 35);
         assert_eq!(set.function_words.words.len(), 37);
         for (name, rules) in set.knowledge_buckets() {
             assert!(!rules.is_empty(), "bucket {name} must not be empty");
