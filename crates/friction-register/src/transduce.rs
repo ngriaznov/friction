@@ -1795,6 +1795,13 @@ fn t10_match_passive_complement(
     let comp = children_with_relation(parse, ensure_index, DepRelation::Ccomp)
         .next()?
         .token;
+    // The rewrite span runs from `ensure` to the participle, so the
+    // complement must sit after the verb in token order. A parse that
+    // attaches `Ccomp` leftward is wrong about this construction, and
+    // slicing across it would panic or mis-span — decline instead.
+    if comp <= ensure_index {
+        return None;
+    }
     if tokens[comp].pos.as_str() != "VBN" {
         return None;
     }
