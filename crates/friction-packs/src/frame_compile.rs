@@ -27,13 +27,27 @@
 //!    it); rejected.
 //! 6. **Anchor**: every compiling rule needs at least one obligatory
 //!    literal token to anchor the scan; rejected otherwise.
-//! 7. **Attestation** — every static content word a rewrite target can
+//! 7. **Realizability** — every rewrite target element must have a
+//!    structural prerequisite the rule's own pattern actually supplies:
+//!    a `TagCopy` needs a matching bare `Tag` element in the pattern to
+//!    copy from; a `Slot` copy needs that slot captured by the pattern;
+//!    an alternation copy needs a matching alternation group in the
+//!    pattern; a class realization needs a non-empty class. A target
+//!    that fails this is not a decline-on-ambiguity case at runtime, it
+//!    is authoring error: `friction-edit`'s `realize_template` would
+//!    return `None` for *every* match, forever, and the rule would ship,
+//!    match, and silently never edit (see this crate's `frame_rules.rs`
+//!    doc comment at the retired `able.ensures-that-short::ensure` row
+//!    for the incident that motivated this fence). Rejected, not
+//!    demoted: a rule that can never produce output is not an evidence
+//!    shortfall.
+//! 8. **Attestation** — every static content word a rewrite target can
 //!    emit must clear the human-corpus frequency floor
 //!    ([`ATTESTATION_FLOOR_PER_MILLION`]) or be in the declared
 //!    function-word set. Inflected realizations are exempt (their
 //!    surface comes from the inflection tables); the lemma being
 //!    realized is not.
-//! 8. **Closure**: a rewrite/delete target that can emit another
+//! 9. **Closure**: a rewrite/delete target that can emit another
 //!    compiling rewrite/delete rule's anchor sequence would re-match on
 //!    a second pass; rejected. Guard sources are exempt: a guard
 //!    produces no output, so re-matching one is a no-op, and the
@@ -232,6 +246,12 @@ pub enum Reject {
     /// A later row reusing an earlier row's id (first occurrence wins).
     #[error("duplicate of an earlier rule id")]
     DuplicateId,
+    /// A rewrite target element has no structural prerequisite in its
+    /// own rule's pattern — `realize_template` would return `None` for
+    /// every match, forever (see the module docs' "Realizability"
+    /// fence).
+    #[error("unrealizable template: {0}")]
+    UnrealizableTemplate(String),
 }
 
 /// The compile outcome: what shipped, what demoted, what fell.
@@ -948,6 +968,18 @@ fn compile_one(
         }
     };
 
+    // Realizability: every rewrite target element needs a structural
+    // prerequisite its own pattern actually supplies, or
+    // `realize_template` returns `None` for every match, forever — a
+    // structurally unrealizable rule is authoring error, rejected
+    // outright rather than demoted (see the module docs' "Realizability"
+    // fence).
+    if kind == CompiledKind::Rewrite
+        && let Some(reason) = unrealizable_template_reason(&draft.pattern, &draft.target, classes)
+    {
+        return Outcome::Rejected(draft.id, Reject::UnrealizableTemplate(reason));
+    }
+
     // Compile the template (report/guard/delete rules have none), then
     // attest every static word it can emit.
     let template = if kind == CompiledKind::Rewrite {
@@ -1155,6 +1187,132 @@ fn template_has_placeholder(target: &Target) -> bool {
             .any(|elem| matches!(elem, TplElem::TagArg { arg, .. } if arg == "?")),
         Target::Guard | Target::Delete => false,
     }
+}
+
+/// Whether `pattern` contains a bare `Tag` element matching `tag`, at
+/// any depth `realize_template`'s own `TplOp::TagCopy` search can reach:
+/// that runtime search scans the whole matched op sequence including
+/// cells inside an `Optional` or a `Group` alternative (delimiters
+/// aside, it is one flat array), so this check mirrors it rather than
+/// stopping at the pattern's top level.
+fn pattern_has_tag(pattern: &[PatElem], tag: Tag) -> bool {
+    pattern.iter().any(|elem| pattern_elem_has_tag(elem, tag))
+}
+
+fn pattern_elem_has_tag(elem: &PatElem, tag: Tag) -> bool {
+    match elem {
+        PatElem::Tag(t) => *t == tag,
+        PatElem::Optional(inner) => pattern_elem_has_tag(inner, tag),
+        PatElem::Group { alts, .. } => alts.iter().any(|alt| pattern_has_tag(alt, tag)),
+        _ => false,
+    }
+}
+
+/// Whether `pattern` ever captures `slot` — the structural prerequisite
+/// for a `TplOp::Slot` copy, which reads `FrameMatch::slots` at the
+/// slot's own code and returns `None` when the pattern holds no `Slot`
+/// element for it at all (searched at the same depths as
+/// [`pattern_has_tag`], for the same reason).
+fn pattern_has_slot(pattern: &[PatElem], slot: Slot) -> bool {
+    pattern.iter().any(|elem| pattern_elem_has_slot(elem, slot))
+}
+
+fn pattern_elem_has_slot(elem: &PatElem, slot: Slot) -> bool {
+    match elem {
+        PatElem::Slot(s) => *s == slot,
+        PatElem::Optional(inner) => pattern_elem_has_slot(inner, slot),
+        PatElem::Group { alts, .. } => alts.iter().any(|alt| pattern_has_slot(alt, slot)),
+        _ => false,
+    }
+}
+
+/// How many alternation groups `pattern` carries. Groups are never
+/// nested (the pattern grammar rejects `( ... ( ... ) ... )`) and never
+/// wrapped in `Optional` (a trailing `?` on a group sets the group's own
+/// `optional` flag instead, see `frame_rules::parse_pattern`), so a
+/// flat top-level count is exact — and it is exactly what
+/// `FrameMatch::group_tokens` ends up holding one entry per, in the same
+/// left-to-right order, once a match walks the pattern.
+fn pattern_group_count(pattern: &[PatElem]) -> usize {
+    pattern
+        .iter()
+        .filter(|elem| matches!(elem, PatElem::Group { .. }))
+        .count()
+}
+
+/// The first structural prerequisite a rewrite target fails against its
+/// own pattern, described for [`Reject::UnrealizableTemplate`] — `None`
+/// when every element can realize.
+///
+/// Mirrors `friction-edit/src/sentence.rs::realize_template`'s runtime
+/// contract op for op: `TagCopy`, `Slot`, and `AltCopy` carry no data of
+/// their own, they only read out of a structural feature the match
+/// captured, so each needs that feature to exist in the pattern at all
+/// or the template can never realize, for any match, ever. A `TagArg`
+/// that resolves against a defined class needs that class non-empty (the
+/// runtime falls back to the class's first member when the match itself
+/// didn't contain one. An empty class has no first member either). The
+/// remaining kinds — `Lit`, sentinels, `Clitic`, and a `TagArg` that
+/// resolves to a lemma inflection — carry their own realization and need
+/// no pattern feature (a compiler-derived agreement position, when one
+/// applies, is always drawn from an unconditional top-level pattern
+/// element, so it is always present whenever the rule matches at all).
+fn unrealizable_template_reason(
+    pattern: &[PatElem],
+    target: &Target,
+    classes: &ClassTable,
+) -> Option<String> {
+    let Target::Template(elems) = target else {
+        return Some(format!(
+            "rewrite rule's target is not a replacement template ({target:?})"
+        ));
+    };
+    let emits_anything = elems
+        .iter()
+        .any(|elem| !matches!(elem, TplElem::SentStart | TplElem::SentEnd));
+    if !emits_anything {
+        return Some("template emits no tokens (empty or sentinels only)".to_string());
+    }
+    let group_count = pattern_group_count(pattern);
+    let mut alt_ordinal = 0usize;
+    for elem in elems {
+        match elem {
+            TplElem::TagCopy(tag) if !pattern_has_tag(pattern, *tag) => {
+                return Some(format!(
+                    "target copies tag {tag:?} but the pattern has no {tag:?} element to copy from"
+                ));
+            }
+            TplElem::Slot(slot) if !pattern_has_slot(pattern, *slot) => {
+                return Some(format!(
+                    "target copies slot {slot:?} but the pattern never captures it"
+                ));
+            }
+            TplElem::AltCopy(_) => {
+                if alt_ordinal >= group_count {
+                    return Some(format!(
+                        "target copies alternation group #{alt_ordinal} but the pattern has only {group_count} alternation group(s)"
+                    ));
+                }
+                alt_ordinal += 1;
+            }
+            TplElem::TagArg { arg, .. } => {
+                if let Some(class) = classes.id_of(arg)
+                    && classes.members[usize::from(class)].is_empty()
+                {
+                    return Some(format!(
+                        "target realizes class {arg:?} but the class has no members"
+                    ));
+                }
+            }
+            TplElem::TagCopy(_)
+            | TplElem::Slot(_)
+            | TplElem::Lit(_)
+            | TplElem::SentStart
+            | TplElem::SentEnd
+            | TplElem::Clitic(_) => {}
+        }
+    }
+    None
 }
 
 /// Compiles a rewrite draft's parsed target into template ops.
@@ -1527,6 +1685,102 @@ words = ["a", "an", "the", "to", "of"]
             &report.rejected[0].1,
             Reject::UndefinedClass(name) if name == "point-class"
         ));
+    }
+
+    /// The synthetic shape of the retired `able.ensures-that-short::ensure`
+    /// bug: a target `TagCopy` naming a tag the rule's own pattern never
+    /// carries. `realize_template` would return `None` for every match,
+    /// forever; the rule is rejected at compile time instead of shipping
+    /// silently broken.
+    #[test]
+    fn tag_copy_with_no_matching_pattern_tag_is_rejected_as_unrealizable() {
+        let set = tiny_set(
+            r#"rules_ship = [
+{ id="able.ensures-that-short::ensure", p="\"ensure\" \"that\" X", t="VB X", k="r", m_pm=453.1, h_pm=66.9, v="CONFIRMED" },
+]"#,
+        );
+        let (pack, report) = compile(&set, &generous_rates(&[])).expect("compile");
+        assert!(pack.rules.is_empty());
+        assert!(matches!(
+            &report.rejected[0].1,
+            Reject::UnrealizableTemplate(reason)
+                if reason == "target copies tag Vb but the pattern has no Vb element to copy from"
+        ));
+    }
+
+    /// A target `Slot` copy naming a slot letter the pattern never
+    /// captures (pattern has `X`, target reads `Y`) is the same failure
+    /// shape as a bad `TagCopy`: `FrameMatch::slots[Y]` is `None` for
+    /// every match.
+    #[test]
+    fn slot_copy_with_no_matching_pattern_slot_is_rejected_as_unrealizable() {
+        let set = tiny_set(
+            r#"rules_ship = [
+{ id="vsub.bad-slot", p="\"expedite\" X", t="\"hasten\" Y", k="r", m_pm=100.0, h_pm=1.0, v="CONFIRMED" },
+]"#,
+        );
+        let (pack, report) = compile(&set, &generous_rates(&["hasten"])).expect("compile");
+        assert!(pack.rules.is_empty());
+        assert!(matches!(
+            &report.rejected[0].1,
+            Reject::UnrealizableTemplate(reason)
+                if reason == "target copies slot Y but the pattern never captures it"
+        ));
+    }
+
+    /// A target alternation copy `(A|B)` with no alternation group at
+    /// all in the pattern: `FrameMatch::group_tokens` never has an
+    /// entry for the ordinal the template reads.
+    #[test]
+    fn alt_copy_with_no_pattern_group_is_rejected_as_unrealizable() {
+        let set = tiny_set(
+            r#"rules_ship = [
+{ id="vsub.bad-alt", p="\"expedite\" X", t="(ADJ|VB)", k="r", m_pm=100.0, h_pm=1.0, v="CONFIRMED" },
+]"#,
+        );
+        let (pack, report) = compile(&set, &generous_rates(&[])).expect("compile");
+        assert!(pack.rules.is_empty());
+        assert!(matches!(
+            &report.rejected[0].1,
+            Reject::UnrealizableTemplate(reason)
+                if reason == "target copies alternation group #0 but the pattern has only 0 alternation group(s)"
+        ));
+    }
+
+    /// A rewrite target that is `""` (parses as `Target::Delete`, not a
+    /// template) — the real shipped `con.heres-why::lit` shape (`k="r"`,
+    /// `t=""`): `compile_template` falls through to an empty op list,
+    /// and an empty template can never produce non-empty output either.
+    #[test]
+    fn rewrite_kind_with_a_delete_shaped_target_is_rejected_as_unrealizable() {
+        let set = tiny_set(
+            r#"rules_ship = [
+{ id="con.heres-why::lit", p="<S> \"here\" \"is\" \"why\" X", t="", k="r", m_pm=18.2, h_pm=0.0, v="CONFIRMED" },
+]"#,
+        );
+        let (pack, report) = compile(&set, &generous_rates(&[])).expect("compile");
+        assert!(pack.rules.is_empty());
+        assert!(matches!(
+            &report.rejected[0].1,
+            Reject::UnrealizableTemplate(reason)
+                if reason == "rewrite rule's target is not a replacement template (Delete)"
+        ));
+    }
+
+    /// A realizable template — pattern and target agree on tag, slot,
+    /// and group shape — still compiles. The realizability fence rejects
+    /// only the structurally impossible case, not every `TagCopy`/
+    /// `AltCopy`/`Slot` use.
+    #[test]
+    fn realizable_template_still_compiles() {
+        let set = tiny_set(
+            r#"rules_ship = [
+{ id="vsub.good", p="\"expedite\" X (ADJ|VB)", t="\"hasten\" X (ADJ|VB)", k="r", m_pm=100.0, h_pm=1.0, v="CONFIRMED" },
+]"#,
+        );
+        let (pack, report) = compile(&set, &generous_rates(&["hasten"])).expect("compile");
+        assert_eq!(pack.rules.len(), 1, "report: {report:?}");
+        assert_eq!(pack.rules[0].id, "vsub.good");
     }
 
     /// A target able to emit another rule's anchor is a closure
