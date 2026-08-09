@@ -21,10 +21,16 @@
 //! restructuring removes exactly the spans register's own features count
 //! (an agentless-passive-shaped `Ccomp`, a clause boundary). Placing it
 //! before register is also provably idempotent with respect to
-//! register's own transducers: T10's output is a subject-less imperative
-//! or infinitival (`t4_activize_to_passive` requires both an `Nsubj` and
-//! a `Dobj`, which an imperative has neither of), so register can never
-//! re-fire on restructure's own output.
+//! register's own transducers: T10's imperative/infinitival output is
+//! subject-less (`t4_activize_to_passive` requires both an `Nsubj` and a
+//! `Dobj`, which an imperative has neither of), and T11 drops the lemma
+//! `surface` entirely, so `vsub.surface::*`'s own anchor cannot re-match
+//! either. T10's finite-subject shape (§A1) is the one output shape this
+//! argument doesn't cover unconditionally — it can produce a genuine
+//! `Nsubj`+`Dobj` clause register's own T4 could, in principle, promote
+//! back toward a passive — but that is the same judgment call T4 already
+//! makes for any human- or machine-written sentence of that shape; it is
+//! not a defect this pass introduces.
 //!
 //! # Selection: gate every candidate, apply every survivor
 //!
@@ -32,13 +38,29 @@
 //! [`crate::document::resolve`]'s ordinary overlap guard: each
 //! construction is self-contained within one sentence, so there is
 //! nothing to weigh candidates against.
+//!
+//! # Stale report-only findings (R2)
+//!
+//! `frame-rules-en-v1.toml`'s `vsub.surface::*` rows keep firing
+//! report-only (`Tier::Suggest`) for every `surface`-lemma instance T11
+//! doesn't fix, from the five/six-op loop's own bounded pass — untouched
+//! by this module, exactly as designed (see `t11_transitive_substitution`'s
+//! own docs). The `bounded_held.retain` call at the end of
+//! [`run_restructure`] already dedups this for free: it drops every
+//! `bounded_held` finding — T10's own `able.ensures-that-short` target
+//! included — overlapping ANY patch this pass just accepted, T10's or
+//! T11's alike, so a `surface`-lemma span this pass fixes never also
+//! carries its own stale `vsub.surface::*` finding into `--suggest`
+//! output.
 
 use friction_core::span::ranges_overlap;
 use friction_core::{Finding, Patch, RuleId, Tier};
 use friction_match::token::prose_scope;
 use friction_nlp::{DepParser, Segmenter, Tagger};
 use friction_packs::AttestationPack;
-use friction_register::transduce::{RestructureOutcome, t10_ensures_that_restructure};
+use friction_register::transduce::{
+    RestructureOutcome, t10_ensures_that_restructure, t11_transitive_substitution,
+};
 
 use crate::document::{apply, ends_with_sentence_terminal_punctuation, resolve};
 use crate::error::EditError;
@@ -50,6 +72,13 @@ use crate::sentence::check_rewrite_gates;
 /// `frame-rules-en-v1.toml`'s retired `able.ensures-that-short::ensure`
 /// row, so a reader following that citation lands here.
 const RULE_ENSURES_THAT: RuleId = RuleId::new("restructure.ensures_that");
+
+/// The rule id every T11 (R2) patch and held finding carries. The
+/// unmodified `vsub.surface::*` frame-pack rows keep their own separate
+/// id and keep firing report-only for every instance T11 doesn't fix
+/// (see this module's own `run_restructure` docs on the overlap dedup
+/// that keeps a fixed span from also carrying a stale one of those).
+const RULE_TRANSITIVE_SUBSTITUTION: RuleId = RuleId::new("restructure.transitive_substitution");
 
 /// Runs the restructure pass once over `source`.
 ///
@@ -92,63 +121,24 @@ pub fn run_restructure(
         }
         let original_clause_ok = clause_ok(&ctx.tokens, text);
 
-        for outcome in t10_ensures_that_restructure(text, &ctx.tokens, &ctx.parse) {
-            let (local_range, decline_reason, replacement) = match outcome {
-                RestructureOutcome::Candidate { range, replacement } => {
-                    (range, None, Some(replacement))
-                }
-                RestructureOutcome::Declined { range, reason } => (range, Some(reason), None),
-            };
-            let doc_range =
-                (ctx.range.start + local_range.start)..(ctx.range.start + local_range.end);
-
-            if let Some(reason) = decline_reason {
-                held.push(Finding::new(
-                    RULE_ENSURES_THAT,
-                    doc_range,
-                    format!("restructure held: {reason}"),
-                    Tier::Suggest,
-                ));
-                continue;
-            }
-            let replacement = replacement.expect("Candidate always carries a replacement");
-
-            if in_quoted_span(text, &local_range) {
-                held.push(Finding::new(
-                    RULE_ENSURES_THAT,
-                    doc_range,
-                    "restructure held: matched inside quotation",
-                    Tier::Suggest,
-                ));
-                continue;
-            }
-
-            match check_rewrite_gates(
-                text,
-                &local_range,
-                &replacement,
-                attestation,
-                original_clause_ok,
-                tagger,
-            ) {
-                Some(reason) => {
-                    held.push(Finding::new(
-                        RULE_ENSURES_THAT,
-                        doc_range,
-                        format!("restructure held: {reason}"),
-                        Tier::Suggest,
-                    ));
-                }
-                None => {
-                    patches.push(Patch::new(
-                        doc_range,
-                        replacement.to_string(),
-                        RULE_ENSURES_THAT,
-                        Tier::Fix,
-                    ));
-                }
-            }
-        }
+        collect_t10(
+            text,
+            ctx,
+            attestation,
+            tagger,
+            original_clause_ok,
+            &mut patches,
+            &mut held,
+        );
+        collect_t11(
+            text,
+            ctx,
+            attestation,
+            tagger,
+            original_clause_ok,
+            &mut patches,
+            &mut held,
+        );
     }
 
     let (accepted, dropped) = resolve(source, patches);
@@ -170,4 +160,133 @@ pub fn run_restructure(
             held,
         },
     ))
+}
+
+/// One sentence's worth of T10 candidates: gates every
+/// [`RestructureOutcome`] and pushes either a held [`Finding`] or an
+/// accepted [`Patch`] — split out of [`run_restructure`] only to keep
+/// that function's own line count down.
+#[allow(clippy::too_many_arguments)] // mirrors run_restructure's own one assembly point
+fn collect_t10(
+    text: &str,
+    ctx: &crate::parse_ctx::SentenceCtx,
+    attestation: &AttestationPack,
+    tagger: &dyn Tagger,
+    original_clause_ok: bool,
+    patches: &mut Vec<Patch>,
+    held: &mut Vec<Finding>,
+) {
+    for outcome in t10_ensures_that_restructure(text, &ctx.tokens, &ctx.parse) {
+        let (local_range, decline_reason, replacement) = match outcome {
+            RestructureOutcome::Candidate { range, replacement } => {
+                (range, None, Some(replacement))
+            }
+            RestructureOutcome::Declined { range, reason } => (range, Some(reason), None),
+        };
+        let doc_range = (ctx.range.start + local_range.start)..(ctx.range.start + local_range.end);
+
+        if let Some(reason) = decline_reason {
+            held.push(Finding::new(
+                RULE_ENSURES_THAT,
+                doc_range,
+                format!("restructure held: {reason}"),
+                Tier::Suggest,
+            ));
+            continue;
+        }
+        let replacement = replacement.expect("Candidate always carries a replacement");
+
+        if in_quoted_span(text, &local_range) {
+            held.push(Finding::new(
+                RULE_ENSURES_THAT,
+                doc_range,
+                "restructure held: matched inside quotation",
+                Tier::Suggest,
+            ));
+            continue;
+        }
+
+        match check_rewrite_gates(
+            text,
+            &local_range,
+            &replacement,
+            attestation,
+            original_clause_ok,
+            tagger,
+        ) {
+            Some(reason) => {
+                held.push(Finding::new(
+                    RULE_ENSURES_THAT,
+                    doc_range,
+                    format!("restructure held: {reason}"),
+                    Tier::Suggest,
+                ));
+            }
+            None => {
+                patches.push(Patch::new(
+                    doc_range,
+                    replacement.to_string(),
+                    RULE_ENSURES_THAT,
+                    Tier::Fix,
+                ));
+            }
+        }
+    }
+}
+
+/// One sentence's worth of T11 candidates: no `Declined` variant to
+/// match on — every structural guard already ran inside
+/// [`t11_transitive_substitution`] itself (see its own docs on why the
+/// decline side needs no accounting here), so every survivor reaching
+/// this function only ever needs the same runtime gates [`collect_t10`]
+/// applies. Split out for the same line-count reason as that function.
+fn collect_t11(
+    text: &str,
+    ctx: &crate::parse_ctx::SentenceCtx,
+    attestation: &AttestationPack,
+    tagger: &dyn Tagger,
+    original_clause_ok: bool,
+    patches: &mut Vec<Patch>,
+    held: &mut Vec<Finding>,
+) {
+    for candidate in t11_transitive_substitution(text, &ctx.tokens, &ctx.parse) {
+        let doc_range =
+            (ctx.range.start + candidate.range.start)..(ctx.range.start + candidate.range.end);
+
+        if in_quoted_span(text, &candidate.range) {
+            held.push(Finding::new(
+                RULE_TRANSITIVE_SUBSTITUTION,
+                doc_range,
+                "restructure held: matched inside quotation",
+                Tier::Suggest,
+            ));
+            continue;
+        }
+
+        match check_rewrite_gates(
+            text,
+            &candidate.range,
+            &candidate.replacement,
+            attestation,
+            original_clause_ok,
+            tagger,
+        ) {
+            Some(reason) => {
+                held.push(Finding::new(
+                    RULE_TRANSITIVE_SUBSTITUTION,
+                    doc_range,
+                    format!("restructure held: {reason}"),
+                    Tier::Suggest,
+                ));
+            }
+            None => {
+                patches.push(Patch::new(
+                    doc_range,
+                    candidate.replacement.to_string(),
+                    RULE_TRANSITIVE_SUBSTITUTION,
+                    Tier::Fix,
+                ));
+            }
+        }
+    }
 }

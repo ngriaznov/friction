@@ -113,6 +113,11 @@ pub struct Lexicon {
     /// Nominalizations mapped to their gerund verb form (`optimization`
     /// -> `optimizing`).
     pub nominal_verbs: BTreeMap<Box<str>, Box<str>>,
+    /// Dobj-gated substitution targets: a transitive verb lemma mapped to
+    /// its one licensed replacement lemma (`surface` -> `reveal`). See
+    /// `data/lexicon-en.toml`'s own `[transitive_verbs]` comment for the
+    /// evidence bar each entry must clear before it ships.
+    pub transitive_verbs: BTreeMap<Box<str>, Box<str>>,
     /// Subjects generic enough to demote under passivization without
     /// losing information.
     pub generic_subjects: WordSet,
@@ -177,6 +182,7 @@ struct RawPack {
     no_double: RawWords,
     subordinators: RawWords,
     nominal_verbs: BTreeMap<String, String>,
+    transitive_verbs: BTreeMap<String, String>,
     generic_subjects: RawPhrases,
     pronouns: RawPronouns,
     contractions: RawContractions,
@@ -277,17 +283,7 @@ impl Lexicon {
             });
         }
 
-        let mut nouns = BTreeMap::new();
-        for (singular, plural) in raw.irregular_nouns {
-            check_key("irregular_nouns", &singular)?;
-            check_value("irregular_nouns", &plural)?;
-            nouns.insert(singular.into_boxed_str(), plural.into_boxed_str());
-        }
-        if nouns.is_empty() {
-            return Err(LexiconError::EmptySection {
-                section: "irregular_nouns",
-            });
-        }
+        let nouns = str_map("irregular_nouns", raw.irregular_nouns)?;
 
         let no_double = word_set("no_double", raw.no_double.words)?;
         let subordinators = word_set("subordinators", raw.subordinators.words)?;
@@ -307,6 +303,8 @@ impl Lexicon {
             });
         }
 
+        let transitive_verbs = str_map("transitive_verbs", raw.transitive_verbs)?;
+
         let generic_subjects = word_set("generic_subjects", raw.generic_subjects.phrases)?;
         let reflexive_pronouns = word_set("pronouns.reflexive", raw.pronouns.reflexive)?;
         let object_pronouns = word_set("pronouns.object", raw.pronouns.object)?;
@@ -322,6 +320,7 @@ impl Lexicon {
             no_double,
             subordinators,
             nominal_verbs,
+            transitive_verbs,
             generic_subjects,
             reflexive_pronouns,
             object_pronouns,
@@ -337,6 +336,29 @@ impl Lexicon {
     pub fn is_irregular_verb_base(&self, lemma: &str) -> bool {
         self.verbs.contains_key(lemma) || self.past_only.contains_key(lemma)
     }
+}
+
+/// Validates and builds a `BTreeMap<Box<str>, Box<str>>` for `section`
+/// from a raw `String`-keyed map, rejecting an empty or uppercase key, an
+/// empty value, or an empty section — the shared shape
+/// [`Lexicon::nouns`]/[`Lexicon::transitive_verbs`] both use;
+/// [`Lexicon::nominal_verbs`] parses inline instead, since it has one
+/// extra per-entry check (`ends_with` `"ing"`) this shared helper has no
+/// way to express generically.
+fn str_map(
+    section: &'static str,
+    raw: BTreeMap<String, String>,
+) -> Result<BTreeMap<Box<str>, Box<str>>, LexiconError> {
+    let mut map = BTreeMap::new();
+    for (key, value) in raw {
+        check_key(section, &key)?;
+        check_value(section, &value)?;
+        map.insert(key.into_boxed_str(), value.into_boxed_str());
+    }
+    if map.is_empty() {
+        return Err(LexiconError::EmptySection { section });
+    }
+    Ok(map)
 }
 
 /// Validates and builds a [`WordSet`] for `section`, rejecting an empty
@@ -522,6 +544,7 @@ mod tests {
         assert_eq!(lexicon.no_double.len(), 51);
         assert_eq!(lexicon.subordinators.len(), 13);
         assert_eq!(lexicon.nominal_verbs.len(), 23);
+        assert_eq!(lexicon.transitive_verbs.len(), 1);
         assert_eq!(lexicon.generic_subjects.len(), 6);
         assert_eq!(lexicon.reflexive_pronouns.len(), 9);
         assert_eq!(lexicon.object_pronouns.len(), 8);
@@ -555,6 +578,8 @@ mod tests {
         assert!(!lexicon.no_double.contains("prefer"));
 
         assert!(lexicon.generic_subjects.contains("the team"));
+
+        assert_eq!(&*lexicon.transitive_verbs["surface"], "reveal");
     }
 
     /// A bad `[pack].version` is rejected.
@@ -640,6 +665,9 @@ mod tests {
 
             [nominal_verbs]
             optimization = "optimizing"
+
+            [transitive_verbs]
+            surface = "reveal"
 
             [generic_subjects]
             phrases = ["the team"]

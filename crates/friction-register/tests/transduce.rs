@@ -10,9 +10,9 @@ use std::collections::BTreeMap;
 use friction_core::{Token, TokenKind};
 use friction_nlp::{Confidence, DepEdge, DepRelation, PosTag, SentenceParse, TaggedToken};
 use friction_register::transduce::{
-    Candidate, CandidateKind, RestructureOutcome, candidates, past, past_participle,
-    t4_activize_to_passive, t5_nominalization, t6_em_dash, t7_semicolon, t9_past_progressive,
-    t10_ensures_that_restructure, third_sg,
+    Candidate, CandidateKind, RestructureOutcome, SubstitutionCandidate, candidates, past,
+    past_participle, t4_activize_to_passive, t5_nominalization, t6_em_dash, t7_semicolon,
+    t9_past_progressive, t10_ensures_that_restructure, t11_transitive_substitution, third_sg,
 };
 
 /// One token's dependency-tree shape and tags, spelled out by hand.
@@ -2013,11 +2013,15 @@ fn t10_never_produces_a_candidate_for_is_not_enabled() {
     );
 }
 
-// T10-9. Decline: a finite subject-agreement shape ("This ensures that
-// ...") -- out of scope for v1, needs a second, independent
-// re-inflection problem this transducer doesn't take on.
+// T10-9a. Accept (§A1): a finite subject-agreement shape with a bare
+// demonstrative pronoun subject ("This ensures that ..."). The shipped
+// parser attaches a subject-standing "This"/"That"/"These"/"Those" via a
+// `Det` edge landing directly on the verb, not `Nsubj` -- see
+// `t10_has_finite_subject`'s own docs; this is also the design brief's
+// own first-named example and the dominant real-corpus shape. `ensures`
+// (`VBZ`) re-inflects the derived verb via `third_sg`.
 #[test]
-fn t10_declines_on_a_finite_subject_shape() {
+fn t10_accepts_a_bare_demonstrative_finite_subject() {
     let shapes = [
         tok(Some(1), DepRelation::Det, "This", "DT", "this"),
         tok(None, DepRelation::Root, "ensures", "VBZ", "ensure"),
@@ -2030,9 +2034,93 @@ fn t10_declines_on_a_finite_subject_shape() {
     ];
     let (source, tokens, parse) = build(&shapes);
     let found = t10_ensures_that_restructure(&source, &tokens, &parse);
+    // The outer subject ("This") is never touched -- the range starts at
+    // "ensures", not at "This".
+    assert_single_candidate(
+        &source,
+        &found,
+        "ensures that the setting is enabled",
+        "enables the setting",
+    );
+}
+
+// T10-9b. Accept (§A1): a genuine `Nsubj`-headed finite subject, plural,
+// with the past-tense form ("These flags ensure that X is enabled") --
+// the design brief's own second-named example. `ensure` (`VBP`)
+// re-inflects to the base form, agreeing the same way for any
+// non-3rd-person-singular subject regardless of its own number.
+#[test]
+fn t10_accepts_a_plural_nsubj_finite_subject() {
+    let shapes = [
+        tok(Some(2), DepRelation::Det, "These", "DT", "these"),
+        tok(Some(2), DepRelation::Nsubj, "flags", "NNS", "flag"),
+        tok(None, DepRelation::Root, "ensure", "VBP", "ensure"),
+        tok(Some(7), DepRelation::Mark, "that", "IN", "that"),
+        tok(Some(5), DepRelation::Det, "the", "DT", "the"),
+        tok(Some(7), DepRelation::NsubjPass, "setting", "NN", "setting"),
+        tok(Some(7), DepRelation::AuxPass, "is", "VBZ", "be"),
+        tok(Some(2), DepRelation::Ccomp, "enabled", "VBN", "enable"),
+        tok(Some(2), DepRelation::Punct, ".", ".", "."),
+    ];
+    let (source, tokens, parse) = build(&shapes);
+    let found = t10_ensures_that_restructure(&source, &tokens, &parse);
+    assert_single_candidate(
+        &source,
+        &found,
+        "ensure that the setting is enabled",
+        "enable the setting",
+    );
+}
+
+// T10-9c. Accept (§A1): past tense ("ensured", `VBD`) re-inflects the
+// derived verb to `past`, invariant across subject number -- exercised
+// with a plural `Nsubj` subject ("they") to isolate the past-tense path
+// from T10-9b's base-form one.
+#[test]
+fn t10_accepts_a_past_tense_finite_subject() {
+    let shapes = [
+        tok(Some(1), DepRelation::Nsubj, "they", "PRP", "they"),
+        tok(None, DepRelation::Root, "ensured", "VBD", "ensure"),
+        tok(Some(6), DepRelation::Mark, "that", "IN", "that"),
+        tok(Some(4), DepRelation::Det, "the", "DT", "the"),
+        tok(Some(6), DepRelation::NsubjPass, "data", "NNS", "datum"),
+        tok(Some(6), DepRelation::AuxPass, "was", "VBD", "be"),
+        tok(Some(1), DepRelation::Ccomp, "stored", "VBN", "store"),
+        tok(Some(1), DepRelation::Punct, ".", ".", "."),
+    ];
+    let (source, tokens, parse) = build(&shapes);
+    let found = t10_ensures_that_restructure(&source, &tokens, &parse);
+    assert_single_candidate(
+        &source,
+        &found,
+        "ensured that the data was stored",
+        "stored the data",
+    );
+}
+
+// T10-9d. Decline: a genuinely unsupported outer shape -- a modal-headed
+// `ensure` ("You should ensure that ..."), neither imperative,
+// infinitival, nor finite (no `Nsubj`/qualifying `Det` child of its own;
+// the subject "You" belongs to "should", not to "ensure"). Replaces the
+// old finite-subject decline case now that §A1 licenses it.
+#[test]
+fn t10_declines_on_a_modal_headed_ensure() {
+    let shapes = [
+        tok(Some(2), DepRelation::Nsubj, "You", "PRP", "you"),
+        tok(Some(2), DepRelation::Aux, "should", "MD", "should"),
+        tok(None, DepRelation::Root, "ensure", "VB", "ensure"),
+        tok(Some(7), DepRelation::Mark, "that", "IN", "that"),
+        tok(Some(5), DepRelation::Det, "the", "DT", "the"),
+        tok(Some(7), DepRelation::NsubjPass, "setting", "NN", "setting"),
+        tok(Some(7), DepRelation::AuxPass, "is", "VBZ", "be"),
+        tok(Some(2), DepRelation::Ccomp, "enabled", "VBN", "enable"),
+        tok(Some(2), DepRelation::Punct, ".", ".", "."),
+    ];
+    let (source, tokens, parse) = build(&shapes);
+    let found = t10_ensures_that_restructure(&source, &tokens, &parse);
     assert_single_decline(
         &found,
-        "no licensed outer mood shape (finite subject or unsupported construction)",
+        "no licensed outer mood shape (unsupported construction)",
     );
 }
 
@@ -2164,6 +2252,136 @@ fn t10_declines_on_a_subject_with_a_post_modifying_prep() {
     );
 }
 
+// ---------------------------------------------------------------------
+// §A2: the aux-headed past-passive complement shape, where the shipped
+// parser's `Ccomp` lands on the auxiliary ("were") rather than the
+// participle. Every fixture below was cross-checked against the real
+// shipped tagger/parser's own output on the analogous real sentence
+// (see `crates/friction-edit/tests/restructure_op.rs`'s own A2 fixtures
+// for the end-to-end confirmation); these hand-built trees isolate the
+// transducer logic the way this file's own module docs describe.
+// ---------------------------------------------------------------------
+
+// T10-16. Accept (§A2): the aux-headed shape with no adverb gap --
+// `Ccomp` lands on "were" (`VBD`), the subject attaches to it as a plain
+// `Nsubj`, and its one `VBN` child ("cleaned") is the true participle,
+// immediately adjacent to "were". Infinitival outer shape.
+#[test]
+fn t10_accepts_the_aux_headed_shape_with_no_adverb_gap() {
+    let shapes = [
+        tok(Some(1), DepRelation::Aux, "to", "TO", "to"),
+        tok(None, DepRelation::Root, "ensure", "VB", "ensure"),
+        tok(Some(5), DepRelation::Mark, "that", "IN", "that"),
+        tok(Some(4), DepRelation::Det, "the", "DT", "the"),
+        tok(Some(5), DepRelation::Nsubj, "listeners", "NNS", "listener"),
+        tok(Some(1), DepRelation::Ccomp, "were", "VBD", "were"),
+        tok(Some(5), DepRelation::Other, "cleaned", "VBN", "clean"),
+        tok(Some(1), DepRelation::Punct, ".", ".", "."),
+    ];
+    let (source, tokens, parse) = build(&shapes);
+    let found = t10_ensures_that_restructure(&source, &tokens, &parse);
+    assert_single_candidate(
+        &source,
+        &found,
+        "ensure that the listeners were cleaned",
+        "clean the listeners",
+    );
+}
+
+// T10-17. Decline (§A2): the adverb gap between "were" and its `VBN`
+// child -- verified against the shipped parser as the design brief's own
+// worked example ("to ensure that event listeners were properly cleaned
+// up"): the very adverb that causes the parser to head the clause at the
+// auxiliary is also what this guard declines on, so this shape is
+// expected to decline here far more often than it accepts.
+#[test]
+fn t10_declines_on_the_aux_headed_shapes_own_adverb_gap() {
+    let shapes = [
+        tok(Some(1), DepRelation::Aux, "to", "TO", "to"),
+        tok(None, DepRelation::Root, "ensure", "VB", "ensure"),
+        tok(Some(5), DepRelation::Mark, "that", "IN", "that"),
+        tok(Some(4), DepRelation::Det, "the", "DT", "the"),
+        tok(Some(5), DepRelation::Nsubj, "listeners", "NNS", "listener"),
+        tok(Some(1), DepRelation::Ccomp, "were", "VBD", "were"),
+        tok(Some(7), DepRelation::Other, "properly", "RB", "properly"),
+        tok(Some(5), DepRelation::Other, "cleaned", "VBN", "clean"),
+        tok(Some(1), DepRelation::Punct, ".", ".", "."),
+    ];
+    let (source, tokens, parse) = build(&shapes);
+    let found = t10_ensures_that_restructure(&source, &tokens, &parse);
+    assert_single_decline(&found, "adverb between the auxiliary and the participle");
+}
+
+// T10-18. Decline (§A2): negation reachable through the participle's own
+// subtree ("never"), with the auxiliary and participle adjacent -- so
+// this isolates the negation guard from the adverb-gap guard for the
+// aux-headed shape, mirroring T10-7's isolation on the standard shape.
+#[test]
+fn t10_declines_on_negation_in_the_aux_headed_shapes_participle_subtree() {
+    let shapes = [
+        tok(Some(1), DepRelation::Aux, "to", "TO", "to"),
+        tok(None, DepRelation::Root, "ensure", "VB", "ensure"),
+        tok(Some(5), DepRelation::Mark, "that", "IN", "that"),
+        tok(Some(4), DepRelation::Det, "the", "DT", "the"),
+        tok(Some(5), DepRelation::Nsubj, "listeners", "NNS", "listener"),
+        tok(Some(1), DepRelation::Ccomp, "were", "VBD", "were"),
+        tok(Some(5), DepRelation::Other, "cleaned", "VBN", "clean"),
+        tok(Some(6), DepRelation::Other, "never", "RB", "never"),
+        tok(Some(1), DepRelation::Punct, ".", ".", "."),
+    ];
+    let (source, tokens, parse) = build(&shapes);
+    let found = t10_ensures_that_restructure(&source, &tokens, &parse);
+    assert_single_decline(&found, "negation would invert the sentence's meaning");
+}
+
+// T10-19. Decline (§A2): a fused negated aux surface ("weren't") playing
+// the auxiliary role -- the single highest-stakes guard, exercised for
+// this shape the same way T10-6 exercises it for the standard one.
+#[test]
+fn t10_declines_on_a_fused_negated_aux_in_the_aux_headed_shape() {
+    let shapes = [
+        tok(Some(1), DepRelation::Aux, "to", "TO", "to"),
+        tok(None, DepRelation::Root, "ensure", "VB", "ensure"),
+        tok(Some(4), DepRelation::Mark, "that", "IN", "that"),
+        tok(Some(4), DepRelation::Nsubj, "listeners", "NNS", "listener"),
+        tok(Some(1), DepRelation::Ccomp, "weren't", "VBP", "weren't"),
+        tok(Some(4), DepRelation::Other, "cleaned", "VBN", "clean"),
+        tok(Some(1), DepRelation::Punct, ".", ".", "."),
+    ];
+    let (source, tokens, parse) = build(&shapes);
+    let found = t10_ensures_that_restructure(&source, &tokens, &parse);
+    assert_single_decline(&found, "negation would invert the sentence's meaning");
+}
+
+// T10-20. Silent (§A2): an aux-headed candidate where the subject
+// attaches as `NsubjPass` rather than the consistently-observed `Nsubj`
+// -- the inconsistent sub-shape the design explicitly calls out declining
+// rather than guessing at. `t10_match_passive_complement` only recognizes
+// `Nsubj` for this shape, so this never matches at all: silent, the same
+// convention every other never-matched shape in this module uses.
+#[test]
+fn t10_is_silent_on_an_aux_headed_candidate_with_an_inconsistent_subject_relation() {
+    let shapes = [
+        tok(Some(1), DepRelation::Aux, "to", "TO", "to"),
+        tok(None, DepRelation::Root, "ensure", "VB", "ensure"),
+        tok(Some(5), DepRelation::Mark, "that", "IN", "that"),
+        tok(Some(4), DepRelation::Det, "the", "DT", "the"),
+        tok(
+            Some(5),
+            DepRelation::NsubjPass,
+            "listeners",
+            "NNS",
+            "listener",
+        ),
+        tok(Some(1), DepRelation::Ccomp, "were", "VBD", "were"),
+        tok(Some(5), DepRelation::Other, "cleaned", "VBN", "clean"),
+        tok(Some(1), DepRelation::Punct, ".", ".", "."),
+    ];
+    let (source, tokens, parse) = build(&shapes);
+    let found = t10_ensures_that_restructure(&source, &tokens, &parse);
+    assert!(found.is_empty(), "found: {found:?}");
+}
+
 // T10-15. `t10_ensures_that_restructure` is not folded into `candidates()`
 // -- it is selected and applied by `crate::restructure`, not the
 // register band machinery `candidates()` feeds (see this crate's own
@@ -2178,6 +2396,252 @@ fn t10_is_not_folded_into_candidates() {
         tok(Some(5), DepRelation::AuxPass, "is", "VBZ", "be"),
         tok(Some(0), DepRelation::Ccomp, "enabled", "VBN", "enable"),
         tok(Some(0), DepRelation::Punct, ".", ".", "."),
+    ];
+    let (source, tokens, parse) = build(&shapes);
+    assert!(candidates(&source, &tokens, &parse).is_empty());
+}
+
+// ---------------------------------------------------------------------
+// T11: dobj-gated transitive substitution (R2: `surface` -> `reveal`).
+// ---------------------------------------------------------------------
+
+/// Asserts `found` is exactly one [`SubstitutionCandidate`] whose range
+/// slices `source` to `expected_span` and whose replacement is
+/// `expected_replacement`.
+fn assert_single_substitution(
+    source: &str,
+    found: &[SubstitutionCandidate],
+    expected_span: &str,
+    expected_replacement: &str,
+) {
+    assert_eq!(found.len(), 1, "found: {found:?}");
+    assert_eq!(&source[found[0].range.clone()], expected_span);
+    assert_eq!(&*found[0].replacement, expected_replacement);
+}
+
+// T11-1. Accept: `VBD` tag with a plain nominal `dobj`.
+#[test]
+fn t11_accepts_vbd_with_a_nominal_object() {
+    let shapes = [
+        tok(Some(1), DepRelation::Det, "This", "DT", "this"),
+        tok(None, DepRelation::Root, "surfaced", "VBD", "surface"),
+        tok(Some(3), DepRelation::Other, "two", "CD", "two"),
+        tok(Some(1), DepRelation::Dobj, "tests", "NNS", "test"),
+        tok(Some(1), DepRelation::Punct, ".", ".", "."),
+    ];
+    let (source, tokens, parse) = build(&shapes);
+    let found = t11_transitive_substitution(&source, &tokens, &parse);
+    assert_single_substitution(&source, &found, "surfaced", "revealed");
+}
+
+// T11-2. Accept: `VBZ` tag.
+#[test]
+fn t11_accepts_vbz_with_a_nominal_object() {
+    let shapes = [
+        tok(Some(2), DepRelation::Det, "This", "DT", "this"),
+        tok(Some(2), DepRelation::Nsubj, "tool", "NN", "tool"),
+        tok(None, DepRelation::Root, "surfaces", "VBZ", "surface"),
+        tok(Some(4), DepRelation::Amod, "hidden", "JJ", "hidden"),
+        tok(
+            Some(2),
+            DepRelation::Dobj,
+            "dependencies",
+            "NNS",
+            "dependency",
+        ),
+        tok(Some(2), DepRelation::Punct, ".", ".", "."),
+    ];
+    let (source, tokens, parse) = build(&shapes);
+    let found = t11_transitive_substitution(&source, &tokens, &parse);
+    assert_single_substitution(&source, &found, "surfaces", "reveals");
+}
+
+// T11-3. Accept: `VBG` tag.
+#[test]
+fn t11_accepts_vbg_with_a_nominal_object() {
+    let shapes = [
+        tok(None, DepRelation::Root, "surfacing", "VBG", "surface"),
+        tok(Some(2), DepRelation::Amod, "hidden", "JJ", "hidden"),
+        tok(
+            Some(0),
+            DepRelation::Dobj,
+            "dependencies",
+            "NNS",
+            "dependency",
+        ),
+    ];
+    let (source, tokens, parse) = build(&shapes);
+    let found = t11_transitive_substitution(&source, &tokens, &parse);
+    assert_single_substitution(&source, &found, "surfacing", "revealing");
+}
+
+// T11-4. Accept: `VBN` tag -- rare (a participle rarely takes a direct
+// object), but one of the five corpus-attested tags `vsub.surface::*`
+// already establishes as worth covering.
+#[test]
+fn t11_accepts_vbn_with_a_nominal_object() {
+    let shapes = [
+        tok(None, DepRelation::Root, "surfaced", "VBN", "surface"),
+        tok(Some(0), DepRelation::Dobj, "concerns", "NNS", "concern"),
+    ];
+    let (source, tokens, parse) = build(&shapes);
+    let found = t11_transitive_substitution(&source, &tokens, &parse);
+    assert_single_substitution(&source, &found, "surfaced", "revealed");
+}
+
+// T11-5. Accept: bare `VB` tag.
+#[test]
+fn t11_accepts_vb_with_a_nominal_object() {
+    let shapes = [
+        tok(None, DepRelation::Root, "surface", "VB", "surface"),
+        tok(Some(0), DepRelation::Dobj, "concerns", "NNS", "concern"),
+    ];
+    let (source, tokens, parse) = build(&shapes);
+    let found = t11_transitive_substitution(&source, &tokens, &parse);
+    assert_single_substitution(&source, &found, "surface", "reveal");
+}
+
+// T11-6. Decline: no `Dobj` child at all ("surfaced as a significant
+// contributor") -- the unmodified `vsub.surface::*` report-only frame
+// rows already account for this decline; this module adds nothing.
+#[test]
+fn t11_declines_with_no_object_at_all() {
+    let shapes = [
+        tok(None, DepRelation::Root, "surfaced", "VBD", "surface"),
+        tok(Some(0), DepRelation::Prep, "as", "IN", "as"),
+        tok(Some(3), DepRelation::Det, "a", "DT", "a"),
+        tok(
+            Some(4),
+            DepRelation::Amod,
+            "significant",
+            "JJ",
+            "significant",
+        ),
+        tok(
+            Some(1),
+            DepRelation::Pobj,
+            "contributor",
+            "NN",
+            "contributor",
+        ),
+    ];
+    let (source, tokens, parse) = build(&shapes);
+    let found = t11_transitive_substitution(&source, &tokens, &parse);
+    assert!(found.is_empty(), "found: {found:?}");
+}
+
+// T11-7. Decline: an `IN` token between the verb and a `Dobj`-labeled
+// object -- the counter-hardening guard against exactly the parser
+// mis-attachment that could turn "surfaced **as** a significant
+// contributor" into a false `dobj` on "contributor"; this fixture forces
+// that mislabeling by hand to prove the guard catches it even when the
+// parser's own relation label is wrong.
+#[test]
+fn t11_declines_when_a_preposition_sits_between_the_verb_and_a_mislabeled_object() {
+    let shapes = [
+        tok(None, DepRelation::Root, "surfaced", "VBD", "surface"),
+        tok(Some(0), DepRelation::Other, "as", "IN", "as"),
+        tok(Some(3), DepRelation::Det, "a", "DT", "a"),
+        tok(
+            Some(0),
+            DepRelation::Dobj,
+            "contributor",
+            "NN",
+            "contributor",
+        ),
+    ];
+    let (source, tokens, parse) = build(&shapes);
+    let found = t11_transitive_substitution(&source, &tokens, &parse);
+    assert!(found.is_empty(), "found: {found:?}");
+}
+
+// T11-8. Decline: an adverbial object ("never surfaced anywhere") -- no
+// `Dobj` child (the adverb attaches by a non-`Dobj` relation), so this is
+// the same no-object silent decline as T11-6, exercised on the brief's
+// own worked non-example.
+#[test]
+fn t11_declines_on_an_adverbial_object() {
+    let shapes = [
+        tok(Some(1), DepRelation::Other, "never", "RB", "never"),
+        tok(None, DepRelation::Root, "surfaced", "VBD", "surface"),
+        tok(Some(1), DepRelation::Other, "anywhere", "RB", "anywhere"),
+    ];
+    let (source, tokens, parse) = build(&shapes);
+    let found = t11_transitive_substitution(&source, &tokens, &parse);
+    assert!(found.is_empty(), "found: {found:?}");
+}
+
+// T11-9. Decline: an implausible object part of speech (`JJ`) standing
+// in as a `Dobj` -- `is_plausible_object_pos`'s own guard.
+#[test]
+fn t11_declines_on_an_implausible_object_pos() {
+    let shapes = [
+        tok(None, DepRelation::Root, "surfaced", "VBD", "surface"),
+        tok(Some(0), DepRelation::Dobj, "obvious", "JJ", "obvious"),
+    ];
+    let (source, tokens, parse) = build(&shapes);
+    let found = t11_transitive_substitution(&source, &tokens, &parse);
+    assert!(found.is_empty(), "found: {found:?}");
+}
+
+// T11-10. Decline: a bare pronoun object ("We surfaced it."). Recorded
+// decision: T11 does not import T4's separate reflexive/personal-pronoun
+// guards -- `is_plausible_object_pos` already permits `PRP`, but
+// `has_noun` (borrowed unchanged, the same corroboration guard for both
+// transducers) never does, since a bare pronoun carries no `NN`/`NNS`/
+// `NNP`/`NNPS` tag in its own one-token subtree. Every pronoun object,
+// reflexive or not, therefore declines by construction; no pronoun check
+// was needed or added.
+#[test]
+fn t11_declines_on_a_bare_pronoun_object() {
+    let shapes = [
+        tok(Some(1), DepRelation::Nsubj, "We", "PRP", "we"),
+        tok(None, DepRelation::Root, "surfaced", "VBD", "surface"),
+        tok(Some(1), DepRelation::Dobj, "it", "PRP", "it"),
+        tok(Some(1), DepRelation::Punct, ".", ".", "."),
+    ];
+    let (source, tokens, parse) = build(&shapes);
+    let found = t11_transitive_substitution(&source, &tokens, &parse);
+    assert!(found.is_empty(), "found: {found:?}");
+}
+
+// T11-11. Decline: the object's subtree attaches leftward of the verb --
+// a parse this transducer doesn't trust, the same defensive ordering
+// convention `t10_match_passive_complement` applies to its own
+// attachments.
+#[test]
+fn t11_declines_when_the_object_attaches_leftward_of_the_verb() {
+    let shapes = [
+        tok(Some(1), DepRelation::Dobj, "concerns", "NNS", "concern"),
+        tok(None, DepRelation::Root, "surfaced", "VBD", "surface"),
+    ];
+    let (source, tokens, parse) = build(&shapes);
+    let found = t11_transitive_substitution(&source, &tokens, &parse);
+    assert!(found.is_empty(), "found: {found:?}");
+}
+
+// T11-12. A lemma outside `LEXICON_EN.transitive_verbs` never matches,
+// whatever its tag or object shape -- confirms the loop is gated on the
+// table, not a hardcoded `"surface"` string comparison.
+#[test]
+fn t11_declines_on_a_lemma_outside_the_transitive_verbs_table() {
+    let shapes = [
+        tok(None, DepRelation::Root, "deployed", "VBD", "deploy"),
+        tok(Some(0), DepRelation::Dobj, "changes", "NNS", "change"),
+    ];
+    let (source, tokens, parse) = build(&shapes);
+    let found = t11_transitive_substitution(&source, &tokens, &parse);
+    assert!(found.is_empty(), "found: {found:?}");
+}
+
+// T11-13. `t11_transitive_substitution` is not folded into `candidates()`
+// either -- same reasoning as T10-15: selected and applied by
+// `crate::restructure`, not the register band machinery.
+#[test]
+fn t11_is_not_folded_into_candidates() {
+    let shapes = [
+        tok(None, DepRelation::Root, "surfaced", "VBD", "surface"),
+        tok(Some(0), DepRelation::Dobj, "concerns", "NNS", "concern"),
     ];
     let (source, tokens, parse) = build(&shapes);
     assert!(candidates(&source, &tokens, &parse).is_empty());

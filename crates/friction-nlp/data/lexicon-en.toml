@@ -141,6 +141,16 @@ degradation = "degrading"
 compression = "compressing"
 duplication = "duplicating"
 
+# Closed, hand-reviewed grammatical mappings for T11's dobj-gated
+# substitution: a transitive verb lemma this workspace's own corpus
+# evidence measured as machine-tilted (see `frame-rules-en-v1.toml`'s
+# `vsub.surface::*` rows, CONFIRMED at every tag) mapped to its one
+# licensed replacement lemma. Not a corpus-mined table -- each entry is
+# independently attested the way every `substitution_pairs` replacement
+# is, before it ships (see `docs/EXTENDING.md`).
+[transitive_verbs]
+surface = "reveal"
+
 # The only subjects T4 may demote: passivizing an identifiable agent
 # loses information.
 [generic_subjects]

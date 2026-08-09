@@ -1,6 +1,8 @@
 //! End-to-end coverage for the restructure pass: T10's "ensure that NP
-//! is/are VBN" rewrite, its held findings, the idempotence of the whole
-//! pipeline with it enabled, and the reporting-layer fix that keeps
+//! is/are VBN" rewrite (including §A1's finite-subject shape and §A2's
+//! aux-headed complement shape), T11's dobj-gated `surface` -> `reveal`
+//! substitution, their held findings, the idempotence of the whole
+//! pipeline with both enabled, and the reporting-layer fix that keeps
 //! `--suggest`-equivalent held-finding accounting correct now that
 //! restructure sits between the bounded loop and register.
 //!
@@ -75,24 +77,58 @@ fn infinitival_rewrites() {
 
 /// The design brief's own second worked example ("to ensure that event
 /// listeners were properly cleaned up" -> unchanged, held on the adverb
-/// guard) does NOT hold as stated: verified against the shipped parser,
-/// this sentence's `Ccomp` head is "were" (VBD), not "cleaned" (VBN) --
-/// the participle never becomes the complement head at all, so the
-/// construction never matches steps 1-6 in the first place. It declines
-/// SILENTLY (no finding), not on the adverb guard. This test pins the
-/// verified behavior.
+/// guard) DOES hold once the aux-headed complement shape ships (§A2).
+/// Verified against the shipped parser: this sentence's `Ccomp` head is
+/// "were" (`VBD`), not "cleaned" (`VBN`) -- T10 alone (pre-§A2) never
+/// matched this shape at all and declined silently; §A2 extends
+/// `t10_match_passive_complement` to recognize "were" itself as the
+/// auxiliary role with "cleaned" as its `VBN` child, so the construction
+/// now genuinely matches and declines with a NAMED finding on the same
+/// adverb-gap guard the standard shape already has -- the very adverb
+/// that causes the shipped parser to head the clause at the auxiliary in
+/// the first place is what this guard catches. This test pins the
+/// corrected, verified behavior.
 #[test]
-fn were_properly_cleaned_up_never_matches_the_construction() {
+fn were_properly_cleaned_up_matches_and_declines_on_the_adverb_gap() {
     let source = "to ensure that event listeners were properly cleaned up.\n";
     let (fixed, report) = engine().fix_document(source).expect("engine runs");
     assert_eq!(fixed, source);
     assert!(
+        report.passes.iter().flat_map(|p| &p.held).any(|f| {
+            f.rule.as_str() == "restructure.ensures_that"
+                && f.tier == Tier::Suggest
+                && f.message
+                    .contains("adverb between the auxiliary and the participle")
+        }),
+        "held findings: {:?}",
         report
             .passes
             .iter()
             .flat_map(|p| &p.held)
-            .all(|f| f.rule.as_str() != "restructure.ensures_that"),
-        "the construction never matched, so no restructure finding at all"
+            .collect::<Vec<_>>()
+    );
+}
+
+/// The same aux-headed adverb-gap decline (§A2), sentence-initial rather
+/// than infinitival -- confirms the shape isn't tied to the "to ensure"
+/// wording.
+#[test]
+fn aux_headed_shape_declines_on_the_adverb_gap_sentence_initial() {
+    let source = "Ensure that the listeners were properly cleaned up.\n";
+    let (fixed, report) = engine().fix_document(source).expect("engine runs");
+    assert_eq!(fixed, source);
+    assert!(
+        report.passes.iter().flat_map(|p| &p.held).any(|f| {
+            f.rule.as_str() == "restructure.ensures_that"
+                && f.message
+                    .contains("adverb between the auxiliary and the participle")
+        }),
+        "held findings: {:?}",
+        report
+            .passes
+            .iter()
+            .flat_map(|p| &p.held)
+            .collect::<Vec<_>>()
     );
 }
 
@@ -131,26 +167,94 @@ fn negated_ensure_that_is_never_rewritten() {
     assert_eq!(fixed, source, "must never state the opposite of the source");
 }
 
-/// A finite subject-agreement shape ("This ensures that ...") declines
-/// with a named finding: the construction matched every structural step
-/// but has no licensed outer mood shape in v1.
+/// A finite subject-agreement shape ("You ensure that ...", §A1) now
+/// rewrites: the outer subject "You" stays untouched, and the derived
+/// verb re-inflects to agree the same way "ensure" (`VBP`, base form)
+/// already did.
 #[test]
-fn finite_subject_shape_declines_with_a_named_finding() {
-    let source = "This ensures that the setting is enabled.\n";
+fn finite_subject_shape_rewrites() {
+    let source = "You ensure that the setting is enabled.\n";
+    let (fixed, report) = engine().fix_document(source).expect("engine runs");
+    assert_eq!(fixed, "You enable the setting.\n");
+    assert!(
+        report
+            .passes
+            .iter()
+            .flat_map(|p| &p.applied_patches)
+            .any(|patch| patch.rule.as_str() == "restructure.ensures_that"),
+        "expected a restructure.ensures_that patch"
+    );
+}
+
+/// The finite-subject shape's own idempotence: fixing the already-fixed
+/// output changes nothing further, and doesn't trip `t4_activize_to_passive`
+/// on the new `Nsubj`+`Dobj` shape it produces -- see this crate's own
+/// `restructure` module docs on why that risk is a pre-existing judgment
+/// call T4 already makes, not a new one this shape introduces.
+#[test]
+fn finite_subject_shape_is_idempotent() {
+    let source = "You ensure that the setting is enabled.\n";
+    let engine = engine();
+    let (once, _) = engine.fix_document(source).expect("first fix");
+    let (twice, _) = engine.fix_document(&once).expect("second fix");
+    assert_eq!(once, "You enable the setting.\n");
+    assert_eq!(twice, once, "second application must be a no-op");
+}
+
+/// A real corpus shape (`corpus/llm/blog/45d55f75dc510c1b.md`): a plural
+/// `Nsubj` subject ("they") with the past-tense form ("ensured") --
+/// structurally matches every §A1/T10 guard (confirmed by the held
+/// finding's own reason changing to a runtime-gate one, not the old
+/// "no licensed outer mood shape"), even though the embedded attestation
+/// pack declines the specific seam this sentence would need.
+#[test]
+fn a_real_corpus_finite_subject_past_tense_instance_matches() {
+    let source = "By implementing lifecycle policies and using S3 Intelligent-Tiering, they \
+                   ensured that less frequently accessed data was stored at lower costs.\n";
+    let (fixed, report) = engine().fix_document(source).expect("engine runs");
+    assert_eq!(fixed, source);
+    let ensures_that_findings: Vec<_> = report
+        .passes
+        .iter()
+        .flat_map(|p| &p.held)
+        .filter(|f| f.rule.as_str() == "restructure.ensures_that")
+        .collect();
+    assert_eq!(
+        ensures_that_findings.len(),
+        1,
+        "held findings: {ensures_that_findings:?}"
+    );
+    assert!(
+        !ensures_that_findings[0]
+            .message
+            .contains("no licensed outer mood shape"),
+        "the finite subject shape matched; only a runtime gate should decline it: {:?}",
+        ensures_that_findings[0]
+    );
+}
+
+/// A modal-headed `ensure` ("You should ensure that ..."): verified
+/// against the shipped parser, "enabled" attaches to "ensure" via
+/// `Advcl`, not `Ccomp`, so the construction never reaches step 2 at all
+/// -- a different, SILENT reason than
+/// `t10_declines_on_a_modal_headed_ensure`'s hand-built fixture in
+/// `friction-register/tests/transduce.rs` (which isolates the
+/// outer-shape guard itself from this parse-shape difference, the same
+/// way `negated_ensure_that_is_never_rewritten` isolates R1's negation
+/// guard elsewhere in this file). Either way the output is byte-identical
+/// and no rewrite is ever risked.
+#[test]
+fn modal_headed_ensure_never_matches_through_the_real_parser() {
+    let source = "You should ensure that the setting is enabled.\n";
     let (fixed, report) = engine().fix_document(source).expect("engine runs");
     assert_eq!(fixed, source);
     assert!(
-        report.passes.iter().flat_map(|p| &p.held).any(|f| {
-            f.rule.as_str() == "restructure.ensures_that"
-                && f.tier == Tier::Suggest
-                && f.message.contains("no licensed outer mood shape")
-        }),
-        "held findings: {:?}",
         report
             .passes
             .iter()
             .flat_map(|p| &p.held)
-            .collect::<Vec<_>>()
+            .all(|f| f.rule.as_str() != "restructure.ensures_that"),
+        "the construction never matched through the real parser, so no restructure finding at all"
     );
 }
 
@@ -245,4 +349,126 @@ fn a_bounded_loop_hold_survives_alongside_a_restructure_fix() {
     // regression; the CLI-level assertion on `final_pass_held` itself
     // lives in `friction-cli/src/fix.rs`'s own test module.
     assert!(report.passes.len() >= 3);
+}
+
+// ---------------------------------------------------------------------
+// R2 (T11): dobj-gated transitive substitution, `surface` -> `reveal`.
+// ---------------------------------------------------------------------
+
+/// A real corpus shape adapted to a wording the embedded attestation
+/// pack actually attests (`bigram().attests("which", "revealed")` and
+/// `bigram().attests("revealed", "a")` both hold; the plainer `"the
+/// vulnerability"` phrasing does not, and is left held rather than
+/// swapped in to force a pass, per this crate's own gate discipline):
+/// `"surfaced"` (`VBD`, `Dobj` "a vulnerability") -> `"revealed"`.
+#[test]
+fn transitive_substitution_rewrites_a_real_shape() {
+    let source = "The audit, which surfaced a vulnerability, ran daily.\n";
+    let (fixed, report) = engine().fix_document(source).expect("engine runs");
+    assert_eq!(
+        fixed,
+        "The audit, which revealed a vulnerability, ran daily.\n"
+    );
+    assert!(
+        report
+            .passes
+            .iter()
+            .flat_map(|p| &p.applied_patches)
+            .any(|patch| patch.rule.as_str() == "restructure.transitive_substitution"),
+        "expected a restructure.transitive_substitution patch"
+    );
+}
+
+/// The dedup requirement (§A3): fixing a `surface`-lemma span must not
+/// also leave the unmodified `vsub.surface::vbd` report-only frame
+/// finding co-appearing on the same span in `--suggest` output. Uses the
+/// same `bounded_held.retain` mechanism `no_stale_frame_finding_survives_alongside_the_real_fix`
+/// already proves for T10/R1's own retired pack row -- this is the R2
+/// analogue, verified rather than assumed.
+#[test]
+fn no_stale_vsub_surface_finding_survives_alongside_the_real_fix() {
+    let source = "The audit, which surfaced a vulnerability, ran daily.\n";
+    let (fixed, report) = engine().fix_document(source).expect("engine runs");
+    assert_eq!(
+        fixed,
+        "The audit, which revealed a vulnerability, ran daily.\n"
+    );
+    assert!(
+        report
+            .passes
+            .iter()
+            .flat_map(|p| &p.held)
+            .all(|f| !f.rule.as_str().starts_with("vsub.surface")),
+        "held findings: {:?}",
+        report
+            .passes
+            .iter()
+            .flat_map(|p| &p.held)
+            .collect::<Vec<_>>()
+    );
+}
+
+/// Idempotence for the T11 fix.
+#[test]
+fn transitive_substitution_output_is_idempotent() {
+    let source = "The audit, which surfaced a vulnerability, ran daily.\n";
+    let engine = engine();
+    let (once, _) = engine.fix_document(source).expect("first fix");
+    let (twice, _) = engine.fix_document(&once).expect("second fix");
+    assert_eq!(
+        once,
+        "The audit, which revealed a vulnerability, ran daily.\n"
+    );
+    assert_eq!(twice, once, "second application must be a no-op");
+}
+
+/// The design brief's own intransitive worked example ("surfaced as a
+/// significant contributor") -- no `Dobj` (the object is `as`'s `pobj`
+/// instead), so T11 never matches; the unmodified `vsub.surface::vbn`
+/// report-only frame finding keeps firing exactly as it does today, with
+/// no duplicate.
+#[test]
+fn surfaced_as_keeps_its_existing_report_only_finding() {
+    let source = "surfaced as a significant contributor\n";
+    let (fixed, report) = engine().fix_document(source).expect("engine runs");
+    assert_eq!(fixed, source);
+    let vsub_findings: Vec<_> = report
+        .passes
+        .iter()
+        .flat_map(|p| &p.held)
+        .filter(|f| f.rule.as_str().starts_with("vsub.surface"))
+        .collect();
+    assert_eq!(vsub_findings.len(), 1, "held findings: {vsub_findings:?}");
+    assert!(
+        report
+            .passes
+            .iter()
+            .flat_map(|p| &p.held)
+            .all(|f| f.rule.as_str() != "restructure.transitive_substitution"),
+        "T11 never matched an intransitive use; it should add no finding of its own"
+    );
+}
+
+/// The design brief's own adverbial-object worked example ("never
+/// surfaced anywhere") -- same no-`Dobj` silent decline, no duplicate.
+#[test]
+fn never_surfaced_anywhere_keeps_its_existing_report_only_finding() {
+    let source = "never surfaced anywhere\n";
+    let (fixed, report) = engine().fix_document(source).expect("engine runs");
+    assert_eq!(fixed, source);
+    let vsub_findings: Vec<_> = report
+        .passes
+        .iter()
+        .flat_map(|p| &p.held)
+        .filter(|f| f.rule.as_str().starts_with("vsub.surface"))
+        .collect();
+    assert_eq!(vsub_findings.len(), 1, "held findings: {vsub_findings:?}");
+    assert!(
+        report
+            .passes
+            .iter()
+            .flat_map(|p| &p.held)
+            .all(|f| f.rule.as_str() != "restructure.transitive_substitution"),
+        "T11 never matched an intransitive use; it should add no finding of its own"
+    );
 }

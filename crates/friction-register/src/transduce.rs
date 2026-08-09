@@ -1650,35 +1650,124 @@ fn t10_subject_is_licensable(
     !within_bracketed_aside(source, tokens, first, last)
 }
 
+/// The re-inflection the derived main verb takes in
+/// [`T10OuterShape::FiniteSubject`], to agree with the outer subject in
+/// exactly the way `ensure`'s own surface form already does.
+///
+/// English subject-verb agreement for `ensure` and for the verb this
+/// transducer derives from the embedded participle are the SAME
+/// agreement problem — same subject, same tense — so the outer verb's
+/// own tag already encodes the answer; there is no need to separately
+/// classify the subject's own number the way
+/// [`promoted_object_is_plural`]/[`token_takes_plural_agreement`] do for
+/// T4. Those two exist because T4 promotes an object into a BRAND NEW
+/// subject position with no pre-existing verb form to copy; here the
+/// subject was never displaced; its agreement is already sitting on
+/// `ensure`/`ensures`/`ensured`; the derived verb only has to reproduce
+/// it. `VBP`/`VB` both take the base form: English's non-3rd-person
+/// present is invariant across "I"/"we"/"you"/"they", so no plural
+/// question ever arises for that case either.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum FiniteAgreement {
+    /// `"ensure"` (`VB`/`VBP`): non-3rd-person-singular present.
+    Base,
+    /// `"ensures"` (`VBZ`): 3rd-person-singular present.
+    ThirdSg,
+    /// `"ensured"` (`VBD`): simple past, invariant across subject number.
+    Past,
+}
+
 /// The licensed outer mood shape a matched `ensure` token sits in, or
-/// `None` for every other shape (finite subject-agreement, modal,
-/// anything else) — see [`t10_ensures_that_restructure`]'s own docs for
-/// why only these two ship in v1.
+/// `None` for every other shape (a modal-headed or otherwise unparsable
+/// `ensure`) — see [`t10_ensures_that_restructure`]'s own docs for why
+/// only these three ship.
 enum T10OuterShape {
     /// `ensure` opens the sentence, tagged `VB`: a bare imperative.
     SentenceInitialImperative,
     /// `ensure` is immediately preceded by infinitival `to`.
     Infinitival,
+    /// `ensure` is the finite verb of its own clause, with an `Nsubj`
+    /// child of its own (`"This ensures that X is enabled."`,
+    /// `"These flags ensure that X is enabled."`,
+    /// `"These checks ensured that X was enabled."`). The outer
+    /// subject's own tokens are never touched — only the span from
+    /// `ensure` through the embedded participle is replaced — so this
+    /// carries no subject span of its own, just the re-inflection the
+    /// replacement verb needs.
+    FiniteSubject(FiniteAgreement),
 }
 
 fn t10_outer_shape(
     source: &str,
     tokens: &[TaggedToken],
+    parse: &SentenceParse,
     ensure_index: usize,
 ) -> Option<T10OuterShape> {
-    if tokens[ensure_index].pos.as_str() != "VB" {
+    let tag = tokens[ensure_index].pos.as_str();
+    if tag == "VB" {
+        if ensure_index == 0 && is_imperative_initial(tokens) {
+            return Some(T10OuterShape::SentenceInitialImperative);
+        }
+        if ensure_index > 0
+            && tokens[ensure_index - 1].pos.as_str() == "TO"
+            && token_text(source, tokens, ensure_index - 1).eq_ignore_ascii_case("to")
+        {
+            return Some(T10OuterShape::Infinitival);
+        }
         return None;
     }
-    if ensure_index == 0 && is_imperative_initial(tokens) {
-        return Some(T10OuterShape::SentenceInitialImperative);
-    }
-    if ensure_index > 0
-        && tokens[ensure_index - 1].pos.as_str() == "TO"
-        && token_text(source, tokens, ensure_index - 1).eq_ignore_ascii_case("to")
-    {
-        return Some(T10OuterShape::Infinitival);
+    let agreement = match tag {
+        "VBZ" => FiniteAgreement::ThirdSg,
+        "VBD" => FiniteAgreement::Past,
+        "VBP" => FiniteAgreement::Base,
+        _ => return None,
+    };
+    if t10_has_finite_subject(source, tokens, parse, ensure_index) {
+        return Some(T10OuterShape::FiniteSubject(agreement));
     }
     None
+}
+
+/// `true` if `ensure_index` (already known to be finitely tagged) has an
+/// outer subject licensing the [`T10OuterShape::FiniteSubject`] shape.
+///
+/// Two attachment shapes, both verified against the shipped parser
+/// rather than assumed:
+/// - a genuine `Nsubj` child (`"It ensures ..."`, `"This method ensures
+///   ..."`) — the ordinary case; or
+/// - a bare demonstrative pronoun standing alone as the subject, with no
+///   head noun of its own to modify (`"This ensures ..."`, `"That
+///   ensures ..."`). The shipped parser attaches this shape's `"this"`/
+///   `"that"`/`"these"`/`"those"` via a `Det` edge landing directly on
+///   `ensure_index` itself, not `Nsubj` — measured consistently across
+///   every real and synthetic fixture tried (a determiner attaches to
+///   the noun it modifies; landing on the verb instead only happens when
+///   there is no such noun, i.e. the determiner IS the subject). This is
+///   also the design brief's own first-named example
+///   (`"This ensures that X is enabled."`) and the dominant real-corpus
+///   shape for this construction, so covering it is not an edge case.
+fn t10_has_finite_subject(
+    source: &str,
+    tokens: &[TaggedToken],
+    parse: &SentenceParse,
+    ensure_index: usize,
+) -> bool {
+    let nsubj: Vec<usize> = children_with_relation(parse, ensure_index, DepRelation::Nsubj)
+        .map(|edge| edge.token)
+        .collect();
+    if matches!(nsubj.as_slice(), [_]) {
+        return true;
+    }
+    let det: Vec<usize> = children_with_relation(parse, ensure_index, DepRelation::Det)
+        .map(|edge| edge.token)
+        .collect();
+    let [det] = det.as_slice() else {
+        return false;
+    };
+    matches!(
+        folded_token_text(source, tokens, *det).as_str(),
+        "this" | "that" | "these" | "those"
+    )
 }
 
 /// "Ensure that NP is/are VBN" -> imperative/infinitival "VB NP" (T10):
@@ -1699,55 +1788,85 @@ fn t10_outer_shape(
 /// this crate's own design notes), not new evidence.
 ///
 /// # Detection order
-/// 1. A token whose lemma is `"ensure"`, tagged `VB`/`VBP`/`VBZ` (`VBD`/
-///    `VBG` never carry the imperative/infinitival mood this transducer
-///    produces, so they're excluded up front rather than reaching the
-///    outer-shape check only to always fail it).
-/// 2. A `Ccomp` child — call it `comp`.
-/// 3. `comp` tagged `VBN`. Anything else (a `JJ` adjectival complement,
-///    a `VB`/`VBZ` intransitive one under a modal) means this `ensure`
-///    was never a passive-complement candidate at all: no finding, the
-///    same silent decline [`t4_activize_to_passive`] gives a verb that
-///    never qualified.
-/// 4. `comp` has exactly one `AuxPass` child whose surface (case-folded,
-///    curly apostrophes straightened) is `"is"`/`"are"`/`"was"`/`"were"`
-///    or one of [`T10_NEGATED_AUXPASS_FORMS`] — never `"being"`/`"been"`,
-///    mirroring [`t9_past_progressive`]'s own stative-copula exclusion.
-/// 5. `comp` has exactly one `NsubjPass` child — call it `subj`, and take
-///    its full subtree span via [`subtree_span`].
-/// 6. The token immediately after `ensure` is literally `"that"`
+/// 1. A token whose lemma is `"ensure"`, tagged `VB`/`VBP`/`VBZ`/`VBD`
+///    (`VBG` never carries a finite or imperative/infinitival mood this
+///    transducer produces, so it's excluded up front rather than
+///    reaching the outer-shape check only to always fail it).
+/// 2. A `Ccomp` child — call it `ccomp_target`.
+/// 3. Either:
+///    - `ccomp_target` tagged `VBN`: the standard shape. It has exactly
+///      one `AuxPass` child whose surface (case-folded, curly
+///      apostrophes straightened) is `"is"`/`"are"`/`"was"`/`"were"` or
+///      one of [`T10_NEGATED_AUXPASS_FORMS`] — never `"being"`/`"been"`,
+///      mirroring [`t9_past_progressive`]'s own stative-copula
+///      exclusion — call it `aux`, and exactly one `NsubjPass` child —
+///      call it `subj`; or
+///    - `ccomp_target` itself folds to one of those same surfaces: the
+///      aux-headed shape (§A2). The shipped parser heads a past-tense
+///      embedded passive at the auxiliary itself, not the participle,
+///      whenever an adverb separates them — verified against the
+///      shipped parser on the design brief's own worked example ("to
+///      ensure that event listeners **were** properly cleaned up" —
+///      `Ccomp` lands on `"were"`, `VBD`, not on `"cleaned"`) and a
+///      dozen further real and synthetic fixtures. Consistently, in
+///      every instance of this shape: the subject attaches to
+///      `ccomp_target` as a plain `Nsubj` (not `NsubjPass`) — call it
+///      `subj` — and the true participle attaches as exactly one direct
+///      child tagged `VBN` — call it `comp`; `ccomp_target` itself
+///      becomes `aux`. Every case where the shipped parser produced an
+///      inconsistent attachment for this shape (a mistagged
+///      `VBD` participle instead of `VBN`, most often on a singular
+///      `"was"` subject) is excluded by construction: no `VBN` child
+///      means no match, the ordinary silent decline.
+///
+///    Anything else (a `JJ` adjectival complement, a `VB`/`VBZ`
+///    intransitive one under a modal, `ccomp_target` folding to neither
+///    a recognized surface nor `VBN`) means this `ensure` was never a
+///    passive-complement candidate at all: no finding, the same silent
+///    decline [`t4_activize_to_passive`] gives a verb that never
+///    qualified.
+/// 4. Take `subj`'s full subtree span via [`subtree_span`].
+/// 5. The token immediately after `ensure` is literally `"that"`
 ///    (case-insensitive) — verified against the shipped parser's own
 ///    fixtures before this was locked down: every tested example
-///    attaches `Mark` from `comp` to that same token, so the literal
-///    adjacency check and a `Mark`-of-`comp` check agree on every case
-///    tried; the literal check is used here as the simpler, equally
-///    correct implementation. Its absence (`"ensure X is enabled"`, no
-///    `"that"`) is out of scope for v1 and produces no finding.
+///    attaches `Mark` from `ccomp_target` to that same token, so the
+///    literal adjacency check and a `Mark`-of-`ccomp_target` check agree
+///    on every case tried; the literal check is used here as the
+///    simpler, equally correct implementation. Its absence (`"ensure X
+///    is enabled"`, no `"that"`) is out of scope for v1 and produces no
+///    finding.
 ///
 /// Every shape reaching this point genuinely matched the construction.
 /// From here, a failing guard is a named [`RestructureOutcome::Declined`],
 /// never silence:
-/// 7. **Adverb gap**: the token right after `AuxPass` must be `comp`
-///    itself. A gap ("was **properly** cleaned up") forces an
-///    adverb-placement decision no table can make — [`t9_past_progressive`]'s
-///    own precedent for the identical shape.
-/// 8. **Negation**: any token in `comp`'s own subtree, or immediately
-///    before it, case-folding to one of [`T10_NEGATION_WORDS`] — or the
-///    `AuxPass` token itself being one of [`T10_NEGATED_AUXPASS_FORMS`] —
-///    declines. The single highest-stakes guard in this module: missing
-///    it turns "ensure telemetry is **not** sent" into "Send telemetry",
-///    the opposite of what the author wrote, not merely a bad rewrite.
-/// 9. **Subject quality**: [`t10_subject_is_licensable`] over `subj`'s
+/// 6. **Adverb gap**: the token right after `aux` must be `comp` (the
+///    participle) itself. A gap ("was **properly** cleaned up") forces
+///    an adverb-placement decision no table can make —
+///    [`t9_past_progressive`]'s own precedent for the identical shape.
+///    Every real aux-headed (§A2) instance measured so far has an
+///    adverb in this gap — the very thing that causes the shipped
+///    parser to head the clause at the auxiliary in the first place —
+///    so this shape is expected to decline here far more often than it
+///    accepts; that's the fail-closed law working as intended, not a
+///    sign the shape is unreachable.
+/// 7. **Negation**: any token in `comp`'s own subtree, immediately
+///    before it, or `aux` itself, case-folding to one of
+///    [`T10_NEGATION_WORDS`] — or `aux` itself being one of
+///    [`T10_NEGATED_AUXPASS_FORMS`] — declines. The single
+///    highest-stakes guard in this module: missing it turns "ensure
+///    telemetry is **not** sent" into "Send telemetry", the opposite of
+///    what the author wrote, not merely a bad rewrite.
+/// 8. **Subject quality**: [`t10_subject_is_licensable`] over `subj`'s
 ///    subtree, and [`contains_markdown_structural_syntax`] over the
 ///    whole candidate span.
-/// 10. **Lemma derivation**: [`t10_derive_base_verb`] must produce a
-///     round-tripping base form.
-/// 11. **Outer shape**: [`t10_outer_shape`] must license a
-///     sentence-initial imperative or an infinitival "to ensure". Every
-///     other shape — most importantly a finite subject
-///     ("This ensures that X is enabled.") — declines: rewriting those
-///     correctly needs subject-agreement re-inflection, a second,
-///     independent problem this transducer doesn't take on in v1.
+/// 9. **Lemma derivation**: [`t10_derive_base_verb`] must produce a
+///    round-tripping base form.
+/// 10. **Outer shape**: [`t10_outer_shape`] must license a
+///     sentence-initial imperative, an infinitival "to ensure", or a
+///     finite outer subject (§A1: `ensure`/`ensures`/`ensured` re-shown
+///     on the derived verb via [`FiniteAgreement`]). Every other shape —
+///     a modal-headed `ensure`, or any construction
+///     [`t10_outer_shape`] doesn't recognize — declines.
 #[must_use]
 pub fn t10_ensures_that_restructure(
     source: &str,
@@ -1759,24 +1878,29 @@ pub fn t10_ensures_that_restructure(
         if tokens[index].lemma.as_ref() != "ensure" {
             continue;
         }
-        if !matches!(tokens[index].pos.as_str(), "VB" | "VBP" | "VBZ") {
+        if !matches!(tokens[index].pos.as_str(), "VB" | "VBP" | "VBZ" | "VBD") {
             continue;
         }
         let Some(m) = t10_match_passive_complement(source, tokens, parse, index) else {
-            continue; // steps 2-6 (see this function's own docs): never matched, silent.
+            continue; // steps 2-5 (see this function's own docs): never matched, silent.
         };
         out.push(t10_license_and_realize(source, tokens, parse, index, &m));
     }
     out
 }
 
-/// Steps 2 through 6 of [`t10_ensures_that_restructure`]'s own detection
-/// order: locates `ensure`'s `Ccomp` child, requires it tagged `VBN`,
-/// requires a literal `"that"` right after `ensure`, and requires exactly
-/// one qualifying `AuxPass` child and exactly one `NsubjPass` child on
-/// that complement. `None` for any failure here — the construction never
-/// matched, so [`t10_ensures_that_restructure`] emits no
-/// [`RestructureOutcome`] at all for this `ensure` token.
+/// Steps 2 through 5 of [`t10_ensures_that_restructure`]'s own detection
+/// order: locates `ensure`'s `Ccomp` child, matches either the standard
+/// or the aux-headed (§A2) shape, requires a literal `"that"` right
+/// after `ensure`, and requires exactly one qualifying subject child.
+/// `None` for any failure here — the construction never matched, so
+/// [`t10_ensures_that_restructure`] emits no [`RestructureOutcome`] at
+/// all for this `ensure` token.
+///
+/// `comp` always names the true participle token (`VBN`) and `aux`
+/// always names the finite "be" token, regardless of which shape
+/// matched — the field names are the shape-independent contract every
+/// downstream guard in [`t10_license_and_realize`] relies on.
 struct T10Match {
     comp: usize,
     aux: usize,
@@ -1792,17 +1916,14 @@ fn t10_match_passive_complement(
     parse: &SentenceParse,
     ensure_index: usize,
 ) -> Option<T10Match> {
-    let comp = children_with_relation(parse, ensure_index, DepRelation::Ccomp)
+    let ccomp_target = children_with_relation(parse, ensure_index, DepRelation::Ccomp)
         .next()?
         .token;
     // The rewrite span runs from `ensure` to the participle, so the
     // complement must sit after the verb in token order. A parse that
     // attaches `Ccomp` leftward is wrong about this construction, and
     // slicing across it would panic or mis-span — decline instead.
-    if comp <= ensure_index {
-        return None;
-    }
-    if tokens[comp].pos.as_str() != "VBN" {
+    if ccomp_target <= ensure_index {
         return None;
     }
     let has_literal_that = tokens
@@ -1812,26 +1933,64 @@ fn t10_match_passive_complement(
         return None;
     }
 
-    let auxpass: Vec<usize> = children_with_relation(parse, comp, DepRelation::AuxPass)
-        .map(|edge| edge.token)
-        .collect();
-    let [aux] = auxpass.as_slice() else {
-        return None;
+    let (comp, aux, subj) = if tokens[ccomp_target].pos.as_str() == "VBN" {
+        // Standard shape: `Ccomp` lands directly on the participle; the
+        // finite "be" attaches below it as an `AuxPass` child, and the
+        // promoted subject as an `NsubjPass` child.
+        let auxpass: Vec<usize> = children_with_relation(parse, ccomp_target, DepRelation::AuxPass)
+            .map(|edge| edge.token)
+            .collect();
+        let [aux] = auxpass.as_slice() else {
+            return None;
+        };
+        let nsubjpass: Vec<usize> =
+            children_with_relation(parse, ccomp_target, DepRelation::NsubjPass)
+                .map(|edge| edge.token)
+                .collect();
+        let [subj] = nsubjpass.as_slice() else {
+            return None;
+        };
+        (ccomp_target, *aux, *subj)
+    } else {
+        // Aux-headed shape (§A2): see `t10_ensures_that_restructure`'s
+        // own docs for the parser behavior this matches. `ccomp_target`
+        // itself plays `aux`; its one `VBN` child is the true
+        // participle; the subject attaches to `ccomp_target` as a plain
+        // `Nsubj`, the one attachment consistently observed for this
+        // shape.
+        let aux_folded = folded_token_text(source, tokens, ccomp_target);
+        let is_recognized_form = T10_NEGATED_AUXPASS_FORMS.contains(&aux_folded.as_str())
+            || matches!(aux_folded.as_str(), "is" | "are" | "was" | "were");
+        if !is_recognized_form {
+            return None; // not a "be" surface at all; never a candidate.
+        }
+        let vbn_children: Vec<usize> = parse
+            .children_of(ccomp_target)
+            .iter()
+            .copied()
+            .filter(|&child| tokens[child].pos.as_str() == "VBN")
+            .collect();
+        let [participle] = vbn_children.as_slice() else {
+            return None; // zero, or more than one: no consistent participle to name.
+        };
+        if *participle <= ccomp_target {
+            return None; // the participle always follows its auxiliary; a leftward one is a parse this shape doesn't trust.
+        }
+        let nsubj: Vec<usize> = children_with_relation(parse, ccomp_target, DepRelation::Nsubj)
+            .map(|edge| edge.token)
+            .collect();
+        let [subj] = nsubj.as_slice() else {
+            return None;
+        };
+        (*participle, ccomp_target, *subj)
     };
-    let aux = *aux;
+
     let aux_folded = folded_token_text(source, tokens, aux);
     let negated_auxpass_form = T10_NEGATED_AUXPASS_FORMS.contains(&aux_folded.as_str());
     if !negated_auxpass_form && !matches!(aux_folded.as_str(), "is" | "are" | "was" | "were") {
         return None; // "being"/"been"/anything else.
     }
 
-    let nsubjpass: Vec<usize> = children_with_relation(parse, comp, DepRelation::NsubjPass)
-        .map(|edge| edge.token)
-        .collect();
-    let [subj] = nsubjpass.as_slice() else {
-        return None;
-    };
-    let subj = *subj;
     let (subj_first, subj_last) = subtree_span(parse, subj);
     if subj_last >= aux {
         return None; // malformed span.
@@ -1847,7 +2006,7 @@ fn t10_match_passive_complement(
     })
 }
 
-/// Steps 7 through 11 of [`t10_ensures_that_restructure`]'s own detection
+/// Steps 6 through 10 of [`t10_ensures_that_restructure`]'s own detection
 /// order, run once the construction is known to have matched: the
 /// adverb-gap, negation, subject-quality, Markdown, lemma-derivation, and
 /// outer-mood-shape guards, each producing a named
@@ -1894,16 +2053,22 @@ fn t10_license_and_realize(
     };
 
     let subj_text = span_text(source, tokens, m.subj_first, m.subj_last);
-    let Some(shape) = t10_outer_shape(source, tokens, ensure_index) else {
-        return decline(
-            "no licensed outer mood shape (finite subject or unsupported construction)",
-        );
+    let Some(shape) = t10_outer_shape(source, tokens, parse, ensure_index) else {
+        return decline("no licensed outer mood shape (unsupported construction)");
     };
     let replacement = match shape {
         T10OuterShape::SentenceInitialImperative => {
             format!("{} {subj_text}", recapitalize(&base_verb))
         }
         T10OuterShape::Infinitival => format!("{base_verb} {subj_text}"),
+        T10OuterShape::FiniteSubject(agreement) => {
+            let derived = match agreement {
+                FiniteAgreement::Base => base_verb,
+                FiniteAgreement::ThirdSg => third_sg(&base_verb),
+                FiniteAgreement::Past => past(&base_verb),
+            };
+            format!("{derived} {subj_text}")
+        }
     };
 
     RestructureOutcome::Candidate {
@@ -1913,13 +2078,148 @@ fn t10_license_and_realize(
 }
 
 // ---------------------------------------------------------------------
-// Inflection. `third_sg` is unused by either transducer (T5's
-// `LEXICON_EN.nominal_verbs` spells out its own forms), but ships alongside
-// `past`/`past_participle` since the three were audited as one unit —
-// they now live in `friction_nlp::inflect`, beside the `LEXICON_EN`
-// tables they read, and are re-exported here unchanged so external
-// callers of `friction_register::transduce::{past, past_participle,
-// third_sg}` keep working.
+// T11: dobj-gated transitive substitution (R2: `surface` -> `reveal`,
+// generalized over `LEXICON_EN.transitive_verbs`).
+// ---------------------------------------------------------------------
+
+/// A licensed [`t11_transitive_substitution`] rewrite: replace `range`
+/// (exactly the matched verb token) with `replacement`.
+///
+/// No `Declined` variant, unlike [`RestructureOutcome`]: every guard
+/// here (no `Dobj`, an implausible object POS, an intervening
+/// preposition/particle, no noun in the object subtree) is part of
+/// deciding whether this verb token is a genuine dobj-headed transitive
+/// use at all — the same matching question [`t4_activize_to_passive`]
+/// answers for its own verb candidates — not a downstream policy call on
+/// an already-matched shape. A `surface`-lemma token that fails any of
+/// these is exactly the shape the unmodified `vsub.surface::*`
+/// report-only frame-pack rows already account for; this module adds no
+/// second finding for the same decline (see this crate's own R2 design
+/// notes on why the decline side needs no new code path).
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct SubstitutionCandidate {
+    /// Byte range of the matched verb token in the original source.
+    pub range: Range<usize>,
+    /// The text to substitute for `range`.
+    pub replacement: Box<str>,
+}
+
+/// `true` if `obj_token`'s subtree (`obj_first..=obj_last`) is a safe,
+/// genuine direct object for [`t11_transitive_substitution`]'s verb
+/// candidate at `verb_index`.
+///
+/// Three counter-hardening guards against the parser mis-attachment
+/// failure mode T4/T9 already measured on real prose (see this crate's
+/// own R2 design notes), reused from [`object_is_licensable`] rather
+/// than duplicated logic:
+/// - the object subtree starts strictly after the verb — a `Dobj` the
+///   parser attached leftward is a parse this transducer doesn't trust,
+///   the same defensive ordering check [`t10_match_passive_complement`]
+///   applies to its own `Ccomp`/participle attachments;
+/// - [`is_plausible_object_pos`] on the `Dobj` token itself;
+/// - no preposition or particle (`IN`/`RP`) between the verb and the
+///   object — the exact shape that produced T4's `"As this path is
+///   continued"` failure, and the single likeliest way `"surfaced as a
+///   significant contributor"` could be mis-parsed with `contributor` as
+///   a `dobj` of `surfaced` instead of `pobj` of `as`: this guard makes
+///   that mis-parse harmless even if the parser gets the relation wrong;
+/// - a real noun tag present in the object subtree.
+fn t11_object_is_licensable(
+    tokens: &[TaggedToken],
+    verb_index: usize,
+    obj_token: usize,
+    obj_first: usize,
+    obj_last: usize,
+) -> bool {
+    if obj_first <= verb_index {
+        return false; // the object always follows its verb; see this function's own docs.
+    }
+    if !is_plausible_object_pos(tokens[obj_token].pos.as_str()) {
+        return false;
+    }
+    let preposition_before_object = (verb_index + 1..obj_first).any(|index| {
+        tokens
+            .get(index)
+            .is_some_and(|t| matches!(t.pos.as_str(), "IN" | "RP"))
+    });
+    if preposition_before_object {
+        return false;
+    }
+    (obj_first..=obj_last)
+        .any(|index| matches!(tokens[index].pos.as_str(), "NN" | "NNS" | "NNP" | "NNPS"))
+}
+
+/// Dobj-gated transitive substitution (T11): `"This surfaced two more
+/// tests."` -> `"This revealed two more tests."`.
+///
+/// Generalizes over every key in `LEXICON_EN.transitive_verbs`, not just
+/// `"surface"` — the next dobj-gated substitution this workspace ships
+/// is a one-line table addition, not new transducer code (see this
+/// crate's own R2 design notes).
+///
+/// # Licensing conditions
+/// All required, or the verb token is skipped (silently — see
+/// [`SubstitutionCandidate`]'s own docs on why there is no decline-side
+/// finding here):
+/// - the token's lemma is a key in `LEXICON_EN.transitive_verbs`, tagged
+///   `VB`/`VBZ`/`VBG`/`VBN`/`VBD` — the five tags the corpus-attested
+///   `vsub.surface::*` frame rows already establish as worth covering
+///   for this lemma family
+/// - it has a `Dobj` child
+/// - [`t11_object_is_licensable`] over that object's subtree
+///
+/// Realized via [`friction_nlp::inflect`], the same function
+/// `frame_rules`'s own `TplOp::Inflect` arm calls: the matched verb's own
+/// surface morphology (tense, number, aspect) transfers onto the
+/// replacement lemma unchanged, so `"surfaced"` -> `"revealed"`,
+/// `"surfacing"` -> `"revealing"`, `"surfaces"` -> `"reveals"`.
+#[must_use]
+pub fn t11_transitive_substitution(
+    source: &str,
+    tokens: &[TaggedToken],
+    parse: &SentenceParse,
+) -> Vec<SubstitutionCandidate> {
+    let mut out = Vec::new();
+    for index in 0..tokens.len() {
+        if !matches!(
+            tokens[index].pos.as_str(),
+            "VB" | "VBZ" | "VBG" | "VBN" | "VBD"
+        ) {
+            continue;
+        }
+        let Some(target_lemma) = LEXICON_EN
+            .transitive_verbs
+            .get(tokens[index].lemma.as_ref())
+        else {
+            continue;
+        };
+        let Some(dobj) = children_with_relation(parse, index, DepRelation::Dobj).next() else {
+            continue; // intransitive here: the vsub.* report-only rows already cover it.
+        };
+        let (obj_first, obj_last) = subtree_span(parse, dobj.token);
+        if !t11_object_is_licensable(tokens, index, dobj.token, obj_first, obj_last) {
+            continue;
+        }
+        let surface = token_text(source, tokens, index);
+        let Some(replacement) = friction_nlp::inflect(surface, target_lemma) else {
+            continue; // defensive: `inflect` only fails on a non-alphabetic token, never expected here.
+        };
+        out.push(SubstitutionCandidate {
+            range: tokens[index].token.range.clone(),
+            replacement: replacement.into_boxed_str(),
+        });
+    }
+    out
+}
+
+// ---------------------------------------------------------------------
+// Inflection. `third_sg` is used only by T10's finite-subject shape
+// (§A1) and `past` by both T9 and T10; `past_participle` ships alongside
+// them since all three were audited as one unit — they now live in
+// `friction_nlp::inflect`, beside the `LEXICON_EN` tables they read, and
+// are re-exported here unchanged so external callers of
+// `friction_register::transduce::{past, past_participle, third_sg}` keep
+// working.
 // ---------------------------------------------------------------------
 
 pub use friction_nlp::{past, past_participle, third_sg};
