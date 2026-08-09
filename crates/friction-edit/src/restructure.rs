@@ -65,7 +65,7 @@ use friction_register::transduce::{
 use crate::document::{apply, ends_with_sentence_terminal_punctuation, resolve};
 use crate::error::EditError;
 use crate::gates::{clause_ok, in_quoted_span};
-use crate::parse_ctx::build_sentence_contexts;
+use crate::parse_ctx::build_sentence_contexts_where;
 use crate::sentence::check_rewrite_gates;
 
 /// The rule id every T10 patch and held finding carries. Cited by name in
@@ -104,7 +104,25 @@ pub fn run_restructure(
 ) -> Result<(String, crate::document::PassReport), EditError> {
     let document = friction_parse::parse_with(source, syntax)?;
     let units = prose_scope(&document, segmenter);
-    let sentences = build_sentence_contexts(source, &units, tagger, parser);
+    // Every T10/T11 candidate requires a literal trigger word ("ensure"
+    // in some finite form; a `[transitive_verbs]` key in any of its
+    // inflections), so sentences without one skip tagging and parsing
+    // entirely — see `build_sentence_contexts_where`'s docs for why
+    // this is byte-safe by construction. Stems: "ensur" covers
+    // ensure/ensures/ensured; a table key minus its final "e" covers
+    // every regular inflection of that key.
+    let stems: Vec<String> = std::iter::once("ensur".to_owned())
+        .chain(
+            friction_nlp::LEXICON_EN
+                .transitive_verbs
+                .keys()
+                .map(|k| k.trim_end_matches('e').to_owned()),
+        )
+        .collect();
+    let sentences = build_sentence_contexts_where(source, &units, tagger, parser, |text| {
+        let folded = text.to_ascii_lowercase();
+        stems.iter().any(|s| folded.contains(s.as_str()))
+    });
 
     let mut patches: Vec<Patch> = Vec::new();
     let mut held: Vec<Finding> = Vec::new();

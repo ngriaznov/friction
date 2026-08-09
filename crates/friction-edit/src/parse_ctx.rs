@@ -94,6 +94,55 @@ pub fn build_sentence_contexts(
         .collect()
 }
 
+/// [`build_sentence_contexts`], but tagging and parsing only the
+/// sentences whose raw text `keep` accepts.
+///
+/// For a pass whose every candidate requires a closed set of literal
+/// trigger words (the restructure pass: T10 needs a form of "ensure",
+/// T11 a form of a `[transitive_verbs]` key), skipping the tag+parse of
+/// a sentence that cannot contain a candidate is byte-safe by
+/// construction — the trigger is a necessary condition, not a
+/// heuristic. Contrast the refuted lazy-parse experiment (see the
+/// project's own record): that one gated a *counter* whose parser could
+/// fire on arbitrary tokens, so no lexical trigger was a sound
+/// superset. Here the candidate builder itself demands the literal
+/// lemma, so a sentence without the substring can never produce one.
+pub fn build_sentence_contexts_where(
+    source: &str,
+    units: &[friction_match::token::ScopedUnit<'_>],
+    tagger: &dyn Tagger,
+    parser: &dyn DepParser,
+    keep: impl Fn(&str) -> bool + Sync,
+) -> Vec<SentenceCtx> {
+    let ranges: Vec<(Range<usize>, bool)> = units
+        .iter()
+        .enumerate()
+        .flat_map(|(unit_index, unit)| {
+            let continues_previous =
+                unit_index
+                    .checked_sub(1)
+                    .map(|i| &units[i])
+                    .is_some_and(|prev| {
+                        prev.unit.block == unit.unit.block
+                            && !crate::document::ends_with_sentence_terminal_punctuation(prev.text)
+                    });
+            unit.sentences
+                .iter()
+                .enumerate()
+                .map(move |(sentence_index, range)| {
+                    (range.clone(), sentence_index == 0 && continues_previous)
+                })
+        })
+        .collect();
+    ranges
+        .par_iter()
+        .filter(|(range, _)| source.get(range.clone()).is_some_and(&keep))
+        .filter_map(|(range, continues_previous)| {
+            build_sentence_ctx(source, range, tagger, parser, *continues_previous)
+        })
+        .collect()
+}
+
 /// Tags and parses one sentence, `None` if `range` fails to slice `source`
 /// (never expected — `range` always comes from this same `source`'s own
 /// segmentation), its trimmed text is empty, or the parse fails (allowed
