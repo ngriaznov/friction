@@ -211,6 +211,7 @@ mod tests {
         let report = EditReport {
             passes: vec![pass(vec![fired], vec![held])],
             reusable_scan: None,
+            final_bounded_pass_index: 0,
         };
         let rows = pass_rows(&report);
         assert_eq!(rows.len(), 1);
@@ -228,6 +229,7 @@ mod tests {
         let report = EditReport {
             passes: vec![pass(Vec::new(), Vec::new())],
             reusable_scan: None,
+            final_bounded_pass_index: 0,
         };
         let rows = pass_rows(&report);
         assert!(rows[0].fired.is_empty());

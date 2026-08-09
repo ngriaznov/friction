@@ -18,7 +18,9 @@ pub mod document;
 mod error;
 pub mod gates;
 pub mod nearnoop;
+mod parse_ctx;
 pub mod register;
+mod restructure;
 pub mod sentence;
 pub mod splice;
 

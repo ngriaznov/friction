@@ -897,8 +897,12 @@ mod tests {
         // vsub.surface family (the verb "surface", transitivity-mixed,
         // measured after the sonnet-5 corpus round) — bumped only when
         // rules are deliberately added or removed, never by
-        // regeneration.
-        assert_eq!(total, 3395, "regeneration moves rules, never loses them");
+        // regeneration. 3395 -> 3394: `able.ensures-that-short::ensure`
+        // retired from `rules_ship` (its template could never realize --
+        // see this file's own `frame-rules-en-v1.toml` comment at the
+        // retired row) once `friction-edit`'s restructure pass took over
+        // its evidence (`restructure.ensures_that`).
+        assert_eq!(total, 3394, "regeneration moves rules, never loses them");
         assert_eq!(set.rules_pilot.len(), 21, "pilot rules never move");
         assert_eq!(set.classes.len(), 35);
         assert_eq!(set.function_words.words.len(), 37);

@@ -1208,7 +1208,15 @@ rules_surface = [
 { id="lex.embark::embark-odyssey", p="\"embark\" \"on\" DT \"odyssey\" X?", t="VB[begin] X", k="r", m_pm=27.4, h_pm=6.1, v="frame:CONFIRMED", n="parent=lex.embark" },
 { id="lex.embark::embark-quest", p="\"embark\" \"on\" DT \"quest\" X?", t="VB[begin] X", k="r", m_pm=27.4, h_pm=6.1, v="frame:CONFIRMED", n="parent=lex.embark" },
 { id="nom.the-realm-of::world", p="\"the\" \"world\" \"of\" X", t="X", k="r", m_pm=21.3, h_pm=9.1, v="frame:CONFIRMED", n="parent=nom.the-realm-of" },
-{ id="able.ensures-that-short::ensure", p="\"ensure\" \"that\" X", t="VB X", k="r", m_pm=453.1, h_pm=66.9, v="frame:CONFIRMED", n="parent=able.ensures-that-short" },
+# able.ensures-that-short::ensure retired (was: p="\"ensure\" \"that\" X",
+# t="VB X", k="r", m_pm=453.1, h_pm=66.9, v="frame:CONFIRMED",
+# n="parent=able.ensures-that-short"): the template "VB X" has no PatOp::Tag
+# element in its own pattern to copy from, so TplOp::TagCopy can never
+# realize it (see restructure-design.md section 0) -- this evidence, still
+# CONFIRMED, now licenses friction-edit's restructure pass instead
+# (rule restructure.ensures_that, t10_ensures_that_restructure in
+# friction-register::transduce), which derives the VB form from the
+# matched participle's own lemma rather than a pack-fixed one.
 { id="con.more-than-just::lit", p="BE \"more\" \"than\" \"just\" DT NN", t="BE \"not\" \"only\" DT NN", k="r", m_pm=12.2, h_pm=6.1, v="frame:CONFIRMED", n="parent=con.more-than-just" },
 { id="adj.comprehensive-overview::comprehensive-guide", p="\"comprehensive\" \"guide\"", t="NN", k="r", m_pm=6.1, h_pm=0.0, v="frame:CONFIRMED", n="parent=adj.comprehensive-overview" },
 { id="adv.ultimately-opener::lit", p="<S> \"ultimately\" \",\" X </S>", t="<S> X </S>", k="r", m_pm=33.4, h_pm=3.0, v="frame:CONFIRMED", n="parent=adv.ultimately-opener" },

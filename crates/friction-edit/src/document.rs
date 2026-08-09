@@ -10,6 +10,7 @@ use friction_packs::{AttestationPack, InventoryPack, RegisterPack};
 use crate::error::EditError;
 use crate::nearnoop::PivotBudget;
 use crate::register;
+use crate::restructure;
 use crate::sentence::{DocumentCasing, EditContext, SentencePosition, edit_sentence};
 
 /// Maximum number of internal engine passes per [`edit_document`] call.
@@ -34,7 +35,9 @@ pub struct PassReport {
 /// The full report for one [`edit_document`] call.
 #[derive(Debug, Default)]
 pub struct EditReport {
-    /// One entry per internal pass actually run.
+    /// One entry per internal pass actually run: zero or more bounded
+    /// five/six-op passes, then one restructure pass, then one register
+    /// pass.
     pub passes: Vec<PassReport>,
     /// Reusable artifacts for the FINAL text this call returned — see
     /// [`crate::register::ReusableScan`]'s own docs. `None` whenever the
@@ -42,6 +45,17 @@ pub struct EditReport {
     /// when it applied zero), since a patch shifts every later byte
     /// offset out from under them.
     pub reusable_scan: Option<crate::register::ReusableScan>,
+    /// Index into `passes` of the last bounded five/six-op pass (the
+    /// zero-patch convergence pass, or the bounded-out final round).
+    ///
+    /// Threaded explicitly rather than derived from `passes.len()`:
+    /// `friction-cli`'s `final_pass_held` used to assume `passes.len() -
+    /// 2` was always this pass (true only when register was the sole
+    /// pass following the bounded loop). Inserting the restructure pass
+    /// between them shifted that arithmetic silently — see
+    /// `friction-cli::fix::final_pass_held`'s own docs for the fix this
+    /// field enables.
+    pub final_bounded_pass_index: usize,
 }
 
 /// Total prose word-token count across `source`'s prose blocks, used to
@@ -77,14 +91,22 @@ pub(crate) fn prose_word_count_with(
 }
 
 /// Runs the five-operation pipeline over every prose sentence in
-/// `source`, bounded to [`MAX_PASSES`] passes, then runs the register
-/// pass ([`crate::register::run_register`]) once over the converged text.
+/// `source`, bounded to [`MAX_PASSES`] passes.
 ///
-/// Register runs only after convergence: the five operations are
-/// subtractive and shift the prose word count that every per-1000-word
-/// register rate depends on, so homing against a still-moving
-/// denominator would chase a moving target. Running last homes the
-/// vector of the text that actually ships.
+/// Then runs the restructure pass ([`crate::restructure::run_restructure`])
+/// and the register pass ([`crate::register::run_register`]) — each once,
+/// over the previous stage's converged/rewritten text.
+///
+/// Restructure and register both run only after the bounded loop
+/// converges: the five operations are subtractive and shift the prose
+/// word count that every per-1000-word register rate depends on, so
+/// homing against a still-moving denominator would chase a moving
+/// target. Restructure sits before register, not after: its own
+/// rewrites remove exactly the spans register's features count, so
+/// register must see the restructured text or its Wilson-bound arming is
+/// computed against a vector the reader never sees (see
+/// `crate::restructure`'s own module docs for the full ordering
+/// argument).
 ///
 /// # Errors
 /// Returns [`EditError`] if `source` fails to parse or segment.
@@ -126,67 +148,7 @@ pub fn edit_document(
         let mut candidates: Vec<Patch> = Vec::new();
         let mut held: Vec<Finding> = Vec::new();
 
-        // First walk: collect every in-scope sentence's position, plus
-        // casing evidence the recapitalization guard needs from every
-        // untouched sentence before any edit (a later `mimalloc` marks
-        // an earlier opener deliberate).
-        let mut positions: Vec<SentencePosition> = Vec::new();
-        let mut casing = DocumentCasing::default();
-        let prose_units = with_sentences.prose();
-        // Precomputed once per pass, each in one O(units)/O(blocks) walk,
-        // so the per-unit loop below never rescans either: `sole_item_content`
-        // used to re-`filter`+`count` the WHOLE `prose_units` slice for
-        // every unit just to ask "does my block own exactly one prose
-        // unit", and `in_ordered_list_item` used to re-scan the WHOLE
-        // `blocks` slice for every candidate list item just to find its
-        // tightest enclosing list — both `O(units)`-per-unit, i.e.
-        // `O(units^2)` (`O(blocks^2)` for the latter) over the pass as a
-        // whole. See `units_per_block`/`ordered_list_items`'s own docs.
-        let units_per_block = units_per_block(with_sentences.blocks().len(), prose_units);
-        let ordered_list_item = ordered_list_items(with_sentences.blocks());
-        for (unit_index, unit) in prose_units.iter().enumerate() {
-            // Prose-blocks-only (gate 7): `friction_parse::parse` also
-            // extracts prose from headings/table cells, so this engine
-            // filters, reusing the detection layer's
-            // `friction_match::token::is_in_scope` allowlist.
-            let block_kind = &with_sentences.blocks()[unit.block].kind;
-            if !friction_match::token::is_in_scope(block_kind) {
-                continue;
-            }
-            // A prose unit sharing its predecessor's block index is a
-            // later run of the same prose session, split off by an
-            // excluded construct or gap (`friction_parse::extract`'s
-            // guarantee): not a real end-of-block boundary. Its first
-            // sentence is new only if the predecessor ended with
-            // sentence-terminal punctuation; otherwise the segmenter
-            // manufactured a "sentence" from a fragment.
-            let unit_starts_new_sentence = match unit_index.checked_sub(1).map(|i| &prose_units[i])
-            {
-                Some(prev) if prev.block == unit.block => with_sentences
-                    .text(&prev.range)
-                    .is_ok_and(ends_with_sentence_terminal_punctuation),
-                _ => true,
-            };
-            let sentences = &unit.sentences;
-            // Entire prose content of a numbered list item: its unit is
-            // the item's only prose unit and only sentence, and its
-            // tightest enclosing list block is ordered.
-            let sole_item_content = sentences.len() == 1
-                && units_per_block[unit.block] == 1
-                && ordered_list_item[unit.block];
-            for (i, sentence) in sentences.iter().enumerate() {
-                let position = SentencePosition {
-                    range: sentence.range.clone(),
-                    prev_end: (i > 0).then(|| sentences[i - 1].range.end),
-                    next_range: sentences.get(i + 1).map(|s| s.range.clone()),
-                    is_sentence_start: i > 0 || unit_starts_new_sentence,
-                    sole_content_of_ordered_list_item: sole_item_content,
-                };
-                casing
-                    .record_sentence(&current[sentence.range.clone()], position.is_sentence_start);
-                positions.push(position);
-            }
-        }
+        let (positions, casing) = collect_positions_and_casing(&with_sentences, &current);
 
         let ctx = EditContext {
             inventory,
@@ -224,6 +186,24 @@ pub fn edit_document(
             break;
         }
     }
+    report.final_bounded_pass_index = report.passes.len().saturating_sub(1);
+
+    let bounded_held = &mut report
+        .passes
+        .last_mut()
+        .expect("the bounded loop always pushes at least one pass")
+        .held;
+    let (restructured, restructure_pass) = restructure::run_restructure(
+        &current,
+        syntax,
+        attestation,
+        tagger,
+        parser,
+        segmenter,
+        bounded_held,
+    )?;
+    report.passes.push(restructure_pass);
+    current = restructured;
 
     let (registered, register_pass, reusable_scan) =
         register::run_register(&current, syntax, register_pack, tagger, parser, segmenter)?;
@@ -232,6 +212,73 @@ pub fn edit_document(
     current = registered;
 
     Ok((current, report))
+}
+
+/// First walk of one bounded pass: collects every in-scope sentence's
+/// position, plus casing evidence the recapitalization guard needs from
+/// every untouched sentence before any edit (a later sentence marks an
+/// earlier opener deliberate) — split out of [`edit_document`] itself
+/// only to keep that function's own line count down.
+fn collect_positions_and_casing(
+    with_sentences: &friction_core::Document,
+    current: &str,
+) -> (Vec<SentencePosition>, DocumentCasing) {
+    let mut positions: Vec<SentencePosition> = Vec::new();
+    let mut casing = DocumentCasing::default();
+    let prose_units = with_sentences.prose();
+    // Precomputed once per pass, each in one O(units)/O(blocks) walk,
+    // so the per-unit loop below never rescans either: `sole_item_content`
+    // used to re-`filter`+`count` the WHOLE `prose_units` slice for
+    // every unit just to ask "does my block own exactly one prose
+    // unit", and `in_ordered_list_item` used to re-scan the WHOLE
+    // `blocks` slice for every candidate list item just to find its
+    // tightest enclosing list — both `O(units)`-per-unit, i.e.
+    // `O(units^2)` (`O(blocks^2)` for the latter) over the pass as a
+    // whole. See `units_per_block`/`ordered_list_items`'s own docs.
+    let units_per_block = units_per_block(with_sentences.blocks().len(), prose_units);
+    let ordered_list_item = ordered_list_items(with_sentences.blocks());
+    for (unit_index, unit) in prose_units.iter().enumerate() {
+        // Prose-blocks-only (gate 7): `friction_parse::parse` also
+        // extracts prose from headings/table cells, so this engine
+        // filters, reusing the detection layer's
+        // `friction_match::token::is_in_scope` allowlist.
+        let block_kind = &with_sentences.blocks()[unit.block].kind;
+        if !friction_match::token::is_in_scope(block_kind) {
+            continue;
+        }
+        // A prose unit sharing its predecessor's block index is a
+        // later run of the same prose session, split off by an
+        // excluded construct or gap (`friction_parse::extract`'s
+        // guarantee): not a real end-of-block boundary. Its first
+        // sentence is new only if the predecessor ended with
+        // sentence-terminal punctuation; otherwise the segmenter
+        // manufactured a "sentence" from a fragment.
+        let unit_starts_new_sentence = match unit_index.checked_sub(1).map(|i| &prose_units[i]) {
+            Some(prev) if prev.block == unit.block => with_sentences
+                .text(&prev.range)
+                .is_ok_and(ends_with_sentence_terminal_punctuation),
+            _ => true,
+        };
+        let sentences = &unit.sentences;
+        // Entire prose content of a numbered list item: its unit is
+        // the item's only prose unit and only sentence, and its
+        // tightest enclosing list block is ordered.
+        let sole_item_content = sentences.len() == 1
+            && units_per_block[unit.block] == 1
+            && ordered_list_item[unit.block];
+        for (i, sentence) in sentences.iter().enumerate() {
+            let position = SentencePosition {
+                range: sentence.range.clone(),
+                prev_end: (i > 0).then(|| sentences[i - 1].range.end),
+                next_range: sentences.get(i + 1).map(|s| s.range.clone()),
+                is_sentence_start: i > 0 || unit_starts_new_sentence,
+                sole_content_of_ordered_list_item: sole_item_content,
+            };
+            casing.record_sentence(&current[sentence.range.clone()], position.is_sentence_start);
+            positions.push(position);
+        }
+    }
+    (positions, casing)
 }
 
 /// How many `prose_units` belong to each block index, `0..blocks_len`.

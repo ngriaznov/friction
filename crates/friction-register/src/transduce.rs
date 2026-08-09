@@ -38,7 +38,7 @@ use friction_core::CoreError;
 use friction_core::span::{Spanned, validate_range};
 use friction_nlp::{
     DepEdge, DepRelation, FINITE_VERB_TAGS, LEXICON_EN, Lexicon, SentenceParse, TaggedToken,
-    coarse_tag, has_finite_verb,
+    coarse_tag, has_finite_verb, is_imperative_initial,
 };
 
 /// A proposed rewrite: replace `range` with `replacement`, moving the
@@ -1468,6 +1468,444 @@ pub fn t9_past_progressive(
 }
 
 // ---------------------------------------------------------------------
+// T10: "ensure that NP is/are VBN" -> imperative/infinitival "VB NP".
+// ---------------------------------------------------------------------
+
+/// One [`t10_ensures_that_restructure`] outcome for a single `ensure`
+/// token: either a licensed rewrite, or the specific reason a genuinely
+/// matched "ensure that NP is/are VBN" shape declined.
+///
+/// [`RestructureOutcome::Declined`] is returned only once the construction
+/// has already matched (this function's own steps 1 through 6: an
+/// `ensure` lemma, a `Ccomp` child tagged `VBN`, a literal "that", exactly
+/// one qualifying `AuxPass` child, exactly one `NsubjPass` child) — a
+/// shape that never reaches that point (a modal, intransitive, or
+/// adjectival complement) produces no [`RestructureOutcome`] at all, the
+/// same silent-decline convention [`t4_activize_to_passive`] uses for a
+/// verb that was never a licensable candidate to begin with. A caller
+/// wanting the corpus-backlog accounting the design calls for turns
+/// [`RestructureOutcome::Declined`] into a held [`friction_core::Finding`]
+/// and leaves a shape this function never returned anything for silent.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum RestructureOutcome {
+    /// A licensed rewrite: replace `range` with `replacement`.
+    Candidate {
+        /// Byte range in the original source this candidate would
+        /// replace.
+        range: Range<usize>,
+        /// The text to substitute for `range`.
+        replacement: Box<str>,
+    },
+    /// The construction matched but a named guard declined it.
+    Declined {
+        /// Byte range of the matched "ensure ... VBN" run.
+        range: Range<usize>,
+        /// Which guard declined, for the held finding's message.
+        reason: &'static str,
+    },
+}
+
+/// The negation set this construction's own law uses: "any word that can
+/// invert the participle's polarity" — a strict superset of
+/// [`friction_register::features`](crate::features)'s own
+/// `NEGATION_PARTICLES`, which deliberately excludes "never" for a
+/// Biber-feature-counting reason that has no bearing here (a feature
+/// count tolerates one missed instance; a passive-to-imperative collapse
+/// over a missed "never" states the opposite of what the author wrote).
+/// Declared locally rather than imported, per this module's own
+/// evidence-scoping convention (see `PERMITTED_FUNCTION_WORDS`'s own
+/// docs for the same "closed, local, audited" shape).
+const T10_NEGATION_WORDS: [&str; 3] = ["not", "n't", "never"];
+
+/// The four contracted "be" + "not" forms this construction's own
+/// `AuxPass` step also recognizes as matching (not merely as later
+/// negation evidence): the shipped tagger fuses a negated auxiliary into
+/// one token (`friction_match::token`'s own tokenizer keeps "don't"/
+/// "isn't" whole — see its `tokenize_str` doc example), so a literal
+/// "is"/"are"/"was"/"were" surface check alone would silently miss the
+/// single most dangerous negated shape this construction can see: parsed
+/// against the shipped parser, "Ensure that telemetry isn't sent." keeps
+/// the full passive shape (`NsubjPass`/`AuxPass`/`Ccomp`-tagged-`VBN`)
+/// with "isn't" as the `AuxPass` token itself — verified against the
+/// shipped tagger and parser before this list was written, not assumed.
+const T10_NEGATED_AUXPASS_FORMS: [&str; 4] = ["isn't", "aren't", "wasn't", "weren't"];
+
+/// `true` if `stem` (a candidate base-form verb with no trailing `"e"`)
+/// is one of the narrow shapes where restoring a silent `"e"` is a
+/// certainty, not a guess: a word ending in a bare consonant immediately
+/// followed by `"l"`, with no vowel between them.
+///
+/// English has no base verb ending in an unvoweled `"...Cl"` cluster —
+/// every real word of that shape ("enable", "handle", "settle",
+/// "struggle") keeps the silent `"e"` that makes the trailing `"l"`
+/// syllabic. This is the one silent-`"e"` shape decidable from spelling
+/// alone; the wider class (`"resolve"` vs. `"want"`, both a bare
+/// consonant preceded by a vowel after suffix-stripping) is not — see
+/// [`t10_derive_base_verb`]'s own docs for why that wider class is left
+/// alone rather than guessed at.
+fn t10_ends_in_bare_consonant_l(stem: &str) -> bool {
+    let chars: Vec<char> = stem.chars().collect();
+    let Some(&last) = chars.last() else {
+        return false;
+    };
+    let Some(&before_last) = chars.len().checked_sub(2).map(|i| &chars[i]) else {
+        return false;
+    };
+    last == 'l'
+        && !matches!(
+            before_last.to_ascii_lowercase(),
+            'a' | 'e' | 'i' | 'o' | 'u'
+        )
+}
+
+/// Derives the base-form ("VB") verb `comp_surface` (a `VBN` token's own
+/// surface text) inflects from, corroborated against
+/// [`friction_nlp::past_participle`]'s forward direction — `None` if no
+/// candidate round-trips, the fail-closed outcome [`t10_ensures_that_restructure`]
+/// turns into a named decline rather than ever guessing.
+///
+/// `comp_lemma` (the tagger's own reverse-lemmatization) is trusted after
+/// the round-trip check, with one correction: measured directly against
+/// the shipped tagger, `friction_nlp::lemmatize`'s own candidate ordering
+/// tries the naive `"-ed"`-stripped stem before the silent-`"e"`-restored
+/// one, and for a real, common verb class ("enable", "disable" — the
+/// design's own flagship example) the naive stem round-trips on its own
+/// merits (no consonant-doubling rule intervenes to rule it out), so it
+/// wins even though it isn't the true lemma. [`t10_ends_in_bare_consonant_l`]
+/// catches exactly that shape and corrects it. The much wider class of
+/// silent-`"e"` stems this doesn't catch (`"resolved"` -> `"resolv"`,
+/// `"closed"` -> `"clos"`: both round-trip identically to a genuine
+/// e-less verb like `"want"` -> `"wanted"`, and nothing short of a
+/// dictionary separates them) is a disclosed, pre-existing limitation of
+/// the shared lemmatizer, not something this function invents a fix for
+/// — those instances still round-trip (just to the wrong verb), so this
+/// function returns a value for them; see this crate's own worked corpus
+/// check (25 of 79 sampled technical verbs mis-lemmatized this way) for
+/// the measured scope of that residual risk.
+fn t10_derive_base_verb(comp_lemma: &str, comp_surface: &str) -> Option<String> {
+    let round_trips =
+        |candidate: &str| past_participle(candidate).eq_ignore_ascii_case(comp_surface);
+    if round_trips(comp_lemma) {
+        if !comp_lemma.ends_with('e') && t10_ends_in_bare_consonant_l(comp_lemma) {
+            let restored = format!("{comp_lemma}e");
+            if round_trips(&restored) {
+                return Some(restored);
+            }
+        }
+        return Some(comp_lemma.to_string());
+    }
+    if !comp_lemma.ends_with('e') {
+        let restored = format!("{comp_lemma}e");
+        if round_trips(&restored) {
+            return Some(restored);
+        }
+    }
+    None
+}
+
+/// `true` if `subj`'s subtree (`first..=last`) is safe to promote to the
+/// front of the new imperative/infinitival clause.
+///
+/// Reuses [`within_bracketed_aside`] unchanged (a promoted subject inside
+/// a parenthetical aside is displayed material, not asserted, exactly
+/// [`object_is_licensable`]'s own reasoning) and the same no-post-modifier
+/// / has-a-real-noun shape that function checks inline, adapted rather
+/// than called directly: `object_is_licensable`'s own
+/// `preposition_before_object`/`verb_child_after_object` checks are
+/// scoped to T4's active-verb-then-object word order, which doesn't hold
+/// here — a passive subject precedes its participle, not the reverse.
+fn t10_subject_is_licensable(
+    source: &str,
+    tokens: &[TaggedToken],
+    parse: &SentenceParse,
+    subj_token: usize,
+    first: usize,
+    last: usize,
+) -> bool {
+    let has_post_modifier = (first..=last).any(|index| {
+        index != subj_token
+            && parse.edge(index).is_some_and(|edge| {
+                matches!(
+                    edge.relation,
+                    DepRelation::Prep
+                        | DepRelation::Acl
+                        | DepRelation::Advcl
+                        | DepRelation::Xcomp
+                        | DepRelation::Ccomp
+                        | DepRelation::Csubj
+                        | DepRelation::Mark
+                        | DepRelation::Aux
+                        | DepRelation::AuxPass
+                )
+            })
+    });
+    if has_post_modifier {
+        return false;
+    }
+    let has_noun = (first..=last)
+        .any(|index| matches!(tokens[index].pos.as_str(), "NN" | "NNS" | "NNP" | "NNPS"));
+    if !has_noun {
+        return false;
+    }
+    !within_bracketed_aside(source, tokens, first, last)
+}
+
+/// The licensed outer mood shape a matched `ensure` token sits in, or
+/// `None` for every other shape (finite subject-agreement, modal,
+/// anything else) — see [`t10_ensures_that_restructure`]'s own docs for
+/// why only these two ship in v1.
+enum T10OuterShape {
+    /// `ensure` opens the sentence, tagged `VB`: a bare imperative.
+    SentenceInitialImperative,
+    /// `ensure` is immediately preceded by infinitival `to`.
+    Infinitival,
+}
+
+fn t10_outer_shape(
+    source: &str,
+    tokens: &[TaggedToken],
+    ensure_index: usize,
+) -> Option<T10OuterShape> {
+    if tokens[ensure_index].pos.as_str() != "VB" {
+        return None;
+    }
+    if ensure_index == 0 && is_imperative_initial(tokens) {
+        return Some(T10OuterShape::SentenceInitialImperative);
+    }
+    if ensure_index > 0
+        && tokens[ensure_index - 1].pos.as_str() == "TO"
+        && token_text(source, tokens, ensure_index - 1).eq_ignore_ascii_case("to")
+    {
+        return Some(T10OuterShape::Infinitival);
+    }
+    None
+}
+
+/// "Ensure that NP is/are VBN" -> imperative/infinitival "VB NP" (T10):
+/// `"Ensure that the setting is enabled."` -> `"Enable the setting."`.
+///
+/// T4 run in reverse, scoped to one complement: T4 walks down from a
+/// finite verb to its `Nsubj`/`Dobj` children and promotes the object to
+/// an agentless passive subject; this walks down from `ensure`'s `Ccomp`
+/// child to find an already-passive embedded clause (`NsubjPass` +
+/// `AuxPass` children on a `VBN` head — the same two-head passive shape
+/// [`independent_clause_follows`]'s own docs describe) and collapses it
+/// to an active, subject-less imperative or infinitival.
+///
+/// Licensed on the evidence already gauntlet-CONFIRMED for the pack row
+/// this transducer replaces (`able.ensures-that-short::ensure`,
+/// `frame-rules-en-v1.toml:1211`: 453.1/M machine vs. 66.9/M human, a
+/// 6.8x tilt) — a construction whose template could never realize (see
+/// this crate's own design notes), not new evidence.
+///
+/// # Detection order
+/// 1. A token whose lemma is `"ensure"`, tagged `VB`/`VBP`/`VBZ` (`VBD`/
+///    `VBG` never carry the imperative/infinitival mood this transducer
+///    produces, so they're excluded up front rather than reaching the
+///    outer-shape check only to always fail it).
+/// 2. A `Ccomp` child — call it `comp`.
+/// 3. `comp` tagged `VBN`. Anything else (a `JJ` adjectival complement,
+///    a `VB`/`VBZ` intransitive one under a modal) means this `ensure`
+///    was never a passive-complement candidate at all: no finding, the
+///    same silent decline [`t4_activize_to_passive`] gives a verb that
+///    never qualified.
+/// 4. `comp` has exactly one `AuxPass` child whose surface (case-folded,
+///    curly apostrophes straightened) is `"is"`/`"are"`/`"was"`/`"were"`
+///    or one of [`T10_NEGATED_AUXPASS_FORMS`] — never `"being"`/`"been"`,
+///    mirroring [`t9_past_progressive`]'s own stative-copula exclusion.
+/// 5. `comp` has exactly one `NsubjPass` child — call it `subj`, and take
+///    its full subtree span via [`subtree_span`].
+/// 6. The token immediately after `ensure` is literally `"that"`
+///    (case-insensitive) — verified against the shipped parser's own
+///    fixtures before this was locked down: every tested example
+///    attaches `Mark` from `comp` to that same token, so the literal
+///    adjacency check and a `Mark`-of-`comp` check agree on every case
+///    tried; the literal check is used here as the simpler, equally
+///    correct implementation. Its absence (`"ensure X is enabled"`, no
+///    `"that"`) is out of scope for v1 and produces no finding.
+///
+/// Every shape reaching this point genuinely matched the construction.
+/// From here, a failing guard is a named [`RestructureOutcome::Declined`],
+/// never silence:
+/// 7. **Adverb gap**: the token right after `AuxPass` must be `comp`
+///    itself. A gap ("was **properly** cleaned up") forces an
+///    adverb-placement decision no table can make — [`t9_past_progressive`]'s
+///    own precedent for the identical shape.
+/// 8. **Negation**: any token in `comp`'s own subtree, or immediately
+///    before it, case-folding to one of [`T10_NEGATION_WORDS`] — or the
+///    `AuxPass` token itself being one of [`T10_NEGATED_AUXPASS_FORMS`] —
+///    declines. The single highest-stakes guard in this module: missing
+///    it turns "ensure telemetry is **not** sent" into "Send telemetry",
+///    the opposite of what the author wrote, not merely a bad rewrite.
+/// 9. **Subject quality**: [`t10_subject_is_licensable`] over `subj`'s
+///    subtree, and [`contains_markdown_structural_syntax`] over the
+///    whole candidate span.
+/// 10. **Lemma derivation**: [`t10_derive_base_verb`] must produce a
+///     round-tripping base form.
+/// 11. **Outer shape**: [`t10_outer_shape`] must license a
+///     sentence-initial imperative or an infinitival "to ensure". Every
+///     other shape — most importantly a finite subject
+///     ("This ensures that X is enabled.") — declines: rewriting those
+///     correctly needs subject-agreement re-inflection, a second,
+///     independent problem this transducer doesn't take on in v1.
+#[must_use]
+pub fn t10_ensures_that_restructure(
+    source: &str,
+    tokens: &[TaggedToken],
+    parse: &SentenceParse,
+) -> Vec<RestructureOutcome> {
+    let mut out = Vec::new();
+    for index in 0..tokens.len() {
+        if tokens[index].lemma.as_ref() != "ensure" {
+            continue;
+        }
+        if !matches!(tokens[index].pos.as_str(), "VB" | "VBP" | "VBZ") {
+            continue;
+        }
+        let Some(m) = t10_match_passive_complement(source, tokens, parse, index) else {
+            continue; // steps 2-6 (see this function's own docs): never matched, silent.
+        };
+        out.push(t10_license_and_realize(source, tokens, parse, index, &m));
+    }
+    out
+}
+
+/// Steps 2 through 6 of [`t10_ensures_that_restructure`]'s own detection
+/// order: locates `ensure`'s `Ccomp` child, requires it tagged `VBN`,
+/// requires a literal `"that"` right after `ensure`, and requires exactly
+/// one qualifying `AuxPass` child and exactly one `NsubjPass` child on
+/// that complement. `None` for any failure here — the construction never
+/// matched, so [`t10_ensures_that_restructure`] emits no
+/// [`RestructureOutcome`] at all for this `ensure` token.
+struct T10Match {
+    comp: usize,
+    aux: usize,
+    subj: usize,
+    subj_first: usize,
+    subj_last: usize,
+    negated_auxpass_form: bool,
+}
+
+fn t10_match_passive_complement(
+    source: &str,
+    tokens: &[TaggedToken],
+    parse: &SentenceParse,
+    ensure_index: usize,
+) -> Option<T10Match> {
+    let comp = children_with_relation(parse, ensure_index, DepRelation::Ccomp)
+        .next()?
+        .token;
+    if tokens[comp].pos.as_str() != "VBN" {
+        return None;
+    }
+    let has_literal_that = tokens
+        .get(ensure_index + 1)
+        .is_some_and(|_| token_text(source, tokens, ensure_index + 1).eq_ignore_ascii_case("that"));
+    if !has_literal_that {
+        return None;
+    }
+
+    let auxpass: Vec<usize> = children_with_relation(parse, comp, DepRelation::AuxPass)
+        .map(|edge| edge.token)
+        .collect();
+    let [aux] = auxpass.as_slice() else {
+        return None;
+    };
+    let aux = *aux;
+    let aux_folded = folded_token_text(source, tokens, aux);
+    let negated_auxpass_form = T10_NEGATED_AUXPASS_FORMS.contains(&aux_folded.as_str());
+    if !negated_auxpass_form && !matches!(aux_folded.as_str(), "is" | "are" | "was" | "were") {
+        return None; // "being"/"been"/anything else.
+    }
+
+    let nsubjpass: Vec<usize> = children_with_relation(parse, comp, DepRelation::NsubjPass)
+        .map(|edge| edge.token)
+        .collect();
+    let [subj] = nsubjpass.as_slice() else {
+        return None;
+    };
+    let subj = *subj;
+    let (subj_first, subj_last) = subtree_span(parse, subj);
+    if subj_last >= aux {
+        return None; // malformed span.
+    }
+
+    Some(T10Match {
+        comp,
+        aux,
+        subj,
+        subj_first,
+        subj_last,
+        negated_auxpass_form,
+    })
+}
+
+/// Steps 7 through 11 of [`t10_ensures_that_restructure`]'s own detection
+/// order, run once the construction is known to have matched: the
+/// adverb-gap, negation, subject-quality, Markdown, lemma-derivation, and
+/// outer-mood-shape guards, each producing a named
+/// [`RestructureOutcome::Declined`] on failure, and a
+/// [`RestructureOutcome::Candidate`] only once every guard passes.
+fn t10_license_and_realize(
+    source: &str,
+    tokens: &[TaggedToken],
+    parse: &SentenceParse,
+    ensure_index: usize,
+    m: &T10Match,
+) -> RestructureOutcome {
+    let range = tokens[ensure_index].token.range.start..tokens[m.comp].token.range.end;
+    let decline = |reason| RestructureOutcome::Declined {
+        range: range.clone(),
+        reason,
+    };
+
+    if m.aux + 1 != m.comp {
+        return decline("adverb between the auxiliary and the participle");
+    }
+
+    let negated = m.negated_auxpass_form
+        || subtree_indices(parse, m.comp)
+            .iter()
+            .any(|&i| T10_NEGATION_WORDS.contains(&folded_token_text(source, tokens, i).as_str()))
+        || (m.comp > 0
+            && T10_NEGATION_WORDS
+                .contains(&folded_token_text(source, tokens, m.comp - 1).as_str()));
+    if negated {
+        return decline("negation would invert the sentence's meaning");
+    }
+
+    if !t10_subject_is_licensable(source, tokens, parse, m.subj, m.subj_first, m.subj_last) {
+        return decline("the promoted noun phrase is not a licensable subject");
+    }
+    if contains_markdown_structural_syntax(span_text(source, tokens, ensure_index, m.comp)) {
+        return decline("candidate span contains Markdown structural syntax");
+    }
+
+    let comp_surface = token_text(source, tokens, m.comp);
+    let Some(base_verb) = t10_derive_base_verb(tokens[m.comp].lemma.as_ref(), comp_surface) else {
+        return decline("the participle's lemma did not round-trip to a base verb");
+    };
+
+    let subj_text = span_text(source, tokens, m.subj_first, m.subj_last);
+    let Some(shape) = t10_outer_shape(source, tokens, ensure_index) else {
+        return decline(
+            "no licensed outer mood shape (finite subject or unsupported construction)",
+        );
+    };
+    let replacement = match shape {
+        T10OuterShape::SentenceInitialImperative => {
+            format!("{} {subj_text}", recapitalize(&base_verb))
+        }
+        T10OuterShape::Infinitival => format!("{base_verb} {subj_text}"),
+    };
+
+    RestructureOutcome::Candidate {
+        range,
+        replacement: replacement.into_boxed_str(),
+    }
+}
+
+// ---------------------------------------------------------------------
 // Inflection. `third_sg` is unused by either transducer (T5's
 // `LEXICON_EN.nominal_verbs` spells out its own forms), but ships alongside
 // `past`/`past_participle` since the three were audited as one unit —
@@ -1478,3 +1916,66 @@ pub fn t9_past_progressive(
 // ---------------------------------------------------------------------
 
 pub use friction_nlp::{past, past_participle, third_sg};
+
+#[cfg(test)]
+mod t10_private_tests {
+    use super::{t10_derive_base_verb, t10_ends_in_bare_consonant_l};
+
+    /// The flagship silent-`"e"` correction: measured directly against
+    /// the shipped tagger, `"enabled"` reverse-lemmatizes to `"enabl"`,
+    /// not `"enable"` (see [`t10_derive_base_verb`]'s own docs) —
+    /// [`t10_derive_base_verb`] must recover the real base form anyway.
+    #[test]
+    fn derive_base_verb_restores_silent_e_for_bare_consonant_l_stems() {
+        assert_eq!(
+            t10_derive_base_verb("enabl", "enabled").as_deref(),
+            Some("enable")
+        );
+        assert_eq!(
+            t10_derive_base_verb("disabl", "disabled").as_deref(),
+            Some("disable")
+        );
+    }
+
+    /// A lemma the tagger already got right (ends in `"e"`, or a bare
+    /// consonant that doesn't need silent-`"e"` restoration) round-trips
+    /// unchanged.
+    #[test]
+    fn derive_base_verb_trusts_an_already_correct_lemma() {
+        assert_eq!(
+            t10_derive_base_verb("configure", "configured").as_deref(),
+            Some("configure")
+        );
+        assert_eq!(
+            t10_derive_base_verb("clean", "cleaned").as_deref(),
+            Some("clean")
+        );
+        assert_eq!(
+            t10_derive_base_verb("want", "wanted").as_deref(),
+            Some("want")
+        );
+    }
+
+    /// A lemma that doesn't round-trip at all (no candidate regenerates
+    /// the given surface) yields `None` — the fail-closed outcome a
+    /// caller turns into a named decline rather than a guess.
+    #[test]
+    fn derive_base_verb_declines_on_a_genuine_round_trip_failure() {
+        assert_eq!(t10_derive_base_verb("xyz", "enabled"), None);
+    }
+
+    /// [`t10_ends_in_bare_consonant_l`] is the narrow, structurally
+    /// certain shape (a bare consonant immediately before a trailing
+    /// `"l"`, no vowel between them) — true for `"enabl"`/`"disabl"`,
+    /// false for a stem where the character before the trailing `"l"`
+    /// is already a vowel (`"cancel"`, which needs no correction) or
+    /// for a stem not ending in `"l"` at all.
+    #[test]
+    fn ends_in_bare_consonant_l_is_narrow() {
+        assert!(t10_ends_in_bare_consonant_l("enabl"));
+        assert!(t10_ends_in_bare_consonant_l("disabl"));
+        assert!(!t10_ends_in_bare_consonant_l("cancel"));
+        assert!(!t10_ends_in_bare_consonant_l("want"));
+        assert!(!t10_ends_in_bare_consonant_l("l"));
+    }
+}

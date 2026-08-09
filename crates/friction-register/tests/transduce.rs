@@ -10,8 +10,9 @@ use std::collections::BTreeMap;
 use friction_core::{Token, TokenKind};
 use friction_nlp::{Confidence, DepEdge, DepRelation, PosTag, SentenceParse, TaggedToken};
 use friction_register::transduce::{
-    Candidate, CandidateKind, candidates, past, past_participle, t4_activize_to_passive,
-    t5_nominalization, t6_em_dash, t7_semicolon, t9_past_progressive, third_sg,
+    Candidate, CandidateKind, RestructureOutcome, candidates, past, past_participle,
+    t4_activize_to_passive, t5_nominalization, t6_em_dash, t7_semicolon, t9_past_progressive,
+    t10_ensures_that_restructure, third_sg,
 };
 
 /// One token's dependency-tree shape and tags, spelled out by hand.
@@ -1770,4 +1771,414 @@ fn candidates_includes_t9_past_progressive_output() {
             .iter()
             .any(|c| c.kind == CandidateKind::PastProgressive)
     );
+}
+
+// ---------------------------------------------------------------------
+// T10: "ensure that NP is/are VBN" -> imperative/infinitival "VB NP".
+//
+// Every fixture's `lemma` is given explicitly, same convention as every
+// other transducer's tests in this file (see this file's own module
+// docs) -- except where a fixture deliberately exercises the shipped
+// tagger's own silent-"e" lemmatization gap, which lives in
+// `friction-register/src/transduce.rs`'s own `t10_private_tests` module
+// instead (`t10_derive_base_verb` is private, unreachable from here).
+// ---------------------------------------------------------------------
+
+/// Asserts `outcomes` is exactly one [`RestructureOutcome::Candidate`]
+/// whose range slices `source` to `expected_span` and whose replacement
+/// is `expected_replacement`.
+fn assert_single_candidate(
+    source: &str,
+    outcomes: &[RestructureOutcome],
+    expected_span: &str,
+    expected_replacement: &str,
+) {
+    assert_eq!(outcomes.len(), 1, "outcomes: {outcomes:?}");
+    match &outcomes[0] {
+        RestructureOutcome::Candidate { range, replacement } => {
+            assert_eq!(&source[range.clone()], expected_span);
+            assert_eq!(&**replacement, expected_replacement);
+        }
+        other @ RestructureOutcome::Declined { .. } => {
+            panic!("expected a Candidate, got {other:?}")
+        }
+    }
+}
+
+/// Asserts `outcomes` is exactly one [`RestructureOutcome::Declined`]
+/// whose `reason` is `expected_reason`.
+fn assert_single_decline(outcomes: &[RestructureOutcome], expected_reason: &str) {
+    assert_eq!(outcomes.len(), 1, "outcomes: {outcomes:?}");
+    match &outcomes[0] {
+        RestructureOutcome::Declined { reason, .. } => assert_eq!(*reason, expected_reason),
+        other @ RestructureOutcome::Candidate { .. } => {
+            panic!("expected a Declined, got {other:?}")
+        }
+    }
+}
+
+// T10-1. Accept: sentence-initial imperative, the design's own flagship
+// example.
+#[test]
+fn t10_accepts_sentence_initial_imperative() {
+    let shapes = [
+        tok(None, DepRelation::Root, "Ensure", "VB", "ensure"),
+        tok(Some(5), DepRelation::Mark, "that", "IN", "that"),
+        tok(Some(3), DepRelation::Det, "the", "DT", "the"),
+        tok(Some(5), DepRelation::NsubjPass, "setting", "NN", "setting"),
+        tok(Some(5), DepRelation::AuxPass, "is", "VBZ", "be"),
+        tok(Some(0), DepRelation::Ccomp, "enabled", "VBN", "enable"),
+        tok(Some(0), DepRelation::Punct, ".", ".", "."),
+    ];
+    let (source, tokens, parse) = build(&shapes);
+    let found = t10_ensures_that_restructure(&source, &tokens, &parse);
+    assert_single_candidate(
+        &source,
+        &found,
+        "Ensure that the setting is enabled",
+        "Enable the setting",
+    );
+}
+
+// T10-2. Accept: infinitival "to ensure that" -- "to" stays untouched.
+#[test]
+fn t10_accepts_infinitival() {
+    let shapes = [
+        tok(Some(1), DepRelation::Aux, "to", "TO", "to"),
+        tok(None, DepRelation::Root, "ensure", "VB", "ensure"),
+        tok(Some(6), DepRelation::Mark, "that", "IN", "that"),
+        tok(Some(4), DepRelation::Det, "the", "DT", "the"),
+        tok(Some(6), DepRelation::NsubjPass, "setting", "NN", "setting"),
+        tok(Some(6), DepRelation::AuxPass, "is", "VBZ", "be"),
+        tok(Some(1), DepRelation::Ccomp, "enabled", "VBN", "enable"),
+    ];
+    let (source, tokens, parse) = build(&shapes);
+    let found = t10_ensures_that_restructure(&source, &tokens, &parse);
+    assert_single_candidate(
+        &source,
+        &found,
+        "ensure that the setting is enabled",
+        "enable the setting",
+    );
+}
+
+// T10-3. Accept: NP with a coordinated subject -- the whole coordinated
+// phrase is promoted, not just the head conjunct.
+#[test]
+fn t10_accepts_a_coordinated_subject() {
+    let shapes = [
+        tok(None, DepRelation::Root, "Ensure", "VB", "ensure"),
+        tok(Some(7), DepRelation::Mark, "that", "IN", "that"),
+        tok(Some(3), DepRelation::Det, "the", "DT", "the"),
+        tok(
+            Some(7),
+            DepRelation::NsubjPass,
+            "settings",
+            "NNS",
+            "setting",
+        ),
+        tok(Some(3), DepRelation::Cc, "and", "CC", "and"),
+        tok(Some(3), DepRelation::Conj, "flags", "NNS", "flag"),
+        tok(Some(7), DepRelation::AuxPass, "are", "VBP", "be"),
+        tok(Some(0), DepRelation::Ccomp, "enabled", "VBN", "enable"),
+        tok(Some(0), DepRelation::Punct, ".", ".", "."),
+    ];
+    let (source, tokens, parse) = build(&shapes);
+    let found = t10_ensures_that_restructure(&source, &tokens, &parse);
+    assert_single_candidate(
+        &source,
+        &found,
+        "Ensure that the settings and flags are enabled",
+        "Enable the settings and flags",
+    );
+}
+
+// T10-4. Accept: NP with a determiner other than "the".
+#[test]
+fn t10_accepts_a_determiner_other_than_the() {
+    let shapes = [
+        tok(None, DepRelation::Root, "Ensure", "VB", "ensure"),
+        tok(Some(5), DepRelation::Mark, "that", "IN", "that"),
+        tok(Some(3), DepRelation::Det, "this", "DT", "this"),
+        tok(
+            Some(5),
+            DepRelation::NsubjPass,
+            "configuration",
+            "NN",
+            "configuration",
+        ),
+        tok(Some(5), DepRelation::AuxPass, "is", "VBZ", "be"),
+        tok(Some(0), DepRelation::Ccomp, "enabled", "VBN", "enable"),
+        tok(Some(0), DepRelation::Punct, ".", ".", "."),
+    ];
+    let (source, tokens, parse) = build(&shapes);
+    let found = t10_ensures_that_restructure(&source, &tokens, &parse);
+    assert_single_candidate(
+        &source,
+        &found,
+        "Ensure that this configuration is enabled",
+        "Enable this configuration",
+    );
+}
+
+// T10-5. Decline: an adverb between the auxiliary and the participle
+// forces an adverb-placement decision no table can make (T9's own
+// precedent).
+#[test]
+fn t10_declines_on_an_adverb_gap() {
+    let shapes = [
+        tok(None, DepRelation::Root, "Ensure", "VB", "ensure"),
+        tok(Some(6), DepRelation::Mark, "that", "IN", "that"),
+        tok(Some(3), DepRelation::Det, "the", "DT", "the"),
+        tok(Some(6), DepRelation::NsubjPass, "setting", "NN", "setting"),
+        tok(Some(6), DepRelation::AuxPass, "is", "VBZ", "be"),
+        tok(Some(6), DepRelation::Other, "properly", "RB", "properly"),
+        tok(Some(0), DepRelation::Ccomp, "enabled", "VBN", "enable"),
+        tok(Some(0), DepRelation::Punct, ".", ".", "."),
+    ];
+    let (source, tokens, parse) = build(&shapes);
+    let found = t10_ensures_that_restructure(&source, &tokens, &parse);
+    assert_single_decline(&found, "adverb between the auxiliary and the participle");
+}
+
+// T10-6. Decline: negation via a fused "isn't" auxiliary -- the single
+// highest-stakes guard in this transducer, its own dedicated test.
+// Missing this turns "ensure telemetry isn't sent" into "Send
+// telemetry", the opposite of what the author wrote.
+#[test]
+fn t10_declines_on_negation_via_fused_auxiliary() {
+    let shapes = [
+        tok(None, DepRelation::Root, "Ensure", "VB", "ensure"),
+        tok(Some(4), DepRelation::Mark, "that", "IN", "that"),
+        tok(
+            Some(4),
+            DepRelation::NsubjPass,
+            "telemetry",
+            "NN",
+            "telemetry",
+        ),
+        tok(Some(4), DepRelation::AuxPass, "isn't", "VBZ", "isn't"),
+        tok(Some(0), DepRelation::Ccomp, "sent", "VBN", "send"),
+        tok(Some(0), DepRelation::Punct, ".", ".", "."),
+    ];
+    let (source, tokens, parse) = build(&shapes);
+    let found = t10_ensures_that_restructure(&source, &tokens, &parse);
+    assert_single_decline(&found, "negation would invert the sentence's meaning");
+}
+
+// T10-7. Decline: negation via "never" reachable through the
+// participle's own subtree (not merely the auxiliary-adjacent slot) --
+// isolates the subtree-scan half of the negation guard from the
+// adverb-gap check, which a "never" sitting directly between the
+// auxiliary and the participle would otherwise trip first.
+#[test]
+fn t10_declines_on_negation_reachable_through_the_participles_subtree() {
+    let shapes = [
+        tok(None, DepRelation::Root, "Ensure", "VB", "ensure"),
+        tok(Some(5), DepRelation::Mark, "that", "IN", "that"),
+        tok(Some(3), DepRelation::Det, "the", "DT", "the"),
+        tok(Some(5), DepRelation::NsubjPass, "setting", "NN", "setting"),
+        tok(Some(5), DepRelation::AuxPass, "is", "VBZ", "be"),
+        tok(Some(0), DepRelation::Ccomp, "enabled", "VBN", "enable"),
+        tok(Some(5), DepRelation::Other, "never", "RB", "never"),
+        tok(Some(0), DepRelation::Punct, ".", ".", "."),
+    ];
+    let (source, tokens, parse) = build(&shapes);
+    let found = t10_ensures_that_restructure(&source, &tokens, &parse);
+    assert_single_decline(&found, "negation would invert the sentence's meaning");
+}
+
+// T10-8. Safety net: "is not enabled", the exact shape the design's own
+// risk register names as the worst possible failure mode -- must never
+// produce a Candidate, whichever named guard catches it.
+#[test]
+fn t10_never_produces_a_candidate_for_is_not_enabled() {
+    let shapes = [
+        tok(None, DepRelation::Root, "Ensure", "VB", "ensure"),
+        tok(Some(6), DepRelation::Mark, "that", "IN", "that"),
+        tok(Some(3), DepRelation::Det, "the", "DT", "the"),
+        tok(Some(6), DepRelation::NsubjPass, "setting", "NN", "setting"),
+        tok(Some(6), DepRelation::AuxPass, "is", "VBZ", "be"),
+        tok(Some(6), DepRelation::Other, "not", "RB", "not"),
+        tok(Some(0), DepRelation::Ccomp, "enabled", "VBN", "enable"),
+        tok(Some(0), DepRelation::Punct, ".", ".", "."),
+    ];
+    let (source, tokens, parse) = build(&shapes);
+    let found = t10_ensures_that_restructure(&source, &tokens, &parse);
+    assert!(
+        !found
+            .iter()
+            .any(|outcome| matches!(outcome, RestructureOutcome::Candidate { .. })),
+        "found: {found:?}"
+    );
+}
+
+// T10-9. Decline: a finite subject-agreement shape ("This ensures that
+// ...") -- out of scope for v1, needs a second, independent
+// re-inflection problem this transducer doesn't take on.
+#[test]
+fn t10_declines_on_a_finite_subject_shape() {
+    let shapes = [
+        tok(Some(1), DepRelation::Det, "This", "DT", "this"),
+        tok(None, DepRelation::Root, "ensures", "VBZ", "ensure"),
+        tok(Some(6), DepRelation::Mark, "that", "IN", "that"),
+        tok(Some(4), DepRelation::Det, "the", "DT", "the"),
+        tok(Some(6), DepRelation::NsubjPass, "setting", "NN", "setting"),
+        tok(Some(6), DepRelation::AuxPass, "is", "VBZ", "be"),
+        tok(Some(1), DepRelation::Ccomp, "enabled", "VBN", "enable"),
+        tok(Some(1), DepRelation::Punct, ".", ".", "."),
+    ];
+    let (source, tokens, parse) = build(&shapes);
+    let found = t10_ensures_that_restructure(&source, &tokens, &parse);
+    assert_single_decline(
+        &found,
+        "no licensed outer mood shape (finite subject or unsupported construction)",
+    );
+}
+
+// T10-10. Silent: a modal complement never matches the construction at
+// all -- no `Ccomp` child tagged `VBN`, so no `RestructureOutcome` of
+// any kind, the same silent-decline convention `t4_activize_to_passive`
+// uses for a verb that was never a licensable candidate.
+#[test]
+fn t10_is_silent_on_a_modal_complement() {
+    let shapes = [
+        tok(None, DepRelation::Root, "ensure", "VB", "ensure"),
+        tok(Some(4), DepRelation::Mark, "that", "IN", "that"),
+        tok(Some(4), DepRelation::Nsubj, "X", "NN", "x"),
+        tok(Some(4), DepRelation::Aux, "can", "MD", "can"),
+        tok(
+            Some(0),
+            DepRelation::Ccomp,
+            "communicate",
+            "VB",
+            "communicate",
+        ),
+        tok(Some(4), DepRelation::Prep, "with", "IN", "with"),
+        tok(Some(5), DepRelation::Pobj, "Y", "NNP", "y"),
+    ];
+    let (source, tokens, parse) = build(&shapes);
+    let found = t10_ensures_that_restructure(&source, &tokens, &parse);
+    assert!(found.is_empty(), "found: {found:?}");
+}
+
+// T10-11. Silent: an adjectival complement (no `AuxPass` child, `comp`
+// tagged `VBZ` not `VBN`) never matches either.
+#[test]
+fn t10_is_silent_on_an_adjectival_complement() {
+    let shapes = [
+        tok(None, DepRelation::Root, "ensure", "VB", "ensure"),
+        tok(Some(3), DepRelation::Mark, "that", "IN", "that"),
+        tok(
+            Some(3),
+            DepRelation::Nsubj,
+            "pair-programming",
+            "NN",
+            "pair-programming",
+        ),
+        tok(Some(0), DepRelation::Ccomp, "remains", "VBZ", "remain"),
+        tok(
+            Some(3),
+            DepRelation::Other,
+            "sustainable",
+            "JJ",
+            "sustainable",
+        ),
+    ];
+    let (source, tokens, parse) = build(&shapes);
+    let found = t10_ensures_that_restructure(&source, &tokens, &parse);
+    assert!(found.is_empty(), "found: {found:?}");
+}
+
+// T10-12. Silent: an intransitive complement (`comp` tagged `VBZ`, no
+// `AuxPass`/`NsubjPass` shape) never matches.
+#[test]
+fn t10_is_silent_on_an_intransitive_complement() {
+    let shapes = [
+        tok(None, DepRelation::Root, "ensure", "VB", "ensure"),
+        tok(Some(4), DepRelation::Mark, "that", "IN", "that"),
+        tok(Some(3), DepRelation::Det, "the", "DT", "the"),
+        tok(Some(4), DepRelation::Nsubj, "process", "NN", "process"),
+        tok(Some(0), DepRelation::Ccomp, "completes", "VBZ", "complete"),
+        tok(
+            Some(4),
+            DepRelation::Other,
+            "successfully",
+            "RB",
+            "successfully",
+        ),
+    ];
+    let (source, tokens, parse) = build(&shapes);
+    let found = t10_ensures_that_restructure(&source, &tokens, &parse);
+    assert!(found.is_empty(), "found: {found:?}");
+}
+
+// T10-13. Decline: the promoted subject sits inside a bracketed aside --
+// displayed material, not asserted, the same reasoning
+// `object_is_licensable` applies on T4's side.
+#[test]
+fn t10_declines_on_a_bracketed_subject() {
+    let shapes = [
+        tok(None, DepRelation::Root, "Ensure", "VB", "ensure"),
+        tok(Some(8), DepRelation::Mark, "that", "IN", "that"),
+        tok(Some(8), DepRelation::Punct, "(", "-LRB-", "("),
+        tok(Some(5), DepRelation::Det, "the", "DT", "the"),
+        tok(Some(5), DepRelation::Other, "legacy", "JJ", "legacy"),
+        tok(Some(8), DepRelation::NsubjPass, "flag", "NN", "flag"),
+        tok(Some(8), DepRelation::Punct, ")", "-RRB-", ")"),
+        tok(Some(8), DepRelation::AuxPass, "is", "VBZ", "be"),
+        tok(Some(0), DepRelation::Ccomp, "enabled", "VBN", "enable"),
+        tok(Some(0), DepRelation::Punct, ".", ".", "."),
+    ];
+    let (source, tokens, parse) = build(&shapes);
+    let found = t10_ensures_that_restructure(&source, &tokens, &parse);
+    assert_single_decline(
+        &found,
+        "the promoted noun phrase is not a licensable subject",
+    );
+}
+
+// T10-14. Decline: the promoted subject has a post-modifying `prep` --
+// moving the whole subtree would carry a modifier that may attach
+// elsewhere, exactly `object_is_licensable`'s own reasoning on T4's
+// side.
+#[test]
+fn t10_declines_on_a_subject_with_a_post_modifying_prep() {
+    let shapes = [
+        tok(None, DepRelation::Root, "Ensure", "VB", "ensure"),
+        tok(Some(8), DepRelation::Mark, "that", "IN", "that"),
+        tok(Some(3), DepRelation::Det, "the", "DT", "the"),
+        tok(Some(8), DepRelation::NsubjPass, "setting", "NN", "setting"),
+        tok(Some(3), DepRelation::Prep, "for", "IN", "for"),
+        tok(Some(6), DepRelation::Other, "legacy", "JJ", "legacy"),
+        tok(Some(4), DepRelation::Pobj, "devices", "NNS", "device"),
+        tok(Some(8), DepRelation::AuxPass, "is", "VBZ", "be"),
+        tok(Some(0), DepRelation::Ccomp, "enabled", "VBN", "enable"),
+        tok(Some(0), DepRelation::Punct, ".", ".", "."),
+    ];
+    let (source, tokens, parse) = build(&shapes);
+    let found = t10_ensures_that_restructure(&source, &tokens, &parse);
+    assert_single_decline(
+        &found,
+        "the promoted noun phrase is not a licensable subject",
+    );
+}
+
+// T10-15. `t10_ensures_that_restructure` is not folded into `candidates()`
+// -- it is selected and applied by `crate::restructure`, not the
+// register band machinery `candidates()` feeds (see this crate's own
+// design notes on why R1 has no band).
+#[test]
+fn t10_is_not_folded_into_candidates() {
+    let shapes = [
+        tok(None, DepRelation::Root, "Ensure", "VB", "ensure"),
+        tok(Some(5), DepRelation::Mark, "that", "IN", "that"),
+        tok(Some(3), DepRelation::Det, "the", "DT", "the"),
+        tok(Some(5), DepRelation::NsubjPass, "setting", "NN", "setting"),
+        tok(Some(5), DepRelation::AuxPass, "is", "VBZ", "be"),
+        tok(Some(0), DepRelation::Ccomp, "enabled", "VBN", "enable"),
+        tok(Some(0), DepRelation::Punct, ".", ".", "."),
+    ];
+    let (source, tokens, parse) = build(&shapes);
+    assert!(candidates(&source, &tokens, &parse).is_empty());
 }

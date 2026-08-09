@@ -1553,7 +1553,7 @@ const fn form_probe(tag: FrameTag) -> &'static str {
 /// genuinely new adjacency is ("up", "the") — testing ("the",
 /// "rollout") would demand the corpus attest a pair the author
 /// already wrote.
-fn check_rewrite_gates(
+pub(crate) fn check_rewrite_gates(
     working: &str,
     match_range: &Range<usize>,
     replacement: &str,

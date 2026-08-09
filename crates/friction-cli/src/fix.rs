@@ -216,26 +216,32 @@ fn run_inner(args: &FixArgs) -> Result<ExitCode, CliError> {
     Ok(ExitCode::SUCCESS)
 }
 
-/// The engine's current held candidates: the register pass's holds
-/// (always the report's final entry) merged with the last bounded
-/// pass's — the bounded passes re-scan every sentence each round, so
-/// the final bounded pass (the zero-patch convergence pass, or the
-/// bounded-out last round) carries the gate-held diagnostics against
-/// the text the engine actually converged to, and the register pass
-/// carries only its own remainder findings, never those.
+/// The engine's current held candidates: the last bounded pass's holds,
+/// merged with every pass after it (the restructure pass, then the
+/// register pass) — the bounded passes re-scan every sentence each
+/// round, so the final bounded pass (the zero-patch convergence pass, or
+/// the bounded-out last round) carries the gate-held diagnostics against
+/// the text the engine actually converged to, and each later pass
+/// carries only its own held findings against the text IT received.
+///
+/// Reads [`EditReport::final_bounded_pass_index`] rather than deriving
+/// it from `passes.len()`: a fixed `passes.len() - 2` offset was correct
+/// only while register was the sole pass following the bounded loop —
+/// inserting the restructure pass between them would have silently
+/// selected the WRONG pass's holds (restructure's own, not the bounded
+/// loop's), dropping every unrelated bounded-pass hold (substitution
+/// declines, ritual declines, deletion seam failures) from `--suggest`
+/// output. Threading the index explicitly instead means this function
+/// never has to know how many non-bounded passes follow the loop.
 fn final_pass_held(report: &EditReport) -> Vec<Finding> {
     let passes = &report.passes;
     let mut held: Vec<Finding> = passes
-        .len()
-        .checked_sub(2)
-        .map(|i| passes[i].held.clone())
+        .get(report.final_bounded_pass_index)
+        .map(|pass| pass.held.clone())
         .unwrap_or_default();
-    held.extend(
-        passes
-            .last()
-            .map(|pass| pass.held.clone())
-            .unwrap_or_default(),
-    );
+    for pass in passes.iter().skip(report.final_bounded_pass_index + 1) {
+        held.extend(pass.held.clone());
+    }
     held
 }
 
@@ -695,7 +701,9 @@ mod tests {
     /// gate-held candidates against the converged text — frame and
     /// deletion holds live there) with the register pass's own (always
     /// the final entry). A pass before the converged one contributes
-    /// nothing.
+    /// nothing. Two passes total (bounded, register): the shape before
+    /// the restructure pass existed, still correct via
+    /// `final_bounded_pass_index`.
     #[test]
     fn final_pass_held_merges_converged_and_register_passes() {
         let stale = Finding::new(RuleId::new("span.delete"), 0..1, "stale", Tier::Suggest);
@@ -708,8 +716,51 @@ mod tests {
                 pass(vec![register.clone()]),
             ],
             reusable_scan: None,
+            final_bounded_pass_index: 1,
         };
         assert_eq!(final_pass_held(&report), vec![converged, register]);
+    }
+
+    /// The real four-pass pipeline once restructure sits between the
+    /// bounded loop and register: a stale earlier-round hold, the final
+    /// bounded pass's own hold (a ritual-deletion decline, unrelated to
+    /// restructure), the restructure pass's own hold, and the register
+    /// pass's own hold. `final_pass_held` must union exactly the last
+    /// three and never the stale one — the regression this design's own
+    /// reporting-layer fix calls for: before threading
+    /// `final_bounded_pass_index` explicitly, inserting a pass here
+    /// would have silently selected the restructure pass's holds in
+    /// place of the bounded loop's.
+    #[test]
+    fn final_pass_held_unions_bounded_restructure_and_register_passes() {
+        let stale = Finding::new(RuleId::new("span.delete"), 0..1, "stale", Tier::Suggest);
+        let ritual_hold = Finding::new(RuleId::new("ritual.delete"), 1..2, "held", Tier::Suggest);
+        let restructure_hold = Finding::new(
+            RuleId::new("restructure.ensures_that"),
+            2..3,
+            "restructure held",
+            Tier::Suggest,
+        );
+        let register_hold = Finding::new(
+            RuleId::new("pivot.lvc"),
+            3..4,
+            "register held",
+            Tier::Suggest,
+        );
+        let report = EditReport {
+            passes: vec![
+                pass(vec![stale]),
+                pass(vec![ritual_hold.clone()]),
+                pass(vec![restructure_hold.clone()]),
+                pass(vec![register_hold.clone()]),
+            ],
+            reusable_scan: None,
+            final_bounded_pass_index: 1,
+        };
+        assert_eq!(
+            final_pass_held(&report),
+            vec![ritual_hold, restructure_hold, register_hold]
+        );
     }
 
     /// An empty `EditReport` (never produced by `fix_document` in
@@ -720,6 +771,7 @@ mod tests {
         let report = EditReport {
             passes: Vec::new(),
             reusable_scan: None,
+            final_bounded_pass_index: 0,
         };
         assert!(final_pass_held(&report).is_empty());
     }
@@ -738,6 +790,7 @@ mod tests {
         let report = EditReport {
             passes: vec![p1, p2],
             reusable_scan: None,
+            final_bounded_pass_index: 0,
         };
         let mut totals: BTreeMap<RuleId, usize> = BTreeMap::new();
         for pass in &report.passes {
