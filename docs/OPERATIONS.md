@@ -1,6 +1,6 @@
 # The operations in detail
 
-The seven editing operations, the gate stack, and the detection channels,
+The eight editing operations, the gate stack, and the detection channels,
 in depth. The README's [What it does](../README.md#what-it-does) section is
 the short form of this file.
 
@@ -41,7 +41,25 @@ the short form of this file.
    realize through the inflection tables, so tense and agreement survive
    the swap, and every candidate still passes the same seam, clause, and
    skeleton gates as a deletion.
-7. **Register rephrasing**: the only operation that can *raise* a construction
+7. **Clause restructuring**: parse-level, per-instance rewrites of
+   constructions the flat frame grammar structurally cannot express. Two
+   ship today. The `ensure that` collapse takes an embedded bare-BE
+   passive and promotes its participle to the main verb: *"Review the
+   config to ensure that logging is enabled"* → *"Review the config to
+   enable logging"*, in imperative, infinitival, and finite-subject
+   frames (the last with person/number/tense re-inflection). The
+   transitive substitution rewrites a verb only when the parse proves a
+   direct object: *"Profiling surfaced a bottleneck"* → *"Profiling
+   found a bottleneck"*, while intransitive uses (*"surfaced as a
+   contributor"*) keep their report-only finding. Every candidate
+   passes the same seam/skeleton/clause gates as a frame rewrite, and
+   the decline set is the design: negated complements (two independent
+   guards), adverbs between auxiliary and participle, modal or active
+   complements, and any parse anomaly all decline with a named reason
+   rather than guess. Unlike every rule above, these are licensed per
+   instance with no band and no rate: a correct rewrite applies no
+   matter what the rest of the document looks like.
+8. **Register rephrasing**: the only operation that can *raise* a construction
    rather than remove one. Language models under-produce the agentless passive
    relative to human technical writing, consistently and across every model
    measured, and no amount of deleting fixes an under-use. So a clause with a

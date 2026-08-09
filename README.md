@@ -30,7 +30,7 @@ byte-deterministic.
 
 ## What it does
 
-Seven operations edit text. Nothing else does.
+Eight operations edit text. Nothing else does.
 
 1. **Ritual deletion**: boilerplate sentences removed whole: *"If you have
    any questions or require further assistance, please reach out to our
@@ -43,10 +43,17 @@ Seven operations edit text. Nothing else does.
    *"validates the config file"*.
 5. **Frame-gated `just`-deletion**: *"is provenance just metadata, or…?"* →
    *"is provenance metadata, or…?"*; the question itself is never touched.
-6. **Frame rewriting**: 920 corpus-adjudicated rules with measured rates:
+6. **Frame rewriting**: 848 corpus-adjudicated rules with measured rates:
    *"We utilized the cache"* → *"We used the cache"*, *"worth confirming"* →
    *"worth checking"*, *"Honestly,"* → deleted.
-7. **Register rephrasing**: homes punctuation and constructions the models
+7. **Clause restructuring**: parse-level rewrites of constructions no flat
+   template can express: *"Review the config to ensure that logging is
+   enabled"* → *"Review the config to enable logging"*, *"Profiling
+   surfaced a bottleneck"* → *"Profiling found a bottleneck"* (only when
+   the verb provably takes a direct object). Negated or adverb-carrying
+   complements always decline: *"ensure that telemetry is not sent"* is
+   never touched.
+8. **Register rephrasing**: homes punctuation and constructions the models
    over- or under-use toward bands measured from human writing: em dashes,
    semicolons, the agentless passive, and the past progressive (*"the
    tool was crashing on start"* → *"the tool crashed on start"*).

@@ -85,6 +85,35 @@ comma-and sentence splitting (rhythm: robotic) and contrast-tail deletion
 (the same byte shape carries meaning-bearing contrasts in docs). A new
 transducer over a similar shape needs new evidence, not a retry.
 
+## Adding a restructuring rule (parse-gated, non-cadence)
+
+Clause restructuring lives beside the transducers but answers a
+different selection question: no band, no rate: a correct rewrite
+applies per instance, like a frame rule. Candidates build in
+`friction-register/src/transduce.rs` (T10/T11 are the models: walk the
+`SentenceParse`, require the construction's relations plus independent
+POS corroboration, decline with a named reason on any anomaly), and the
+pass in `friction-edit/src/restructure.rs` gates every candidate through
+the standard rewrite gates and applies every survivor. Two disciplines
+are specific to this class:
+
+- **The trigger prefilter is part of the contract.** The pass skips
+  tagging and parsing for sentences without a literal trigger word, so
+  every new rule must have a closed lexical trigger and register its
+  stem where `run_restructure` builds the list. A rule without one
+  belongs elsewhere.
+- **A dobj-gated substitution is one table line** —
+  `[transitive_verbs]` in `lexicon-en.toml` maps the machine-tilted
+  lemma to its attested replacement — but the entry owes the same
+  evidence a `substitution_pairs` replacement does, plus a written
+  sense check: see the `surface` entry's recorded caveat for what
+  happens when one lemma carries two senses and only one is safe.
+
+The compile fence also rejects any frame rule whose template cannot
+realize against its own pattern ("unrealizable template"); if a
+construction needs a data-dependent derivation the frame grammar cannot
+express, that rejection is the signal it belongs here instead.
+
 ## Adding a metric
 
 Metrics live in `crates/friction-metrics/`, assembled by
