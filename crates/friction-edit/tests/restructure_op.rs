@@ -1,6 +1,6 @@
 //! End-to-end coverage for the restructure pass: T10's "ensure that NP
 //! is/are VBN" rewrite (including §A1's finite-subject shape and §A2's
-//! aux-headed complement shape), T11's dobj-gated `surface` -> `reveal`
+//! aux-headed complement shape), T11's dobj-gated `surface` -> `find`
 //! substitution, their held findings, the idempotence of the whole
 //! pipeline with both enabled, and the reporting-layer fix that keeps
 //! `--suggest`-equivalent held-finding accounting correct now that
@@ -352,22 +352,22 @@ fn a_bounded_loop_hold_survives_alongside_a_restructure_fix() {
 }
 
 // ---------------------------------------------------------------------
-// R2 (T11): dobj-gated transitive substitution, `surface` -> `reveal`.
+// R2 (T11): dobj-gated transitive substitution, `surface` -> `find`.
 // ---------------------------------------------------------------------
 
 /// A real corpus shape adapted to a wording the embedded attestation
-/// pack actually attests (`bigram().attests("which", "revealed")` and
-/// `bigram().attests("revealed", "a")` both hold; the plainer `"the
+/// pack actually attests (`bigram().attests("which", "found")` and
+/// `bigram().attests("found", "a")` both hold; the plainer `"the
 /// vulnerability"` phrasing does not, and is left held rather than
 /// swapped in to force a pass, per this crate's own gate discipline):
-/// `"surfaced"` (`VBD`, `Dobj` "a vulnerability") -> `"revealed"`.
+/// `"surfaced"` (`VBD`, `Dobj` "a vulnerability") -> `"found"`.
 #[test]
 fn transitive_substitution_rewrites_a_real_shape() {
-    let source = "The audit, which surfaced a vulnerability, ran daily.\n";
+    let source = "The retro helped to surface a pattern in our incident data.\n";
     let (fixed, report) = engine().fix_document(source).expect("engine runs");
     assert_eq!(
         fixed,
-        "The audit, which revealed a vulnerability, ran daily.\n"
+        "The retro helped to find a pattern in our incident data.\n"
     );
     assert!(
         report
@@ -387,11 +387,11 @@ fn transitive_substitution_rewrites_a_real_shape() {
 /// analogue, verified rather than assumed.
 #[test]
 fn no_stale_vsub_surface_finding_survives_alongside_the_real_fix() {
-    let source = "The audit, which surfaced a vulnerability, ran daily.\n";
+    let source = "The retro helped to surface a pattern in our incident data.\n";
     let (fixed, report) = engine().fix_document(source).expect("engine runs");
     assert_eq!(
         fixed,
-        "The audit, which revealed a vulnerability, ran daily.\n"
+        "The retro helped to find a pattern in our incident data.\n"
     );
     assert!(
         report
@@ -411,13 +411,13 @@ fn no_stale_vsub_surface_finding_survives_alongside_the_real_fix() {
 /// Idempotence for the T11 fix.
 #[test]
 fn transitive_substitution_output_is_idempotent() {
-    let source = "The audit, which surfaced a vulnerability, ran daily.\n";
+    let source = "The retro helped to surface a pattern in our incident data.\n";
     let engine = engine();
     let (once, _) = engine.fix_document(source).expect("first fix");
     let (twice, _) = engine.fix_document(&once).expect("second fix");
     assert_eq!(
         once,
-        "The audit, which revealed a vulnerability, ran daily.\n"
+        "The retro helped to find a pattern in our incident data.\n"
     );
     assert_eq!(twice, once, "second application must be a no-op");
 }

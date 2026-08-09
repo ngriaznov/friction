@@ -2402,7 +2402,7 @@ fn t10_is_not_folded_into_candidates() {
 }
 
 // ---------------------------------------------------------------------
-// T11: dobj-gated transitive substitution (R2: `surface` -> `reveal`).
+// T11: dobj-gated transitive substitution (R2: `surface` -> `find`).
 // ---------------------------------------------------------------------
 
 /// Asserts `found` is exactly one [`SubstitutionCandidate`] whose range
@@ -2431,7 +2431,7 @@ fn t11_accepts_vbd_with_a_nominal_object() {
     ];
     let (source, tokens, parse) = build(&shapes);
     let found = t11_transitive_substitution(&source, &tokens, &parse);
-    assert_single_substitution(&source, &found, "surfaced", "revealed");
+    assert_single_substitution(&source, &found, "surfaced", "found");
 }
 
 // T11-2. Accept: `VBZ` tag.
@@ -2453,7 +2453,7 @@ fn t11_accepts_vbz_with_a_nominal_object() {
     ];
     let (source, tokens, parse) = build(&shapes);
     let found = t11_transitive_substitution(&source, &tokens, &parse);
-    assert_single_substitution(&source, &found, "surfaces", "reveals");
+    assert_single_substitution(&source, &found, "surfaces", "finds");
 }
 
 // T11-3. Accept: `VBG` tag.
@@ -2472,7 +2472,7 @@ fn t11_accepts_vbg_with_a_nominal_object() {
     ];
     let (source, tokens, parse) = build(&shapes);
     let found = t11_transitive_substitution(&source, &tokens, &parse);
-    assert_single_substitution(&source, &found, "surfacing", "revealing");
+    assert_single_substitution(&source, &found, "surfacing", "finding");
 }
 
 // T11-4. Accept: `VBN` tag -- rare (a participle rarely takes a direct
@@ -2486,7 +2486,7 @@ fn t11_accepts_vbn_with_a_nominal_object() {
     ];
     let (source, tokens, parse) = build(&shapes);
     let found = t11_transitive_substitution(&source, &tokens, &parse);
-    assert_single_substitution(&source, &found, "surfaced", "revealed");
+    assert_single_substitution(&source, &found, "surfaced", "found");
 }
 
 // T11-5. Accept: bare `VB` tag.
@@ -2498,7 +2498,7 @@ fn t11_accepts_vb_with_a_nominal_object() {
     ];
     let (source, tokens, parse) = build(&shapes);
     let found = t11_transitive_substitution(&source, &tokens, &parse);
-    assert_single_substitution(&source, &found, "surface", "reveal");
+    assert_single_substitution(&source, &found, "surface", "find");
 }
 
 // T11-6. Decline: no `Dobj` child at all ("surfaced as a significant

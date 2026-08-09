@@ -114,7 +114,7 @@ pub struct Lexicon {
     /// -> `optimizing`).
     pub nominal_verbs: BTreeMap<Box<str>, Box<str>>,
     /// Dobj-gated substitution targets: a transitive verb lemma mapped to
-    /// its one licensed replacement lemma (`surface` -> `reveal`). See
+    /// its one licensed replacement lemma (`surface` -> `find`). See
     /// `data/lexicon-en.toml`'s own `[transitive_verbs]` comment for the
     /// evidence bar each entry must clear before it ships.
     pub transitive_verbs: BTreeMap<Box<str>, Box<str>>,
@@ -579,7 +579,7 @@ mod tests {
 
         assert!(lexicon.generic_subjects.contains("the team"));
 
-        assert_eq!(&*lexicon.transitive_verbs["surface"], "reveal");
+        assert_eq!(&*lexicon.transitive_verbs["surface"], "find");
     }
 
     /// A bad `[pack].version` is rejected.
@@ -667,7 +667,7 @@ mod tests {
             optimization = "optimizing"
 
             [transitive_verbs]
-            surface = "reveal"
+            surface = "find"
 
             [generic_subjects]
             phrases = ["the team"]

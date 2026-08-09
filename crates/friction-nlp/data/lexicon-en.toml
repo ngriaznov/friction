@@ -148,8 +148,28 @@ duplication = "duplicating"
 # licensed replacement lemma. Not a corpus-mined table -- each entry is
 # independently attested the way every `substitution_pairs` replacement
 # is, before it ships (see `docs/EXTENDING.md`).
+#
+# "find" over "reveal", measured 2026-08-08: the human corpus attests
+# find/found/finds at 313 occurrences vs reveal's 10, and the seam
+# gate declined every corpus instance under "reveal" (12 left-seam
+# holds) -- a replacement the attestation tables barely know is no
+# replacement at all. "found" also reads plainer: "the check found two
+# message types", not "revealed". Irregular forms come from
+# [irregular_verbs]'s own find entry.
+#
+# SENSE CAVEAT, recorded before any attestation-evidence expansion:
+# transitive "surface" splits between a discover sense ("the audit
+# surfaced a bug" -> found, correct) and a present sense ("surfaces
+# OS-level information" -> finds, WRONG: the tool displays, it does not
+# discover). Every machine-corpus instance read to date is the discover
+# sense, and today's sparse seam tables happen to decline the one
+# human-corpus present-sense instance -- but that protection is
+# accidental. Growing the attestation corpus makes present-sense
+# instances licensable, so any seam-evidence expansion must re-review
+# this entry (corpus sample of newly-licensed instances) or add a
+# structural sense guard first.
 [transitive_verbs]
-surface = "reveal"
+surface = "find"
 
 # The only subjects T4 may demote: passivizing an identifiable agent
 # loses information.
