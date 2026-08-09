@@ -7,7 +7,7 @@ pass 1: 4 operation(s) fired
   vsub.utilize             2687..2697  -> "used a"
   sub.apply                5263..5271  -> "Use"
   adv.ultimately-opener::lit 6035..6229  -> "Tracking down this memory leak was a testament to the power of systematic investigation, combined with a deep understanding of our application’s architecture and potential pitfalls"
-  47 held:
+  46 held:
     intg.recently          294..302  KEPT (frame intg.recently: measured 82.2/M machine vs 79.8/M human; report-only)
     adjg.complex           598..605  KEPT (frame adjg.complex: measured 372.7/M machine vs 182.7/M human; report-only)
     vguard.highlight       619..630  KEPT (frame vguard.highlight: measured 123.2/M machine vs 90.6/M human; report-only)
@@ -46,7 +46,6 @@ pass 1: 4 operation(s) fired
     vguard.ensure          5666..5672  KEPT (frame vguard.ensure: measured 1376.3/M machine vs 314.8/M human; report-only)
     adjg.clean             5692..5699  KEPT (frame adjg.clean: measured 267.0/M machine vs 109.0/M human; report-only)
     intg.especially        5714..5724  KEPT (frame intg.especially: measured 226.0/M machine vs 141.3/M human; report-only)
-    able.ensures-that-short::ensure 5666..5687  KEPT (frame able.ensures-that-short::ensure held: template did not realize)
     pilot.within           5845..5851  KEPT (frame pilot.within: report-only (see the frame-pack compile report))
     vguard.ensure          5947..5953  KEPT (frame vguard.ensure: measured 1376.3/M machine vs 314.8/M human; report-only)
     intg.carefully         6336..6345  KEPT (frame intg.carefully: measured 117.4/M machine vs 18.4/M human; report-only)
@@ -56,7 +55,7 @@ pass 1: 4 operation(s) fired
     adj.powerful-guard::robust 6440..6452  KEPT (frame adj.powerful-guard::robust: measured 639.7/M machine vs 153.0/M human; report-only)
     ph.the-importance-of   6422..6439  KEPT (frame ph.the-importance-of held: left seam not attested)
 pass 2: 0 operation(s) fired — converged
-  46 held:
+  45 held:
     intg.recently          292..512  KEPT (frame intg.recently: measured 82.2/M machine vs 79.8/M human; report-only)
     adjg.complex           513..711  KEPT (frame adjg.complex: measured 372.7/M machine vs 182.7/M human; report-only)
     vguard.highlight       513..711  KEPT (frame vguard.highlight: measured 123.2/M machine vs 90.6/M human; report-only)
@@ -93,7 +92,6 @@ pass 2: 0 operation(s) fired — converged
     vguard.ensure          5637..5729  KEPT (frame vguard.ensure: measured 1376.3/M machine vs 314.8/M human; report-only)
     adjg.clean             5637..5729  KEPT (frame adjg.clean: measured 267.0/M machine vs 109.0/M human; report-only)
     intg.especially        5637..5729  KEPT (frame intg.especially: measured 226.0/M machine vs 141.3/M human; report-only)
-    able.ensures-that-short::ensure 5637..5729  KEPT (frame able.ensures-that-short::ensure held: template did not realize)
     pilot.within           5793..5850  KEPT (frame pilot.within: report-only (see the frame-pack compile report))
     vguard.ensure          5853..6011  KEPT (frame vguard.ensure: measured 1376.3/M machine vs 314.8/M human; report-only)
     design.is-testament-to::lit 6044..6066  KEPT (frame design.is-testament-to::lit held: left seam not attested)
@@ -103,7 +101,10 @@ pass 2: 0 operation(s) fired — converged
     adjg.robust            6336..6538  KEPT (frame adjg.robust: measured 349.2/M machine vs 30.7/M human; report-only)
     adj.powerful-guard::robust 6336..6538  KEPT (frame adj.powerful-guard::robust: measured 639.7/M machine vs 153.0/M human; report-only)
     ph.the-importance-of   6336..6538  KEPT (frame ph.the-importance-of held: left seam not attested)
-pass 3: 3 operation(s) fired
+pass 3: 0 operation(s) fired — converged
+  1 held:
+    restructure.ensures_that 5644..5677  KEPT (restructure held: no licensed outer mood shape (unsupported construction))
+pass 4: 3 operation(s) fired
   register.past_progressive 1623..1639  -> "accumulated"
   register.past_progressive 2876..2889  -> "consumed"
   register.past_progressive 4706..4721  -> "functioned"

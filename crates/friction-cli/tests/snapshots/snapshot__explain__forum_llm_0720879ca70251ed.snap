@@ -26,3 +26,4 @@ pass 1: 0 operation(s) fired — converged
     vguard.require         5006..5014  KEPT (frame vguard.require: measured 1065.2/M machine vs 967.4/M human; report-only)
     adjg.complex           5237..5244  KEPT (frame adjg.complex: measured 372.7/M machine vs 182.7/M human; report-only)
 pass 2: 0 operation(s) fired — converged
+pass 3: 0 operation(s) fired — converged

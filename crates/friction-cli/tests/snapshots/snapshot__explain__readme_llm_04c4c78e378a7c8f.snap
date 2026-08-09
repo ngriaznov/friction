@@ -6,7 +6,7 @@ pass 1: 3 operation(s) fired
   mod.feel-free-to::lit    2754..2780  -> "You can contribute to"
   ritual.delete            2961..3066  (deleted)
   ritual.delete            3170..3203  (deleted)
-  10 held:
+  9 held:
     adjg.clean             172..177  KEPT (frame adjg.clean: measured 267.0/M machine vs 109.0/M human; report-only)
     lex.boast::lit         163..171  KEPT (frame lex.boast::lit held: left seam not attested)
     intg.quickly           979..986  KEPT (frame intg.quickly: measured 199.5/M machine vs 86.0/M human; report-only)
@@ -15,10 +15,9 @@ pass 1: 3 operation(s) fired
     vguard.configure       1713..1722  KEPT (frame vguard.configure: measured 510.6/M machine vs 442.2/M human; report-only)
     vguard.configure       2178..2187  KEPT (frame vguard.configure: measured 510.6/M machine vs 442.2/M human; report-only)
     vguard.ensure          2268..2274  KEPT (frame vguard.ensure: measured 1376.3/M machine vs 314.8/M human; report-only)
-    able.ensures-that-short::ensure 2268..2282  KEPT (frame able.ensures-that-short::ensure held: template did not realize)
     vsub.navigate          2632..2643  KEPT (frame vsub.navigate held: slot opens with a preposition (untested construction))
 pass 2: 0 operation(s) fired — converged
-  10 held:
+  9 held:
     adjg.clean             160..312  KEPT (frame adjg.clean: measured 267.0/M machine vs 109.0/M human; report-only)
     lex.boast::lit         160..312  KEPT (frame lex.boast::lit held: left seam not attested)
     intg.quickly           896..1008  KEPT (frame intg.quickly: measured 199.5/M machine vs 86.0/M human; report-only)
@@ -27,6 +26,6 @@ pass 2: 0 operation(s) fired — converged
     vguard.configure       1705..1755  KEPT (frame vguard.configure: measured 510.6/M machine vs 442.2/M human; report-only)
     vguard.configure       2178..2267  KEPT (frame vguard.configure: measured 510.6/M machine vs 442.2/M human; report-only)
     vguard.ensure          2268..2292  KEPT (frame vguard.ensure: measured 1376.3/M machine vs 314.8/M human; report-only)
-    able.ensures-that-short::ensure 2268..2292  KEPT (frame able.ensures-that-short::ensure held: template did not realize)
     vsub.navigate          2575..2643  KEPT (frame vsub.navigate held: slot opens with a preposition (untested construction))
 pass 3: 0 operation(s) fired — converged
+pass 4: 0 operation(s) fired — converged

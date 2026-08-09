@@ -14,3 +14,4 @@ pass 1: 0 operation(s) fired — converged
     vguard.configure       2576..2586  KEPT (frame vguard.configure: measured 510.6/M machine vs 442.2/M human; report-only)
     vguard.suggest         4633..4640  KEPT (frame vguard.suggest: measured 93.9/M machine vs 76.8/M human; report-only)
 pass 2: 0 operation(s) fired — converged
+pass 3: 0 operation(s) fired — converged

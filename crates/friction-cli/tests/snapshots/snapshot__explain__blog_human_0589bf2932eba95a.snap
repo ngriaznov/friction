@@ -8,5 +8,6 @@ pass 1: 0 operation(s) fired — converged
     vguard.derive          494..501  KEPT (frame vguard.derive: measured 44.0/M machine vs 26.1/M human; report-only)
     vguard.highlight       1080..1092  KEPT (frame vguard.highlight: measured 123.2/M machine vs 90.6/M human; report-only)
     pilot.such-as          1116..1123  KEPT (frame pilot.such-as: report-only (see the frame-pack compile report))
-pass 2: 1 operation(s) fired
+pass 2: 0 operation(s) fired — converged
+pass 3: 1 operation(s) fired
   register.em_dash         1523..1568  -> ", with FREE Standard Shipping worldwide, "

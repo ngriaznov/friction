@@ -10,3 +10,4 @@ pass 1: 0 operation(s) fired — converged
     vguard.render          1352..1361  KEPT (frame vguard.render: measured 167.3/M machine vs 377.7/M human; report-only)
     adjg.robust            3403..3409  KEPT (frame adjg.robust: measured 349.2/M machine vs 30.7/M human; report-only)
 pass 2: 0 operation(s) fired — converged
+pass 3: 0 operation(s) fired — converged

@@ -18,3 +18,4 @@ pass 1: 0 operation(s) fired — converged
     vguard.ensure          2996..3002  KEPT (frame vguard.ensure: measured 1376.3/M machine vs 314.8/M human; report-only)
     adjg.advanced          4447..4455  KEPT (frame adjg.advanced: measured 231.8/M machine vs 106.0/M human; report-only)
 pass 2: 0 operation(s) fired — converged
+pass 3: 0 operation(s) fired — converged

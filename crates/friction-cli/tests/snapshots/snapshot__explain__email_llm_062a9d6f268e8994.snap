@@ -36,5 +36,6 @@ pass 2: 0 operation(s) fired — converged
     vguard.observe         3359..3441  KEPT (frame vguard.observe: measured 120.3/M machine vs 20.0/M human; report-only)
     vguard.observe         3695..3777  KEPT (frame vguard.observe: measured 120.3/M machine vs 20.0/M human; report-only)
     intg.highly            3905..3964  KEPT (frame intg.highly: measured 85.1/M machine vs 61.4/M human; report-only)
-pass 3: 1 operation(s) fired
+pass 3: 0 operation(s) fired — converged
+pass 4: 1 operation(s) fired
   register.em_dash         2160..2163  -> ", "

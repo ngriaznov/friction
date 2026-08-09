@@ -23,3 +23,4 @@ pass 2: 0 operation(s) fired — converged
     pilot.within           5593..5609  KEPT (frame pilot.within: report-only (see the frame-pack compile report))
     adjg.clear             5637..5786  KEPT (frame adjg.clear: measured 228.9/M machine vs 112.1/M human; report-only)
 pass 3: 0 operation(s) fired — converged
+pass 4: 0 operation(s) fired — converged
