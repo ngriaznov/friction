@@ -163,35 +163,68 @@ impl<'a> MatchEngine<'a> {
         let vocab = self.dms.vocab();
         let lexicon = self.inventory.lvc_lexicon();
 
-        let mut dms_spans = Vec::new();
-        let mut dms_report = None;
-        let mut literal_ac_spans = Vec::new();
-        let mut literal_fallback_spans = Vec::new();
-        let mut frame_spans = Vec::new();
-        let mut tagged = Vec::new();
+        // rayon cannot spawn OS threads on wasm32-unknown-unknown (no
+        // thread creation capability there) — `rayon::scope`/`rayon::join`
+        // panic lazily the first time either tries to build the global
+        // pool. The six independent computations and the two-stage
+        // lvc/jargon/overuse join below run sequentially there instead;
+        // this crate's own `rayon_thread_count_determinism` corpus tests
+        // already prove `RAYON_NUM_THREADS=1` output is byte-identical to
+        // any other thread count, and running these calls one after
+        // another inline is exactly that one-thread case. The six
+        // `let mut ... = <empty>` bindings `rayon::scope`'s closures
+        // write through only exist on the native path — the wasm32
+        // block below assigns each once, so it declares its own
+        // (non-`mut`) bindings instead of sharing these.
+        #[cfg(not(target_arch = "wasm32"))]
+        let (dms_spans, dms_report, literal_ac_spans, literal_fallback_spans, frame_spans, tagged) = {
+            let mut dms_spans = Vec::new();
+            let mut dms_report = None;
+            let mut literal_ac_spans = Vec::new();
+            let mut literal_fallback_spans = Vec::new();
+            let mut frame_spans = Vec::new();
+            let mut tagged = Vec::new();
+            rayon::scope(|s| {
+                s.spawn(|_| {
+                    dms_spans = dms::scan_units(&units, machine_sam, human_sam, vocab);
+                });
+                s.spawn(|_| {
+                    dms_report = Some(dms::document_report(&units, self.dms, vocab));
+                });
+                s.spawn(|_| {
+                    literal_ac_spans = self.automaton.scan_units(&units);
+                });
+                s.spawn(|_| {
+                    literal_fallback_spans =
+                        literal::regex_fallback_spans(self.inventory, &self.automaton, &units);
+                });
+                s.spawn(|_| {
+                    frame_spans = frame::scan_units(&units);
+                });
+                s.spawn(|_| {
+                    tagged = tagging::tag_units(&units, document.source(), self.tagger);
+                });
+            });
+            (
+                dms_spans,
+                dms_report,
+                literal_ac_spans,
+                literal_fallback_spans,
+                frame_spans,
+                tagged,
+            )
+        };
+        #[cfg(target_arch = "wasm32")]
+        let (dms_spans, dms_report, literal_ac_spans, literal_fallback_spans, frame_spans, tagged) = (
+            dms::scan_units(&units, machine_sam, human_sam, vocab),
+            Some(dms::document_report(&units, self.dms, vocab)),
+            self.automaton.scan_units(&units),
+            literal::regex_fallback_spans(self.inventory, &self.automaton, &units),
+            frame::scan_units(&units),
+            tagging::tag_units(&units, document.source(), self.tagger),
+        );
 
-        rayon::scope(|s| {
-            s.spawn(|_| {
-                dms_spans = dms::scan_units(&units, machine_sam, human_sam, vocab);
-            });
-            s.spawn(|_| {
-                dms_report = Some(dms::document_report(&units, self.dms, vocab));
-            });
-            s.spawn(|_| {
-                literal_ac_spans = self.automaton.scan_units(&units);
-            });
-            s.spawn(|_| {
-                literal_fallback_spans =
-                    literal::regex_fallback_spans(self.inventory, &self.automaton, &units);
-            });
-            s.spawn(|_| {
-                frame_spans = frame::scan_units(&units);
-            });
-            s.spawn(|_| {
-                tagged = tagging::tag_units(&units, document.source(), self.tagger);
-            });
-        });
-
+        #[cfg(not(target_arch = "wasm32"))]
         let (lvc_spans, (jargon_spans, overuse_spans)) = rayon::join(
             || lvc::scan_units(&tagged, document.source(), lexicon),
             || {
@@ -207,6 +240,14 @@ impl<'a> MatchEngine<'a> {
                     || overuse::scan_units(&tagged, document.source(), self.human_evidence),
                 )
             },
+        );
+        #[cfg(target_arch = "wasm32")]
+        let (lvc_spans, (jargon_spans, overuse_spans)) = (
+            lvc::scan_units(&tagged, document.source(), lexicon),
+            (
+                jargon::scan_units(&tagged, document.source(), self.jargon, self.jargon_attest),
+                overuse::scan_units(&tagged, document.source(), self.human_evidence),
+            ),
         );
 
         let spans = span::merge_spans(vec![

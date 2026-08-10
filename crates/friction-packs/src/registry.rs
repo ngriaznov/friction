@@ -2,7 +2,7 @@
 //! its typed, parsed form, with its declared version and a recorded
 //! sha256 of the exact source bytes it was parsed from.
 
-use std::sync::LazyLock;
+use std::sync::{LazyLock, OnceLock};
 
 use friction_core::Lang;
 
@@ -38,7 +38,106 @@ const INVENTORY_V1_TOML: &str = include_str!("../packs/inventory-en-v1.toml");
 /// `corpus-tool index` writes, but is no longer embedded or parsed at
 /// runtime: this crate's `dms_bin` drift test re-packs it and compares
 /// bytes, so the two cannot silently diverge.
+///
+/// Gated on the default `embedded-dms` feature: a native build always has
+/// this on, so this stays the exact bytes [`DMS`] reads, exactly as before
+/// this feature existed. A wasm build turns the feature off and calls
+/// [`install_dms_index_bin`]/[`install_dms_index_toml`] instead — this
+/// asset is 27 MB, by far the largest of this crate's embedded packs, so
+/// it's the one worth not shipping in every page load's binary.
+#[cfg(feature = "embedded-dms")]
 const DMS_INDEX_V1_BIN: &[u8] = include_bytes!("../packs/dms-index-en-v1.bin");
+
+/// [`DMS`]'s pre-init override slot: `install_dms_index_bin`/
+/// `install_dms_index_toml` leak their bytes into this and [`DMS`]'s own
+/// `LazyLock` closure consults it first — see those functions' docs for
+/// why leaking is correct here (the same reasoning as
+/// `friction_nlp::weights_install`) and [`InstallError::AlreadyInitialized`]
+/// for what "too late" this module can and cannot detect.
+static DMS_OVERRIDE: OnceLock<&'static [u8]> = OnceLock::new();
+
+/// Errors installing pre-init pack bytes.
+#[derive(Debug, thiserror::Error)]
+#[non_exhaustive]
+pub enum InstallError {
+    /// [`DMS`] was already forced (built from the embedded default or an
+    /// earlier install) by the time `install_dms_index_bin`/
+    /// `install_dms_index_toml` ran.
+    ///
+    /// Unlike `friction_nlp::InstallError::AlreadyInstalled`, this crate's
+    /// [`DMS`] genuinely is a `LazyLock` singleton, so this condition is
+    /// detected with `LazyLock::get(&DMS)` rather than only inferred from
+    /// a second install call. The detection is best-effort, not atomic: a
+    /// concurrent first touch of [`DMS`] between the check and the store
+    /// can still slip past it, so the caller-side contract is what
+    /// actually holds this together — call the install function before
+    /// anything (on any thread) touches `friction_packs::DMS` or
+    /// `PackSet::for_lang(..).dms`, including `PackSet::warm`. The one
+    /// real caller (a wasm build's single-threaded init) satisfies that
+    /// trivially.
+    #[error(
+        "the DMS index was already built (from the embedded default, or an earlier install) — \
+         install_dms_index_bin/install_dms_index_toml must be called before anything touches \
+         `friction_packs::DMS` or `PackSet`"
+    )]
+    AlreadyInitialized,
+    /// `install_dms_index_toml`'s bytes were not valid UTF-8.
+    #[error("dms-index-en-v1.toml bytes were not valid UTF-8: {0}")]
+    InvalidUtf8(#[source] std::str::Utf8Error),
+    /// The installed TOML (or the `.bin` bytes derived from it) failed to
+    /// parse — see [`crate::pack_dms_index_bin`]/[`DmsIndex::parse`].
+    #[error(transparent)]
+    Pack(#[from] PackError),
+}
+
+/// Installs `bytes` as the DMS index, in place of embedding.
+///
+/// `bytes` is the derived `dms-index-en-v1.bin` view format. [`DMS`] loads
+/// it instead of the embedded [`DMS_INDEX_V1_BIN`] — the seam a wasm build
+/// uses to fetch the 27 MB precompiled automaton artifact at runtime
+/// instead of embedding it. See [`install_dms_index_toml`] for the much
+/// smaller (2.6 MB) alternative that rebuilds the automaton from source
+/// TOML at install time instead.
+///
+/// # Errors
+/// [`InstallError::AlreadyInitialized`] if [`DMS`] was already forced (by
+/// the embedded default or an earlier install) before this call — see
+/// that variant's docs.
+pub fn install_dms_index_bin(bytes: Vec<u8>) -> Result<(), InstallError> {
+    if LazyLock::get(&DMS).is_some() || DMS_OVERRIDE.get().is_some() {
+        return Err(InstallError::AlreadyInitialized);
+    }
+    let leaked: &'static [u8] = Vec::leak(bytes);
+    DMS_OVERRIDE
+        .set(leaked)
+        .map_err(|_| InstallError::AlreadyInitialized)
+}
+
+/// Installs `bytes` as the DMS index's source TOML, in place of embedding.
+///
+/// `bytes` is `dms-index-en-v1.toml`'s UTF-8 source, ~2.6 MB — roughly a
+/// tenth of the derived `.bin`'s 27 MB. [`DMS`] builds its automata from it
+/// at install time, via the exact same [`crate::pack_dms_index_bin`]
+/// offline `corpus-tool dms-pack` already calls to produce the embedded
+/// artifact. Pays the ~90 ms suffix-automaton construction cost this
+/// crate's `.bin` embedding exists to avoid, once, at install time — the
+/// size win over [`install_dms_index_bin`] is worth that for a wasm
+/// download budget.
+///
+/// # Errors
+/// [`InstallError::AlreadyInitialized`] if [`DMS`] was already forced
+/// before this call; [`InstallError::InvalidUtf8`] if `bytes` isn't valid
+/// UTF-8; [`InstallError::Pack`] if it doesn't parse as a `dms-index-v1`
+/// pack.
+pub fn install_dms_index_toml(bytes: Vec<u8>) -> Result<(), InstallError> {
+    if LazyLock::get(&DMS).is_some() {
+        return Err(InstallError::AlreadyInitialized);
+    }
+    let text =
+        String::from_utf8(bytes).map_err(|err| InstallError::InvalidUtf8(err.utf8_error()))?;
+    let packed = crate::pack_dms_index_bin(&text)?;
+    install_dms_index_bin(packed)
+}
 
 /// The embedded derived frame-rewrite pack — the compiled rule program
 /// `corpus-tool frame-pack` builds from `frame-rules-en-v1.toml` after
@@ -102,13 +201,43 @@ pub fn load_dms_pack(toml: &str) -> Result<LoadedPack<DmsIndex>, PackError> {
 /// contract: the checksum still names the audited source bytes, exactly
 /// as it did when the TOML was parsed directly.
 ///
+/// Consults [`install_dms_index_bin`]/[`install_dms_index_toml`]'s override
+/// first; falls back to the embedded [`DMS_INDEX_V1_BIN`] exactly as
+/// before that seam existed.
+///
 /// # Panics
-/// Panics if the embedded artifact fails to parse — a bug in this
-/// crate's own vendored data (covered by `dms_bin`'s round-trip and
-/// drift tests), not a runtime condition.
+/// Panics if the resolved bytes fail to parse — for the embedded artifact
+/// this is a bug in this crate's own vendored data (covered by `dms_bin`'s
+/// round-trip and drift tests), not a runtime condition; for installed
+/// bytes it means the caller installed something that isn't a valid
+/// `dms-index-v1` `.bin`. Also panics if `embedded-dms` is disabled and no
+/// index was installed before this static was first forced — see
+/// [`install_dms_index_bin`]'s docs.
 pub static DMS: LazyLock<LoadedPack<DmsIndexView<'static>>> = LazyLock::new(|| {
-    let pack =
-        DmsIndexView::parse(DMS_INDEX_V1_BIN).expect("embedded dms-index-en-v1.bin must parse");
+    // `unwrap_or_else`, not `unwrap_or`: laziness matters here, not just
+    // style — the `not(embedded-dms)` branch panics, and eagerly
+    // evaluating that on every call (even when `DMS_OVERRIDE` already
+    // holds a value) would defeat the whole override path. Clippy only
+    // sees whichever branch the active feature set compiles, so it can't
+    // tell the two arms differ; kept lazy for the branch it doesn't see.
+    #[allow(clippy::unnecessary_lazy_evaluations)]
+    let bytes = DMS_OVERRIDE.get().copied().unwrap_or_else(|| {
+        #[cfg(feature = "embedded-dms")]
+        {
+            DMS_INDEX_V1_BIN
+        }
+        #[cfg(not(feature = "embedded-dms"))]
+        {
+            panic!(
+                "friction-packs: the DMS index is not embedded (default feature `embedded-dms` \
+                 is disabled) and no index was installed — call \
+                 `friction_packs::install_dms_index_bin`/`install_dms_index_toml` before \
+                 anything touches `friction_packs::DMS` or `PackSet`"
+            )
+        }
+    });
+    let pack = DmsIndexView::parse(bytes)
+        .expect("the DMS index bytes (embedded default, or installed) must parse");
     let sha256 = Sha256::parse_hex(pack.source_sha256_hex())
         .expect("a parsed artifact's recorded sha256 is always 64 hex characters");
     LoadedPack {

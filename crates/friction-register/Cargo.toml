@@ -10,9 +10,14 @@ repository.workspace = true
 [lints]
 workspace = true
 
+[features]
+## Forwards to `friction-nlp/embedded-weights` — see friction-metrics'
+## Cargo.toml for why this exists (same wasm-dependency-closure reason).
+default = ["friction-nlp/embedded-weights"]
+
 [dependencies]
 friction-core = { path = "../friction-core" }
-friction-nlp = { path = "../friction-nlp" }
+friction-nlp = { path = "../friction-nlp", default-features = false }
 thiserror = { workspace = true }
 
 [dev-dependencies]

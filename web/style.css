@@ -1,0 +1,362 @@
+:root {
+  --bg: #ffffff;
+  --fg: #1a1a1a;
+  --muted: #666666;
+  --border: #d8d8d8;
+  --surface: #f4f4f4;
+  --accent: #2a6df0;
+  --error: #c0392b;
+  --add: #1a7a3c;
+  --add-bg: #e8f7ee;
+  --del: #b0261e;
+  --del-bg: #fbeceb;
+  --font-sans:
+    -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  --font-mono:
+    ui-monospace, SFMono-Regular, Menlo, Consolas, "Liberation Mono", monospace;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #14161a;
+    --fg: #e7e7e7;
+    --muted: #9a9a9a;
+    --border: #33363c;
+    --surface: #1c1f24;
+    --accent: #6ea8ff;
+    --error: #ff6b60;
+    --add: #6fd894;
+    --add-bg: #10261a;
+    --del: #ff8a80;
+    --del-bg: #2a1414;
+  }
+}
+
+* {
+  box-sizing: border-box;
+}
+
+/* Author rules below re-declare `display` on some of these same elements
+   (e.g. `.editor-wrap { display: flex }`), which would otherwise beat the
+   user-agent's `[hidden] { display: none }` on a cascade-origin tie. */
+[hidden] {
+  display: none !important;
+}
+
+html,
+body {
+  margin: 0;
+  padding: 0;
+  background: var(--bg);
+  color: var(--fg);
+  font-family: var(--font-sans);
+  overflow-x: hidden;
+}
+
+body {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+}
+
+.app-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 0.75rem 1.25rem;
+  border-bottom: 1px solid var(--border);
+  flex-wrap: wrap;
+}
+
+.app-title {
+  display: flex;
+  align-items: baseline;
+  gap: 0.5rem;
+}
+
+.app-name {
+  font-weight: 700;
+  font-size: 1.1rem;
+  letter-spacing: -0.01em;
+}
+
+.badge {
+  font-family: var(--font-mono);
+  font-size: 0.75rem;
+  color: var(--muted);
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  padding: 0.1rem 0.55rem;
+}
+
+.status-line {
+  font-size: 0.85rem;
+  color: var(--muted);
+  font-family: var(--font-mono);
+}
+
+.status-error {
+  color: var(--error);
+}
+
+.app-main {
+  flex: 1;
+  width: 100%;
+  max-width: 960px;
+  margin: 0 auto;
+  padding: 1.25rem;
+  display: flex;
+  flex-direction: column;
+  gap: 1.25rem;
+}
+
+.progress-wrap h2 {
+  font-size: 1rem;
+  margin: 0 0 0.75rem;
+  color: var(--muted);
+  font-weight: 600;
+}
+
+.progress-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+}
+
+.progress-row {
+  display: grid;
+  grid-template-columns: 8rem 1fr 8rem;
+  align-items: center;
+  gap: 0.75rem;
+  font-size: 0.85rem;
+}
+
+.progress-label {
+  color: var(--muted);
+}
+
+.progress-track {
+  height: 0.5rem;
+  border-radius: 999px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  overflow: hidden;
+}
+
+.progress-bar {
+  height: 100%;
+  width: 0%;
+  background: var(--accent);
+  transition: width 0.15s ease-out;
+}
+
+.progress-stat {
+  font-family: var(--font-mono);
+  color: var(--muted);
+  text-align: right;
+}
+
+.editor-wrap {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.input-area {
+  width: 100%;
+  min-height: 12rem;
+  resize: vertical;
+  padding: 0.75rem;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--surface);
+  color: var(--fg);
+  font-family: var(--font-mono);
+  font-size: 0.9rem;
+  line-height: 1.5;
+}
+
+.input-area:focus {
+  outline: 2px solid var(--accent);
+  outline-offset: -1px;
+}
+
+.actions {
+  display: flex;
+  gap: 0.5rem;
+}
+
+button {
+  font-family: inherit;
+  font-size: 0.9rem;
+  padding: 0.45rem 1rem;
+  border-radius: 6px;
+  border: 1px solid var(--border);
+  background: var(--surface);
+  color: var(--fg);
+  cursor: pointer;
+}
+
+button:hover:not(:disabled) {
+  border-color: var(--accent);
+}
+
+button:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+
+.results {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.results pre {
+  margin: 0;
+  padding: 0.75rem;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--surface);
+  font-family: var(--font-mono);
+  font-size: 0.82rem;
+  line-height: 1.5;
+  white-space: pre-wrap;
+  word-break: break-word;
+  overflow-x: auto;
+}
+
+.results h3 {
+  font-size: 0.85rem;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  color: var(--muted);
+  margin: 0 0 0.4rem;
+}
+
+.fix-columns {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1rem;
+}
+
+@media (max-width: 640px) {
+  .fix-columns {
+    grid-template-columns: 1fr;
+  }
+
+  .progress-row {
+    grid-template-columns: 6rem 1fr 5.5rem;
+  }
+}
+
+.diff-view {
+  overflow-x: auto;
+}
+
+.diff-line {
+  white-space: pre;
+}
+
+.diff-add {
+  background: var(--add-bg);
+  color: var(--add);
+}
+
+.diff-del {
+  background: var(--del-bg);
+  color: var(--del);
+}
+
+.check-summary {
+  color: var(--muted);
+  font-size: 0.85rem;
+  margin: 0;
+}
+
+.findings-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+}
+
+.fired-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  font-family: var(--font-mono);
+  font-size: 0.82rem;
+  color: var(--muted);
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.finding {
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 0.6rem 0.75rem;
+  background: var(--surface);
+}
+
+.finding-head {
+  display: flex;
+  justify-content: space-between;
+  gap: 0.5rem;
+  font-family: var(--font-mono);
+  font-size: 0.82rem;
+}
+
+.finding-rule {
+  color: var(--accent);
+  font-weight: 600;
+}
+
+.finding-score {
+  color: var(--muted);
+}
+
+.finding-message {
+  margin-top: 0.35rem;
+  font-size: 0.85rem;
+}
+
+.finding-excerpt {
+  display: block;
+  margin-top: 0.4rem;
+  padding: 0.4rem 0.5rem;
+  border-radius: 4px;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  font-family: var(--font-mono);
+  font-size: 0.8rem;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+.finding-location {
+  margin-top: 0.35rem;
+  font-size: 0.75rem;
+  color: var(--muted);
+}
+
+details {
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 0.5rem 0.75rem;
+  background: var(--surface);
+}
+
+details summary {
+  cursor: pointer;
+  font-family: var(--font-mono);
+  font-size: 0.85rem;
+}
+
+details pre {
+  margin-top: 0.5rem;
+}

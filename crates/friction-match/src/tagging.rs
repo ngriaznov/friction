@@ -15,6 +15,9 @@ use std::ops::Range;
 
 use friction_core::Token;
 use friction_nlp::{TaggedToken, Tagger};
+// Only the native (non-wasm32) path below uses `.par_iter()` — see
+// `tag_units`'s own wasm32 fallback comment.
+#[cfg(not(target_arch = "wasm32"))]
 use rayon::prelude::*;
 
 use crate::jargon::is_link_label;
@@ -79,17 +82,37 @@ pub fn tag_units(
 ) -> Vec<TaggedSentence> {
     let flat = sentence_scopes(units, document_text);
 
-    flat.par_iter()
-        .map(|(range, in_link_label)| {
-            let text = &document_text[range.clone()];
-            let tokens = tagger.tag(text, range.start);
-            TaggedSentence {
-                range: range.clone(),
-                tokens,
-                in_link_label: *in_link_label,
-            }
-        })
-        .collect()
+    // rayon cannot spawn OS threads on wasm32-unknown-unknown; sequential
+    // `.iter()` there is byte-identical (see `friction-edit::parse_ctx`'s
+    // own comment on the same substitution for the determinism proof).
+    #[cfg(not(target_arch = "wasm32"))]
+    {
+        flat.par_iter()
+            .map(|(range, in_link_label)| {
+                let text = &document_text[range.clone()];
+                let tokens = tagger.tag(text, range.start);
+                TaggedSentence {
+                    range: range.clone(),
+                    tokens,
+                    in_link_label: *in_link_label,
+                }
+            })
+            .collect()
+    }
+    #[cfg(target_arch = "wasm32")]
+    {
+        flat.iter()
+            .map(|(range, in_link_label)| {
+                let text = &document_text[range.clone()];
+                let tokens = tagger.tag(text, range.start);
+                TaggedSentence {
+                    range: range.clone(),
+                    tokens,
+                    in_link_label: *in_link_label,
+                }
+            })
+            .collect()
+    }
 }
 
 /// Builds a [`TaggedSentence`] from already-tagged LOCAL-offset tokens.

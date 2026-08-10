@@ -1,0 +1,41 @@
+[package]
+name = "friction-wasm"
+version = "0.6.1"
+description = "wasm-bindgen bindings exposing check/fix/explain to a web page."
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+
+[lib]
+crate-type = ["cdylib", "rlib"]
+
+[lints]
+workspace = true
+
+[dependencies]
+friction-core = { path = "../friction-core" }
+friction-parse = { path = "../friction-parse" }
+# `default-features = false`: this crate installs the tagger/parser
+# weight artifacts at runtime via `install_tagger_weights`/
+# `install_parser_weights` (see `init_engine` below) instead of embedding
+# them — see `friction-nlp`'s own `embedded-weights` feature docs.
+friction-nlp = { path = "../friction-nlp", default-features = false }
+# `default-features = false`: this crate installs the 27 MB DMS index at
+# runtime via `install_dms_index_toml` instead of embedding it — see
+# `friction-packs`'s own `embedded-dms` feature docs. The other packs
+# this crate embeds unconditionally (attestation, jargon, jargon-attest,
+# inventory, register, human/machine-evidence, frame) are each ~2 MB or
+# less and stay embedded, exactly as native.
+friction-packs = { path = "../friction-packs", default-features = false }
+# `default-features = false`: propagates the two settings above through
+# this crate — see its own `[features] default` for why.
+friction-edit = { path = "../friction-edit", default-features = false }
+# `default-features = false`: same reason as `friction-edit`, above.
+friction-match = { path = "../friction-match", default-features = false }
+# `default-features = false`: same reason (this crate's own edge to
+# `friction-nlp` — see `friction-metrics`'s own `[features] default`).
+friction-metrics = { path = "../friction-metrics", default-features = false }
+serde = { workspace = true }
+serde_json = { workspace = true }
+wasm-bindgen = "0.2"

@@ -10,6 +10,18 @@ repository.workspace = true
 [lints]
 workspace = true
 
+[features]
+default = ["embedded-dms"]
+## Embeds the derived DMS automaton artifact (`packs/dms-index-en-v1.bin`,
+## 27 MB — this crate's single largest embedded pack) as an `include_bytes!`
+## static, exactly as this crate has always done. On by default — every
+## native build keeps this on. A wasm build turns it off and calls
+## `install_dms_index_bin`/`install_dms_index_toml` at runtime instead, so
+## the index ships as a separate fetch rather than bloating every page
+## load's binary. With this feature off and no install call made,
+## `DMS`/`PackSet` panics rather than silently running with no DMS index.
+embedded-dms = []
+
 [dependencies]
 # Only for `Envelope`, the `[lo, hi]` band type `EnvelopePack::band`
 # returns — this crate performs no parsing, NLP, or metric computation of
@@ -17,8 +29,14 @@ workspace = true
 friction-core = { path = "../friction-core" }
 # `InventoryPack::parse` checks every `lvc_pairs` entry against
 # `friction_nlp::lvc::DERIVATIONAL_LEXICON`/`LIGHT_VERBS` — acyclic
-# (friction-nlp does not depend on this crate).
-friction-nlp = { path = "../friction-nlp" }
+# (friction-nlp does not depend on this crate). `default-features = false`:
+# this crate only ever touches those two always-compiled lexicon statics,
+# never anything gated by friction-nlp's `embedded-weights` feature, so
+# there is nothing to forward here — this edge simply stops being one of
+# the (redundant, for a native build) requesters of that feature, which
+# matters for a wasm build's dependency closure (see friction-wasm's own
+# Cargo.toml) where no *other* edge into friction-nlp must request it.
+friction-nlp = { path = "../friction-nlp", default-features = false }
 serde = { workspace = true }
 sha2 = { workspace = true }
 thiserror = { workspace = true }

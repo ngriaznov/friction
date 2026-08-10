@@ -710,6 +710,22 @@ dependencies = [
 ]
 
 [[package]]
+name = "friction-wasm"
+version = "0.6.1"
+dependencies = [
+ "friction-core",
+ "friction-edit",
+ "friction-match",
+ "friction-metrics",
+ "friction-nlp",
+ "friction-packs",
+ "friction-parse",
+ "serde",
+ "serde_json",
+ "wasm-bindgen",
+]
+
+[[package]]
 name = "futures-channel"
 version = "0.3.33"
 source = "registry+https://github.com/rust-lang/crates.io-index"

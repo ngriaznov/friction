@@ -10,6 +10,9 @@
 mod segment;
 mod segment_srx;
 mod weights_bin;
+mod weights_install;
+
+pub use weights_install::InstallError;
 
 pub use segment::{SegmentError, Segmenter, segment_document};
 pub use segment_srx::SrxSegmenter;
@@ -44,7 +47,10 @@ pub use inflect::{
 pub use tag::{PosTag, TaggedToken, Tagger, classify_token_kind, coarse_tag};
 #[cfg(feature = "train-tooling")]
 pub use tag_perceptron::train_support;
-pub use tag_perceptron::{PerceptronTagError, PerceptronTagger, pack_perceptron_tagger_bin};
+pub use tag_perceptron::{
+    PerceptronTagError, PerceptronTagger, install_tagger_weights, pack_perceptron_tagger_bin,
+    validate_tagger_weights,
+};
 // --- end tagging block ---
 
 // --- dependency parsing (src/dep.rs, src/dep_arceager.rs,
@@ -55,7 +61,10 @@ mod dep_perceptron;
 pub use dep::{Confidence, DepEdge, DepParseError, DepParser, DepRelation, SentenceParse};
 #[cfg(feature = "train-tooling")]
 pub use dep_perceptron::train_support as dep_train_support;
-pub use dep_perceptron::{PerceptronParseError, PerceptronParser, pack_perceptron_parser_bin};
+pub use dep_perceptron::{
+    PerceptronParseError, PerceptronParser, install_parser_weights, pack_perceptron_parser_bin,
+    validate_parser_weights,
+};
 
 /// The arc-eager transition system a trainer drives.
 ///

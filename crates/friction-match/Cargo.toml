@@ -10,11 +10,19 @@ repository.workspace = true
 [lints]
 workspace = true
 
+[features]
+## Forwards to `friction-nlp/embedded-weights` and
+## `friction-packs/embedded-dms` — see friction-metrics' Cargo.toml for
+## why this exists (same wasm-dependency-closure reason). This crate's
+## own code never branches on either feature; it only carries the two
+## edges below.
+default = ["friction-nlp/embedded-weights", "friction-packs/embedded-dms"]
+
 [dependencies]
 friction-core = { path = "../friction-core" }
 friction-parse = { path = "../friction-parse" }
-friction-nlp = { path = "../friction-nlp" }
-friction-packs = { path = "../friction-packs" }
+friction-nlp = { path = "../friction-nlp", default-features = false }
+friction-packs = { path = "../friction-packs", default-features = false }
 aho-corasick = { workspace = true }
 regex = "1"
 thiserror = { workspace = true }

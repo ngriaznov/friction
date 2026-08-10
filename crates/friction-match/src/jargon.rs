@@ -25,6 +25,9 @@
 
 use friction_nlp::TaggedToken;
 use friction_packs::{JargonAttestPack, JargonPack};
+// Only the native (non-wasm32) path in `scan_units` below uses
+// `.par_iter()` — see that function's own wasm32 fallback comment.
+#[cfg(not(target_arch = "wasm32"))]
 use rayon::prelude::*;
 
 use crate::span::{Channel, MatchScore, MatchSpan};
@@ -195,16 +198,37 @@ pub fn scan_units(
     pack: &JargonPack,
     attest: &JargonAttestPack,
 ) -> Vec<MatchSpan> {
-    let per_sentence: Vec<Vec<MatchSpan>> = tagged
-        .par_iter()
-        .map(|sentence| {
-            if sentence.in_link_label {
-                return Vec::new();
-            }
-            sentence_jargon_spans(&sentence.tokens, document_text, pack, attest)
-        })
-        .collect();
-    per_sentence.into_iter().flatten().collect()
+    // rayon cannot spawn OS threads on wasm32-unknown-unknown; a
+    // sequential `.iter()` there is already document-ordered (unlike the
+    // native `par_iter` path, above, it needs no intermediate
+    // `Vec<Vec<_>>` collect to force that order back) and byte-identical
+    // regardless — see `friction-edit::parse_ctx`'s own comment on the
+    // same substitution for the determinism proof.
+    #[cfg(not(target_arch = "wasm32"))]
+    {
+        let per_sentence: Vec<Vec<MatchSpan>> = tagged
+            .par_iter()
+            .map(|sentence| {
+                if sentence.in_link_label {
+                    return Vec::new();
+                }
+                sentence_jargon_spans(&sentence.tokens, document_text, pack, attest)
+            })
+            .collect();
+        per_sentence.into_iter().flatten().collect()
+    }
+    #[cfg(target_arch = "wasm32")]
+    {
+        tagged
+            .iter()
+            .flat_map(|sentence| {
+                if sentence.in_link_label {
+                    return Vec::new();
+                }
+                sentence_jargon_spans(&sentence.tokens, document_text, pack, attest)
+            })
+            .collect()
+    }
 }
 
 /// One sentence's `jargon.metaphor` spans, in head-index order — the

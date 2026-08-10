@@ -1,6 +1,12 @@
 /target
 **/*.rs.bk
 
+# `wasm-pack build crates/friction-wasm --target web --out-dir web/pkg`'s
+# generated output (the compiled `.wasm`, its JS glue, and `.d.ts`
+# bindings) — CI rebuilds it from `crates/friction-wasm`'s source; only
+# that source is committed.
+/web/pkg
+
 # OS noise
 .DS_Store
 Thumbs.db
@@ -39,3 +45,10 @@ npm/**/*.tgz
 
 # Local research staging (external repos, corpora experiments) - never tracked
 /.research/
+
+# Playground packs staged locally by scripts/stage-local-packs.sh (copied
+# from crates/*/weights|packs — never a source of truth, and multi-MB).
+/web/packs/
+
+# Session-local Claude Code project config (dev-server launch entries).
+/.claude/

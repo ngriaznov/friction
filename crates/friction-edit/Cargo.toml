@@ -10,13 +10,29 @@ repository.workspace = true
 [lints]
 workspace = true
 
+[features]
+## Forwards to `friction-nlp/embedded-weights` and
+## `friction-packs/embedded-dms` — see friction-metrics' Cargo.toml for
+## why this exists. Every edge below is pinned to `default-features =
+## false` for the same reason (`friction-match`/`friction-register` each
+## carry the identical forwarding pattern one level down, but this
+## crate's own two heavy assets are these two features specifically, and
+## its own PerceptronTagger/PerceptronParser::for_lang calls are exactly
+## what `embedded-weights` gates) — a wasm build (friction-wasm's own
+## Cargo.toml) depends on this crate with `default-features = false` too,
+## so none of the four edges below silently re-requests an embed a wasm
+## build installs at runtime instead. Every existing caller of this crate
+## (friction-cli, this crate's own tests) still activates this default
+## feature implicitly, so nothing changes for them.
+default = ["friction-nlp/embedded-weights", "friction-packs/embedded-dms"]
+
 [dependencies]
 friction-core = { path = "../friction-core" }
 friction-parse = { path = "../friction-parse" }
-friction-nlp = { path = "../friction-nlp" }
-friction-match = { path = "../friction-match" }
-friction-packs = { path = "../friction-packs" }
-friction-register = { path = "../friction-register" }
+friction-nlp = { path = "../friction-nlp", default-features = false }
+friction-match = { path = "../friction-match", default-features = false }
+friction-packs = { path = "../friction-packs", default-features = false }
+friction-register = { path = "../friction-register", default-features = false }
 thiserror = { workspace = true }
 rayon = { workspace = true }
 

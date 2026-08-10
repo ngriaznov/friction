@@ -39,6 +39,9 @@
 //! for the same reason.
 
 use friction_packs::{DmsIndexView, SamView, VocabView};
+// Only the native (non-wasm32) path in `document_report` below uses
+// `.par_iter()` — see that function's own wasm32 fallback comment.
+#[cfg(not(target_arch = "wasm32"))]
 use rayon::prelude::*;
 
 use crate::span::{Channel, DmsMachineReport, DmsReport, MatchScore, MatchSpan};
@@ -196,6 +199,14 @@ pub fn document_report(
     let machine_sam = index.pooled_machine_sam();
     let human_sam = index.human_sam();
 
+    // rayon cannot spawn OS threads on wasm32-unknown-unknown; the
+    // sequential `.fold()` below is byte-identical to `.reduce()` here
+    // (the fold's running total is exactly what `.reduce()`'s associative,
+    // commutative `u64`/`usize` addition already collapses to regardless
+    // of split point — see `friction-edit::parse_ctx`'s own comment for
+    // the determinism proof this whole workspace's rayon rollout rests
+    // on).
+    #[cfg(not(target_arch = "wasm32"))]
     let (machine_total, human_total, token_count) = units
         .par_iter()
         .filter(|unit| !unit.tokens.is_empty())
@@ -211,6 +222,21 @@ pub fn document_report(
             || (0u64, 0u64, 0usize),
             |a, b| (a.0 + b.0, a.1 + b.1, a.2 + b.2),
         );
+    #[cfg(target_arch = "wasm32")]
+    let (machine_total, human_total, token_count) = units
+        .iter()
+        .filter(|unit| !unit.tokens.is_empty())
+        .map(|unit| {
+            let query = query_ids(unit, vocab);
+            let mm = machine_sam.matching_stats(&query);
+            let mh = human_sam.matching_stats(&query);
+            let machine: u64 = mm.iter().map(|&v| u64::from(v)).sum();
+            let human: u64 = mh.iter().map(|&v| u64::from(v)).sum();
+            (machine, human, query.len())
+        })
+        .fold((0u64, 0u64, 0usize), |a, b| {
+            (a.0 + b.0, a.1 + b.1, a.2 + b.2)
+        });
 
     #[allow(clippy::cast_precision_loss)]
     let (mean_machine, mean_human) = if token_count == 0 {

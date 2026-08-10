@@ -140,7 +140,77 @@ static WEIGHTS_JSON_GZ: &[u8] = include_bytes!("../weights/perceptron_en.json.gz
 /// `crate::weights_bin`'s module docs for the shared header shape and
 /// `weights/NOTICE.md`'s "derived artifacts" section for how it's
 /// produced (`corpus-tool weights-pack`) from `WEIGHTS_JSON_GZ`.
+///
+/// Gated on the default `embedded-weights` feature: a native build always
+/// has this on, so this stays the exact bytes `for_lang` reads, exactly as
+/// before this feature existed. A wasm build turns the feature off and
+/// calls [`install_tagger_weights`] instead — see that function's docs.
+#[cfg(feature = "embedded-weights")]
 static WEIGHTS_BIN: &[u8] = include_bytes!("../weights/perceptron_en.bin");
+
+/// This artifact's pre-init override slot — see
+/// [`crate::weights_install`]'s module docs for why leaking is correct
+/// here and what "too late" can and can't be detected. `for_lang` consults
+/// this before ever touching [`WEIGHTS_BIN`].
+static WEIGHTS_OVERRIDE: crate::weights_install::OverrideSlot =
+    crate::weights_install::OverrideSlot::new();
+
+/// Installs `bytes` as the English tagger weights, in place of embedding.
+///
+/// [`PerceptronTagger::for_lang`] loads these instead of the embedded
+/// [`WEIGHTS_BIN`] — the seam a wasm build uses to supply the ~1.4-3.8 MB
+/// perceptron weight artifact at runtime (fetched separately) rather than
+/// paying for it in every page load's binary.
+///
+/// Accepts either shape this crate already knows how to load, auto-detected
+/// by [`crate::weights_install::is_gzip`]: the audited `perceptron_en.json.gz`
+/// interchange format, or the derived `perceptron_en.bin` view format —
+/// whichever the caller fetched.
+///
+/// A native build (`embedded-weights` on, the default) never needs to call
+/// this: `for_lang` only consults it as a first check, so installing is
+/// harmless but pointless there.
+///
+/// # Errors
+/// [`crate::InstallError::AlreadyInstalled`] if called more than once — see
+/// that variant's docs for exactly what "too late" this can and cannot
+/// catch, and the contract for calling this before any tagger is built.
+pub fn install_tagger_weights(bytes: Vec<u8>) -> Result<(), crate::InstallError> {
+    WEIGHTS_OVERRIDE.set(bytes)
+}
+
+/// Structurally validates `bytes` the same way an installed override would
+/// be parsed by [`PerceptronTagger::for_lang`] — gzip-decompress-and-parse
+/// for the interchange format, or header-check-and-view for the `.bin`
+/// format — without building a [`PerceptronTagger`] or requiring the
+/// `'static` borrow [`PerceptronTagger::for_lang`]'s `Box<dyn Backend>`
+/// needs.
+///
+/// The seam a caller (`friction-wasm`'s `init_engine`) uses to catch a
+/// malformed artifact *before* calling [`install_tagger_weights`], whose
+/// override slot can be set at most once ever — a caller-correctable input
+/// error must not consume it. Since this runs the identical parse
+/// `for_lang` runs against the same bytes, `bytes` that pass here are
+/// guaranteed to install successfully.
+///
+/// # Errors
+/// Same as [`PerceptronTagger::for_lang`]'s header/payload/gzip-parse
+/// errors.
+pub fn validate_tagger_weights(bytes: &[u8]) -> Result<(), PerceptronTagError> {
+    if crate::weights_install::is_gzip(bytes) {
+        parse_json_gz(bytes)?;
+        return Ok(());
+    }
+    let (source_sha256, payload) = crate::weights_bin::split_header(bytes, ARTIFACT_MAGIC)?;
+    if source_sha256 != SOURCE_JSON_GZ_SHA256 {
+        return Err(PerceptronTagError::StaleBin {
+            found: Box::from(source_sha256),
+            expected: SOURCE_JSON_GZ_SHA256,
+        });
+    }
+    TaggerView::from_payload(payload)?;
+    Ok(())
+}
 
 /// This artifact's 8-byte magic, distinct from [`crate::dep_perceptron`]'s
 /// own: so one can never be silently loaded in place of the other.
@@ -1019,29 +1089,68 @@ impl PerceptronTagger {
     /// without a retrained artifact for it is a compile error here, not a
     /// runtime surprise.
     ///
+    /// Consults [`install_tagger_weights`]'s override first (this is what
+    /// lets a wasm build with `embedded-weights` off supply the artifact at
+    /// runtime); falls back to the embedded [`WEIGHTS_BIN`] exactly as
+    /// before that seam existed.
+    ///
     /// # Errors
-    /// [`PerceptronTagError::Header`] if the embedded `.bin`'s header or
-    /// payload is malformed; [`PerceptronTagError::StaleBin`] if its
+    /// [`PerceptronTagError::Header`] if the resolved `.bin` bytes' header
+    /// or payload is malformed; [`PerceptronTagError::StaleBin`] if its
     /// recorded source sha256 doesn't match the currently embedded
-    /// `json.gz`. Neither should happen for the vendored artifact,
-    /// covered by this module's own tests.
+    /// `json.gz`. Neither should happen for the vendored artifact, covered
+    /// by this module's own tests.
+    ///
+    /// # Panics
+    /// If `embedded-weights` is disabled and [`install_tagger_weights`] was
+    /// never called: there is no model to load, and silently proceeding
+    /// with no tagger would be a worse failure mode than panicking loudly
+    /// at the missing-install call site.
     pub fn for_lang(lang: Lang) -> Result<Self, PerceptronTagError> {
         match lang {
             Lang::En => {
-                let (source_sha256, payload) =
-                    crate::weights_bin::split_header(WEIGHTS_BIN, ARTIFACT_MAGIC)?;
-                if source_sha256 != SOURCE_JSON_GZ_SHA256 {
-                    return Err(PerceptronTagError::StaleBin {
-                        found: Box::from(source_sha256),
-                        expected: SOURCE_JSON_GZ_SHA256,
-                    });
+                if let Some(bytes) = WEIGHTS_OVERRIDE.get() {
+                    return Self::from_static_bin_or_gz(bytes);
                 }
-                let view = TaggerView::from_payload(payload)?;
-                Ok(Self {
-                    backend: Box::new(ViewBackend { view }),
-                })
+                #[cfg(feature = "embedded-weights")]
+                {
+                    Self::from_static_bin_or_gz(WEIGHTS_BIN)
+                }
+                #[cfg(not(feature = "embedded-weights"))]
+                {
+                    panic!(
+                        "friction-nlp: perceptron tagger weights are not embedded (default \
+                         feature `embedded-weights` is disabled) and no weights were installed \
+                         — call `friction_nlp::install_tagger_weights(bytes)` before building a \
+                         PerceptronTagger"
+                    )
+                }
             }
         }
+    }
+
+    /// Resolves `bytes` — either the derived `.bin` view format or the raw
+    /// `json.gz` interchange format, auto-detected by
+    /// [`crate::weights_install::is_gzip`] — into a tagger. The shared tail
+    /// of [`Self::for_lang`]'s embedded and installed-override paths, and
+    /// of an installed `json.gz` (routed to [`Self::from_json_gz`]) or an
+    /// installed `.bin` (routed through the same header check
+    /// [`Self::for_lang`] always ran against [`WEIGHTS_BIN`]).
+    fn from_static_bin_or_gz(bytes: &'static [u8]) -> Result<Self, PerceptronTagError> {
+        if crate::weights_install::is_gzip(bytes) {
+            return Self::from_json_gz(bytes);
+        }
+        let (source_sha256, payload) = crate::weights_bin::split_header(bytes, ARTIFACT_MAGIC)?;
+        if source_sha256 != SOURCE_JSON_GZ_SHA256 {
+            return Err(PerceptronTagError::StaleBin {
+                found: Box::from(source_sha256),
+                expected: SOURCE_JSON_GZ_SHA256,
+            });
+        }
+        let view = TaggerView::from_payload(payload)?;
+        Ok(Self {
+            backend: Box::new(ViewBackend { view }),
+        })
     }
 
     /// Loads the tagger directly from `json.gz` bytes (the audited

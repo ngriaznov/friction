@@ -173,6 +173,20 @@ A typical README (3–7 KB) runs through `friction fix` in about 30 ms; a
 6.5 s for a dense, varied corpus concatenation. <sub>Measured on an
 M-series MacBook Pro, process start included.</sub>
 
+### In the browser (WebAssembly)
+
+There is also a browser build: the same `fix`/`check`/`explain` pipeline
+compiled to `wasm32-unknown-unknown`, with no install and no server. The
+wasm module itself is small; the tagger, parser, and DMS-index weights
+that make the engine's binary large are not compiled in. Instead they are
+fetched once from the GitHub release tag on first load and cached in the
+browser, so a returning visitor pays no network cost.
+
+Each release publishes `friction-playground-{version}.tar.gz` as a release
+asset alongside the native binaries: extract it and serve the directory
+with any static file server. See [docs/WASM.md](docs/WASM.md) for the
+architecture, the asset sizes, and the local dev flow.
+
 ## Usage
 
 ### `friction fix` — repair a document

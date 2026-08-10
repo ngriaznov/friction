@@ -10,9 +10,19 @@ repository.workspace = true
 [lints]
 workspace = true
 
+[features]
+## Forwards to `friction-nlp/embedded-weights`, restoring that crate's own
+## default (this edge below sets `default-features = false` so a wasm
+## build's dependency closure — see friction-wasm's own Cargo.toml — can
+## turn the embedded weights off by disabling *this* crate's default too;
+## every existing caller (friction-cli, corpus-tool, this crate's own
+## tests) still gets its default feature set activated implicitly, so
+## nothing changes for them.
+default = ["friction-nlp/embedded-weights"]
+
 [dependencies]
 friction-core = { path = "../friction-core" }
-friction-nlp = { path = "../friction-nlp" }
+friction-nlp = { path = "../friction-nlp", default-features = false }
 # Not yet in [workspace.dependencies]; added directly here (rather than at
 # the workspace root) to avoid a concurrent root-file edit while sibling
 # metric modules are being written in parallel. Already present in

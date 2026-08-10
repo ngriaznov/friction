@@ -158,8 +158,9 @@ pub use jargon::{AttestedException, JargonPack, Lexeme, LexemeSource};
 pub use jargon_attest::{BuiltPack, JargonAttestPack, build_pack_bytes, normalize_compound};
 pub use register::{RegisterBand, RegisterPack};
 pub use registry::{
-    ATTESTATION, DMS, FRAME, HUMAN_EVIDENCE, INVENTORY, JARGON, JARGON_ATTEST, LoadedPack,
-    MACHINE_EVIDENCE, PackSet, REGISTER, load_dms_pack,
+    ATTESTATION, DMS, FRAME, HUMAN_EVIDENCE, INVENTORY, InstallError, JARGON, JARGON_ATTEST,
+    LoadedPack, MACHINE_EVIDENCE, PackSet, REGISTER, install_dms_index_bin, install_dms_index_toml,
+    load_dms_pack,
 };
 pub use validate::{
     ClosureViolation, DisjointnessViolation, FrequencyHygieneReason, FrequencyHygieneViolation,

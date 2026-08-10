@@ -10,6 +10,10 @@
 use std::ops::Range;
 
 use friction_nlp::{DepParser, SentenceParse, TaggedToken, Tagger};
+// Only the native (non-wasm32) path below uses `.par_iter()`; the
+// wasm32-unknown-unknown alternatives run sequentially instead (rayon
+// cannot spawn OS threads there) and need no rayon import.
+#[cfg(not(target_arch = "wasm32"))]
 use rayon::prelude::*;
 
 /// One in-scope sentence's text range, tags, and dependency parse:
@@ -86,12 +90,32 @@ pub fn build_sentence_contexts(
                 })
         })
         .collect();
-    ranges
-        .par_iter()
-        .filter_map(|(range, continues_previous)| {
-            build_sentence_ctx(source, range, tagger, parser, *continues_previous)
-        })
-        .collect()
+
+    // rayon cannot spawn OS threads on wasm32-unknown-unknown (no thread
+    // creation capability there) — a `.par_iter()` call panics lazily on
+    // first use rather than falling back to running inline. Sequential
+    // `.iter()` is byte-identical: this crate's own
+    // `rayon_thread_count_determinism` corpus tests already prove
+    // `RAYON_NUM_THREADS=1` output matches any other thread count, and a
+    // sequential `.iter()` walk is exactly that one-thread case.
+    #[cfg(not(target_arch = "wasm32"))]
+    {
+        ranges
+            .par_iter()
+            .filter_map(|(range, continues_previous)| {
+                build_sentence_ctx(source, range, tagger, parser, *continues_previous)
+            })
+            .collect()
+    }
+    #[cfg(target_arch = "wasm32")]
+    {
+        ranges
+            .iter()
+            .filter_map(|(range, continues_previous)| {
+                build_sentence_ctx(source, range, tagger, parser, *continues_previous)
+            })
+            .collect()
+    }
 }
 
 /// [`build_sentence_contexts`], but tagging and parsing only the
@@ -134,13 +158,29 @@ pub fn build_sentence_contexts_where(
                 })
         })
         .collect();
-    ranges
-        .par_iter()
-        .filter(|(range, _)| source.get(range.clone()).is_some_and(&keep))
-        .filter_map(|(range, continues_previous)| {
-            build_sentence_ctx(source, range, tagger, parser, *continues_previous)
-        })
-        .collect()
+
+    // See `build_sentence_contexts`'s own comment: rayon cannot spawn OS
+    // threads on wasm32-unknown-unknown, so this runs sequentially there.
+    #[cfg(not(target_arch = "wasm32"))]
+    {
+        ranges
+            .par_iter()
+            .filter(|(range, _)| source.get(range.clone()).is_some_and(&keep))
+            .filter_map(|(range, continues_previous)| {
+                build_sentence_ctx(source, range, tagger, parser, *continues_previous)
+            })
+            .collect()
+    }
+    #[cfg(target_arch = "wasm32")]
+    {
+        ranges
+            .iter()
+            .filter(|(range, _)| source.get(range.clone()).is_some_and(&keep))
+            .filter_map(|(range, continues_previous)| {
+                build_sentence_ctx(source, range, tagger, parser, *continues_previous)
+            })
+            .collect()
+    }
 }
 
 /// Tags and parses one sentence, `None` if `range` fails to slice `source`

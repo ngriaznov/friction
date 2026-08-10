@@ -11,6 +11,17 @@ repository.workspace = true
 workspace = true
 
 [features]
+default = ["embedded-weights"]
+## Embeds the perceptron tagger/parser weight artifacts
+## (`weights/perceptron_en.bin`, `weights/parser_en.bin`, ~4-19 MB) as
+## `include_bytes!` statics, exactly as this crate has always done. On by
+## default — every native build keeps this on. A wasm build turns it off
+## and calls `install_tagger_weights`/`install_parser_weights` at runtime
+## instead, so the weights ship as a separate fetch rather than bloating
+## every page load's binary. With this feature off and no install call
+## made, `PerceptronTagger`/`PerceptronParser::for_lang` panics rather
+## than silently running an empty model.
+embedded-weights = []
 ## Exposes the training-support helpers `examples/train_perceptron.rs`
 ## needs (feature extraction + weight-table save, tab-separated gold-file
 ## parsing). Off by default so normal builds don't carry training code as

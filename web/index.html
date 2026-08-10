@@ -1,0 +1,44 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>friction playground</title>
+<link rel="stylesheet" href="./style.css" />
+</head>
+<body>
+<header class="app-header">
+  <div class="app-title">
+    <span class="app-name">friction</span>
+    <span id="version-badge" class="badge">loading…</span>
+  </div>
+  <div id="status-line" class="status-line">starting…</div>
+</header>
+
+<main class="app-main">
+  <section id="progress-wrap" class="progress-wrap">
+    <h2>Loading engine assets</h2>
+    <div id="progress-list" class="progress-list"></div>
+  </section>
+
+  <section id="editor-wrap" class="editor-wrap" hidden>
+    <textarea
+      id="input"
+      class="input-area"
+      spellcheck="false"
+      placeholder="Paste or write text to check…"
+    ></textarea>
+
+    <div class="actions">
+      <button id="btn-fix" type="button" disabled>Fix</button>
+      <button id="btn-check" type="button" disabled>Check</button>
+      <button id="btn-explain" type="button" disabled>Explain</button>
+    </div>
+
+    <div id="results" class="results"></div>
+  </section>
+</main>
+
+<script type="module" src="./app.js"></script>
+</body>
+</html>

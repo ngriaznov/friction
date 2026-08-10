@@ -67,6 +67,69 @@ jobs:
       - uses: Swatinem/rust-cache@v2
       - run: cargo test --workspace
 
+  # Builds the playground tarball alongside the native matrix (both need
+  # only the test gate, not each other) so it lands in `dist` in time for
+  # the release job's single upload step.
+  wasm:
+    name: wasm playground
+    needs: [version, test]
+    if: needs.version.outputs.should_release == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      # web/pkg/package.json (wasm-pack stamps it from this crate's own
+      # `version`) is what web/loader.js reads to pin its GitHub-raw pack
+      # fetch to `v{version}` — but the release tag itself (`needs.version`,
+      # above) is derived only from crates/friction-cli/Cargo.toml. Nothing
+      # else keeps the two in lockstep, so a release that bumps one without
+      # the other would silently ship a playground build pointed at the
+      # wrong tag. Checked before the (slow) wasm-pack install/build below.
+      - name: assert friction-wasm's version matches the release version
+        run: |
+          version="${{ needs.version.outputs.version }}"
+          wasm_version=$(grep -m1 '^version' crates/friction-wasm/Cargo.toml | cut -d '"' -f2)
+          if [ "$wasm_version" != "$version" ]; then
+            echo "crates/friction-wasm/Cargo.toml's version ($wasm_version) does not match" >&2
+            echo "the release version ($version, from crates/friction-cli/Cargo.toml)." >&2
+            echo "web/pkg/package.json would pin the playground's pack fetch to" >&2
+            echo "v$wasm_version, not this release's tag v$version. Bump" >&2
+            echo "crates/friction-wasm/Cargo.toml's version to match before releasing." >&2
+            exit 1
+          fi
+
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: wasm32-unknown-unknown
+
+      - uses: Swatinem/rust-cache@v2
+        with:
+          key: wasm32-unknown-unknown
+
+      - name: install wasm-pack
+        run: curl https://rustwasm.github.io/wasm-pack/installer/init.sh -sSf | sh
+
+      - name: build
+        run: wasm-pack build crates/friction-wasm --release --target web --out-dir ../../web/pkg
+
+      - name: package
+        run: |
+          version="${{ needs.version.outputs.version }}"
+          name="friction-playground-$version"
+          tar czf "$name.tar.gz" -C web .
+          shasum -a 256 "$name.tar.gz" | cut -d' ' -f1 > "$name.tar.gz.sha256"
+          mkdir -p dist
+          mv "$name.tar.gz" "$name.tar.gz.sha256" dist/
+          ls -l dist
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: wasm-playground
+          path: |
+            dist/*.tar.gz
+            dist/*.sha256
+          if-no-files-found: error
+
   build:
     name: ${{ matrix.target }}
     needs: [version, test]
@@ -161,7 +224,7 @@ jobs:
 
   release:
     name: publish v${{ needs.version.outputs.version }}
-    needs: [version, build]
+    needs: [version, build, wasm]
     if: needs.version.outputs.should_release == 'true'
     runs-on: ubuntu-latest
     steps:
@@ -213,6 +276,12 @@ jobs:
             provenance are documented in the repository
             (`crates/friction-nlp/weights/NOTICE.md`, the pack sidecars).
 
+            The `friction-playground-*.tar.gz` asset is the WebAssembly
+            playground: a static site (`index.html`, `pkg/`) that runs the
+            same engine in a browser. Extract it and serve the directory
+            with any static file server. See `docs/WASM.md` for how it
+            works and where the models come from.
+
             **macOS:** these binaries are unsigned, so Gatekeeper will refuse the
             first run. Either `xattr -cr ./friction` or right-click → Open once.
 
@@ -263,7 +332,12 @@ jobs:
         run: |
           mkdir -p dist npm-dist
           cd archives
-          for f in *.tar.gz; do tar xzf "$f" -C ../dist; done
+          # friction-playground-*.tar.gz is the wasm playground site, not a
+          # platform binary — nothing in it belongs in an npm package.
+          for f in *.tar.gz; do
+            case "$f" in friction-playground-*) continue ;; esac
+            tar xzf "$f" -C ../dist
+          done
           for f in *.zip; do unzip -qo "$f" -d ../dist; done
           cd ..
           node npm/build.mjs "${{ needs.version.outputs.version }}" dist npm-dist

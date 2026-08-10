@@ -12,6 +12,9 @@
 
 use std::collections::{BTreeMap, BTreeSet};
 
+// Only the native (non-wasm32) path in `InventoryPack::parse` below uses
+// `.into_par_iter()` — see that function's own wasm32 fallback comment.
+#[cfg(not(target_arch = "wasm32"))]
 use rayon::prelude::*;
 use regex::Regex;
 use serde::Deserialize;
@@ -225,6 +228,13 @@ impl InventoryPack {
     /// expected shape. Returns one of the `Inventory*` [`PackError`]
     /// variants for a structural violation this parse enforces. See each
     /// variant's own docs.
+    // The wasm32-unknown-unknown `#[cfg]` fallback below (rayon cannot
+    // spawn OS threads there) duplicates each of the four
+    // `into_par_iter()`/`into_iter()` blocks rather than sharing one body
+    // — see each block's own comment — which pushes this function past
+    // clippy's line-count threshold without adding real complexity: at
+    // most one of the two arms of each pair ever actually compiles.
+    #[allow(clippy::too_many_lines)]
     pub fn parse(toml: &str) -> Result<Self, PackError> {
         // The four regex-carrying families compile in parallel: regex
         // construction (~200 µs a pattern, ~31 patterns) is this parse's
@@ -239,27 +249,65 @@ impl InventoryPack {
         }
 
         let raw: RawPack = toml::from_str(toml).map_err(PackError::from)?;
+        // rayon cannot spawn OS threads on wasm32-unknown-unknown; the
+        // sequential `.into_iter()` fallback below yields the same
+        // `Vec<Result>` in the same declaration order `first_error` reads
+        // (see this function's own doc comment for why that makes the two
+        // paths byte-identical — the same one-thread-count case this
+        // workspace's rayon rollout already proves equal to any other).
+        #[cfg(not(target_arch = "wasm32"))]
         let mut deletion_spans: Vec<DeletionSpan> = first_error(
             raw.deletion_spans
                 .into_par_iter()
                 .map(DeletionSpan::try_from_raw)
                 .collect(),
         )?;
+        #[cfg(target_arch = "wasm32")]
+        let mut deletion_spans: Vec<DeletionSpan> = first_error(
+            raw.deletion_spans
+                .into_iter()
+                .map(DeletionSpan::try_from_raw)
+                .collect(),
+        )?;
+        #[cfg(not(target_arch = "wasm32"))]
         let mut substitution_pairs: Vec<SubstitutionPair> = first_error(
             raw.substitution_pairs
                 .into_par_iter()
                 .map(SubstitutionPair::try_from_raw)
                 .collect(),
         )?;
+        #[cfg(target_arch = "wasm32")]
+        let mut substitution_pairs: Vec<SubstitutionPair> = first_error(
+            raw.substitution_pairs
+                .into_iter()
+                .map(SubstitutionPair::try_from_raw)
+                .collect(),
+        )?;
+        #[cfg(not(target_arch = "wasm32"))]
         let mut ritual_frames: Vec<RitualFrame> = first_error(
             raw.ritual_frames
                 .into_par_iter()
                 .map(RitualFrame::try_from_raw)
                 .collect(),
         )?;
+        #[cfg(target_arch = "wasm32")]
+        let mut ritual_frames: Vec<RitualFrame> = first_error(
+            raw.ritual_frames
+                .into_iter()
+                .map(RitualFrame::try_from_raw)
+                .collect(),
+        )?;
+        #[cfg(not(target_arch = "wasm32"))]
         let mut preview_frames: Vec<PreviewFrame> = first_error(
             raw.preview_frames
                 .into_par_iter()
+                .map(PreviewFrame::try_from_raw)
+                .collect(),
+        )?;
+        #[cfg(target_arch = "wasm32")]
+        let mut preview_frames: Vec<PreviewFrame> = first_error(
+            raw.preview_frames
+                .into_iter()
                 .map(PreviewFrame::try_from_raw)
                 .collect(),
         )?;
