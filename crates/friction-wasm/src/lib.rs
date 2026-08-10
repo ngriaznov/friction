@@ -81,9 +81,11 @@ static ENGINE: OnceLock<Engine> = OnceLock::new();
 /// Borrows the [`ENGINE`] [`init_engine`] built, or a [`JsError`] naming
 /// the missing call if it was never (successfully) called.
 fn engine() -> Result<&'static Engine, JsError> {
-    ENGINE
-        .get()
-        .ok_or_else(|| JsError::new("init_engine must be called (and must succeed) before fix_text/check_text/explain_text"))
+    ENGINE.get().ok_or_else(|| {
+        JsError::new(
+            "init_engine must be called (and must succeed) before fix_text/check_text/explain_text",
+        )
+    })
 }
 
 /// The surface syntax to parse `source` as: HTML if it's unambiguously an

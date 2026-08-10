@@ -183,12 +183,13 @@ pub fn install_parser_weights(bytes: Vec<u8>) -> Result<(), crate::InstallError>
     WEIGHTS_OVERRIDE.set(bytes)
 }
 
-/// Structurally validates `bytes` the same way an installed override would
-/// be parsed by [`PerceptronParser::for_lang`] — gzip-decompress-and-parse
-/// for the interchange format, or header-check-and-view for the `.bin`
-/// format — without building a [`PerceptronParser`] or requiring the
-/// `'static` borrow [`PerceptronParser::for_lang`]'s `Box<dyn Backend>`
-/// needs.
+/// Structurally validates `bytes` without installing or building anything.
+///
+/// Runs the same parse an installed override gets from
+/// [`PerceptronParser::for_lang`] — gzip-decompress-and-parse for the
+/// interchange format, or header-check-and-view for the `.bin` format —
+/// without building a [`PerceptronParser`] or requiring the `'static`
+/// borrow [`PerceptronParser::for_lang`]'s `Box<dyn Backend>` needs.
 ///
 /// The seam a caller (`friction-wasm`'s `init_engine`) uses to catch a
 /// malformed artifact *before* calling [`install_parser_weights`], whose
