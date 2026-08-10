@@ -1,6 +1,6 @@
 [package]
 name = "friction-cli"
-version = "0.6.1"
+version = "0.6.2"
 description = "Command-line interface: check, fix, and explain."
 edition.workspace = true
 rust-version.workspace = true
