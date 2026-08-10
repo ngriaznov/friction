@@ -164,6 +164,15 @@ expression: stdout
       "score": 5394
     },
     {
+      "channel": "jargon",
+      "frame_id": "jargon.metaphor",
+      "start": 598,
+      "end": 610,
+      "line": 3,
+      "column": 505,
+      "score": null
+    },
+    {
       "channel": "dms",
       "frame_id": "dms.machine",
       "start": 713,
@@ -454,6 +463,7 @@ expression: stdout
   ],
   "tell_counts": {
     "dms": 31,
+    "jargon": 1,
     "span": 1,
     "sub": 1
   },
