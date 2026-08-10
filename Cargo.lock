@@ -562,7 +562,7 @@ dependencies = [
 
 [[package]]
 name = "friction-cli"
-version = "0.6.2"
+version = "0.6.3"
 dependencies = [
  "assert_cmd",
  "clap",
@@ -711,7 +711,7 @@ dependencies = [
 
 [[package]]
 name = "friction-wasm"
-version = "0.6.2"
+version = "0.6.3"
 dependencies = [
  "friction-core",
  "friction-edit",
