@@ -179,13 +179,58 @@ There is also a browser build: the same `fix`/`check`/`explain` pipeline
 compiled to `wasm32-unknown-unknown`, with no install and no server. The
 wasm module itself is small; the tagger, parser, and DMS-index weights
 that make the engine's binary large are not compiled in. Instead they are
-fetched once from the GitHub release tag on first load and cached in the
-browser, so a returning visitor pays no network cost.
+fetched once from the GitHub release tag on first load (~10 MB total) and
+cached in the browser, so a returning visitor pays no network cost. Text
+never leaves the page.
 
-Each release publishes `friction-playground-{version}.tar.gz` as a release
-asset alongside the native binaries: extract it and serve the directory
-with any static file server. See [docs/WASM.md](docs/WASM.md) for the
-architecture, the asset sizes, and the local dev flow.
+**Run the playground.** Each release publishes
+`friction-playground-{version}.tar.gz` as a release asset alongside the
+native binaries. Extract it and serve the directory with any static file
+server:
+
+```sh
+tar xzf friction-playground-*.tar.gz -C playground
+npx -y serve playground
+```
+
+**Embed the engine in your own page.** `loader.js` (in the same tarball,
+next to the `pkg/` wasm build it loads) is the wrapper API:
+
+```js
+import { loadFriction } from "./loader.js";
+
+const engine = await loadFriction({
+  onEvent: (e) => console.log(e.type, e), // asset progress, ready, error
+});
+
+const r = engine.fix("It's worth noting that the cache is fast.");
+r.output;   // the fixed text
+r.changed;  // true
+r.diff;     // line-level edit script: [{ type: "equal"|"del"|"add", line }]
+r.fired;    // which rules fired: [{ pass, rule, count }]
+
+engine.check(text);   // `friction check --format json`, parsed
+engine.explain(text); // `friction explain --format json`, parsed
+```
+
+The same lifecycle events also fire on `window` as
+`friction:progress`, `friction:ready`, and `friction:error` CustomEvents,
+so a page can show a loading screen without importing the module. Model
+downloads default to `raw.githubusercontent.com` pinned to the matching
+release tag; pass `baseUrl` to `loadFriction` to fetch from a mirror
+instead.
+
+**Build it from source.**
+
+```sh
+rustup target add wasm32-unknown-unknown
+wasm-pack build crates/friction-wasm --release --target web --out-dir ../../web/pkg
+```
+
+See [docs/WASM.md](docs/WASM.md) for the architecture, the asset list,
+and why the models download from the release tag rather than release
+assets, and [web/README.md](web/README.md) for the exact event and
+result shapes plus the local dev flow.
 
 ## Usage
 
