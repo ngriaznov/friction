@@ -1,9 +1,11 @@
 //! Fix-time detection: six independent channels (differential matching
 //! statistics, a literal tell inventory, licensed light-verb
-//! constructions, deterministic contrast-frame templates, metaphor-
-//! compound jargon detection, and per-document word-overuse detection)
-//! over a document's prose, reporting byte-honest [`MatchSpan`]s. This
-//! crate never rewrites text — see [`MatchEngine`]'s own docs.
+//! constructions, deterministic contrast-frame templates, jargon
+//! detection — both curated-lexeme metaphor compounds and, when
+//! [`friction_packs::general_evidence`] is available, list-free
+//! unattested compounds — and per-document word-overuse detection) over
+//! a document's prose, reporting byte-honest [`MatchSpan`]s. This crate
+//! never rewrites text — see [`MatchEngine`]'s own docs.
 //!
 //! # Span honesty by construction, not by translation
 //!
@@ -60,6 +62,7 @@ mod error;
 pub mod frame;
 pub mod frame_rewrite;
 pub mod jargon;
+pub mod jargon_compound;
 mod literal;
 mod lvc;
 pub mod overuse;
@@ -133,23 +136,24 @@ impl<'a> MatchEngine<'a> {
     /// prose-only, in-scope unit set ([`token::prose_scope`]), and
     /// merges their spans deterministically ([`span::merge_spans`]).
     ///
-    /// DMS, the literal automaton, its regex fallback, frame, overuse, the
+    /// DMS, the literal automaton, its regex fallback, frame, the
     /// document-level DMS report, and the shared tagging step
     /// ([`tagging::tag_units`]) each read only `units`/`document` and this
     /// engine's own packs — never each other's output — so they run as
-    /// seven concurrent `rayon::scope` tasks (the DMS report is itself a
-    /// `par_iter` over `units`, in [`dms::document_report`]). LVC and
-    /// jargon both need the tagged sentences that step produces, so they
-    /// run afterward, as two concurrent `rayon::join` tasks over the same
-    /// borrowed [`tagging::TaggedSentence`] slice — one shared tag pass
-    /// instead of each channel tagging every sentence on its own (see
-    /// [`tagging`]'s own module docs). [`span::merge_spans`] sorts its
-    /// input before returning, so no task's completion order, in either
-    /// stage, ever affects the returned bytes; the seven local variables
-    /// are still assembled into `merge_spans`' `Vec` argument (and
+    /// six concurrent `rayon::scope` tasks (the DMS report is itself a
+    /// `par_iter` over `units`, in [`dms::document_report`]). LVC, jargon,
+    /// jargon-compound, and overuse all need the tagged sentences that
+    /// step produces, so [`Self::tagged_channel_spans`] runs them
+    /// afterward, over the same borrowed [`tagging::TaggedSentence`]
+    /// slice — one shared tag pass instead of each channel tagging every
+    /// sentence on its own (see [`tagging`]'s own module docs).
+    /// [`span::merge_spans`] sorts its input before returning, so no
+    /// task's completion order, in either stage, ever affects the
+    /// returned bytes; the local variables from both stages are still
+    /// assembled into `merge_spans`' `Vec` argument (and
     /// `DocumentReport`) in the same fixed order the prior sequential
-    /// version used, so nothing here depends on that insensitivity to stay
-    /// byte-identical across thread counts.
+    /// version used, so nothing here depends on that insensitivity to
+    /// stay byte-identical across thread counts.
     ///
     /// # Errors
     /// [`MatchError::Core`] if a prose range fails to slice — not
@@ -224,31 +228,8 @@ impl<'a> MatchEngine<'a> {
             tagging::tag_units(&units, document.source(), self.tagger),
         );
 
-        #[cfg(not(target_arch = "wasm32"))]
-        let (lvc_spans, (jargon_spans, overuse_spans)) = rayon::join(
-            || lvc::scan_units(&tagged, document.source(), lexicon),
-            || {
-                rayon::join(
-                    || {
-                        jargon::scan_units(
-                            &tagged,
-                            document.source(),
-                            self.jargon,
-                            self.jargon_attest,
-                        )
-                    },
-                    || overuse::scan_units(&tagged, document.source(), self.human_evidence),
-                )
-            },
-        );
-        #[cfg(target_arch = "wasm32")]
-        let (lvc_spans, (jargon_spans, overuse_spans)) = (
-            lvc::scan_units(&tagged, document.source(), lexicon),
-            (
-                jargon::scan_units(&tagged, document.source(), self.jargon, self.jargon_attest),
-                overuse::scan_units(&tagged, document.source(), self.human_evidence),
-            ),
-        );
+        let (lvc_spans, jargon_spans, jargon_compound_spans, overuse_spans) =
+            self.tagged_channel_spans(&tagged, document.source(), lexicon);
 
         let spans = span::merge_spans(vec![
             dms_spans,
@@ -257,6 +238,7 @@ impl<'a> MatchEngine<'a> {
             lvc_spans,
             frame_spans,
             jargon_spans,
+            jargon_compound_spans,
             overuse_spans,
         ]);
 
@@ -264,6 +246,79 @@ impl<'a> MatchEngine<'a> {
             spans,
             dms: dms_report.expect("every rayon::scope task, including the DMS report one, has run by the time scope() returns"),
         })
+    }
+
+    /// The four channels that need `tagged` ([`tagging::tag_units`]'s
+    /// output) rather than the raw prose units [`Self::scan`]'s first
+    /// stage already covers: LVC, jargon (`jargon.metaphor`),
+    /// jargon-compound ([`jargon_compound::scan_units`]), and overuse, in
+    /// that order — the fixed order [`Self::scan`] assembles into
+    /// `merge_spans`' argument, so this returns them as a plain tuple
+    /// rather than leaving the caller to destructure a nested `rayon::join`
+    /// result.
+    ///
+    /// Three nested `rayon::join` pairs on native targets (jargon-compound
+    /// and overuse share the innermost pair, since neither depends on the
+    /// other); a plain sequential tuple on wasm32, where rayon cannot spawn
+    /// OS threads — the same substitution [`Self::scan`]'s own first stage
+    /// uses, and byte-identical for the same reason (see that stage's own
+    /// comment).
+    fn tagged_channel_spans(
+        &self,
+        tagged: &[tagging::TaggedSentence],
+        document_text: &str,
+        lexicon: &std::collections::BTreeMap<Box<str>, Box<str>>,
+    ) -> (
+        Vec<MatchSpan>,
+        Vec<MatchSpan>,
+        Vec<MatchSpan>,
+        Vec<MatchSpan>,
+    ) {
+        #[cfg(not(target_arch = "wasm32"))]
+        {
+            let (lvc_spans, (jargon_spans, (jargon_compound_spans, overuse_spans))) = rayon::join(
+                || lvc::scan_units(tagged, document_text, lexicon),
+                || {
+                    rayon::join(
+                        || {
+                            jargon::scan_units(
+                                tagged,
+                                document_text,
+                                self.jargon,
+                                self.jargon_attest,
+                            )
+                        },
+                        || {
+                            rayon::join(
+                                || {
+                                    jargon_compound::scan_units(
+                                        tagged,
+                                        document_text,
+                                        self.jargon_attest,
+                                    )
+                                },
+                                || overuse::scan_units(tagged, document_text, self.human_evidence),
+                            )
+                        },
+                    )
+                },
+            );
+            (
+                lvc_spans,
+                jargon_spans,
+                jargon_compound_spans,
+                overuse_spans,
+            )
+        }
+        #[cfg(target_arch = "wasm32")]
+        {
+            (
+                lvc::scan_units(tagged, document_text, lexicon),
+                jargon::scan_units(tagged, document_text, self.jargon, self.jargon_attest),
+                jargon_compound::scan_units(tagged, document_text, self.jargon_attest),
+                overuse::scan_units(tagged, document_text, self.human_evidence),
+            )
+        }
     }
 }
 

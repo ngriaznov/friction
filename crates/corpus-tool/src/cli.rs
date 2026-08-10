@@ -123,6 +123,11 @@ enum Command {
     /// dms-index-v1 human signal the frame-rewrite compile fences
     /// consult.
     HumanEvidence(commands::human_evidence::Args),
+    /// Builds `general-evidence-v1`: a large (~25-45MB), NOT-embedded pack
+    /// of two `BinaryFuse8` unigram/bigram membership filters mined from a
+    /// web-scale general corpus, for `friction_packs::general_evidence`'s
+    /// optional runtime attestation layer.
+    GeneralEvidence(commands::general_evidence::Args),
 }
 
 /// Parses process arguments and runs the selected subcommand.
@@ -183,5 +188,6 @@ pub fn run() -> anyhow::Result<()> {
         Command::Adjudicate(args) => commands::adjudicate::run(&args),
         Command::FramePack(args) => commands::frame_pack::run(&args),
         Command::HumanEvidence(args) => commands::human_evidence::run(&args),
+        Command::GeneralEvidence(args) => commands::general_evidence::run(&args),
     }
 }

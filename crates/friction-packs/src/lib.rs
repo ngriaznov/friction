@@ -118,6 +118,20 @@
 //! doc comment for the two tables' differing absence semantics and why
 //! the shipped pack starts empty.
 //!
+//! # General evidence pack
+//!
+//! [`mod@general_evidence`] is this crate's one pack that is never
+//! `include_bytes!`'d: a `general-evidence-v1` `.bin` (two `BinaryFuse8`
+//! filters — unigram and bigram web-scale vocabulary membership, mined by
+//! `corpus-tool general-evidence mine`/`pack`) is large enough (~25-45 MB)
+//! that embedding it would roughly double this crate's binary size, so
+//! [`general_evidence::general_evidence`] instead resolves an OPTIONAL
+//! runtime artifact — an installed override, or a file the environment or
+//! `~/.cache` points at — returning [`None`] with everything else
+//! unchanged when none is available. Not part of [`PackSet`]: see that
+//! module's own doc comment for the resolution order and why its absence
+//! is a normal, silent state rather than a warning.
+//!
 //! # Determinism
 //!
 //! Every pack parses into sorted or declaration-ordered collections, so
@@ -134,6 +148,7 @@ mod envelope;
 pub mod frame_bin;
 pub mod frame_compile;
 pub mod frame_rules;
+pub mod general_evidence;
 pub mod human_evidence;
 mod inventory;
 mod jargon;
@@ -149,6 +164,12 @@ pub use attestation::{
 pub use dms::{DmsIndex, ModelFamily, Sam, Vocab};
 pub use dms_bin::{DmsBinError, DmsIndexView, SamView, VocabView, pack_dms_index_bin};
 pub use envelope::{ENVELOPE_V2, EnvelopePack, exceedance};
+pub use general_evidence::{
+    BuiltPack as GeneralEvidenceBuiltPack, GeneralEvidencePack,
+    InstallError as GeneralEvidenceInstallError, build_pack_bytes as build_general_evidence_bin,
+    general_evidence, install_general_evidence_bin,
+    normalize_word as normalize_general_evidence_word,
+};
 pub use human_evidence::{HumanEvidencePack, build_pack_bytes as build_human_evidence_bin};
 pub use inventory::{
     Anchor, DeletionSpan, FrequencyUnit, GuardTokens, InventoryPack, LvcPair, OutputFrequencyBand,

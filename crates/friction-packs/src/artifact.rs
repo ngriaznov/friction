@@ -307,6 +307,39 @@ pub enum PackError {
     /// of `friction-packs` knows how to read.
     #[error("human-evidence-v1: unsupported pack version {0}")]
     HumanEvidenceUnsupportedVersion(u16),
+
+    /// A `general-evidence-v1` `.bin` ran out of bytes while a
+    /// fixed-shape section was being read, or has trailing bytes left
+    /// over after both filters' sections are accounted for (see
+    /// [`crate::general_evidence::GeneralEvidencePack::load`]).
+    #[error("general-evidence-v1: pack truncated at {section}")]
+    GeneralEvidenceTruncated {
+        /// Which section ran out of bytes (or `"trailing bytes"`).
+        section: &'static str,
+    },
+
+    /// A `general-evidence-v1` `.bin` doesn't start with the expected
+    /// magic bytes.
+    #[error("general-evidence-v1: pack does not start with the expected magic bytes")]
+    GeneralEvidenceBadMagic,
+
+    /// A `general-evidence-v1` `.bin`'s format version isn't one this
+    /// build of `friction-packs` knows how to read.
+    #[error("general-evidence-v1: unsupported pack version {0}")]
+    GeneralEvidenceUnsupportedVersion(u16),
+
+    /// `xorf::BinaryFuse8::try_from` exhausted its bounded retry loop for
+    /// one of `general-evidence-v1`'s two filters (see
+    /// [`crate::general_evidence::build_pack_bytes`]): in measured
+    /// practice this needs a pathological key set (near-total hash
+    /// collision), not a large one.
+    #[error("general-evidence-v1: {table} BinaryFuse8 construction failed: {message}")]
+    GeneralEvidenceConstructionFailed {
+        /// Which filter failed to construct (`"unigram"` or `"bigram"`).
+        table: &'static str,
+        /// `xorf`'s own error message.
+        message: String,
+    },
 }
 
 impl From<toml::de::Error> for PackError {

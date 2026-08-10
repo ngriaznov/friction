@@ -15,8 +15,8 @@ fn main() {
             continue;
         };
         for sentence in text.split_inclusive(['.', '!', '?', '\n', ';', ':']) {
-            let tagged = tagger.tag(sentence, 0);
-            let words: Vec<(&str, &str)> = tagged
+            let sentence_tags = tagger.tag(sentence, 0);
+            let words: Vec<(&str, &str)> = sentence_tags
                 .iter()
                 .filter(|t| t.token.kind == TokenKind::Word)
                 .map(|t| (&sentence[t.token.range.clone()], t.pos.as_str()))

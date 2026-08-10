@@ -1,7 +1,8 @@
 //! `friction fix`: runs the five-operation repair engine and writes the
 //! fixed text to stdout (or back to the input file with `--in-place`).
-//! `jargon.metaphor` and `overuse.word` (both unioned into the paraphrase
-//! report below) are detection-only and add no sixth operation.
+//! `jargon.metaphor`, `jargon.compound`, and `overuse.word` (all unioned
+//! into the paraphrase report below) are detection-only and add no sixth
+//! operation.
 //!
 //! No `--genre`/`--pack`: the engine's five operations (ritual deletion,
 //! paired substitution, derivational pivot, gated span deletion, frame-
@@ -45,8 +46,9 @@
 //! ever acts on a `frame.contrast.question` span whose marker is
 //! `just`/`merely`/`simply` (`frame.dejust`) — a `frame.contrast.question`
 //! span whose marker is `only`, every `frame.contrast.correction` span,
-//! every `jargon.metaphor` span, and every `overuse.word` span all have no
-//! licensed edit either, so all four are left for a human to paraphrase
+//! every `jargon.metaphor` span, every `jargon.compound` span, and every
+//! `overuse.word` span all have no
+//! licensed edit either, so all of them are left for a human to paraphrase
 //! alongside DMS's. DMS stays banned as an edit judge — `friction-edit`'s
 //! own crate docs say every gate is the curated inventory pack and the
 //! corpus-attested seam-bigram/skeleton tables, never a metric or genre
@@ -361,7 +363,10 @@ fn print_suggestions(output: &str, path_label: &str, suggestions: &[Finding]) {
 /// paraphrase candidates against the pooled machine-vs-human automaton
 /// the embedded DMS pack builds, plus contrast-frame template spans
 /// (`friction_match::frame::scan_units`), metaphor-compound jargon spans
-/// (`friction_match::jargon::scan_units`), and per-document word-overuse
+/// (`friction_match::jargon::scan_units`), list-free unattested-compound
+/// spans (`friction_match::jargon_compound::scan_units` — armed only when
+/// the optional `general-evidence-v1` pack resolves), and per-document
+/// word-overuse
 /// spans (`friction_match::overuse::scan_units`), unioning everything into
 /// one report (see [`union_paraphrase_spans`]). Only prose blocks are
 /// scanned, the same scoping every detection channel already uses
@@ -388,11 +393,12 @@ fn print_suggestions(output: &str, path_label: &str, suggestions: &[Finding]) {
 /// ignored (but still accepted, keeping this function's signature stable
 /// either way) on a reuse hit.
 ///
-/// The four sources — the pooled DMS walk, the contrast-frame scan, the
-/// jargon scan, and the overuse scan (the jargon scan is itself
+/// The five sources — the pooled DMS walk, the contrast-frame scan, the
+/// jargon scan, the compound scan, and the overuse scan (the jargon and
+/// compound scans are themselves
 /// internally parallel — see `friction_match::jargon::scan_units`) — read
 /// only `units`/`document` and never each other's output, so they run as
-/// four concurrent `rayon::join` tasks. Deterministic regardless of run
+/// concurrent nested `rayon::join` tasks. Deterministic regardless of run
 /// order or thread count: [`union_paraphrase_spans`]
 /// sorts by `(start, end, frame_id)` before merging, so which task
 /// finishes first never affects the returned bytes.
@@ -477,7 +483,7 @@ fn scan_paraphrase_spans(
     };
     let units = friction_match::token::prose_scope(document, &segmenter);
 
-    let (dms_spans, (frame_spans, (jargon_spans, overuse_spans))) = rayon::join(
+    let (dms_spans, (frame_spans, (jargon_spans, (overuse_spans, compound_spans)))) = rayon::join(
         || dms_spans_machine(&units, packs),
         || {
             rayon::join(
@@ -506,10 +512,21 @@ fn scan_paraphrase_spans(
                             )
                         },
                         || {
-                            friction_match::overuse::scan_units(
-                                &tagged_sentences,
-                                document.source(),
-                                packs.human_evidence,
+                            rayon::join(
+                                || {
+                                    friction_match::overuse::scan_units(
+                                        &tagged_sentences,
+                                        document.source(),
+                                        packs.human_evidence,
+                                    )
+                                },
+                                || {
+                                    friction_match::jargon_compound::scan_units(
+                                        &tagged_sentences,
+                                        document.source(),
+                                        packs.jargon_attest,
+                                    )
+                                },
                             )
                         },
                     )
@@ -522,6 +539,7 @@ fn scan_paraphrase_spans(
     spans.extend(frame_spans);
     spans.extend(jargon_spans);
     spans.extend(overuse_spans);
+    spans.extend(compound_spans);
 
     Ok(union_paraphrase_spans(spans))
 }

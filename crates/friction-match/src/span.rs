@@ -31,8 +31,9 @@ pub enum Channel {
     /// A deterministic contrast-frame template match ([`crate::frame`]):
     /// `"frame.contrast.question"` or `"frame.contrast.correction"`.
     Frame,
-    /// A metaphor-compound jargon match ([`crate::jargon`]):
-    /// `"jargon.metaphor"`.
+    /// A jargon match: `"jargon.metaphor"` (curated-head metaphor
+    /// compounds, [`crate::jargon`]) or `"jargon.compound"` (list-free
+    /// unattested compounds, [`crate::jargon_compound`]).
     Jargon,
     /// A per-document word-overuse match ([`crate::overuse`]):
     /// `"overuse.word"`.

@@ -52,3 +52,9 @@ npm/**/*.tgz
 
 # Session-local Claude Code project config (dev-server launch entries).
 /.claude/
+
+# general-evidence-v1's derived .bin: large (~25-45MB), optional runtime
+# artifact `corpus-tool general-evidence pack` writes, never embedded and
+# never committed (see friction_packs::general_evidence's own module
+# docs) — only its small `.meta.toml` sidecar is tracked.
+crates/friction-packs/packs/general-evidence-*.bin
