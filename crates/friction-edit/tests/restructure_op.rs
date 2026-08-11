@@ -648,3 +648,15 @@ fn participial_closer_split_transfers_past_for_allowing() {
         "We also added logging around the cleanup process. That allowed us to verify that it functioned correctly.\n"
     );
 }
+
+/// A past-tense donor the form classifier does not recognize ("rewrote"
+/// is an irregular past outside its table) must DECLINE the split, not
+/// degrade to a bare verb: "That allow" is a grammar break the seam
+/// gate cannot catch, because relative clauses attest ("that", "allow")
+/// in every corpus.
+#[test]
+fn participial_closer_declines_when_the_past_donor_is_unclassifiable() {
+    let source = "The team rewrote the retry loop, allowing the agent to resume cleanly.\n";
+    let (fixed, _) = engine().fix_document(source).expect("engine runs");
+    assert_eq!(fixed, source, "unclassifiable past donor must fail closed");
+}

@@ -2422,7 +2422,24 @@ pub fn t12_participial_closer_split(
         // corpus attests.
         let donor = t12_main_clause_tense_donor(source, &tokens[..comma_index]);
         let promoted = if let Some(donor) = donor {
-            let Some(form) = friction_nlp::inflect(&donor.to_lowercase(), &base_verb) else {
+            // The donor's form must be PROVEN past before it is trusted:
+            // an irregular past outside the classifier's table
+            // ("rewrote") silently classifies as base form, and the
+            // transfer would degrade to a bare verb — "That allow", a
+            // grammar break the seam gate cannot catch because relative
+            // clauses attest ("that", "allow") in every corpus. The
+            // probe: transfer the donor's classified form onto a fully
+            // regular verb — a donor the classifier understood as past
+            // yields "walked"; anything else means the classification
+            // failed, and the candidate declines rather than gambling.
+            let donor = donor.to_lowercase();
+            if friction_nlp::inflect(&donor, "walk").as_deref() != Some("walked") {
+                out.push(decline(
+                    "the main clause's past tense could not be transferred to the promoted verb",
+                ));
+                continue;
+            }
+            let Some(form) = friction_nlp::inflect(&donor, &base_verb) else {
                 out.push(decline(
                     "the main clause's tense could not be transferred to the promoted verb",
                 ));
