@@ -144,3 +144,16 @@ fn verb_harness_still_rewrites_per_form() {
         assert_eq!(fixed, expected, "verb harness must still rewrite");
     }
 }
+
+/// A hard-wrapped sentence puts a mid-sentence match at a physical
+/// line start; the rewrite must keep its lowercase form. The casing
+/// decision keys on sentence position (the first real character
+/// walking back, across the wrap), never on line position — a `\n`
+/// inside a paragraph is formatting, not punctuation.
+#[test]
+fn hard_wrapped_mid_sentence_rewrite_stays_lowercase() {
+    let (fixed, _) = engine()
+        .fix_document("The script commits the result\nalongside the manifest.\n")
+        .expect("engine runs");
+    assert_eq!(fixed, "The script commits the result\nwith the manifest.\n");
+}

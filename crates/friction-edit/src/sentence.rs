@@ -48,8 +48,8 @@ static FRAME_INDEX: LazyLock<FrameIndex> =
 /// as a valid frame marker.
 const DEJUST_MARKERS: [&str; 3] = ["just", "merely", "simply"];
 
-/// `true` if a replacement at `start` would open a line or a sentence,
-/// looking past any inline markup in between.
+/// `true` if a replacement at `start` would open a sentence (or the
+/// text itself), looking past any inline markup in between.
 ///
 /// A substitution replaces matched text with a fixed lowercase form, so
 /// restoring a capital depends on where the match landed. Offset zero
@@ -58,18 +58,22 @@ const DEJUST_MARKERS: [&str; 3] = ["just", "merely", "simply"];
 /// push the match off zero), and `"**...patterns.** Utilize tools"`
 /// produced `"** use tools"` (the period sits behind a closing `**`).
 ///
-/// Fix: walk back over whitespace/markup to the first real character.
-/// Line start or terminal punctuation means open (needs a capital); a
-/// letter or digit means mid-sentence. Not keyed on the segmenter's
-/// boundaries, which miss a bolded list-item lead-in.
-fn opens_line_or_sentence(text: &str, start: usize) -> bool {
+/// The walk crosses newlines like any other whitespace: hard-wrapped
+/// prose puts mid-sentence words at physical line starts ("...straight
+/// to `main`\nalongside a version bump"), and stopping the walk at the
+/// newline mis-read every such match as sentence-initial, capitalizing
+/// its replacement mid-sentence. Only the first real preceding
+/// character decides: none at all (true text start) or terminal
+/// punctuation means open; a letter or digit means mid-sentence. Not
+/// keyed on the segmenter's boundaries, which miss a bolded list-item
+/// lead-in.
+fn opens_sentence(text: &str, start: usize) -> bool {
     let Some(prefix) = text.get(..start) else {
         return false;
     };
     prefix
         .chars()
         .rev()
-        .take_while(|c| *c != '\n')
         .find(|c| !c.is_whitespace() && !matches!(c, '*' | '_' | '`' | '#' | '>' | '~'))
         .is_none_or(|c| matches!(c, '.' | '!' | '?' | ':' | ';'))
 }
@@ -854,7 +858,7 @@ fn run_substitution(
         }
         for range in ranges.into_iter().rev() {
             let mut replacement = pair.replacement.to_string();
-            if opens_line_or_sentence(&working, range.start)
+            if opens_sentence(&working, range.start)
                 && working[range.clone()]
                     .chars()
                     .next()
@@ -1269,7 +1273,7 @@ fn apply_frame_candidate(
             // region as replacement text, which the recapitalization
             // pass deliberately never touches (same contract as paired
             // substitution).
-            let replacement = if opens_line_or_sentence(working, m.bytes.start) {
+            let replacement = if opens_sentence(working, m.bytes.start) {
                 capitalize(&replacement)
             } else {
                 replacement
