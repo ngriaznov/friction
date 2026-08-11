@@ -936,8 +936,14 @@ mod tests {
         // retired from `rules_ship` (its template could never realize --
         // see this file's own `frame-rules-en-v1.toml` comment at the
         // retired row) once `friction-edit`'s restructure pass took over
-        // its evidence (`restructure.ensures_that`).
-        assert_eq!(total, 3394, "regeneration moves rules, never loses them");
+        // its evidence (`restructure.ensures_that`). 3394 -> 3398: the
+        // sentence-initial discourse-marker audit (see the pack's own
+        // "SENTENCE-INITIAL DISCOURSE-MARKER AUDIT" preamble comment)
+        // measured four additive-connector openers with no prior row —
+        // similarly/likewise/what-is-more/in-addition — and staged all
+        // four under `conn.additive` in `rules_staged_surface`; every
+        // one measures human-tilted or no-evidence, so none compile.
+        assert_eq!(total, 3398, "regeneration moves rules, never loses them");
         assert_eq!(set.rules_pilot.len(), 21, "pilot rules never move");
         assert_eq!(set.classes.len(), 35);
         assert_eq!(set.function_words.words.len(), 37);

@@ -8,6 +8,43 @@
 # m_pm / h_pm are measured occurrences per million tokens in
 # corpus/llm vs corpus/human; every verdict is re-derivable — and
 # bucket membership regenerable — with `corpus-tool adjudicate`.
+#
+# SENTENCE-INITIAL DISCOURSE-MARKER AUDIT (2026-08): every marker in the
+# "furthermore/moreover/consequently/notably/additionally/in addition/
+# what is more/similarly/likewise/importantly/crucially/essentially/
+# ultimately/overall/in conclusion/in summary" family was re-measured as
+# a sentence-initial "<marker> ," opener with `corpus-tool adjudicate`
+# (train+dev split, tokens llm=366830 human=328879 at measurement time),
+# cross-checked with a direct sentence-anchored grep over the whole
+# corpus (all splits). importantly/crucially/ultimately/overall/in
+# conclusion/in summary were already CONFIRMED and ship as opener
+# deletions (hedge.crucially-opener::{importantly,crucially},
+# adv.ultimately-opener::lit, conn.overall-mid::lit,
+# conn.conclusion-opener::in) — no change. additionally already deletes
+# via the pilot-mined `additionally ,` rule below (support=3, aligned-pair
+# evidence, a different standard from the census below); its own
+# opener-rewrite hypothesis (conn.additive::additionally, staged) measures
+# weak, not confirmed. Every remaining marker in the family measures
+# EITHER human-tilted OR too rare to clear the confirm bar (ratio >= 2.0
+# with >= 2 machine occurrences, `frame_rules::classify`) and therefore
+# gets NO deletion rule, on the same footing as the already-guarded
+# "however"/"for example" connectives (see conng.however, phg.for-example
+# above): deleting a human-normal connective moves detectability the
+# wrong way.
+#   furthermore  m_pm=13.63 h_pm=21.28  DIRECTION-ERROR (human-tilted; grep whole-corpus llm=3 human=7)
+#   moreover     m_pm=10.90 h_pm=9.12   weak (ratio 1.20; grep whole-corpus llm=4 human=2)
+#   consequently m_pm=0.00  h_pm=0.00   no-evidence (grep whole-corpus llm=0 human=0)
+#   notably      m_pm=2.73  h_pm=6.08   DIRECTION-ERROR (human-tilted; grep whole-corpus llm=0 human=1)
+#   essentially  m_pm=8.18  h_pm=6.08   weak (ratio 1.35; grep whole-corpus llm=2 human=1)
+#   similarly    m_pm=5.45  h_pm=30.41  DIRECTION-ERROR (human-tilted; grep whole-corpus llm=1 human=7)
+#   likewise     m_pm=0.00  h_pm=12.16  DIRECTION-ERROR (human-tilted; grep whole-corpus llm=0 human=5)
+#   what is more m_pm=0.00  h_pm=0.00   no-evidence (grep whole-corpus llm=0 human=0)
+#   in addition  m_pm=0.00  h_pm=18.24  DIRECTION-ERROR (human-tilted; grep whole-corpus llm=0 human=8;
+#                consistent with the already-shipped bare guard phg.in-addition, m_pm=8.8 h_pm=184.3)
+# See conn.additive::{additionally,furthermore,moreover,similarly,
+# likewise,what-is-more,in-addition-opener} and
+# hedge.crucially-opener::notably / adv.essentially::lit /
+# conn.consequently::lit in rules_staged_surface for the recorded rows.
 
 rules_ship = [
 { id="vsub.utilize", p="\"utilize\" X", t="\"use\" X", k="r", m_pm=129.1, h_pm=12.3, v="CONFIRMED" },
@@ -2758,7 +2795,7 @@ rules_staged_surface = [
 { id="hedge.as-you-might-expect::lit", p="<S> \"as\" \"you\" \"might\" \"expect\" \",\" X </S>", t="<S> X </S>", k="r", m_pm=0.0, h_pm=0.0, v="frame:no-evidence", n="parent=hedge.as-you-might-expect" },
 { id="hedge.dont-worry::lit", p="<S> UH? \"don\" CLIT_NT \"worry\" (\"—\"|\",\")? X? </S>", t="<S> X </S>", k="r", m_pm=0.0, h_pm=0.0, v="frame:no-evidence", n="parent=hedge.dont-worry" },
 { id="hedge.worry-not::lit", p="<S> \"worry\" \"not\" X? </S>", t="<S> X </S>", k="r", m_pm=0.0, h_pm=0.0, v="frame:no-evidence", n="parent=hedge.worry-not" },
-{ id="hedge.crucially-opener::notably", p="<S> \"notably\" \",\" X </S>", t="<S> X </S>", k="r", m_pm=0.0, h_pm=0.0, v="frame:no-evidence", n="parent=hedge.crucially-opener" },
+{ id="hedge.crucially-opener::notably", p="<S> \"notably\" \",\" X </S>", t="<S> X </S>", k="r", m_pm=2.73, h_pm=6.08, v="frame:DIRECTION-ERROR(human-tilted)", n="parent=hedge.crucially-opener" },
 { id="hedge.crucially-opener::significantly", p="<S> \"significantly\" \",\" X </S>", t="<S> X </S>", k="r", m_pm=0.0, h_pm=0.0, v="frame:no-evidence", n="parent=hedge.crucially-opener" },
 { id="hedge.crucially-opener::interestingly", p="<S> \"interestingly\" \",\" X </S>", t="<S> X </S>", k="r", m_pm=0.0, h_pm=0.0, v="frame:no-evidence", n="parent=hedge.crucially-opener" },
 { id="hedge.crucially-opener::remarkably", p="<S> \"remarkably\" \",\" X </S>", t="<S> X </S>", k="r", m_pm=0.0, h_pm=0.0, v="frame:no-evidence", n="parent=hedge.crucially-opener" },
@@ -3014,7 +3051,7 @@ rules_staged_surface = [
 { id="adj.intuitive::user", p="\"user friendly\" NN[interface-class]", t="NN", k="r", m_pm=149.7, h_pm=123.6, v="frame:weak-differential", n="parent=adj.intuitive" },
 { id="adj.intuitive::easy", p="\"easy to use\" NN[interface-class]", t="NN", k="r", m_pm=149.7, h_pm=123.6, v="frame:weak-differential", n="parent=adj.intuitive" },
 { id="adj.intuitive::accessible", p="\"accessible\" NN[interface-class]", t="NN", k="r", m_pm=149.7, h_pm=123.6, v="frame:weak-differential", n="parent=adj.intuitive" },
-{ id="adv.essentially::lit", p="<S> \"essentially\" \",\" X </S>", t="<S> X </S>", k="r", m_pm=0.0, h_pm=0.0, v="frame:no-evidence", n="parent=adv.essentially" },
+{ id="adv.essentially::lit", p="<S> \"essentially\" \",\" X </S>", t="<S> X </S>", k="r", m_pm=8.18, h_pm=6.08, v="frame:weak-differential", n="parent=adv.essentially" },
 { id="rng.wide-range::range", p="DT \"wide\" \"range\" \"of\" NNS", t="\"many\" NNS", k="r", m_pm=82.2, h_pm=61.8, v="frame:weak-differential", n="parent=rng.wide-range" },
 { id="rng.wide-range::variety", p="DT \"wide\" \"variety\" \"of\" NNS", t="\"many\" NNS", k="r", m_pm=82.2, h_pm=61.8, v="frame:weak-differential", n="parent=rng.wide-range" },
 { id="rng.wide-range::array", p="DT \"wide\" \"array\" \"of\" NNS", t="\"many\" NNS", k="r", m_pm=82.2, h_pm=61.8, v="frame:weak-differential", n="parent=rng.wide-range" },
@@ -3072,9 +3109,13 @@ rules_staged_surface = [
 { id="role.at-the-heart-of::lit", p="\"at\" \"the\" (\"heart\"|\"core\") \"of\" X", t="\"central\" \"to\" X", k="r", m_pm=701.3, h_pm=573.9, v="frame:weak-differential", n="parent=role.at-the-heart-of" },
 { id="role.cannot-be-overstated::lit", p="\"the\" NN[importance] \"of\" X \"cannot\" \"be\" \"overstated\"", t="X \"matters\"", k="r", m_pm=0.0, h_pm=0.0, v="frame:no-evidence", n="parent=role.cannot-be-overstated" },
 { id="role.paramount-importance::lit", p="BE \"of\" (\"paramount\"|\"utmost\") \"importance\"", t="\"matters\" \"most\"", k="r", m_pm=0.0, h_pm=0.0, v="frame:no-evidence", n="parent=role.paramount-importance" },
-{ id="conn.additive::additionally", p="<S> \"additionally\" \",\" X </S>", t="<S> \"also\" \",\" X </S>", k="r", m_pm=0.0, h_pm=0.0, v="frame:no-evidence", n="parent=conn.additive" },
-{ id="conn.additive::furthermore", p="<S> \"furthermore\" \",\" X </S>", t="<S> \"also\" \",\" X </S>", k="r", m_pm=0.0, h_pm=0.0, v="frame:no-evidence", n="parent=conn.additive" },
-{ id="conn.additive::moreover", p="<S> \"moreover\" \",\" X </S>", t="<S> \"also\" \",\" X </S>", k="r", m_pm=0.0, h_pm=0.0, v="frame:no-evidence", n="parent=conn.additive" },
+{ id="conn.additive::additionally", p="<S> \"additionally\" \",\" X </S>", t="<S> \"also\" \",\" X </S>", k="r", m_pm=59.97, h_pm=45.61, v="frame:weak-differential", n="parent=conn.additive" },
+{ id="conn.additive::furthermore", p="<S> \"furthermore\" \",\" X </S>", t="<S> \"also\" \",\" X </S>", k="r", m_pm=13.63, h_pm=21.28, v="frame:DIRECTION-ERROR(human-tilted)", n="parent=conn.additive" },
+{ id="conn.additive::moreover", p="<S> \"moreover\" \",\" X </S>", t="<S> \"also\" \",\" X </S>", k="r", m_pm=10.90, h_pm=9.12, v="frame:weak-differential", n="parent=conn.additive" },
+{ id="conn.additive::similarly", p="<S> \"similarly\" \",\" X </S>", t="<S> X </S>", k="d", m_pm=5.45, h_pm=30.41, v="frame:DIRECTION-ERROR(human-tilted)", n="parent=conn.additive" },
+{ id="conn.additive::likewise", p="<S> \"likewise\" \",\" X </S>", t="<S> X </S>", k="d", m_pm=0.0, h_pm=12.16, v="frame:DIRECTION-ERROR(human-tilted)", n="parent=conn.additive" },
+{ id="conn.additive::what-is-more", p="<S> \"what is more\" \",\" X </S>", t="<S> X </S>", k="d", m_pm=0.0, h_pm=0.0, v="frame:no-evidence", n="parent=conn.additive" },
+{ id="conn.additive::in-addition-opener", p="<S> \"in addition\" \",\" X </S>", t="<S> X </S>", k="d", m_pm=0.0, h_pm=18.24, v="frame:DIRECTION-ERROR(human-tilted)", n="parent=conn.additive" },
 { id="conn.conclusion-opener::to", p="<S> \"to summarize\" \",\" X </S>", t="<S> X </S>", k="r", m_pm=0.0, h_pm=0.0, v="frame:no-evidence", n="parent=conn.conclusion-opener" },
 { id="conn.conclusion-opener::to", p="<S> \"to sum up\" \",\" X </S>", t="<S> X </S>", k="r", m_pm=0.0, h_pm=0.0, v="frame:no-evidence", n="parent=conn.conclusion-opener" },
 { id="conn.conclusion-opener::all", p="<S> \"all in all\" \",\" X </S>", t="<S> X </S>", k="r", m_pm=0.0, h_pm=0.0, v="frame:no-evidence", n="parent=conn.conclusion-opener" },
