@@ -1,6 +1,6 @@
 {
   "name": "friction-cli",
-  "version": "0.6.3",
+  "version": "0.6.4",
   "description": "Deterministic removal of the machine layer from LLM-generated English technical documentation.",
   "keywords": [
     "markdown",
@@ -35,10 +35,10 @@
     "node": ">=18"
   },
   "optionalDependencies": {
-    "@mhriaznov/friction-darwin-arm64": "0.6.3",
-    "@mhriaznov/friction-darwin-x64": "0.6.3",
-    "@mhriaznov/friction-linux-x64": "0.6.3",
-    "@mhriaznov/friction-linux-arm64": "0.6.3",
-    "@mhriaznov/friction-win32-x64": "0.6.3"
+    "@mhriaznov/friction-darwin-arm64": "0.6.4",
+    "@mhriaznov/friction-darwin-x64": "0.6.4",
+    "@mhriaznov/friction-linux-x64": "0.6.4",
+    "@mhriaznov/friction-linux-arm64": "0.6.4",
+    "@mhriaznov/friction-win32-x64": "0.6.4"
   }
 }
