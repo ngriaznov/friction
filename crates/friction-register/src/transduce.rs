@@ -2229,6 +2229,19 @@ pub fn t11_transitive_substitution(
 /// (`"it's"`) is `t6_em_dash`'s own concern for a dash immediately
 /// following it, not this construction's: T12's comma always sits
 /// before a `VBG`, never before a fused subject+aux.
+/// The main clause's last past-tense finite verb (`VBD`) surface, if
+/// any — the tense donor for T12's promoted verb. Present finite verbs
+/// (`VBZ`/`VBP`) return [`None`] on purpose: [`third_sg`] already
+/// produces the right present form for the literal `"That"` subject,
+/// and a `VBZ` donor like `"keeps"` would transfer third-singular
+/// through `inflect` identically — only past needs the donor.
+fn t12_main_clause_tense_donor<'a>(source: &'a str, prefix: &[TaggedToken]) -> Option<&'a str> {
+    let index = prefix
+        .iter()
+        .rposition(|token| token.pos.as_str() == "VBD")?;
+    Some(token_text(source, prefix, index))
+}
+
 fn t12_main_clause_is_complete(prefix: &[TaggedToken]) -> bool {
     has_finite_verb(prefix) || is_imperative_initial(prefix)
 }
@@ -2396,7 +2409,30 @@ pub fn t12_participial_closer_split(
             continue;
         };
 
-        let replacement = format!(". That {}", third_sg(&base_verb));
+        // The promoted verb agrees with the MAIN clause's own tense, not
+        // a fixed present: "kept accumulating objects, leading to an
+        // increase" must become "That led to", not "That leads to" — a
+        // present-tense aside inside past narrative reads wrong. The
+        // main clause's last finite verb donates its form through
+        // `inflect` (lowercased first, so a sentence-initial donor's
+        // capital never leaks into the replacement). A generation-side
+        // irregular hole ("letted") needs no guard here: the seam gate
+        // downstream checks ("that", <verb>) against the attestation
+        // tables, and a form no human writes is exactly a seam no
+        // corpus attests.
+        let promoted = match t12_main_clause_tense_donor(source, &tokens[..comma_index]) {
+            Some(donor) => match friction_nlp::inflect(&donor.to_lowercase(), &base_verb) {
+                Some(form) => form,
+                None => {
+                    out.push(decline(
+                        "the main clause's tense could not be transferred to the promoted verb",
+                    ));
+                    continue;
+                }
+            },
+            None => third_sg(&base_verb),
+        };
+        let replacement = format!(". That {promoted}");
         out.push(RestructureOutcome::Candidate {
             range,
             replacement: replacement.into_boxed_str(),

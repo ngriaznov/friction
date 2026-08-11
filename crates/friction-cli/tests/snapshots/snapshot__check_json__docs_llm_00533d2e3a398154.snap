@@ -9,147 +9,168 @@ expression: stdout
       "value": 15.127272727272727,
       "lo": 3.4918032786885247,
       "hi": 22.612244897959183,
-      "in_envelope": true
+      "in_envelope": true,
+      "weak_signal": false
     },
     {
       "name": "sentence_length_stddev",
       "value": 8.629873159195427,
       "lo": 3.4227587963188086,
       "hi": 13.411800359716398,
-      "in_envelope": true
+      "in_envelope": true,
+      "weak_signal": false
     },
     {
       "name": "sentence_length_cv",
       "value": 0.5704844035525823,
       "lo": 0.49754649007902846,
       "hi": 1.3591689344136941,
-      "in_envelope": true
+      "in_envelope": true,
+      "weak_signal": false
     },
     {
       "name": "discourse_marker_density",
       "value": 1.1918951132300357,
       "lo": 0.0,
       "hi": 4.237288135593221,
-      "in_envelope": true
+      "in_envelope": true,
+      "weak_signal": false
     },
     {
       "name": "triad_rate",
       "value": 0.01818181818181818,
       "lo": 0.0,
       "hi": 0.08695652173913043,
-      "in_envelope": true
+      "in_envelope": true,
+      "weak_signal": false
     },
     {
       "name": "contraction_ratio",
       "value": 0.0,
       "lo": 0.0,
       "hi": 1.0,
-      "in_envelope": true
+      "in_envelope": true,
+      "weak_signal": false
     },
     {
       "name": "bullet_parallelism",
       "value": 0.8333333333333333,
       "lo": 0.0,
       "hi": 1.0,
-      "in_envelope": true
+      "in_envelope": true,
+      "weak_signal": true
     },
     {
       "name": "paragraph_shape_mean",
       "value": 1.6176470588235294,
       "lo": 1.0357142857142858,
       "hi": 3.5384615384615383,
-      "in_envelope": true
+      "in_envelope": true,
+      "weak_signal": false
     },
     {
       "name": "paragraph_shape_cv",
       "value": 0.5612854196521138,
       "lo": 0.179177669748504,
       "hi": 0.7953949089757174,
-      "in_envelope": true
+      "in_envelope": true,
+      "weak_signal": false
     },
     {
       "name": "em_dash_density",
       "value": 0.0,
       "lo": 0.0,
       "hi": 4.244482173174872,
-      "in_envelope": true
+      "in_envelope": true,
+      "weak_signal": true
     },
     {
       "name": "semicolon_density",
       "value": 1.2019230769230769,
       "lo": 0.0,
       "hi": 3.9682539682539684,
-      "in_envelope": true
+      "in_envelope": true,
+      "weak_signal": false
     },
     {
       "name": "participial_closer_rate",
       "value": 0.03636363636363636,
       "lo": 0.0,
       "hi": 0.03125,
-      "in_envelope": false
+      "in_envelope": false,
+      "weak_signal": false
     },
     {
       "name": "not_just_but_rate",
       "value": 0.0,
       "lo": 0.0,
       "hi": 0.009259259259259259,
-      "in_envelope": true
+      "in_envelope": true,
+      "weak_signal": true
     },
     {
       "name": "ritual_marker_rate",
       "value": 0.0,
       "lo": 0.0,
       "hi": 0.0,
-      "in_envelope": true
+      "in_envelope": true,
+      "weak_signal": false
     },
     {
       "name": "llm_favored_phrase_rate",
       "value": 17.878426698450536,
       "lo": 0.0,
       "hi": 21.634615384615383,
-      "in_envelope": true
+      "in_envelope": true,
+      "weak_signal": false
     },
     {
       "name": "human_favored_phrase_rate",
       "value": 3.575685339690107,
       "lo": 8.59106529209622,
       "hi": 48.821548821548824,
-      "in_envelope": false
+      "in_envelope": false,
+      "weak_signal": false
     },
     {
       "name": "heading_density",
       "value": 1.1918951132300357,
       "lo": 0.0,
       "hi": 43.04635761589404,
-      "in_envelope": true
+      "in_envelope": true,
+      "weak_signal": false
     },
     {
       "name": "list_item_density",
       "value": 15.494636471990464,
       "lo": 0.0,
       "hi": 98.26589595375722,
-      "in_envelope": true
+      "in_envelope": true,
+      "weak_signal": false
     },
     {
       "name": "bold_span_density",
       "value": 22.64600715137068,
       "lo": 0.0,
       "hi": 14.705882352941176,
-      "in_envelope": false
+      "in_envelope": false,
+      "weak_signal": false
     },
     {
       "name": "sentence_opener_repeat_rate",
       "value": 0.05555555555555555,
       "lo": 0.0,
       "hi": 0.13793103448275862,
-      "in_envelope": true
+      "in_envelope": true,
+      "weak_signal": false
     },
     {
       "name": "top_opener_concentration",
       "value": 0.18518518518518517,
       "lo": 0.04424778761061947,
       "hi": 0.2153846153846154,
-      "in_envelope": true
+      "in_envelope": true,
+      "weak_signal": false
     }
   ],
   "spans": [
@@ -160,7 +181,8 @@ expression: stdout
       "end": 540,
       "line": 3,
       "column": 1,
-      "score": 2889
+      "score": 2889,
+      "message": "machine-favored phrasing peaks at 'process-level scopes.'"
     },
     {
       "channel": "dms",
@@ -169,7 +191,8 @@ expression: stdout
       "end": 576,
       "line": 5,
       "column": 3,
-      "score": 8
+      "score": 8,
+      "message": "machine-favored phrasing peaks at 'Philosophy: Layered Caching'"
     },
     {
       "channel": "dms",
@@ -178,7 +201,8 @@ expression: stdout
       "end": 736,
       "line": 7,
       "column": 1,
-      "score": 285
+      "score": 285,
+      "message": "machine-favored phrasing peaks at 'primary layers are:'"
     },
     {
       "channel": "dms",
@@ -187,7 +211,8 @@ expression: stdout
       "end": 888,
       "line": 9,
       "column": 6,
-      "score": 241
+      "score": 241,
+      "message": "machine-favored phrasing peaks at 'executed SQL queries.'"
     },
     {
       "channel": "dms",
@@ -196,7 +221,8 @@ expression: stdout
       "end": 1094,
       "line": 10,
       "column": 6,
-      "score": 477
+      "score": 477,
+      "message": "machine-favored phrasing peaks at 'individual model instances.'"
     },
     {
       "channel": "dms",
@@ -205,7 +231,8 @@ expression: stdout
       "end": 1278,
       "line": 11,
       "column": 6,
-      "score": 363
+      "score": 363,
+      "message": "machine-favored phrasing peaks at 'for efficient invalidation.'"
     },
     {
       "channel": "dms",
@@ -214,7 +241,8 @@ expression: stdout
       "end": 1320,
       "line": 14,
       "column": 3,
-      "score": 6
+      "score": 6,
+      "message": "machine-favored phrasing peaks at 'Result Caching - The Foundation'"
     },
     {
       "channel": "dms",
@@ -223,7 +251,8 @@ expression: stdout
       "end": 1457,
       "line": 16,
       "column": 1,
-      "score": 254
+      "score": 254,
+      "message": "machine-favored phrasing peaks at 'statements. When a'"
     },
     {
       "channel": "dms",
@@ -232,7 +261,8 @@ expression: stdout
       "end": 1631,
       "line": 16,
       "column": 154,
-      "score": 304
+      "score": 304,
+      "message": "machine-favored phrasing peaks at 'hitting the database.'"
     },
     {
       "channel": "dms",
@@ -241,7 +271,8 @@ expression: stdout
       "end": 1935,
       "line": 20,
       "column": 5,
-      "score": 1133
+      "score": 1133,
+      "message": "machine-favored phrasing peaks at 'in the cache.'"
     },
     {
       "channel": "literal",
@@ -259,7 +290,8 @@ expression: stdout
       "end": 2168,
       "line": 21,
       "column": 5,
-      "score": 823
+      "score": 823,
+      "message": "machine-favored phrasing peaks at 'by the database.'"
     },
     {
       "channel": "literal",
@@ -277,7 +309,8 @@ expression: stdout
       "end": 2195,
       "line": 22,
       "column": 5,
-      "score": 6
+      "score": 6,
+      "message": "machine-favored phrasing peaks at 'Miss Logic:** When'"
     },
     {
       "channel": "dms",
@@ -286,7 +319,8 @@ expression: stdout
       "end": 2541,
       "line": 22,
       "column": 38,
-      "score": 1952
+      "score": 1952,
+      "message": "machine-favored phrasing peaks at 'to the user.'"
     },
     {
       "channel": "dms",
@@ -295,7 +329,8 @@ expression: stdout
       "end": 2807,
       "line": 23,
       "column": 5,
-      "score": 1092
+      "score": 1092,
+      "message": "machine-favored phrasing peaks at 'model or globally.'"
     },
     {
       "channel": "dms",
@@ -304,7 +339,8 @@ expression: stdout
       "end": 2850,
       "line": 25,
       "column": 3,
-      "score": 7
+      "score": 7,
+      "message": "machine-favored phrasing peaks at 'Invalidation - Keeping Data Fresh'"
     },
     {
       "channel": "dms",
@@ -313,7 +349,8 @@ expression: stdout
       "end": 3011,
       "line": 27,
       "column": 1,
-      "score": 311
+      "score": 311,
+      "message": "machine-favored phrasing peaks at 'for cache invalidation:'"
     },
     {
       "channel": "dms",
@@ -322,7 +359,8 @@ expression: stdout
       "end": 3133,
       "line": 29,
       "column": 5,
-      "score": 213
+      "score": 213,
+      "message": "machine-favored phrasing peaks at '.g.,'"
     },
     {
       "channel": "dms",
@@ -331,7 +369,8 @@ expression: stdout
       "end": 3324,
       "line": 29,
       "column": 155,
-      "score": 360
+      "score": 360,
+      "message": "machine-favored phrasing peaks at 'on its key.'"
     },
     {
       "channel": "dms",
@@ -340,7 +379,8 @@ expression: stdout
       "end": 3374,
       "line": 30,
       "column": 5,
-      "score": 12
+      "score": 12,
+      "message": "machine-favored phrasing peaks at ':**  Ledgerline provides a'"
     },
     {
       "channel": "dms",
@@ -349,7 +389,8 @@ expression: stdout
       "end": 3609,
       "line": 30,
       "column": 92,
-      "score": 460
+      "score": 460,
+      "message": "machine-favored phrasing peaks at 'a system restart).'"
     },
     {
       "channel": "dms",
@@ -358,7 +399,8 @@ expression: stdout
       "end": 3659,
       "line": 33,
       "column": 3,
-      "score": 36
+      "score": 36,
+      "message": "machine-favored phrasing peaks at 'vs. Process Level'"
     },
     {
       "channel": "dms",
@@ -367,7 +409,8 @@ expression: stdout
       "end": 3764,
       "line": 35,
       "column": 1,
-      "score": 111
+      "score": 111,
+      "message": "machine-favored phrasing peaks at 'model or globally:'"
     },
     {
       "channel": "dms",
@@ -376,7 +419,8 @@ expression: stdout
       "end": 4190,
       "line": 37,
       "column": 5,
-      "score": 2492
+      "score": 2492,
+      "message": "machine-favored phrasing peaks at 'same data simultaneously.'"
     },
     {
       "channel": "dms",
@@ -385,7 +429,8 @@ expression: stdout
       "end": 4684,
       "line": 38,
       "column": 5,
-      "score": 3492
+      "score": 3492,
+      "message": "machine-favored phrasing peaks at 'cached data simultaneously.'"
     },
     {
       "channel": "dms",
@@ -394,7 +439,8 @@ expression: stdout
       "end": 5073,
       "line": 42,
       "column": 1,
-      "score": 1737
+      "score": 1737,
+      "message": "machine-favored phrasing peaks at 'an invalidation occurs.'"
     },
     {
       "channel": "dms",
@@ -403,7 +449,8 @@ expression: stdout
       "end": 5195,
       "line": 46,
       "column": 1,
-      "score": 66
+      "score": 66,
+      "message": "machine-favored phrasing peaks at 'incorporating features like:'"
     },
     {
       "channel": "dms",
@@ -412,7 +459,8 @@ expression: stdout
       "end": 5411,
       "line": 48,
       "column": 5,
-      "score": 741
+      "score": 741,
+      "message": "machine-favored phrasing peaks at 'scalability and resilience.'"
     },
     {
       "channel": "dms",
@@ -421,7 +469,8 @@ expression: stdout
       "end": 5563,
       "line": 49,
       "column": 5,
-      "score": 216
+      "score": 216,
+      "message": "machine-favored phrasing peaks at 'improve hit rates.'"
     },
     {
       "channel": "dms",
@@ -430,7 +479,8 @@ expression: stdout
       "end": 5785,
       "line": 53,
       "column": 1,
-      "score": 472
+      "score": 472,
+      "message": "machine-favored phrasing peaks at 'library's overall architecture.'"
     }
   ],
   "tell_counts": {

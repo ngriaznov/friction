@@ -9,13 +9,13 @@ sentence_length_cv            0.8578  [0.4975, 1.3592]   in
 discourse_marker_density      0.0000  [0.0000, 4.2373]   in    
 triad_rate                    0.0615  [0.0000, 0.0870]   in    
 contraction_ratio             0.0000  [0.0000, 1.0000]   in    
-bullet_parallelism            0.7857  [0.0000, 1.0000]   in    
+bullet_parallelism            0.7857  [0.0000, 1.0000]   weak  
 paragraph_shape_mean          1.2500  [1.0357, 3.5385]   in    
 paragraph_shape_cv            0.4114  [0.1792, 0.7954]   in    
-em_dash_density               0.0000  [0.0000, 4.2445]   in    
+em_dash_density               0.0000  [0.0000, 4.2445]   weak  
 semicolon_density             1.6722  [0.0000, 3.9683]   in    
 participial_closer_rate       0.0308  [0.0000, 0.0312]   in    
-not_just_but_rate             0.0000  [0.0000, 0.0093]   in    
+not_just_but_rate             0.0000  [0.0000, 0.0093]   weak  
 ritual_marker_rate            0.0000  [0.0000, 0.0000]   in    
 llm_favored_phrase_rate      32.2581  [0.0000, 21.6346]  OUT   
 human_favored_phrase_rate     8.4890  [8.5911, 48.8215]  OUT   
@@ -33,12 +33,12 @@ tell counts (35 span(s) total):
   sub: 2
 dms.machine
 
-  ⚠ Dms tell: dms.machine
+  ⚠ machine-favored phrasing peaks at 'caption extraction seamlessly.'
    ╭─[corpus/llm/readme/0859e6e20fb1cf84.md:5:1]
  4 │ 
  5 │ Lumen is a static site generator tailored specifically for photography portfolios. It leverages Ruby's power through a gem distribution system, making it easy to integrate into existing projects or workflows. Designed with simplicity and performance in mind, Lumen automates the generation of visually appealing portfolio sites by handling image galleries, markdown-based content, thumbnail creation, and EXIF-based caption extraction seamlessly.
    · ───────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────┬──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
-   ·                                                                                                                                                                                                                                ╰── Dms tell: dms.machine
+   ·                                                                                                                                                                                                                                ╰── machine-favored phrasing peaks at 'caption extraction seamlessly.'
  6 │ 
    ╰────
 
@@ -55,12 +55,12 @@ sub.leverage_3sg
 
 dms.machine
 
-  ⚠ Dms tell: dms.machine
+  ⚠ machine-favored phrasing peaks at 'recommended folder structure:'
     ╭─[corpus/llm/readme/0859e6e20fb1cf84.md:9:1]
   8 │ 
   9 │ To utilize Lumen effectively, adhere to its recommended folder structure:
     · ────────────────────────────────────┬────────────────────────────────────
-    ·                                     ╰── Dms tell: dms.machine
+    ·                                     ╰── machine-favored phrasing peaks at 'recommended folder structure:'
  10 │ 
     ╰────
 
@@ -77,188 +77,188 @@ sub.utilize_base
 
 dms.machine
 
-  ⚠ Dms tell: dms.machine
+  ⚠ machine-favored phrasing peaks at 'Projects" gallery, create'
     ╭─[corpus/llm/readme/0859e6e20fb1cf84.md:11:17]
  10 │ 
  11 │ 1. **`images/`**: This directory should contain subdirectories named after each gallery or section within your portfolio. For example, if you have a "Summer Vacations" and "Winter Projects" gallery, create `images/summer-vacations` and `images/winter-projects`. Each subdirectory will hold the images relevant to that gallery.
     ·                 ──────────────────────────────────────────────────────────────────────────────────────────────┬──────────────────────────────────────────────────────────────────────────────────────────────
-    ·                                                                                                               ╰── Dms tell: dms.machine
+    ·                                                                                                               ╰── machine-favored phrasing peaks at 'Projects" gallery, create'
  12 │ 
     ╰────
 
 dms.machine
 
-  ⚠ Dms tell: dms.machine
+  ⚠ machine-favored phrasing peaks at 'to that gallery.'
     ╭─[corpus/llm/readme/0859e6e20fb1cf84.md:11:261]
  10 │ 
  11 │ 1. **`images/`**: This directory should contain subdirectories named after each gallery or section within your portfolio. For example, if you have a "Summer Vacations" and "Winter Projects" gallery, create `images/summer-vacations` and `images/winter-projects`. Each subdirectory will hold the images relevant to that gallery.
     ·                                                                                                                                                                                                                                                                     ─────────────────────────────────┬────────────────────────────────
-    ·                                                                                                                                                                                                                                                                                                      ╰── Dms tell: dms.machine
+    ·                                                                                                                                                                                                                                                                                                      ╰── machine-favored phrasing peaks at 'to that gallery.'
  12 │ 
     ╰────
 
 dms.machine
 
-  ⚠ Dms tell: dms.machine
+  ⚠ machine-favored phrasing peaks at 'for content insertion.'
     ╭─[corpus/llm/readme/0859e6e20fb1cf84.md:13:16]
  12 │ 
  13 │ 2. **`pages/`**: This directory should contain front-matter-free markdown files representing each page of your portfolio (e.g., About Me, Contact). Markdown files do not require YAML front matter; Lumen reads them directly for content insertion.
     ·                ───────────────────────────────────────────────────────────────────────────────────────────────────────────────────┬──────────────────────────────────────────────────────────────────────────────────────────────────────────────────
-    ·                                                                                                                                   ╰── Dms tell: dms.machine
+    ·                                                                                                                                   ╰── machine-favored phrasing peaks at 'for content insertion.'
  14 │ 
     ╰────
 
 dms.machine
 
-  ⚠ Dms tell: dms.machine
+  ⚠ machine-favored phrasing peaks at 'the following command:'
     ╭─[corpus/llm/readme/0859e6e20fb1cf84.md:17:1]
  16 │ 
  17 │ To generate your static site, use the following command:
     · ────────────────────────────┬───────────────────────────
-    ·                             ╰── Dms tell: dms.machine
+    ·                             ╰── machine-favored phrasing peaks at 'the following command:'
  18 │ 
     ╰────
 
 dms.machine
 
-  ⚠ Dms tell: dms.machine
+  ⚠ machine-favored phrasing peaks at ', etc.).'
     ╭─[corpus/llm/readme/0859e6e20fb1cf84.md:23:1]
  22 │ 
  23 │ This command compiles all specified galleries and pages into a fully functional static website optimized for deployment on any web server or hosting service that supports static sites (like GitHub Pages, Netlify, etc.).
     · ─────────────────────────────────────────────────────────────────────────────────────────────────────────────┬─────────────────────────────────────────────────────────────────────────────────────────────────────────────
-    ·                                                                                                              ╰── Dms tell: dms.machine
+    ·                                                                                                              ╰── machine-favored phrasing peaks at ', etc.).'
  24 │ 
     ╰────
 
 dms.machine
 
-  ⚠ Dms tell: dms.machine
+  ⚠ machine-favored phrasing peaks at 'integrated preview server:'
     ╭─[corpus/llm/readme/0859e6e20fb1cf84.md:27:1]
  26 │ 
  27 │ For local development and testing, Lumen offers an integrated preview server:
     · ──────────────────────────────────────┬──────────────────────────────────────
-    ·                                       ╰── Dms tell: dms.machine
+    ·                                       ╰── machine-favored phrasing peaks at 'integrated preview server:'
  28 │ 
     ╰────
 
 dms.machine
 
-  ⚠ Dms tell: dms.machine
+  ⚠ machine-favored phrasing peaks at 'local HTTP server at'
     ╭─[corpus/llm/readme/0859e6e20fb1cf84.md:33:1]
  32 │ 
  33 │ This command starts a local HTTP server at `http://localhost:8000`, allowing you to view your portfolio in real-time as you make changes. It’s particularly useful for iterating on content layout, image galleries, or theme customization without rebuilding the site each time.
     · ─────────────────────┬────────────────────
-    ·                      ╰── Dms tell: dms.machine
+    ·                      ╰── machine-favored phrasing peaks at 'local HTTP server at'
  34 │ 
     ╰────
 
 dms.machine
 
-  ⚠ Dms tell: dms.machine
+  ⚠ machine-favored phrasing peaks at 'site each time.'
     ╭─[corpus/llm/readme/0859e6e20fb1cf84.md:33:67]
  32 │ 
  33 │ This command starts a local HTTP server at `http://localhost:8000`, allowing you to view your portfolio in real-time as you make changes. It’s particularly useful for iterating on content layout, image galleries, or theme customization without rebuilding the site each time.
     ·                                                                   ────────────────────────────────────────────────────────────────────────────────────────────────────────┬───────────────────────────────────────────────────────────────────────────────────────────────────────
-    ·                                                                                                                                                                           ╰── Dms tell: dms.machine
+    ·                                                                                                                                                                           ╰── machine-favored phrasing peaks at 'site each time.'
  34 │ 
     ╰────
 
 dms.machine
 
-  ⚠ Dms tell: dms.machine
+  ⚠ machine-favored phrasing peaks at 'for your images:'
     ╭─[corpus/llm/readme/0859e6e20fb1cf84.md:37:1]
  36 │ 
  37 │ Lumen automates thumbnail creation for your images:
     · ─────────────────────────┬─────────────────────────
-    ·                          ╰── Dms tell: dms.machine
+    ·                          ╰── machine-favored phrasing peaks at 'for your images:'
  38 │ 
     ╰────
 
 dms.machine
 
-  ⚠ Dms tell: dms.machine
+  ⚠ machine-favored phrasing peaks at 'you build your site'
     ╭─[corpus/llm/readme/0859e6e20fb1cf84.md:39:6]
  38 │ 
  39 │ 1. **Automatic Thumbnails**: When you build your site (`lumen build`), Lumen scans all image files in the `images/` directory and generates optimized thumbnails based on predefined sizes (e.g., small, medium, large). This process enhances load times without compromising quality.
     ·      ────────────────────────┬───────────────────────
-    ·                              ╰── Dms tell: dms.machine
+    ·                              ╰── machine-favored phrasing peaks at 'you build your site'
  40 │ 
     ╰────
 
 dms.machine
 
-  ⚠ Dms tell: dms.machine
+  ⚠ machine-favored phrasing peaks at 'image files in the'
     ╭─[corpus/llm/readme/0859e6e20fb1cf84.md:39:70]
  38 │ 
  39 │ 1. **Automatic Thumbnails**: When you build your site (`lumen build`), Lumen scans all image files in the `images/` directory and generates optimized thumbnails based on predefined sizes (e.g., small, medium, large). This process enhances load times without compromising quality.
     ·                                                                      ──────────────────┬─────────────────
-    ·                                                                                        ╰── Dms tell: dms.machine
+    ·                                                                                        ╰── machine-favored phrasing peaks at 'image files in the'
  40 │ 
     ╰────
 
 dms.machine
 
-  ⚠ Dms tell: dms.machine
+  ⚠ machine-favored phrasing peaks at 'without compromising quality.'
     ╭─[corpus/llm/readme/0859e6e20fb1cf84.md:39:117]
  38 │ 
  39 │ 1. **Automatic Thumbnails**: When you build your site (`lumen build`), Lumen scans all image files in the `images/` directory and generates optimized thumbnails based on predefined sizes (e.g., small, medium, large). This process enhances load times without compromising quality.
     ·                                                                                                                     ─────────────────────────────────────────────────────────────────────────────────┬─────────────────────────────────────────────────────────────────────────────────
-    ·                                                                                                                                                                                                      ╰── Dms tell: dms.machine
+    ·                                                                                                                                                                                                      ╰── machine-favored phrasing peaks at 'without compromising quality.'
  40 │ 
     ╰────
 
 dms.machine
 
-  ⚠ Dms tell: dms.machine
+  ⚠ machine-favored phrasing peaks at 'formats by editing the'
     ╭─[corpus/llm/readme/0859e6e20fb1cf84.md:41:6]
  40 │ 
  41 │ 2. **Customization**: You can specify custom thumbnail dimensions or formats by editing the `_config.yml` file under specific gallery directories. For example:
     ·      ───────────────────────────────────────────┬──────────────────────────────────────────
-    ·                                                 ╰── Dms tell: dms.machine
+    ·                                                 ╰── machine-favored phrasing peaks at 'formats by editing the'
  42 │ 
     ╰────
 
 dms.machine
 
-  ⚠ Dms tell: dms.machine
+  ⚠ machine-favored phrasing peaks at '. For example:'
     ╭─[corpus/llm/readme/0859e6e20fb1cf84.md:41:107]
  40 │ 
  41 │ 2. **Customization**: You can specify custom thumbnail dimensions or formats by editing the `_config.yml` file under specific gallery directories. For example:
     ·                                                                                                           ──────────────────────────┬──────────────────────────
-    ·                                                                                                                                     ╰── Dms tell: dms.machine
+    ·                                                                                                                                     ╰── machine-favored phrasing peaks at '. For example:'
  42 │ 
     ╰────
 
 dms.machine
 
-  ⚠ Dms tell: dms.machine
+  ⚠ machine-favored phrasing peaks at 'about each photograph:'
     ╭─[corpus/llm/readme/0859e6e20fb1cf84.md:52:1]
  51 │ 
  52 │ Lumen intelligently extracts captions from image metadata (EXIF data) to provide descriptive information about each photograph:
     · ───────────────────────────────────────────────────────────────┬───────────────────────────────────────────────────────────────
-    ·                                                                ╰── Dms tell: dms.machine
+    ·                                                                ╰── machine-favored phrasing peaks at 'about each photograph:'
  53 │ 
     ╰────
 
 dms.machine
 
-  ⚠ Dms tell: dms.machine
+  ⚠ machine-favored phrasing peaks at 'on this metadata.'
     ╭─[corpus/llm/readme/0859e6e20fb1cf84.md:54:6]
  53 │ 
  54 │ 1. **Automatic Extraction**: During the build process, Lumen reads the EXIF data of images in your galleries and automatically generates caption fields based on this metadata.
     ·      ─────────────────────────────────────────────────────────────────────────────────────┬────────────────────────────────────────────────────────────────────────────────────
-    ·                                                                                           ╰── Dms tell: dms.machine
+    ·                                                                                           ╰── machine-favored phrasing peaks at 'on this metadata.'
  55 │ 
     ╰────
 
 dms.machine
 
-  ⚠ Dms tell: dms.machine
+  ⚠ machine-favored phrasing peaks at ', simply add a'
     ╭─[corpus/llm/readme/0859e6e20fb1cf84.md:56:6]
  55 │ 
  56 │ 2. **Customization**: If you prefer a different source for captions or wish to override automatic extraction, simply add a `caption` field in the markdown front matter for that specific image:
     ·      ──────────────────────────────────────────────────────────┬──────────────────────────────────────────────────────────
-    ·                                                                ╰── Dms tell: dms.machine
+    ·                                                                ╰── machine-favored phrasing peaks at ', simply add a'
  57 │ 
     ╰────
 
@@ -275,141 +275,141 @@ span.simply
 
 dms.machine
 
-  ⚠ Dms tell: dms.machine
+  ⚠ machine-favored phrasing peaks at 'that specific image:'
     ╭─[corpus/llm/readme/0859e6e20fb1cf84.md:56:134]
  55 │ 
  56 │ 2. **Customization**: If you prefer a different source for captions or wish to override automatic extraction, simply add a `caption` field in the markdown front matter for that specific image:
     ·                                                                                                                                      ─────────────────────────────┬─────────────────────────────
-    ·                                                                                                                                                                   ╰── Dms tell: dms.machine
+    ·                                                                                                                                                                   ╰── machine-favored phrasing peaks at 'that specific image:'
  57 │ 
     ╰────
 
 dms.machine
 
-  ⚠ Dms tell: dms.machine
+  ⚠ machine-favored phrasing peaks at 'and output directory:'
     ╭─[corpus/llm/readme/0859e6e20fb1cf84.md:70:44]
  69 │ 
  70 │ Lumen’s configuration file, `_config.yml`, centralizes settings like site title, theme selection, and output directory:
     ·                                          ───────────────────────────────────────┬──────────────────────────────────────
-    ·                                                                                 ╰── Dms tell: dms.machine
+    ·                                                                                 ╰── machine-favored phrasing peaks at 'and output directory:'
  71 │ 
     ╰────
 
 dms.machine
 
-  ⚠ Dms tell: dms.machine
+  ⚠ machine-favored phrasing peaks at 'social sharing contexts.'
     ╭─[corpus/llm/readme/0859e6e20fb1cf84.md:82:19]
  81 │ 
  82 │ - **`site_title`**: Sets the title displayed at the top of your site, which is also used in SEO and social sharing contexts.
     ·                   ─────────────────────────────────────────────────────┬────────────────────────────────────────────────────
-    ·                                                                        ╰── Dms tell: dms.machine
+    ·                                                                        ╰── machine-favored phrasing peaks at 'social sharing contexts.'
  83 │ 
     ╰────
 
 dms.machine
 
-  ⚠ Dms tell: dms.machine
+  ⚠ machine-favored phrasing peaks at 'image galleries themselves.'
     ╭─[corpus/llm/readme/0859e6e20fb1cf84.md:84:69]
  83 │ 
  84 │ - **`theme`**: Choose between `light-mode` (default) or `dark-mode` to match your aesthetic preferences or audience needs. Themes adjust background colors, text contrast, and overall visual feel without altering image galleries themselves.
     ·                                                                     ─────────────────────────────────────────────────────────────────────────────────────┬─────────────────────────────────────────────────────────────────────────────────────
-    ·                                                                                                                                                          ╰── Dms tell: dms.machine
+    ·                                                                                                                                                          ╰── machine-favored phrasing peaks at 'image galleries themselves.'
  85 │ 
     ╰────
 
 dms.machine
 
-  ⚠ Dms tell: dms.machine
+  ⚠ machine-favored phrasing peaks at 'be placed after running'
     ╭─[corpus/llm/readme/0859e6e20fb1cf84.md:86:25]
  85 │ 
  86 │ - **`output_directory`**: Specifies the folder where the generated static site will be placed after running `lumen build`. This can be useful for separating compiled sites from source files if you manage multiple projects simultaneously.
     ·                         ─────────────────────────────────────────┬─────────────────────────────────────────
-    ·                                                                  ╰── Dms tell: dms.machine
+    ·                                                                  ╰── machine-favored phrasing peaks at 'be placed after running'
  87 │ 
     ╰────
 
 dms.machine
 
-  ⚠ Dms tell: dms.machine
+  ⚠ machine-favored phrasing peaks at 'multiple projects simultaneously.'
     ╭─[corpus/llm/readme/0859e6e20fb1cf84.md:86:122]
  85 │ 
  86 │ - **`output_directory`**: Specifies the folder where the generated static site will be placed after running `lumen build`. This can be useful for separating compiled sites from source files if you manage multiple projects simultaneously.
     ·                                                                                                                          ──────────────────────────────────────────────────────────┬─────────────────────────────────────────────────────────
-    ·                                                                                                                                                                                    ╰── Dms tell: dms.machine
+    ·                                                                                                                                                                                    ╰── machine-favored phrasing peaks at 'multiple projects simultaneously.'
  87 │ 
     ╰────
 
 dms.machine
 
-  ⚠ Dms tell: dms.machine
+  ⚠ machine-favored phrasing peaks at 'Lumen using RubyGems:'
     ╭─[corpus/llm/readme/0859e6e20fb1cf84.md:90:6]
  89 │ 
  90 │ 1. **Installation**: Install Lumen using RubyGems:
     ·      ──────────────────────┬──────────────────────
-    ·                            ╰── Dms tell: dms.machine
+    ·                            ╰── machine-favored phrasing peaks at 'Lumen using RubyGems:'
  91 │ 
     ╰────
 
 dms.machine
 
-  ⚠ Dms tell: dms.machine
+  ⚠ machine-favored phrasing peaks at 'project by running:'
     ╭─[corpus/llm/readme/0859e6e20fb1cf84.md:96:6]
  95 │ 
  96 │ 2. **Project Setup**: Initialize a new project by running:
     ·      ──────────────────────────┬──────────────────────────
-    ·                                ╰── Dms tell: dms.machine
+    ·                                ╰── machine-favored phrasing peaks at 'project by running:'
  97 │ 
     ╰────
 
 dms.machine
 
-  ⚠ Dms tell: dms.machine
+  ⚠ machine-favored phrasing peaks at 'the necessary directory structure'
      ╭─[corpus/llm/readme/0859e6e20fb1cf84.md:102:1]
  101 │ 
  102 │ This command creates the necessary directory structure (`images/`, `pages/`) and populates `_config.yml` with default settings.
      · ───────────────────────────┬──────────────────────────
-     ·                            ╰── Dms tell: dms.machine
+     ·                            ╰── machine-favored phrasing peaks at 'the necessary directory structure'
  103 │ 
      ╰────
 
 dms.machine
 
-  ⚠ Dms tell: dms.machine
+  ⚠ machine-favored phrasing peaks at 'appropriate gallery directories under'
      ╭─[corpus/llm/readme/0859e6e20fb1cf84.md:104:6]
  103 │ 
  104 │ 3. **Add Content**: Place your images in the appropriate gallery directories under `images/`. Write markdown files for each page of your portfolio inside the `pages/` directory.
      ·      ──────────────────────────────────────┬──────────────────────────────────────
-     ·                                            ╰── Dms tell: dms.machine
+     ·                                            ╰── machine-favored phrasing peaks at 'appropriate gallery directories under'
  105 │ 
      ╰────
 
 dms.machine
 
-  ⚠ Dms tell: dms.machine
+  ⚠ machine-favored phrasing peaks at 'your portfolio inside the'
      ╭─[corpus/llm/readme/0859e6e20fb1cf84.md:104:93]
  103 │ 
  104 │ 3. **Add Content**: Place your images in the appropriate gallery directories under `images/`. Write markdown files for each page of your portfolio inside the `pages/` directory.
      ·                                                                                             ────────────────────────────────┬────────────────────────────────
-     ·                                                                                                                             ╰── Dms tell: dms.machine
+     ·                                                                                                                             ╰── machine-favored phrasing peaks at 'your portfolio inside the'
  105 │ 
      ╰────
 
 dms.machine
 
-  ⚠ Dms tell: dms.machine
+  ⚠ machine-favored phrasing peaks at 'straightforward configuration system via'
      ╭─[corpus/llm/readme/0859e6e20fb1cf84.md:116:1]
  115 │ 
  116 │ Lumen simplifies the creation and maintenance of photography portfolios by automating repetitive tasks like thumbnail generation, caption extraction from EXIF data, and providing a straightforward configuration system via `_config.yml`. Its intuitive folder structure ensures consistency across galleries and pages, making it an excellent choice for photographers looking to showcase their work online with minimal effort. Happy creating!
      · ──────────────────────────────────────────────────────────────────────────────────────────────────────────────┬──────────────────────────────────────────────────────────────────────────────────────────────────────────────
-     ·                                                                                                               ╰── Dms tell: dms.machine
+     ·                                                                                                               ╰── machine-favored phrasing peaks at 'straightforward configuration system via'
      ╰────
 
 dms.machine
 
-  ⚠ Dms tell: dms.machine
+  ⚠ machine-favored phrasing peaks at '. Happy creating!'
      ╭─[corpus/llm/readme/0859e6e20fb1cf84.md:116:236]
  115 │ 
  116 │ Lumen simplifies the creation and maintenance of photography portfolios by automating repetitive tasks like thumbnail generation, caption extraction from EXIF data, and providing a straightforward configuration system via `_config.yml`. Its intuitive folder structure ensures consistency across galleries and pages, making it an excellent choice for photographers looking to showcase their work online with minimal effort. Happy creating!
      ·                                                                                                                                                                                                                                            ─────────────────────────────────────────────────────────────────────────────────────────────────────┬─────────────────────────────────────────────────────────────────────────────────────────────────────
-     ·                                                                                                                                                                                                                                                                                                                                                 ╰── Dms tell: dms.machine
+     ·                                                                                                                                                                                                                                                                                                                                                 ╰── machine-favored phrasing peaks at '. Happy creating!'
      ╰────

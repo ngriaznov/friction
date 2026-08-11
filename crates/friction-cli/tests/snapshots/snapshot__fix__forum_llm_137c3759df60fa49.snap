@@ -8,7 +8,7 @@ Rustâ€™s type system is robust, especially when it comes to handling lifetimesâ€
 
 ### What Are Lifetime Elisions?
 
-Lifetime elisions are syntactic rules in Rust that allow the compiler to infer the lifetimes of reference parameters without explicit annotations, making code cleaner and more readable. These rules help maintain soundness while avoiding unnecessary verbosity.
+Lifetime elisions are syntactic rules in Rust that allow the compiler to infer the lifetimes of reference parameters without explicit annotations. That makes code cleaner and more readable. These rules help maintain soundness while avoiding unnecessary verbosity.
 
 ### The Three Rules
 

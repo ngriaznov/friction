@@ -19,7 +19,7 @@ Scalability is often cited as one of the main reasons for choosing a database sy
 - **Dynamic Schema Changes:** It supports dynamic schema changes without downtime, which is important for a two-person startup where requirements might change rapidly.
 
 **MySQL:**
-- **Simplicity:** MySQL has a simpler architecture, making it easier to manage in smaller-scale operations. However, it requires more manual intervention when scaling out.
+- **Simplicity:** MySQL has a simpler architecture. That makes it easier to manage in smaller-scale operations. However, it requires more manual intervention when scaling out.
 - **Community Support:** MySQL benefits from a large community and extensive documentation, which can be advantageous for troubleshooting and learning.
 
 For our startup, the ability to handle complex data structures and dynamic schema changes without significant operational overhead was crucial. PostgreSQL’s advanced features provided us with flexibility that we could not easily achieve with MySQL.
@@ -54,7 +54,7 @@ For our application, which involves complex data processing and analysis, Postgr
 
 #### Cost Considerations
 
-Cost is always a significant factor when starting a new venture. Both PostgreSQL and MySQL are open-source, making them cost-effective solutions.
+Cost is always a significant factor when starting a new venture. Both PostgreSQL and MySQL are open-source. That makes them cost-effective solutions.
 
 **PostgreSQL:**
 - **Free License:** PostgreSQL is licensed under the PostgreSQL License, which is free to use without any restrictions.

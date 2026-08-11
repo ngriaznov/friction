@@ -615,3 +615,36 @@ fn em_dash_relative_chain_output_is_idempotent() {
     );
     assert_eq!(twice, once, "second application must be a no-op");
 }
+
+/// T12's promoted verb agrees with the main clause's tense: a past-tense
+/// main clause donates its form, so the aside stays inside the
+/// narrative's own timeline instead of switching to a present-tense
+/// generality.
+#[test]
+fn participial_closer_split_agrees_with_a_past_tense_main_clause() {
+    let (fixed, _) = engine()
+        .fix_document(
+            "It kept accumulating new message objects, leading to a relentless increase in memory usage.\n",
+        )
+        .expect("engine runs");
+    assert_eq!(
+        fixed,
+        "It kept accumulating new message objects. That led to a relentless increase in memory usage.\n"
+    );
+}
+
+/// An irregular past the generation table happens to cover ("allowed" is
+/// regular, "led" irregular — both attested) still round-trips through
+/// the seam gate; the flagship present-tense case is pinned separately.
+#[test]
+fn participial_closer_split_transfers_past_for_allowing() {
+    let (fixed, _) = engine()
+        .fix_document(
+            "We also added logging around the cleanup process, allowing us to verify that it functioned correctly.\n",
+        )
+        .expect("engine runs");
+    assert_eq!(
+        fixed,
+        "We also added logging around the cleanup process. That allowed us to verify that it functioned correctly.\n"
+    );
+}

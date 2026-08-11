@@ -8,33 +8,19 @@ pass 1: 5 operation(s) fired
   vsub.showcase            1865..1875  -> "show a"
   adj.vibrant::vibrant     1876..1891  -> "pinkish"
   eml.feel-free-reach-out::lit 4009..4036  -> "contact me with"
-  12 held:
-    lex.delve-into::dive   289..303  KEPT (frame lex.delve-into::dive: measured 69.9/M machine vs 6.1/M human; report-only)
-    vguard.observe         645..652  KEPT (frame vguard.observe: measured 120.3/M machine vs 20.0/M human; report-only)
-    adjg.clear             769..774  KEPT (frame adjg.clear: measured 228.9/M machine vs 112.1/M human; report-only)
-    vguard.highlight       1131..1140  KEPT (frame vguard.highlight: measured 123.2/M machine vs 90.6/M human; report-only)
+  3 held:
     vsub.illuminate        1206..1220  KEPT (frame vsub.illuminate held: slot opens with a preposition (untested construction))
-    pilot.within           1923..1929  KEPT (frame pilot.within: report-only (see the frame-pack compile report))
     vsub.illuminate        1948..1962  KEPT (frame vsub.illuminate held: slot opens with a preposition (untested construction))
-    adjg.advanced          2693..2701  KEPT (frame adjg.advanced: measured 231.8/M machine vs 106.0/M human; report-only)
     vsub.showcase          3383..3393  KEPT (frame vsub.showcase held: left seam not attested)
-    vguard.observe         3413..3422  KEPT (frame vguard.observe: measured 120.3/M machine vs 20.0/M human; report-only)
-    vguard.observe         3774..3781  KEPT (frame vguard.observe: measured 120.3/M machine vs 20.0/M human; report-only)
-    intg.highly            3987..3993  KEPT (frame intg.highly: measured 85.1/M machine vs 61.4/M human; report-only)
+  9 report-only observation(s) (--verbose to list)
 pass 2: 0 operation(s) fired — converged
-  12 held:
-    lex.delve-into::dive   245..432  KEPT (frame lex.delve-into::dive: measured 69.9/M machine vs 6.1/M human; report-only)
-    vguard.observe         583..764  KEPT (frame vguard.observe: measured 120.3/M machine vs 20.0/M human; report-only)
-    adjg.clear             765..892  KEPT (frame adjg.clear: measured 228.9/M machine vs 112.1/M human; report-only)
-    vguard.highlight       1110..1216  KEPT (frame vguard.highlight: measured 123.2/M machine vs 90.6/M human; report-only)
+  3 held:
     vsub.illuminate        1110..1216  KEPT (frame vsub.illuminate held: slot opens with a preposition (untested construction))
-    pilot.within           1882..1888  KEPT (frame pilot.within: report-only (see the frame-pack compile report))
     vsub.illuminate        1907..1921  KEPT (frame vsub.illuminate held: slot opens with a preposition (untested construction))
-    adjg.advanced          2618..2765  KEPT (frame adjg.advanced: measured 231.8/M machine vs 106.0/M human; report-only)
     vsub.showcase          3314..3352  KEPT (frame vsub.showcase held: left seam not attested)
-    vguard.observe         3355..3437  KEPT (frame vguard.observe: measured 120.3/M machine vs 20.0/M human; report-only)
-    vguard.observe         3691..3773  KEPT (frame vguard.observe: measured 120.3/M machine vs 20.0/M human; report-only)
-    intg.highly            3901..3960  KEPT (frame intg.highly: measured 85.1/M machine vs 61.4/M human; report-only)
-pass 3: 0 operation(s) fired — converged
+  9 report-only observation(s) (--verbose to list)
+pass 3: 2 operation(s) fired
+  restructure.participial_closer 1049..1057  -> ". That made"
+  restructure.participial_closer 1744..1752  -> ". That makes"
 pass 4: 1 operation(s) fired
-  register.em_dash         2156..2159  -> ", "
+  register.em_dash         2163..2166  -> ", "

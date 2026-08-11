@@ -199,17 +199,29 @@ impl EnvelopePack {
     /// judgment (see [`Self::band_union`]): a metric no genre's own
     /// train-split combined score ever counts is a metric this pack's own
     /// holdout measurement found no better than chance at separating
-    /// human from machine text (AUC ~0.5) in EVERY genre it was measured
-    /// in — not a metric this pack merely lacks data for. `check` uses
-    /// this to mark such a metric's row `weak_signal` instead of
-    /// rendering an authoritative-looking in/out verdict the holdout
-    /// itself refutes. Iteration is over a `BTreeMap`, so the result is
-    /// deterministic.
+    /// human from machine text (AUC ~0.5) in MOST genres it was measured
+    /// in. `check` uses this to mark such a metric's row `weak_signal`
+    /// instead of rendering an authoritative-looking in/out verdict the
+    /// holdout itself mostly refutes. The threshold is a strict majority
+    /// of the genres that carry a band for the metric — "excluded
+    /// everywhere" proved vacuous against the shipped pack (every metric
+    /// survives in at least one genre), while a metric the measurement
+    /// rejected in three genres of five is not one a genre-free check
+    /// should present as settled signal. Iteration is over a `BTreeMap`,
+    /// so the result is deterministic.
     #[must_use]
     pub fn included_anywhere(&self, metric: &str) -> bool {
-        self.genres
+        let (included, total) = self
+            .genres
             .values()
-            .any(|bands| bands.get(metric).is_some_and(|band| band.include))
+            .fold((0usize, 0usize), |(inc, tot), bands| {
+                match bands.get(metric) {
+                    Some(band) if band.include => (inc + 1, tot + 1),
+                    Some(_) => (inc, tot + 1),
+                    None => (inc, tot),
+                }
+            });
+        included * 2 > total
     }
 }
 
@@ -432,11 +444,9 @@ mod tests {
         );
     }
 
-    /// `included_anywhere` is `true` as soon as ONE genre includes the
-    /// metric, even when every other genre with a band for it excludes
-    /// it.
+    /// A 1-of-2 split is not a strict majority: the metric is weak.
     #[test]
-    fn included_anywhere_true_when_any_genre_includes_it() {
+    fn included_anywhere_false_on_an_even_split() {
         let pack = r"
             [blog.contraction_ratio]
             lo = 0.1
@@ -447,6 +457,29 @@ mod tests {
             lo = 0.0
             hi = 0.5
             include = true
+        ";
+        let pack = EnvelopePack::parse(pack).expect("pack parses");
+        assert!(!pack.included_anywhere("contraction_ratio"));
+    }
+
+    /// A 2-of-3 strict majority keeps the metric authoritative.
+    #[test]
+    fn included_anywhere_true_on_a_strict_majority() {
+        let pack = r"
+            [blog.contraction_ratio]
+            lo = 0.1
+            hi = 0.9
+            include = true
+
+            [docs.contraction_ratio]
+            lo = 0.0
+            hi = 0.5
+            include = true
+
+            [email.contraction_ratio]
+            lo = 0.0
+            hi = 0.5
+            include = false
         ";
         let pack = EnvelopePack::parse(pack).expect("pack parses");
         assert!(pack.included_anywhere("contraction_ratio"));

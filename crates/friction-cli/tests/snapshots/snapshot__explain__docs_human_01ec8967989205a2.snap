@@ -3,19 +3,6 @@ source: crates/friction-cli/tests/snapshot.rs
 expression: stdout
 ---
 pass 1: 0 operation(s) fired — converged
-  13 held:
-    vguard.require         1016..1023  KEPT (frame vguard.require: measured 1065.2/M machine vs 967.4/M human; report-only)
-    vguard.require         1247..1255  KEPT (frame vguard.require: measured 1065.2/M machine vs 967.4/M human; report-only)
-    intg.directly          1403..1411  KEPT (frame intg.directly: measured 358.0/M machine vs 373.1/M human; report-only)
-    vguard.require         1507..1515  KEPT (frame vguard.require: measured 1065.2/M machine vs 967.4/M human; report-only)
-    phg.under-the-hood     1625..1639  KEPT (frame phg.under-the-hood: measured 14.7/M machine vs 9.2/M human; report-only)
-    met.under-the-hood-guard::lit 1625..1639  KEPT (frame met.under-the-hood-guard::lit: measured 14.7/M machine vs 11.8/M human; report-only)
-    vguard.require         1644..1652  KEPT (frame vguard.require: measured 1065.2/M machine vs 967.4/M human; report-only)
-    phg.best-practices     1673..1687  KEPT (frame phg.best-practices: measured 67.5/M machine vs 44.5/M human; report-only)
-    conng.further          2562..2569  KEPT (frame conng.further: measured 275.8/M machine vs 199.6/M human; report-only)
-    intg.actually          2647..2655  KEPT (frame intg.actually: measured 548.7/M machine vs 211.9/M human; report-only)
-    adjg.complex           2663..2670  KEPT (frame adjg.complex: measured 372.7/M machine vs 182.7/M human; report-only)
-    vguard.ensure          2996..3002  KEPT (frame vguard.ensure: measured 1376.3/M machine vs 314.8/M human; report-only)
-    adjg.advanced          4447..4455  KEPT (frame adjg.advanced: measured 231.8/M machine vs 106.0/M human; report-only)
+  13 report-only observation(s) (--verbose to list)
 pass 2: 0 operation(s) fired — converged
 pass 3: 0 operation(s) fired — converged

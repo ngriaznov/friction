@@ -9,147 +9,168 @@ expression: stdout
       "value": 13.095238095238095,
       "lo": 3.4918032786885247,
       "hi": 22.612244897959183,
-      "in_envelope": true
+      "in_envelope": true,
+      "weak_signal": false
     },
     {
       "name": "sentence_length_stddev",
       "value": 7.722805407104926,
       "lo": 3.4227587963188086,
       "hi": 13.411800359716398,
-      "in_envelope": true
+      "in_envelope": true,
+      "weak_signal": false
     },
     {
       "name": "sentence_length_cv",
       "value": 0.5897415038152852,
       "lo": 0.49754649007902846,
       "hi": 1.3591689344136941,
-      "in_envelope": true
+      "in_envelope": true,
+      "weak_signal": false
     },
     {
       "name": "discourse_marker_density",
       "value": 4.744958481613286,
       "lo": 0.0,
       "hi": 4.237288135593221,
-      "in_envelope": false
+      "in_envelope": false,
+      "weak_signal": false
     },
     {
       "name": "triad_rate",
       "value": 0.015873015873015872,
       "lo": 0.0,
       "hi": 0.08695652173913043,
-      "in_envelope": true
+      "in_envelope": true,
+      "weak_signal": false
     },
     {
       "name": "contraction_ratio",
       "value": 0.3333333333333333,
       "lo": 0.0,
       "hi": 1.0,
-      "in_envelope": true
+      "in_envelope": true,
+      "weak_signal": false
     },
     {
       "name": "bullet_parallelism",
       "value": 0.8125,
       "lo": 0.0,
       "hi": 1.0,
-      "in_envelope": true
+      "in_envelope": true,
+      "weak_signal": true
     },
     {
       "name": "paragraph_shape_mean",
       "value": 1.4651162790697674,
       "lo": 1.0357142857142858,
       "hi": 3.5384615384615383,
-      "in_envelope": true
+      "in_envelope": true,
+      "weak_signal": false
     },
     {
       "name": "paragraph_shape_cv",
       "value": 0.49588886831153367,
       "lo": 0.179177669748504,
       "hi": 0.7953949089757174,
-      "in_envelope": true
+      "in_envelope": true,
+      "weak_signal": false
     },
     {
       "name": "em_dash_density",
       "value": 0.0,
       "lo": 0.0,
       "hi": 4.244482173174872,
-      "in_envelope": true
+      "in_envelope": true,
+      "weak_signal": true
     },
     {
       "name": "semicolon_density",
       "value": 0.0,
       "lo": 0.0,
       "hi": 3.9682539682539684,
-      "in_envelope": true
+      "in_envelope": true,
+      "weak_signal": false
     },
     {
       "name": "participial_closer_rate",
       "value": 0.1111111111111111,
       "lo": 0.0,
       "hi": 0.03125,
-      "in_envelope": false
+      "in_envelope": false,
+      "weak_signal": false
     },
     {
       "name": "not_just_but_rate",
       "value": 0.015873015873015872,
       "lo": 0.0,
       "hi": 0.009259259259259259,
-      "in_envelope": false
+      "in_envelope": false,
+      "weak_signal": true
     },
     {
       "name": "ritual_marker_rate",
       "value": 0.023255813953488372,
       "lo": 0.0,
       "hi": 0.0,
-      "in_envelope": false
+      "in_envelope": false,
+      "weak_signal": false
     },
     {
       "name": "llm_favored_phrase_rate",
       "value": 47.44958481613286,
       "lo": 0.0,
       "hi": 21.634615384615383,
-      "in_envelope": false
+      "in_envelope": false,
+      "weak_signal": false
     },
     {
       "name": "human_favored_phrase_rate",
       "value": 13.048635824436536,
       "lo": 8.59106529209622,
       "hi": 48.821548821548824,
-      "in_envelope": true
+      "in_envelope": true,
+      "weak_signal": false
     },
     {
       "name": "heading_density",
       "value": 8.303677342823251,
       "lo": 0.0,
       "hi": 43.04635761589404,
-      "in_envelope": true
+      "in_envelope": true,
+      "weak_signal": false
     },
     {
       "name": "list_item_density",
       "value": 18.979833926453143,
       "lo": 0.0,
       "hi": 98.26589595375722,
-      "in_envelope": true
+      "in_envelope": true,
+      "weak_signal": false
     },
     {
       "name": "bold_span_density",
       "value": 28.469750889679716,
       "lo": 0.0,
       "hi": 14.705882352941176,
-      "in_envelope": false
+      "in_envelope": false,
+      "weak_signal": false
     },
     {
       "name": "sentence_opener_repeat_rate",
       "value": 0.06451612903225806,
       "lo": 0.0,
       "hi": 0.13793103448275862,
-      "in_envelope": true
+      "in_envelope": true,
+      "weak_signal": false
     },
     {
       "name": "top_opener_concentration",
       "value": 0.07936507936507936,
       "lo": 0.04424778761061947,
       "hi": 0.2153846153846154,
-      "in_envelope": true
+      "in_envelope": true,
+      "weak_signal": false
     }
   ],
   "spans": [
@@ -160,7 +181,8 @@ expression: stdout
       "end": 499,
       "line": 3,
       "column": 1,
-      "score": 2303
+      "score": 2303,
+      "message": "machine-favored phrasing peaks at 'drove our decision.'"
     },
     {
       "channel": "literal",
@@ -178,7 +200,8 @@ expression: stdout
       "end": 928,
       "line": 7,
       "column": 1,
-      "score": 2554
+      "score": 2554,
+      "message": "machine-favored phrasing peaks at 'make this choice.'"
     },
     {
       "channel": "dms",
@@ -187,7 +210,8 @@ expression: stdout
       "end": 1164,
       "line": 11,
       "column": 1,
-      "score": 537
+      "score": 537,
+      "message": "machine-favored phrasing peaks at 'approaches differ significantly.'"
     },
     {
       "channel": "dms",
@@ -196,7 +220,8 @@ expression: stdout
       "end": 1374,
       "line": 14,
       "column": 5,
-      "score": 390
+      "score": 390,
+      "message": "machine-favored phrasing peaks at 'complex queries efficiently.'"
     },
     {
       "channel": "dms",
@@ -205,7 +230,8 @@ expression: stdout
       "end": 1540,
       "line": 15,
       "column": 5,
-      "score": 309
+      "score": 309,
+      "message": "machine-favored phrasing peaks at 'might change rapidly.'"
     },
     {
       "channel": "literal",
@@ -223,7 +249,8 @@ expression: stdout
       "end": 1724,
       "line": 18,
       "column": 5,
-      "score": 376
+      "score": 376,
+      "message": "machine-favored phrasing peaks at 'when scaling out.'"
     },
     {
       "channel": "dms",
@@ -232,7 +259,8 @@ expression: stdout
       "end": 1876,
       "line": 19,
       "column": 5,
-      "score": 211
+      "score": 211,
+      "message": "machine-favored phrasing peaks at 'troubleshooting and learning.'"
     },
     {
       "channel": "dms",
@@ -241,7 +269,8 @@ expression: stdout
       "end": 2128,
       "line": 21,
       "column": 1,
-      "score": 675
+      "score": 675,
+      "message": "machine-favored phrasing peaks at 'achieve with MySQL.'"
     },
     {
       "channel": "dms",
@@ -250,7 +279,8 @@ expression: stdout
       "end": 2294,
       "line": 25,
       "column": 1,
-      "score": 142
+      "score": 142,
+      "message": "machine-favored phrasing peaks at 'critical business operations.'"
     },
     {
       "channel": "dms",
@@ -259,7 +289,8 @@ expression: stdout
       "end": 2476,
       "line": 28,
       "column": 5,
-      "score": 270
+      "score": 270,
+      "message": "machine-favored phrasing peaks at 'transactions are reliable.'"
     },
     {
       "channel": "dms",
@@ -268,7 +299,8 @@ expression: stdout
       "end": 2695,
       "line": 29,
       "column": 5,
-      "score": 363
+      "score": 363,
+      "message": "machine-favored phrasing peaks at 'during concurrent operations.'"
     },
     {
       "channel": "dms",
@@ -277,7 +309,8 @@ expression: stdout
       "end": 2886,
       "line": 32,
       "column": 5,
-      "score": 362
+      "score": 362,
+      "message": "machine-favored phrasing peaks at 'potential data inconsistencies.'"
     },
     {
       "channel": "dms",
@@ -286,7 +319,8 @@ expression: stdout
       "end": 3030,
       "line": 33,
       "column": 5,
-      "score": 143
+      "score": 143,
+      "message": "machine-favored phrasing peaks at 'to ensure reliability.'"
     },
     {
       "channel": "dms",
@@ -295,7 +329,8 @@ expression: stdout
       "end": 3208,
       "line": 35,
       "column": 1,
-      "score": 318
+      "score": 318,
+      "message": "machine-favored phrasing peaks at 'in our decision.'"
     },
     {
       "channel": "dms",
@@ -304,7 +339,8 @@ expression: stdout
       "end": 3407,
       "line": 39,
       "column": 1,
-      "score": 359
+      "score": 359,
+      "message": "machine-favored phrasing peaks at 'in different areas.'"
     },
     {
       "channel": "dms",
@@ -313,7 +349,8 @@ expression: stdout
       "end": 3603,
       "line": 42,
       "column": 5,
-      "score": 281
+      "score": 281,
+      "message": "machine-favored phrasing peaks at 'and parallel processing.'"
     },
     {
       "channel": "dms",
@@ -322,7 +359,8 @@ expression: stdout
       "end": 3811,
       "line": 43,
       "column": 5,
-      "score": 405
+      "score": 405,
+      "message": "machine-favored phrasing peaks at 'specific use cases.'"
     },
     {
       "channel": "dms",
@@ -331,7 +369,8 @@ expression: stdout
       "end": 3953,
       "line": 46,
       "column": 5,
-      "score": 241
+      "score": 241,
+      "message": "machine-favored phrasing peaks at 'read-heavy workloads.'"
     },
     {
       "channel": "dms",
@@ -340,7 +379,8 @@ expression: stdout
       "end": 4131,
       "line": 47,
       "column": 5,
-      "score": 430
+      "score": 430,
+      "message": "machine-favored phrasing peaks at 'to get started.'"
     },
     {
       "channel": "dms",
@@ -349,7 +389,8 @@ expression: stdout
       "end": 4440,
       "line": 49,
       "column": 1,
-      "score": 1054
+      "score": 1054,
+      "message": "machine-favored phrasing peaks at 'choice for us.'"
     },
     {
       "channel": "dms",
@@ -358,7 +399,8 @@ expression: stdout
       "end": 4613,
       "line": 53,
       "column": 1,
-      "score": 300
+      "score": 300,
+      "message": "machine-favored phrasing peaks at 'cost-effective solutions.'"
     },
     {
       "channel": "dms",
@@ -367,7 +409,8 @@ expression: stdout
       "end": 4750,
       "line": 56,
       "column": 5,
-      "score": 170
+      "score": 170,
+      "message": "machine-favored phrasing peaks at 'without any restrictions.'"
     },
     {
       "channel": "dms",
@@ -376,7 +419,8 @@ expression: stdout
       "end": 4864,
       "line": 57,
       "column": 5,
-      "score": 123
+      "score": 123,
+      "message": "machine-favored phrasing peaks at 'in production environments.'"
     },
     {
       "channel": "dms",
@@ -385,7 +429,8 @@ expression: stdout
       "end": 5057,
       "line": 60,
       "column": 5,
-      "score": 435
+      "score": 435,
+      "message": "machine-favored phrasing peaks at 'might be required.'"
     },
     {
       "channel": "dms",
@@ -394,7 +439,8 @@ expression: stdout
       "end": 5225,
       "line": 61,
       "column": 5,
-      "score": 330
+      "score": 330,
+      "message": "machine-favored phrasing peaks at 'require professional support.'"
     },
     {
       "channel": "dms",
@@ -403,7 +449,8 @@ expression: stdout
       "end": 5455,
       "line": 63,
       "column": 1,
-      "score": 677
+      "score": 677,
+      "message": "machine-favored phrasing peaks at 'incurring unnecessary costs.'"
     },
     {
       "channel": "dms",
@@ -412,7 +459,8 @@ expression: stdout
       "end": 5861,
       "line": 67,
       "column": 1,
-      "score": 2162
+      "score": 2162,
+      "message": "machine-favored phrasing peaks at 'needs and constraints.'"
     },
     {
       "channel": "dms",
@@ -421,7 +469,8 @@ expression: stdout
       "end": 6171,
       "line": 69,
       "column": 1,
-      "score": 1240
+      "score": 1240,
+      "message": "machine-favored phrasing peaks at 'your startup’s goals.'"
     },
     {
       "channel": "lvc",

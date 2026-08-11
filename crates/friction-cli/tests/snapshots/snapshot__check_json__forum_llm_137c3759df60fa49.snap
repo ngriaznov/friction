@@ -9,147 +9,168 @@ expression: stdout
       "value": 11.465116279069768,
       "lo": 3.4918032786885247,
       "hi": 22.612244897959183,
-      "in_envelope": true
+      "in_envelope": true,
+      "weak_signal": false
     },
     {
       "name": "sentence_length_stddev",
       "value": 9.693797674728527,
       "lo": 3.4227587963188086,
       "hi": 13.411800359716398,
-      "in_envelope": true
+      "in_envelope": true,
+      "weak_signal": false
     },
     {
       "name": "sentence_length_cv",
       "value": 0.8455036511426504,
       "lo": 0.49754649007902846,
       "hi": 1.3591689344136941,
-      "in_envelope": true
+      "in_envelope": true,
+      "weak_signal": false
     },
     {
       "name": "discourse_marker_density",
       "value": 6.122448979591836,
       "lo": 0.0,
       "hi": 4.237288135593221,
-      "in_envelope": false
+      "in_envelope": false,
+      "weak_signal": false
     },
     {
       "name": "triad_rate",
       "value": 0.0,
       "lo": 0.0,
       "hi": 0.08695652173913043,
-      "in_envelope": true
+      "in_envelope": true,
+      "weak_signal": false
     },
     {
       "name": "contraction_ratio",
       "value": 0.0,
       "lo": 0.0,
       "hi": 1.0,
-      "in_envelope": true
+      "in_envelope": true,
+      "weak_signal": false
     },
     {
       "name": "bullet_parallelism",
       "value": 0.6666666666666666,
       "lo": 0.0,
       "hi": 1.0,
-      "in_envelope": true
+      "in_envelope": true,
+      "weak_signal": true
     },
     {
       "name": "paragraph_shape_mean",
       "value": 1.4333333333333333,
       "lo": 1.0357142857142858,
       "hi": 3.5384615384615383,
-      "in_envelope": true
+      "in_envelope": true,
+      "weak_signal": false
     },
     {
       "name": "paragraph_shape_cv",
       "value": 0.46569731150001803,
       "lo": 0.179177669748504,
       "hi": 0.7953949089757174,
-      "in_envelope": true
+      "in_envelope": true,
+      "weak_signal": false
     },
     {
       "name": "em_dash_density",
       "value": 2.028397565922921,
       "lo": 0.0,
       "hi": 4.244482173174872,
-      "in_envelope": true
+      "in_envelope": true,
+      "weak_signal": true
     },
     {
       "name": "semicolon_density",
       "value": 0.0,
       "lo": 0.0,
       "hi": 3.9682539682539684,
-      "in_envelope": true
+      "in_envelope": true,
+      "weak_signal": false
     },
     {
       "name": "participial_closer_rate",
       "value": 0.023255813953488372,
       "lo": 0.0,
       "hi": 0.03125,
-      "in_envelope": true
+      "in_envelope": true,
+      "weak_signal": false
     },
     {
       "name": "not_just_but_rate",
       "value": 0.023255813953488372,
       "lo": 0.0,
       "hi": 0.009259259259259259,
-      "in_envelope": false
+      "in_envelope": false,
+      "weak_signal": true
     },
     {
       "name": "ritual_marker_rate",
       "value": 0.03333333333333333,
       "lo": 0.0,
       "hi": 0.0,
-      "in_envelope": false
+      "in_envelope": false,
+      "weak_signal": false
     },
     {
       "name": "llm_favored_phrase_rate",
       "value": 10.204081632653061,
       "lo": 0.0,
       "hi": 21.634615384615383,
-      "in_envelope": true
+      "in_envelope": true,
+      "weak_signal": false
     },
     {
       "name": "human_favored_phrase_rate",
       "value": 30.612244897959183,
       "lo": 8.59106529209622,
       "hi": 48.821548821548824,
-      "in_envelope": true
+      "in_envelope": true,
+      "weak_signal": false
     },
     {
       "name": "heading_density",
       "value": 6.122448979591836,
       "lo": 0.0,
       "hi": 43.04635761589404,
-      "in_envelope": true
+      "in_envelope": true,
+      "weak_signal": false
     },
     {
       "name": "list_item_density",
       "value": 6.122448979591836,
       "lo": 0.0,
       "hi": 98.26589595375722,
-      "in_envelope": true
+      "in_envelope": true,
+      "weak_signal": false
     },
     {
       "name": "bold_span_density",
       "value": 14.285714285714286,
       "lo": 0.0,
       "hi": 14.705882352941176,
-      "in_envelope": true
+      "in_envelope": true,
+      "weak_signal": false
     },
     {
       "name": "sentence_opener_repeat_rate",
       "value": 0.0,
       "lo": 0.0,
       "hi": 0.13793103448275862,
-      "in_envelope": true
+      "in_envelope": true,
+      "weak_signal": false
     },
     {
       "name": "top_opener_concentration",
       "value": 0.12195121951219512,
       "lo": 0.04424778761061947,
       "hi": 0.2153846153846154,
-      "in_envelope": true
+      "in_envelope": true,
+      "weak_signal": false
     }
   ],
   "spans": [
@@ -160,7 +181,8 @@ expression: stdout
       "end": 45,
       "line": 1,
       "column": 3,
-      "score": 8
+      "score": 8,
+      "message": "machine-favored phrasing peaks at 'Rust's Lifetime Elision Rules'"
     },
     {
       "channel": "dms",
@@ -169,7 +191,8 @@ expression: stdout
       "end": 499,
       "line": 3,
       "column": 1,
-      "score": 2572
+      "score": 2572,
+      "message": "machine-favored phrasing peaks at 'to do so.'"
     },
     {
       "channel": "literal",
@@ -187,7 +210,8 @@ expression: stdout
       "end": 793,
       "line": 7,
       "column": 1,
-      "score": 722
+      "score": 722,
+      "message": "machine-favored phrasing peaks at 'avoiding unnecessary verbosity.'"
     },
     {
       "channel": "dms",
@@ -196,7 +220,8 @@ expression: stdout
       "end": 1089,
       "line": 11,
       "column": 6,
-      "score": 1001
+      "score": 1001,
+      "message": "machine-favored phrasing peaks at 'outermost borrowed reference.'"
     },
     {
       "channel": "dms",
@@ -205,7 +230,8 @@ expression: stdout
       "end": 1432,
       "line": 20,
       "column": 14,
-      "score": 194
+      "score": 194,
+      "message": "machine-favored phrasing peaks at 'The compiler infers that'"
     },
     {
       "channel": "dms",
@@ -214,7 +240,8 @@ expression: stdout
       "end": 1505,
       "line": 20,
       "column": 148,
-      "score": 72
+      "score": 72,
+      "message": "machine-favored phrasing peaks at 'within the function.'"
     },
     {
       "channel": "dms",
@@ -223,7 +250,8 @@ expression: stdout
       "end": 1699,
       "line": 22,
       "column": 6,
-      "score": 442
+      "score": 442,
+      "message": "machine-favored phrasing peaks at 'gets the default lifetime'"
     },
     {
       "channel": "dms",
@@ -232,7 +260,8 @@ expression: stdout
       "end": 1826,
       "line": 22,
       "column": 220,
-      "score": 151
+      "score": 151,
+      "message": "machine-favored phrasing peaks at 'of each other.'"
     },
     {
       "channel": "dms",
@@ -241,7 +270,8 @@ expression: stdout
       "end": 2079,
       "line": 32,
       "column": 4,
-      "score": 10
+      "score": 10,
+      "message": "machine-favored phrasing peaks at 'the compiler infers that'"
     },
     {
       "channel": "dms",
@@ -250,7 +280,8 @@ expression: stdout
       "end": 2125,
       "line": 32,
       "column": 47,
-      "score": 6
+      "score": 6,
+      "message": "machine-favored phrasing peaks at 'references. Thus,'"
     },
     {
       "channel": "dms",
@@ -259,7 +290,8 @@ expression: stdout
       "end": 2286,
       "line": 32,
       "column": 155,
-      "score": 133
+      "score": 133,
+      "message": "machine-favored phrasing peaks at 'affect the other.'"
     },
     {
       "channel": "literal",
@@ -277,7 +309,8 @@ expression: stdout
       "end": 2631,
       "line": 34,
       "column": 6,
-      "score": 1716
+      "score": 1716,
+      "message": "machine-favored phrasing peaks at 'its input references.'"
     },
     {
       "channel": "dms",
@@ -286,7 +319,8 @@ expression: stdout
       "end": 2875,
       "line": 43,
       "column": 4,
-      "score": 47
+      "score": 47,
+      "message": "machine-favored phrasing peaks at 'only one reference parameter'"
     },
     {
       "channel": "dms",
@@ -295,7 +329,8 @@ expression: stdout
       "end": 2979,
       "line": 43,
       "column": 85,
-      "score": 136
+      "score": 136,
+      "message": "machine-favored phrasing peaks at 'least as long as'"
     },
     {
       "channel": "dms",
@@ -304,7 +339,8 @@ expression: stdout
       "end": 3310,
       "line": 47,
       "column": 1,
-      "score": 1048
+      "score": 1048,
+      "message": "machine-favored phrasing peaks at 'about memory safety.'"
     },
     {
       "channel": "dms",
@@ -313,7 +349,8 @@ expression: stdout
       "end": 3633,
       "line": 49,
       "column": 1,
-      "score": 1057
+      "score": 1057,
+      "message": "machine-favored phrasing peaks at 'behind the scenes.'"
     },
     {
       "channel": "dms",
@@ -322,7 +359,8 @@ expression: stdout
       "end": 3888,
       "line": 51,
       "column": 1,
-      "score": 759
+      "score": 759,
+      "message": "machine-favored phrasing peaks at 'about memory management.'"
     }
   ],
   "tell_counts": {

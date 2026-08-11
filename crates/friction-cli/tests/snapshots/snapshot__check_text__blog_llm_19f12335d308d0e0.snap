@@ -9,13 +9,13 @@ sentence_length_cv            0.5623  [0.4975, 1.3592]   in
 discourse_marker_density      3.2120  [0.0000, 4.2373]   in    
 triad_rate                    0.0448  [0.0000, 0.0870]   in    
 contraction_ratio             1.0000  [0.0000, 1.0000]   in    
-bullet_parallelism            0.7500  [0.0000, 1.0000]   in    
+bullet_parallelism            0.7500  [0.0000, 1.0000]   weak  
 paragraph_shape_mean          1.9706  [1.0357, 3.5385]   in    
 paragraph_shape_cv            0.6090  [0.1792, 0.7954]   in    
-em_dash_density               0.0000  [0.0000, 4.2445]   in    
+em_dash_density               0.0000  [0.0000, 4.2445]   weak  
 semicolon_density             0.0000  [0.0000, 3.9683]   in    
 participial_closer_rate       0.0896  [0.0000, 0.0312]   OUT   
-not_just_but_rate             0.0000  [0.0000, 0.0093]   in    
+not_just_but_rate             0.0000  [0.0000, 0.0093]   weak  
 ritual_marker_rate            0.0294  [0.0000, 0.0000]   OUT   
 llm_favored_phrase_rate      35.3319  [0.0000, 21.6346]  OUT   
 human_favored_phrase_rate     4.2827  [8.5911, 48.8215]  OUT   
@@ -34,12 +34,12 @@ tell counts (34 span(s) total):
   sub: 1
 dms.machine
 
-  ⚠ Dms tell: dms.machine
+  ⚠ machine-favored phrasing peaks at 'event listener management.'
    ╭─[corpus/llm/blog/19f12335d308d0e0.md:3:1]
  2 │ 
  3 │ Debugging performance issues in production can feel like chasing ghosts. You’ve got alerts, metrics, and logs, but pinpointing the *why* behind the slowdown is often a frustrating, iterative process. I recently experienced this firsthand with a seemingly innocuous memory leak plaguing one of our long-running Node.js worker processes – a process that was handling a significant chunk of our real-time data processing. The journey from initial alerts to identifying the root cause felt like navigating a complex maze, and it highlighted some crucial lessons about monitoring, debugging, and event listener management.
    · ────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────┬────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
-   ·                                                                                                                                                                                                                                                                                                                     ╰── Dms tell: dms.machine
+   ·                                                                                                                                                                                                                                                                                                                     ╰── machine-favored phrasing peaks at 'event listener management.'
  4 │ 
    ╰────
 
@@ -56,210 +56,210 @@ jargon.metaphor
 
 dms.machine
 
-  ⚠ Dms tell: dms.machine
+  ⚠ machine-favored phrasing peaks at 'down this “ghost.'
    ╭─[corpus/llm/blog/19f12335d308d0e0.md:5:1]
  4 │ 
  5 │ Let’s walk through the experience, detailing how we tracked down this “ghost.”
    · ──────────────────────────────────────┬──────────────────────────────────────
-   ·                                       ╰── Dms tell: dms.machine
+   ·                                       ╰── machine-favored phrasing peaks at 'down this “ghost.'
  6 │ 
    ╰────
 
 dms.machine
 
-  ⚠ Dms tell: dms.machine
+  ⚠ machine-favored phrasing peaks at ': Production Monitoring Alerts'
    ╭─[corpus/llm/blog/19f12335d308d0e0.md:7:3]
  6 │ 
  7 │ **The First Whispers: Production Monitoring Alerts**
    ·   ────────────────────────┬───────────────────────
-   ·                           ╰── Dms tell: dms.machine
+   ·                           ╰── machine-favored phrasing peaks at ': Production Monitoring Alerts'
  8 │ 
    ╰────
 
 dms.machine
 
-  ⚠ Dms tell: dms.machine
+  ⚠ machine-favored phrasing peaks at 'of around 150MB.'
     ╭─[corpus/llm/blog/19f12335d308d0e0.md:9:1]
   8 │ 
   9 │ It started subtly. Our production monitoring system (Prometheus + Grafana) began showing a gradual increase in the memory usage of our worker process, designated "DataProcessor-1". Initially, it was just a few megabytes creeping up over several hours. We dismissed it as normal background activity – the worker was constantly processing data streams, and some overhead was expected. However, the trend persisted, and within 24 hours, the memory usage had climbed to nearly 500MB - a significant spike compared to its typical baseline of around 150MB.
     · ───────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────┬──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
-    ·                                                                                                                                                                                                                                                                                    ╰── Dms tell: dms.machine
+    ·                                                                                                                                                                                                                                                                                    ╰── machine-favored phrasing peaks at 'of around 150MB.'
  10 │ 
     ╰────
 
 dms.machine
 
-  ⚠ Dms tell: dms.machine
+  ⚠ machine-favored phrasing peaks at 'the key metric:'
     ╭─[corpus/llm/blog/19f12335d308d0e0.md:11:1]
  10 │ 
  11 │ The Grafana dashboard highlighted the key metric: `process.memoryUsage()`. The ‘used’ column was steadily increasing, particularly the ‘heapUsed’ value. This immediately suggested a memory leak – something was accumulating within the process without being released. We set up an alert to trigger when `heapUsed` exceeded 75% of the worker's total memory, hoping to catch it early.
     · ────────────────────────┬────────────────────────
-    ·                         ╰── Dms tell: dms.machine
+    ·                         ╰── machine-favored phrasing peaks at 'the key metric:'
  12 │ 
     ╰────
 
 dms.machine
 
-  ⚠ Dms tell: dms.machine
+  ⚠ machine-favored phrasing peaks at 'alert to trigger when'
     ╭─[corpus/llm/blog/19f12335d308d0e0.md:11:74]
  10 │ 
  11 │ The Grafana dashboard highlighted the key metric: `process.memoryUsage()`. The ‘used’ column was steadily increasing, particularly the ‘heapUsed’ value. This immediately suggested a memory leak – something was accumulating within the process without being released. We set up an alert to trigger when `heapUsed` exceeded 75% of the worker's total memory, hoping to catch it early.
     ·                                                                          ─────────────────────────────────────────────────────────────────────────────────────────────────────────────────┬─────────────────────────────────────────────────────────────────────────────────────────────────────────────────
-    ·                                                                                                                                                                                           ╰── Dms tell: dms.machine
+    ·                                                                                                                                                                                           ╰── machine-favored phrasing peaks at 'alert to trigger when'
  12 │ 
     ╰────
 
 dms.machine
 
-  ⚠ Dms tell: dms.machine
+  ⚠ machine-favored phrasing peaks at 'catch it early.'
     ╭─[corpus/llm/blog/19f12335d308d0e0.md:11:323]
  10 │ 
  11 │ The Grafana dashboard highlighted the key metric: `process.memoryUsage()`. The ‘used’ column was steadily increasing, particularly the ‘heapUsed’ value. This immediately suggested a memory leak – something was accumulating within the process without being released. We set up an alert to trigger when `heapUsed` exceeded 75% of the worker's total memory, hoping to catch it early.
     ·                                                                                                                                                                                                                                                                                                                         ──────────────────────────────────┬─────────────────────────────────
-    ·                                                                                                                                                                                                                                                                                                                                                           ╰── Dms tell: dms.machine
+    ·                                                                                                                                                                                                                                                                                                                                                           ╰── machine-favored phrasing peaks at 'catch it early.'
  12 │ 
     ╰────
 
 dms.machine
 
-  ⚠ Dms tell: dms.machine
+  ⚠ machine-favored phrasing peaks at 'Analysis and Initial Hypotheses'
     ╭─[corpus/llm/blog/19f12335d308d0e0.md:13:3]
  12 │ 
  13 │ **Digging Deeper: Log Analysis and Initial Hypotheses**
     ·   ─────────────────────────┬─────────────────────────
-    ·                            ╰── Dms tell: dms.machine
+    ·                            ╰── machine-favored phrasing peaks at 'Analysis and Initial Hypotheses'
  14 │ 
     ╰────
 
 dms.machine
 
-  ⚠ Dms tell: dms.machine
+  ⚠ machine-favored phrasing peaks at 'Nothing stood out.'
     ╭─[corpus/llm/blog/19f12335d308d0e0.md:15:1]
  14 │ 
  15 │ Armed with this alert, we started digging into the logs generated by DataProcessor-1. The logs were verbose, as they should be, but there wasn’t anything immediately obvious. We filtered for errors and warnings, hoping to find a clue – perhaps a crash or an unexpected exception that might explain the memory growth. Nothing stood out. 
     · ───────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────┬───────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
-    ·                                                                                                                                                                        ╰── Dms tell: dms.machine
+    ·                                                                                                                                                                        ╰── machine-favored phrasing peaks at 'Nothing stood out.'
  16 │ 
     ╰────
 
 dms.machine
 
-  ⚠ Dms tell: dms.machine
+  ⚠ machine-favored phrasing peaks at 'code using tools like'
     ╭─[corpus/llm/blog/19f12335d308d0e0.md:17:1]
  16 │ 
  17 │ Our initial hypotheses ranged from database connection issues (we weren't seeing any errors related to our database connections) to inefficient data processing logic. We considered profiling the code using tools like `node --inspect` and Chrome DevTools, but this felt premature – we needed more concrete evidence before investing significant time in detailed performance analysis.
     · ────────────────────────────────────────────────────────────────────────────────────────────────────────────┬───────────────────────────────────────────────────────────────────────────────────────────────────────────
-    ·                                                                                                             ╰── Dms tell: dms.machine
+    ·                                                                                                             ╰── machine-favored phrasing peaks at 'code using tools like'
  18 │ 
     ╰────
 
 dms.machine
 
-  ⚠ Dms tell: dms.machine
+  ⚠ machine-favored phrasing peaks at 'detailed performance analysis.'
     ╭─[corpus/llm/blog/19f12335d308d0e0.md:17:235]
  16 │ 
  17 │ Our initial hypotheses ranged from database connection issues (we weren't seeing any errors related to our database connections) to inefficient data processing logic. We considered profiling the code using tools like `node --inspect` and Chrome DevTools, but this felt premature – we needed more concrete evidence before investing significant time in detailed performance analysis.
     ·                                                                                                                                                                                                                                           ─────────────────────────────────────────────────────────────────────────┬─────────────────────────────────────────────────────────────────────────
-    ·                                                                                                                                                                                                                                                                                                                    ╰── Dms tell: dms.machine
+    ·                                                                                                                                                                                                                                                                                                                    ╰── machine-favored phrasing peaks at 'detailed performance analysis.'
  18 │ 
     ╰────
 
 dms.machine
 
-  ⚠ Dms tell: dms.machine
+  ⚠ machine-favored phrasing peaks at 'Narrowing Down the Scope'
     ╭─[corpus/llm/blog/19f12335d308d0e0.md:19:3]
  18 │ 
  19 │ **The Power of Heap Snapshots: Narrowing Down the Scope**
     ·   ──────────────────────────┬──────────────────────────
-    ·                             ╰── Dms tell: dms.machine
+    ·                             ╰── machine-favored phrasing peaks at 'Narrowing Down the Scope'
  20 │ 
     ╰────
 
 dms.machine
 
-  ⚠ Dms tell: dms.machine
+  ⚠ machine-favored phrasing peaks at 'heap snapshotting tool called'
     ╭─[corpus/llm/blog/19f12335d308d0e0.md:21:1]
  20 │ 
  21 │ We decided to take a different approach.  We utilized a heap snapshotting tool called `heapdump-psml`. This tool allows us to capture snapshots of the Node.js process’s memory allocation at specific intervals, providing a detailed breakdown of what was consuming the most memory. 
     · ──────────────────────────────────────────┬──────────────────────────────────────────
-    ·                                           ╰── Dms tell: dms.machine
+    ·                                           ╰── machine-favored phrasing peaks at 'heap snapshotting tool called'
  22 │ 
     ╰────
 
 dms.machine
 
-  ⚠ Dms tell: dms.machine
+  ⚠ machine-favored phrasing peaks at 'the most memory.'
     ╭─[corpus/llm/blog/19f12335d308d0e0.md:21:102]
  20 │ 
  21 │ We decided to take a different approach.  We utilized a heap snapshotting tool called `heapdump-psml`. This tool allows us to capture snapshots of the Node.js process’s memory allocation at specific intervals, providing a detailed breakdown of what was consuming the most memory. 
     ·                                                                                                      ─────────────────────────────────────────────────────────────────────────────────────────┬────────────────────────────────────────────────────────────────────────────────────────
-    ·                                                                                                                                                                                               ╰── Dms tell: dms.machine
+    ·                                                                                                                                                                                               ╰── machine-favored phrasing peaks at 'the most memory.'
  22 │ 
     ╰────
 
 dms.machine
 
-  ⚠ Dms tell: dms.machine
+  ⚠ machine-favored phrasing peaks at 'to be processed.'
     ╭─[corpus/llm/blog/19f12335d308d0e0.md:23:1]
  22 │ 
  23 │ Taking regular heap snapshots (every 15 minutes) allowed us to observe how the memory usage evolved over time. The first few snapshots showed a gradual increase in the number of objects allocated within the worker's heap.  We started noticing a particular pattern: a large number of objects related to our message queue – specifically, objects representing messages waiting to be processed. 
     · ───────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────┬──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
-    ·                                                                                                                                                                                                    ╰── Dms tell: dms.machine
+    ·                                                                                                                                                                                                    ╰── machine-favored phrasing peaks at 'to be processed.'
  24 │ 
     ╰────
 
 dms.machine
 
-  ⚠ Dms tell: dms.machine
+  ⚠ machine-favored phrasing peaks at 'Without an Exit Strategy'
     ╭─[corpus/llm/blog/19f12335d308d0e0.md:25:3]
  24 │ 
  25 │ **The Revelation: An Event Listener Without an Exit Strategy**
     ·   ─────────────────────────────┬────────────────────────────
-    ·                                ╰── Dms tell: dms.machine
+    ·                                ╰── machine-favored phrasing peaks at 'Without an Exit Strategy'
  26 │ 
     ╰────
 
 dms.machine
 
-  ⚠ Dms tell: dms.machine
+  ⚠ machine-favored phrasing peaks at 'handling mechanism – a basic'
     ╭─[corpus/llm/blog/19f12335d308d0e0.md:27:1]
  26 │ 
  27 │ This was a critical turning point. The heap snapshots pointed us towards a specific event listener within the worker that was responsible for consuming these messages from the queue. This listener was designed to handle incoming data and push it through our processing pipeline.  However, we’d implemented a simplified error handling mechanism – a basic `try...catch` block – but *never* removed the listener after each processed message.
     · ────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────┬────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
-    ·                                                                                                                                                                                 ╰── Dms tell: dms.machine
+    ·                                                                                                                                                                                 ╰── machine-favored phrasing peaks at 'handling mechanism – a basic'
  28 │ 
     ╰────
 
 dms.machine
 
-  ⚠ Dms tell: dms.machine
+  ⚠ machine-favored phrasing peaks at 'each processed message.'
     ╭─[corpus/llm/blog/19f12335d308d0e0.md:27:373]
  26 │ 
  27 │ This was a critical turning point. The heap snapshots pointed us towards a specific event listener within the worker that was responsible for consuming these messages from the queue. This listener was designed to handle incoming data and push it through our processing pipeline.  However, we’d implemented a simplified error handling mechanism – a basic `try...catch` block – but *never* removed the listener after each processed message.
     ·                                                                                                                                                                                                                                                                                                                                                                                 ───────────────────────────────────┬──────────────────────────────────
-    ·                                                                                                                                                                                                                                                                                                                                                                                                                    ╰── Dms tell: dms.machine
+    ·                                                                                                                                                                                                                                                                                                                                                                                                                    ╰── machine-favored phrasing peaks at 'each processed message.'
  28 │ 
     ╰────
 
 dms.machine
 
-  ⚠ Dms tell: dms.machine
+  ⚠ machine-favored phrasing peaks at 'revealed itself: The'
     ╭─[corpus/llm/blog/19f12335d308d0e0.md:29:1]
  28 │ 
  29 │ Here's where the ghost revealed itself: The `try...catch` block was catching exceptions during message processing. Instead of releasing the associated objects from the heap, the exception handler simply swallowed the error and continued to hold onto the message object.  Because this listener never exited, it kept accumulating new message objects, leading to a relentless increase in memory usage.
     · ─────────────────────┬─────────────────────
-    ·                      ╰── Dms tell: dms.machine
+    ·                      ╰── machine-favored phrasing peaks at 'revealed itself: The'
  30 │ 
     ╰────
 
 dms.machine
 
-  ⚠ Dms tell: dms.machine
+  ⚠ machine-favored phrasing peaks at 'in memory usage.'
     ╭─[corpus/llm/blog/19f12335d308d0e0.md:29:59]
  28 │ 
  29 │ Here's where the ghost revealed itself: The `try...catch` block was catching exceptions during message processing. Instead of releasing the associated objects from the heap, the exception handler simply swallowed the error and continued to hold onto the message object.  Because this listener never exited, it kept accumulating new message objects, leading to a relentless increase in memory usage.
     ·                                                           ──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────┬─────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
-    ·                                                                                                                                                                                                                                     ╰── Dms tell: dms.machine
+    ·                                                                                                                                                                                                                                     ╰── machine-favored phrasing peaks at 'in memory usage.'
  30 │ 
     ╰────
 
@@ -276,67 +276,67 @@ span.simply
 
 dms.machine
 
-  ⚠ Dms tell: dms.machine
+  ⚠ machine-favored phrasing peaks at 'A Robust Cleanup Mechanism'
     ╭─[corpus/llm/blog/19f12335d308d0e0.md:31:3]
  30 │ 
  31 │ **The Fix: A Robust Cleanup Mechanism**
     ·   ─────────────────┬─────────────────
-    ·                    ╰── Dms tell: dms.machine
+    ·                    ╰── machine-favored phrasing peaks at 'A Robust Cleanup Mechanism'
  32 │ 
     ╰────
 
 dms.machine
 
-  ⚠ Dms tell: dms.machine
+  ⚠ machine-favored phrasing peaks at 'This involved explicitly calling'
     ╭─[corpus/llm/blog/19f12335d308d0e0.md:33:1]
  32 │ 
  33 │ The solution was surprisingly simple – yet incredibly common. We implemented a robust cleanup mechanism within the event listener that ensured all associated objects were released from the heap after each processed message. This involved explicitly calling `delete` on the message object and potentially triggering garbage collection to help clear out unused memory. 
     · ────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────┬───────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
-    ·                                                                                                                                 ╰── Dms tell: dms.machine
+    ·                                                                                                                                 ╰── machine-favored phrasing peaks at 'This involved explicitly calling'
  34 │ 
     ╰────
 
 dms.machine
 
-  ⚠ Dms tell: dms.machine
+  ⚠ machine-favored phrasing peaks at 'out unused memory.'
     ╭─[corpus/llm/blog/19f12335d308d0e0.md:33:269]
  32 │ 
  33 │ The solution was surprisingly simple – yet incredibly common. We implemented a robust cleanup mechanism within the event listener that ensured all associated objects were released from the heap after each processed message. This involved explicitly calling `delete` on the message object and potentially triggering garbage collection to help clear out unused memory. 
     ·                                                                                                                                                                                                                                                                           ──────────────────────────────────────────────────┬─────────────────────────────────────────────────
-    ·                                                                                                                                                                                                                                                                                                                             ╰── Dms tell: dms.machine
+    ·                                                                                                                                                                                                                                                                                                                             ╰── machine-favored phrasing peaks at 'out unused memory.'
  34 │ 
     ╰────
 
 dms.machine
 
-  ⚠ Dms tell: dms.machine
+  ⚠ machine-favored phrasing peaks at 'its normal baseline.'
     ╭─[corpus/llm/blog/19f12335d308d0e0.md:35:1]
  34 │ 
  35 │ We also added logging around the cleanup process, allowing us to verify that it was functioning correctly.  After deploying this change, we monitored the worker's memory usage closely. The increase vanished, and the memory consumption returned to its normal baseline.
     · ─────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────┬─────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
-    ·                                                                                                                                      ╰── Dms tell: dms.machine
+    ·                                                                                                                                      ╰── machine-favored phrasing peaks at 'its normal baseline.'
  36 │ 
     ╰────
 
 dms.machine
 
-  ⚠ Dms tell: dms.machine
+  ⚠ machine-favored phrasing peaks at 'issues in production:'
     ╭─[corpus/llm/blog/19f12335d308d0e0.md:39:1]
  38 │ 
  39 │ This experience reinforced several crucial lessons about debugging performance issues in production:
     · ──────────────────────────────────────────────────┬─────────────────────────────────────────────────
-    ·                                                   ╰── Dms tell: dms.machine
+    ·                                                   ╰── machine-favored phrasing peaks at 'issues in production:'
  40 │ 
     ╰────
 
 dms.machine
 
-  ⚠ Dms tell: dms.machine
+  ⚠ machine-favored phrasing peaks at 'a major outage.'
     ╭─[corpus/llm/blog/19f12335d308d0e0.md:41:5]
  40 │ 
  41 │ * **Don’t Ignore Initial Alerts:** Even seemingly minor increases in resource utilization should be investigated promptly.  Early detection can prevent a small problem from escalating into a major outage.
     ·     ────────────────────────────────────────────────────────────────────────────────────────────────────┬───────────────────────────────────────────────────────────────────────────────────────────────────
-    ·                                                                                                         ╰── Dms tell: dms.machine
+    ·                                                                                                         ╰── machine-favored phrasing peaks at 'a major outage.'
  42 │ * **Leverage Monitoring Tools Effectively:** Heap snapshots, memory profiling tools, and detailed metrics are invaluable for pinpointing the source of performance issues. Don't rely solely on logs – they often lack the granularity needed to diagnose complex problems.
     ╰────
 
@@ -353,54 +353,54 @@ sub.leverage_base
 
 dms.machine
 
-  ⚠ Dms tell: dms.machine
+  ⚠ machine-favored phrasing peaks at 'diagnose complex problems.'
     ╭─[corpus/llm/blog/19f12335d308d0e0.md:42:5]
  41 │ * **Don’t Ignore Initial Alerts:** Even seemingly minor increases in resource utilization should be investigated promptly.  Early detection can prevent a small problem from escalating into a major outage.
  42 │ * **Leverage Monitoring Tools Effectively:** Heap snapshots, memory profiling tools, and detailed metrics are invaluable for pinpointing the source of performance issues. Don't rely solely on logs – they often lack the granularity needed to diagnose complex problems.
     ·     ───────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────┬───────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
-    ·                                                                                                                                        ╰── Dms tell: dms.machine
+    ·                                                                                                                                        ╰── machine-favored phrasing peaks at 'diagnose complex problems.'
  43 │ * **Event Listener Management is Critical:** Event listeners can be a significant source of memory leaks if not properly managed. Always ensure that listeners are cleaned up after use, especially in long-running processes.  Consider using techniques like `clearInterval`, `clearTimeout`, and proper resource cleanup within your event handlers.
     ╰────
 
 dms.machine
 
-  ⚠ Dms tell: dms.machine
+  ⚠ machine-favored phrasing peaks at 'Consider using techniques like'
     ╭─[corpus/llm/blog/19f12335d308d0e0.md:43:5]
  42 │ * **Leverage Monitoring Tools Effectively:** Heap snapshots, memory profiling tools, and detailed metrics are invaluable for pinpointing the source of performance issues. Don't rely solely on logs – they often lack the granularity needed to diagnose complex problems.
  43 │ * **Event Listener Management is Critical:** Event listeners can be a significant source of memory leaks if not properly managed. Always ensure that listeners are cleaned up after use, especially in long-running processes.  Consider using techniques like `clearInterval`, `clearTimeout`, and proper resource cleanup within your event handlers.
     ·     ─────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────┬────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
-    ·                                                                                                                                  ╰── Dms tell: dms.machine
+    ·                                                                                                                                  ╰── machine-favored phrasing peaks at 'Consider using techniques like'
  44 │ * **Test Your Cleanup Logic:** Thoroughly test your cleanup mechanisms to ensure they function correctly under various scenarios – including error conditions.
     ╰────
 
 dms.machine
 
-  ⚠ Dms tell: dms.machine
+  ⚠ machine-favored phrasing peaks at 'your event handlers.'
     ╭─[corpus/llm/blog/19f12335d308d0e0.md:43:287]
  42 │ * **Leverage Monitoring Tools Effectively:** Heap snapshots, memory profiling tools, and detailed metrics are invaluable for pinpointing the source of performance issues. Don't rely solely on logs – they often lack the granularity needed to diagnose complex problems.
  43 │ * **Event Listener Management is Critical:** Event listeners can be a significant source of memory leaks if not properly managed. Always ensure that listeners are cleaned up after use, especially in long-running processes.  Consider using techniques like `clearInterval`, `clearTimeout`, and proper resource cleanup within your event handlers.
     ·                                                                                                                                                                                                                                                                                               ────────────────────────────┬────────────────────────────
-    ·                                                                                                                                                                                                                                                                                                                           ╰── Dms tell: dms.machine
+    ·                                                                                                                                                                                                                                                                                                                           ╰── machine-favored phrasing peaks at 'your event handlers.'
  44 │ * **Test Your Cleanup Logic:** Thoroughly test your cleanup mechanisms to ensure they function correctly under various scenarios – including error conditions.
     ╰────
 
 dms.machine
 
-  ⚠ Dms tell: dms.machine
+  ⚠ machine-favored phrasing peaks at 'including error conditions.'
     ╭─[corpus/llm/blog/19f12335d308d0e0.md:44:5]
  43 │ * **Event Listener Management is Critical:** Event listeners can be a significant source of memory leaks if not properly managed. Always ensure that listeners are cleaned up after use, especially in long-running processes.  Consider using techniques like `clearInterval`, `clearTimeout`, and proper resource cleanup within your event handlers.
  44 │ * **Test Your Cleanup Logic:** Thoroughly test your cleanup mechanisms to ensure they function correctly under various scenarios – including error conditions.
     ·     ─────────────────────────────────────────────────────────────────────────────┬────────────────────────────────────────────────────────────────────────────
-    ·                                                                                  ╰── Dms tell: dms.machine
+    ·                                                                                  ╰── machine-favored phrasing peaks at 'including error conditions.'
  45 │ 
     ╰────
 
 dms.machine
 
-  ⚠ Dms tell: dms.machine
+  ⚠ machine-favored phrasing peaks at 'major production outage.'
     ╭─[corpus/llm/blog/19f12335d308d0e0.md:46:1]
  45 │ 
  46 │ Ultimately, tracking down this memory leak was a testament to the power of systematic investigation, combined with a deep understanding of our application’s architecture and potential pitfalls. It served as a stark reminder that even seemingly well-designed code can harbor unexpected ghosts if not carefully monitored and managed.  And it's a story we now use internally to emphasize the importance of robust event listener management – a lesson that saved us significant time, resources, and potentially, a major production outage.
     · ──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────┬──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
-    ·                                                                                                                                                                                                                                                                           ╰── Dms tell: dms.machine
+    ·                                                                                                                                                                                                                                                                           ╰── machine-favored phrasing peaks at 'major production outage.'
     ╰────

@@ -8,7 +8,7 @@ Ledgerline, our hypothetical Python ORM library, is built with performance as a 
 
 **Core Philosophy: Layered Caching**
 
-Ledgerline employs a layered approach to caching, recognizing that different types of data benefit from distinct caching strategies. The primary layers are:
+Ledgerline employs a layered approach to caching. That recognizes that different types of data benefit from distinct caching strategies. The primary layers are:
 
 1. **Query Result Cache:** This is Ledgerline’s most prominent caching mechanism, focused on storing the results of frequently executed SQL queries.
 2. **Object-Level Cache (Optional):**  For objects with complex relationships or those accessed repeatedly within a single request, an object-level cache can be enabled to store individual model instances.

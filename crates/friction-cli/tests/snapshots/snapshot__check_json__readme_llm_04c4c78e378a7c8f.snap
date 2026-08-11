@@ -9,147 +9,168 @@ expression: stdout
       "value": 9.125,
       "lo": 3.4918032786885247,
       "hi": 22.612244897959183,
-      "in_envelope": true
+      "in_envelope": true,
+      "weak_signal": false
     },
     {
       "name": "sentence_length_stddev",
       "value": 5.8957081847730555,
       "lo": 3.4227587963188086,
       "hi": 13.411800359716398,
-      "in_envelope": true
+      "in_envelope": true,
+      "weak_signal": false
     },
     {
       "name": "sentence_length_cv",
       "value": 0.6461050065504719,
       "lo": 0.49754649007902846,
       "hi": 1.3591689344136941,
-      "in_envelope": true
+      "in_envelope": true,
+      "weak_signal": false
     },
     {
       "name": "discourse_marker_density",
       "value": 0.0,
       "lo": 0.0,
       "hi": 4.237288135593221,
-      "in_envelope": true
+      "in_envelope": true,
+      "weak_signal": false
     },
     {
       "name": "triad_rate",
       "value": 0.1,
       "lo": 0.0,
       "hi": 0.08695652173913043,
-      "in_envelope": false
+      "in_envelope": false,
+      "weak_signal": false
     },
     {
       "name": "contraction_ratio",
       "value": 0.0,
       "lo": 0.0,
       "hi": 1.0,
-      "in_envelope": true
+      "in_envelope": true,
+      "weak_signal": false
     },
     {
       "name": "bullet_parallelism",
       "value": 0.7053571428571428,
       "lo": 0.0,
       "hi": 1.0,
-      "in_envelope": true
+      "in_envelope": true,
+      "weak_signal": true
     },
     {
       "name": "paragraph_shape_mean",
       "value": 1.1764705882352942,
       "lo": 1.0357142857142858,
       "hi": 3.5384615384615383,
-      "in_envelope": true
+      "in_envelope": true,
+      "weak_signal": false
     },
     {
       "name": "paragraph_shape_cv",
       "value": 0.3840572873934304,
       "lo": 0.179177669748504,
       "hi": 0.7953949089757174,
-      "in_envelope": true
+      "in_envelope": true,
+      "weak_signal": false
     },
     {
       "name": "em_dash_density",
       "value": 0.0,
       "lo": 0.0,
       "hi": 4.244482173174872,
-      "in_envelope": true
+      "in_envelope": true,
+      "weak_signal": true
     },
     {
       "name": "semicolon_density",
       "value": 0.0,
       "lo": 0.0,
       "hi": 3.9682539682539684,
-      "in_envelope": true
+      "in_envelope": true,
+      "weak_signal": false
     },
     {
       "name": "participial_closer_rate",
       "value": 0.05,
       "lo": 0.0,
       "hi": 0.03125,
-      "in_envelope": false
+      "in_envelope": false,
+      "weak_signal": false
     },
     {
       "name": "not_just_but_rate",
       "value": 0.0,
       "lo": 0.0,
       "hi": 0.009259259259259259,
-      "in_envelope": true
+      "in_envelope": true,
+      "weak_signal": true
     },
     {
       "name": "ritual_marker_rate",
       "value": 0.0,
       "lo": 0.0,
       "hi": 0.0,
-      "in_envelope": true
+      "in_envelope": true,
+      "weak_signal": false
     },
     {
       "name": "llm_favored_phrase_rate",
       "value": 58.047493403693935,
       "lo": 0.0,
       "hi": 21.634615384615383,
-      "in_envelope": false
+      "in_envelope": false,
+      "weak_signal": false
     },
     {
       "name": "human_favored_phrase_rate",
       "value": 0.0,
       "lo": 8.59106529209622,
       "hi": 48.821548821548824,
-      "in_envelope": false
+      "in_envelope": false,
+      "weak_signal": false
     },
     {
       "name": "heading_density",
       "value": 2.638522427440633,
       "lo": 0.0,
       "hi": 43.04635761589404,
-      "in_envelope": true
+      "in_envelope": true,
+      "weak_signal": false
     },
     {
       "name": "list_item_density",
       "value": 42.21635883905013,
       "lo": 0.0,
       "hi": 98.26589595375722,
-      "in_envelope": true
+      "in_envelope": true,
+      "weak_signal": false
     },
     {
       "name": "bold_span_density",
       "value": 58.047493403693935,
       "lo": 0.0,
       "hi": 14.705882352941176,
-      "in_envelope": false
+      "in_envelope": false,
+      "weak_signal": false
     },
     {
       "name": "sentence_opener_repeat_rate",
       "value": 0.02564102564102564,
       "lo": 0.0,
       "hi": 0.13793103448275862,
-      "in_envelope": true
+      "in_envelope": true,
+      "weak_signal": false
     },
     {
       "name": "top_opener_concentration",
       "value": 0.05128205128205128,
       "lo": 0.04424778761061947,
       "hi": 0.2153846153846154,
-      "in_envelope": true
+      "in_envelope": true,
+      "weak_signal": false
     }
   ],
   "spans": [
@@ -160,7 +181,8 @@ expression: stdout
       "end": 312,
       "line": 3,
       "column": 3,
-      "score": 1039
+      "score": 1039,
+      "message": "machine-favored phrasing peaks at 'through your archive.'"
     },
     {
       "channel": "dms",
@@ -169,7 +191,8 @@ expression: stdout
       "end": 337,
       "line": 5,
       "column": 3,
-      "score": 6
+      "score": 6,
+      "message": "machine-favored phrasing peaks at 'Why Choose Feedwell?'"
     },
     {
       "channel": "dms",
@@ -178,7 +201,8 @@ expression: stdout
       "end": 445,
       "line": 7,
       "column": 5,
-      "score": 125
+      "score": 125,
+      "message": "machine-favored phrasing peaks at 'your own server.'"
     },
     {
       "channel": "dms",
@@ -187,7 +211,8 @@ expression: stdout
       "end": 585,
       "line": 8,
       "column": 5,
-      "score": 215
+      "score": 215,
+      "message": "machine-favored phrasing peaks at 'text search capabilities.'"
     },
     {
       "channel": "dms",
@@ -196,7 +221,8 @@ expression: stdout
       "end": 694,
       "line": 9,
       "column": 5,
-      "score": 119
+      "score": 119,
+      "message": "machine-favored phrasing peaks at 'over your infrastructure.'"
     },
     {
       "channel": "dms",
@@ -205,7 +231,8 @@ expression: stdout
       "end": 779,
       "line": 10,
       "column": 5,
-      "score": 59
+      "score": 59,
+      "message": "machine-favored phrasing peaks at 'without unnecessary bloat.'"
     },
     {
       "channel": "dms",
@@ -214,7 +241,8 @@ expression: stdout
       "end": 893,
       "line": 14,
       "column": 5,
-      "score": 85
+      "score": 85,
+      "message": "machine-favored phrasing peaks at 'navigation and management.'"
     },
     {
       "channel": "dms",
@@ -223,7 +251,8 @@ expression: stdout
       "end": 1008,
       "line": 15,
       "column": 5,
-      "score": 174
+      "score": 174,
+      "message": "machine-favored phrasing peaks at 'identify new content.'"
     },
     {
       "channel": "dms",
@@ -232,7 +261,8 @@ expression: stdout
       "end": 1120,
       "line": 16,
       "column": 5,
-      "score": 114
+      "score": 114,
+      "message": "machine-favored phrasing peaks at 'specific information instantly.'"
     },
     {
       "channel": "dms",
@@ -241,7 +271,8 @@ expression: stdout
       "end": 1242,
       "line": 17,
       "column": 5,
-      "score": 147
+      "score": 147,
+      "message": "machine-favored phrasing peaks at 'migration between platforms.'"
     },
     {
       "channel": "dms",
@@ -250,7 +281,8 @@ expression: stdout
       "end": 1379,
       "line": 21,
       "column": 6,
-      "score": 93
+      "score": 93,
+      "message": "machine-favored phrasing peaks at 'manage project dependencies.'"
     },
     {
       "channel": "dms",
@@ -259,7 +291,8 @@ expression: stdout
       "end": 1510,
       "line": 28,
       "column": 6,
-      "score": 16
+      "score": 16,
+      "message": "machine-favored phrasing peaks at 'the required packages:'"
     },
     {
       "channel": "dms",
@@ -268,7 +301,8 @@ expression: stdout
       "end": 1690,
       "line": 34,
       "column": 6,
-      "score": 143
+      "score": 143,
+      "message": "machine-favored phrasing peaks at 'alternative. Update the'"
     },
     {
       "channel": "dms",
@@ -277,7 +311,8 @@ expression: stdout
       "end": 1755,
       "line": 34,
       "column": 140,
-      "score": 20
+      "score": 20,
+      "message": "machine-favored phrasing peaks at 'preferred database backend.'"
     },
     {
       "channel": "dms",
@@ -286,7 +321,8 @@ expression: stdout
       "end": 1818,
       "line": 36,
       "column": 6,
-      "score": 27
+      "score": 27,
+      "message": "machine-favored phrasing peaks at 'necessary database tables:'"
     },
     {
       "channel": "dms",
@@ -295,7 +331,8 @@ expression: stdout
       "end": 1980,
       "line": 42,
       "column": 6,
-      "score": 136
+      "score": 136,
+      "message": "machine-favored phrasing peaks at 'complete initial setup:'"
     },
     {
       "channel": "dms",
@@ -304,7 +341,8 @@ expression: stdout
       "end": 2135,
       "line": 48,
       "column": 4,
-      "score": 151
+      "score": 151,
+      "message": "machine-favored phrasing peaks at 'your admin account.'"
     },
     {
       "channel": "dms",
@@ -313,7 +351,8 @@ expression: stdout
       "end": 2292,
       "line": 52,
       "column": 6,
-      "score": 231
+      "score": 231,
+      "message": "machine-favored phrasing peaks at 'that it points to'"
     },
     {
       "channel": "dms",
@@ -322,7 +361,8 @@ expression: stdout
       "end": 2364,
       "line": 54,
       "column": 6,
-      "score": 12
+      "score": 12,
+      "message": "machine-favored phrasing peaks at 'for Feed Polling:'"
     },
     {
       "channel": "dms",
@@ -331,7 +371,8 @@ expression: stdout
       "end": 2412,
       "line": 56,
       "column": 4,
-      "score": 18
+      "score": 18,
+      "message": "machine-favored phrasing peaks at 'updates using cron:'"
     },
     {
       "channel": "dms",
@@ -340,7 +381,8 @@ expression: stdout
       "end": 2643,
       "line": 64,
       "column": 1,
-      "score": 80
+      "score": 80,
+      "message": "machine-favored phrasing peaks at 'browser and navigate to'"
     },
     {
       "channel": "dms",
@@ -349,7 +391,8 @@ expression: stdout
       "end": 2732,
       "line": 64,
       "column": 107,
-      "score": 49
+      "score": 49,
+      "message": "machine-favored phrasing peaks at 'Feedwell login page.'"
     },
     {
       "channel": "dms",
@@ -358,7 +401,8 @@ expression: stdout
       "end": 2945,
       "line": 69,
       "column": 1,
-      "score": 577
+      "score": 577,
+      "message": "machine-favored phrasing peaks at 'to get involved.'"
     },
     {
       "channel": "dms",
@@ -367,7 +411,8 @@ expression: stdout
       "end": 3066,
       "line": 73,
       "column": 1,
-      "score": 173
+      "score": 173,
+      "message": "machine-favored phrasing peaks at 'tracker on GitHub:'"
     },
     {
       "channel": "dms",
@@ -376,7 +421,8 @@ expression: stdout
       "end": 3116,
       "line": 73,
       "column": 108,
-      "score": 27
+      "score": 27,
+      "message": "machine-favored phrasing peaks at 'your-username/feedwell/issues'"
     },
     {
       "channel": "dms",
@@ -385,7 +431,8 @@ expression: stdout
       "end": 3203,
       "line": 76,
       "column": 1,
-      "score": 19
+      "score": 19,
+      "message": "machine-favored phrasing peaks at 'enjoy using Feedwell!'"
     }
   ],
   "tell_counts": {

@@ -9,13 +9,13 @@ sentence_length_cv            0.6461  [0.4975, 1.3592]   in
 discourse_marker_density      0.0000  [0.0000, 4.2373]   in    
 triad_rate                    0.1000  [0.0000, 0.0870]   OUT   
 contraction_ratio             0.0000  [0.0000, 1.0000]   in    
-bullet_parallelism            0.7054  [0.0000, 1.0000]   in    
+bullet_parallelism            0.7054  [0.0000, 1.0000]   weak  
 paragraph_shape_mean          1.1765  [1.0357, 3.5385]   in    
 paragraph_shape_cv            0.3841  [0.1792, 0.7954]   in    
-em_dash_density               0.0000  [0.0000, 4.2445]   in    
+em_dash_density               0.0000  [0.0000, 4.2445]   weak  
 semicolon_density             0.0000  [0.0000, 3.9683]   in    
 participial_closer_rate       0.0500  [0.0000, 0.0312]   OUT   
-not_just_but_rate             0.0000  [0.0000, 0.0093]   in    
+not_just_but_rate             0.0000  [0.0000, 0.0093]   weak  
 ritual_marker_rate            0.0000  [0.0000, 0.0000]   in    
 llm_favored_phrase_rate      58.0475  [0.0000, 21.6346]  OUT   
 human_favored_phrase_rate     0.0000  [8.5911, 48.8215]  OUT   
@@ -31,285 +31,285 @@ tell counts (26 span(s) total):
   dms: 26
 dms.machine
 
-  ⚠ Dms tell: dms.machine
+  ⚠ machine-favored phrasing peaks at 'through your archive.'
    ╭─[corpus/llm/readme/04c4c78e378a7c8f.md:3:3]
  2 │ 
  3 │ **Feedwell** is a self-hosted RSS and Atom feed reader built with performance and simplicity in mind. It boasts a clean, lightweight web UI allowing you to manage your favorite feeds, keep track of unread articles, and easily search through your archive. 
    ·   ──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────┬─────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
-   ·                                                                                                                                 ╰── Dms tell: dms.machine
+   ·                                                                                                                                 ╰── machine-favored phrasing peaks at 'through your archive.'
  4 │ 
    ╰────
 
 dms.machine
 
-  ⚠ Dms tell: dms.machine
+  ⚠ machine-favored phrasing peaks at 'Why Choose Feedwell?'
    ╭─[corpus/llm/readme/04c4c78e378a7c8f.md:5:3]
  4 │ 
  5 │ **Why Choose Feedwell?**
    ·   ──────────┬─────────
-   ·             ╰── Dms tell: dms.machine
+   ·             ╰── machine-favored phrasing peaks at 'Why Choose Feedwell?'
  6 │ 
    ╰────
 
 dms.machine
 
-  ⚠ Dms tell: dms.machine
+  ⚠ machine-favored phrasing peaks at 'your own server.'
    ╭─[corpus/llm/readme/04c4c78e378a7c8f.md:7:5]
  6 │ 
  7 │ * **Privacy:** Keep your reading history and preferences private by running Feedwell on your own server.
    ·     ──────────────────────────────────────────────────┬─────────────────────────────────────────────────
-   ·                                                       ╰── Dms tell: dms.machine
+   ·                                                       ╰── machine-favored phrasing peaks at 'your own server.'
  8 │ * **Customization:** Tailor the experience to your needs with folder organization, read/unread tracking, and full-text search capabilities.
    ╰────
 
 dms.machine
 
-  ⚠ Dms tell: dms.machine
+  ⚠ machine-favored phrasing peaks at 'text search capabilities.'
    ╭─[corpus/llm/readme/04c4c78e378a7c8f.md:8:5]
  7 │ * **Privacy:** Keep your reading history and preferences private by running Feedwell on your own server.
  8 │ * **Customization:** Tailor the experience to your needs with folder organization, read/unread tracking, and full-text search capabilities.
    ·     ───────────────────────────────────────────────────────────────────┬───────────────────────────────────────────────────────────────────
-   ·                                                                        ╰── Dms tell: dms.machine
+   ·                                                                        ╰── machine-favored phrasing peaks at 'text search capabilities.'
  9 │ * **Flexibility:** Deploy behind any WSGI-compliant web server, giving you control over your infrastructure.
    ╰────
 
 dms.machine
 
-  ⚠ Dms tell: dms.machine
+  ⚠ machine-favored phrasing peaks at 'over your infrastructure.'
     ╭─[corpus/llm/readme/04c4c78e378a7c8f.md:9:5]
   8 │ * **Customization:** Tailor the experience to your needs with folder organization, read/unread tracking, and full-text search capabilities.
   9 │ * **Flexibility:** Deploy behind any WSGI-compliant web server, giving you control over your infrastructure.
     ·     ────────────────────────────────────────────────────┬───────────────────────────────────────────────────
-    ·                                                         ╰── Dms tell: dms.machine
+    ·                                                         ╰── machine-favored phrasing peaks at 'over your infrastructure.'
  10 │ * **Lightweight:**  Enjoy a fast and responsive interface without unnecessary bloat.
     ╰────
 
 dms.machine
 
-  ⚠ Dms tell: dms.machine
+  ⚠ machine-favored phrasing peaks at 'without unnecessary bloat.'
     ╭─[corpus/llm/readme/04c4c78e378a7c8f.md:10:5]
   9 │ * **Flexibility:** Deploy behind any WSGI-compliant web server, giving you control over your infrastructure.
  10 │ * **Lightweight:**  Enjoy a fast and responsive interface without unnecessary bloat.
     ·     ────────────────────────────────────────┬───────────────────────────────────────
-    ·                                             ╰── Dms tell: dms.machine
+    ·                                             ╰── machine-favored phrasing peaks at 'without unnecessary bloat.'
  11 │ 
     ╰────
 
 dms.machine
 
-  ⚠ Dms tell: dms.machine
+  ⚠ machine-favored phrasing peaks at 'navigation and management.'
     ╭─[corpus/llm/readme/04c4c78e378a7c8f.md:14:5]
  13 │ 
  14 │ * **Folder Organization:** Categorize your feeds into folders for easy navigation and management.
     ·     ──────────────────────────────────────────────┬──────────────────────────────────────────────
-    ·                                                   ╰── Dms tell: dms.machine
+    ·                                                   ╰── machine-favored phrasing peaks at 'navigation and management.'
  15 │ * **Read/Unread Tracking:** Mark articles as read to keep track of your progress and quickly identify new content.
     ╰────
 
 dms.machine
 
-  ⚠ Dms tell: dms.machine
+  ⚠ machine-favored phrasing peaks at 'identify new content.'
     ╭─[corpus/llm/readme/04c4c78e378a7c8f.md:15:5]
  14 │ * **Folder Organization:** Categorize your feeds into folders for easy navigation and management.
  15 │ * **Read/Unread Tracking:** Mark articles as read to keep track of your progress and quickly identify new content.
     ·     ───────────────────────────────────────────────────────┬──────────────────────────────────────────────────────
-    ·                                                            ╰── Dms tell: dms.machine
+    ·                                                            ╰── machine-favored phrasing peaks at 'identify new content.'
  16 │ * **Full-Text Search:**  Search through cached articles using keywords, finding specific information instantly.
     ╰────
 
 dms.machine
 
-  ⚠ Dms tell: dms.machine
+  ⚠ machine-favored phrasing peaks at 'specific information instantly.'
     ╭─[corpus/llm/readme/04c4c78e378a7c8f.md:16:5]
  15 │ * **Read/Unread Tracking:** Mark articles as read to keep track of your progress and quickly identify new content.
  16 │ * **Full-Text Search:**  Search through cached articles using keywords, finding specific information instantly.
     ·     ─────────────────────────────────────────────────────┬─────────────────────────────────────────────────────
-    ·                                                          ╰── Dms tell: dms.machine
+    ·                                                          ╰── machine-favored phrasing peaks at 'specific information instantly.'
  17 │ * **OPML Import/Export:** Seamlessly import and export your OPML feed subscriptions for easy migration between platforms.
     ╰────
 
 dms.machine
 
-  ⚠ Dms tell: dms.machine
+  ⚠ machine-favored phrasing peaks at 'migration between platforms.'
     ╭─[corpus/llm/readme/04c4c78e378a7c8f.md:17:5]
  16 │ * **Full-Text Search:**  Search through cached articles using keywords, finding specific information instantly.
  17 │ * **OPML Import/Export:** Seamlessly import and export your OPML feed subscriptions for easy migration between platforms.
     ·     ──────────────────────────────────────────────────────────┬──────────────────────────────────────────────────────────
-    ·                                                               ╰── Dms tell: dms.machine
+    ·                                                               ╰── machine-favored phrasing peaks at 'migration between platforms.'
  18 │ 
     ╰────
 
 dms.machine
 
-  ⚠ Dms tell: dms.machine
+  ⚠ machine-favored phrasing peaks at 'manage project dependencies.'
     ╭─[corpus/llm/readme/04c4c78e378a7c8f.md:21:6]
  20 │ 
  21 │ 1. **Create a Virtual Environment:** We recommend using virtual environments to manage project dependencies. 
     ·      ───────────────────────────────────────────────────┬───────────────────────────────────────────────────
-    ·                                                         ╰── Dms tell: dms.machine
+    ·                                                         ╰── machine-favored phrasing peaks at 'manage project dependencies.'
  22 │ 
     ╰────
 
 dms.machine
 
-  ⚠ Dms tell: dms.machine
+  ⚠ machine-favored phrasing peaks at 'the required packages:'
     ╭─[corpus/llm/readme/04c4c78e378a7c8f.md:28:6]
  27 │ 
  28 │ 2. **Install Dependencies:** Install the required packages:
     ·      ───────────────────────────┬──────────────────────────
-    ·                                 ╰── Dms tell: dms.machine
+    ·                                 ╰── machine-favored phrasing peaks at 'the required packages:'
  29 │ 
     ╰────
 
 dms.machine
 
-  ⚠ Dms tell: dms.machine
+  ⚠ machine-favored phrasing peaks at 'alternative. Update the'
     ╭─[corpus/llm/readme/04c4c78e378a7c8f.md:34:6]
  33 │ 
  34 │ 3. **Database Configuration:** Feedwell supports SQLite as its default database and PostgreSQL as an alternative. Update the `settings.py` file to configure your preferred database backend. 
     ·      ───────────────────────────────────────────────────────────┬───────────────────────────────────────────────────────────
-    ·                                                                 ╰── Dms tell: dms.machine
+    ·                                                                 ╰── machine-favored phrasing peaks at 'alternative. Update the'
  35 │ 
     ╰────
 
 dms.machine
 
-  ⚠ Dms tell: dms.machine
+  ⚠ machine-favored phrasing peaks at 'preferred database backend.'
     ╭─[corpus/llm/readme/04c4c78e378a7c8f.md:34:140]
  33 │ 
  34 │ 3. **Database Configuration:** Feedwell supports SQLite as its default database and PostgreSQL as an alternative. Update the `settings.py` file to configure your preferred database backend. 
     ·                                                                                                                                            ─────────────────────────┬────────────────────────
-    ·                                                                                                                                                                     ╰── Dms tell: dms.machine
+    ·                                                                                                                                                                     ╰── machine-favored phrasing peaks at 'preferred database backend.'
  35 │ 
     ╰────
 
 dms.machine
 
-  ⚠ Dms tell: dms.machine
+  ⚠ machine-favored phrasing peaks at 'necessary database tables:'
     ╭─[corpus/llm/readme/04c4c78e378a7c8f.md:36:6]
  35 │ 
  36 │ 4. **Run Migrations:** Create the necessary database tables:
     ·      ───────────────────────────┬───────────────────────────
-    ·                                 ╰── Dms tell: dms.machine
+    ·                                 ╰── machine-favored phrasing peaks at 'necessary database tables:'
  37 │ 
     ╰────
 
 dms.machine
 
-  ⚠ Dms tell: dms.machine
+  ⚠ machine-favored phrasing peaks at 'complete initial setup:'
     ╭─[corpus/llm/readme/04c4c78e378a7c8f.md:42:6]
  41 │ 
  42 │ 5. **First-Time Setup:** Run the following command to create an administrator account and complete initial setup:
     ·      ──────────────────────────────────────────────────────┬─────────────────────────────────────────────────────
-    ·                                                            ╰── Dms tell: dms.machine
+    ·                                                            ╰── machine-favored phrasing peaks at 'complete initial setup:'
  43 │ 
     ╰────
 
 dms.machine
 
-  ⚠ Dms tell: dms.machine
+  ⚠ machine-favored phrasing peaks at 'your admin account.'
     ╭─[corpus/llm/readme/04c4c78e378a7c8f.md:48:4]
  47 │ 
  48 │    You will be prompted to enter a username, password, and email address for your admin account.
     ·    ──────────────────────────────────────────────┬──────────────────────────────────────────────
-    ·                                                  ╰── Dms tell: dms.machine
+    ·                                                  ╰── machine-favored phrasing peaks at 'your admin account.'
  49 │ 
     ╰────
 
 dms.machine
 
-  ⚠ Dms tell: dms.machine
+  ⚠ machine-favored phrasing peaks at 'that it points to'
     ╭─[corpus/llm/readme/04c4c78e378a7c8f.md:52:6]
  51 │ 
  52 │    * Configure your chosen WSGI server (e.g., Gunicorn, uWSGI) according to its documentation. Ensure that it points to `feedwell/wsgi.py` as the entry point.
     ·      ─────────────────────────────────────────────────────────┬────────────────────────────────────────────────────────
-    ·                                                               ╰── Dms tell: dms.machine
+    ·                                                               ╰── machine-favored phrasing peaks at 'that it points to'
  53 │ 
     ╰────
 
 dms.machine
 
-  ⚠ Dms tell: dms.machine
+  ⚠ machine-favored phrasing peaks at 'for Feed Polling:'
     ╭─[corpus/llm/readme/04c4c78e378a7c8f.md:54:6]
  53 │ 
  54 │ 7. **Cron Job for Feed Polling:**
     ·      ─────────────┬────────────
-    ·                   ╰── Dms tell: dms.machine
+    ·                   ╰── machine-favored phrasing peaks at 'for Feed Polling:'
  55 │ 
     ╰────
 
 dms.machine
 
-  ⚠ Dms tell: dms.machine
+  ⚠ machine-favored phrasing peaks at 'updates using cron:'
     ╭─[corpus/llm/readme/04c4c78e378a7c8f.md:56:4]
  55 │ 
  56 │    Schedule regular feed updates using cron:
     ·    ────────────────────┬────────────────────
-    ·                        ╰── Dms tell: dms.machine
+    ·                        ╰── machine-favored phrasing peaks at 'updates using cron:'
  57 │ 
     ╰────
 
 dms.machine
 
-  ⚠ Dms tell: dms.machine
+  ⚠ machine-favored phrasing peaks at 'browser and navigate to'
     ╭─[corpus/llm/readme/04c4c78e378a7c8f.md:64:1]
  63 │ 
  64 │ Once your WSGI server is running, open a web browser and navigate to `http://[your_server_ip]:[your_port]`. You will be greeted with the Feedwell login page.
     · ──────────────────────────────────┬─────────────────────────────────
-    ·                                   ╰── Dms tell: dms.machine
+    ·                                   ╰── machine-favored phrasing peaks at 'browser and navigate to'
  65 │ 
     ╰────
 
 dms.machine
 
-  ⚠ Dms tell: dms.machine
+  ⚠ machine-favored phrasing peaks at 'Feedwell login page.'
     ╭─[corpus/llm/readme/04c4c78e378a7c8f.md:64:107]
  63 │ 
  64 │ Once your WSGI server is running, open a web browser and navigate to `http://[your_server_ip]:[your_port]`. You will be greeted with the Feedwell login page.
     ·                                                                                                           ─────────────────────────┬─────────────────────────
-    ·                                                                                                                                    ╰── Dms tell: dms.machine
+    ·                                                                                                                                    ╰── machine-favored phrasing peaks at 'Feedwell login page.'
  65 │ 
     ╰────
 
 dms.machine
 
-  ⚠ Dms tell: dms.machine
+  ⚠ machine-favored phrasing peaks at 'to get involved.'
     ╭─[corpus/llm/readme/04c4c78e378a7c8f.md:69:1]
  68 │ 
  69 │ Feel free to contribute to Feedwell's development! We welcome bug reports, feature requests, and pull requests. Please refer to the CONTRIBUTING.md file for guidelines on how to get involved.
     · ───────────────────────────────────────────────────────────────────────────────────────────────┬───────────────────────────────────────────────────────────────────────────────────────────────
-    ·                                                                                                ╰── Dms tell: dms.machine
+    ·                                                                                                ╰── machine-favored phrasing peaks at 'to get involved.'
  70 │ 
     ╰────
 
 dms.machine
 
-  ⚠ Dms tell: dms.machine
+  ⚠ machine-favored phrasing peaks at 'tracker on GitHub:'
     ╭─[corpus/llm/readme/04c4c78e378a7c8f.md:73:1]
  72 │ 
  73 │ If you have any questions or need assistance, please reach out to us through the issue tracker on GitHub: [https://github.com/your-username/feedwell/issues](https://github.com/your-username/feedwell/issues)
     · ────────────────────────────────────────────────────┬────────────────────────────────────────────────────
-    ·                                                     ╰── Dms tell: dms.machine
+    ·                                                     ╰── machine-favored phrasing peaks at 'tracker on GitHub:'
  74 │ 
     ╰────
 
 dms.machine
 
-  ⚠ Dms tell: dms.machine
+  ⚠ machine-favored phrasing peaks at 'your-username/feedwell/issues'
     ╭─[corpus/llm/readme/04c4c78e378a7c8f.md:73:108]
  72 │ 
  73 │ If you have any questions or need assistance, please reach out to us through the issue tracker on GitHub: [https://github.com/your-username/feedwell/issues](https://github.com/your-username/feedwell/issues)
     ·                                                                                                            ────────────────────────┬───────────────────────
-    ·                                                                                                                                    ╰── Dms tell: dms.machine
+    ·                                                                                                                                    ╰── machine-favored phrasing peaks at 'your-username/feedwell/issues'
  74 │ 
     ╰────
 
 dms.machine
 
-  ⚠ Dms tell: dms.machine
+  ⚠ machine-favored phrasing peaks at 'enjoy using Feedwell!'
     ╭─[corpus/llm/readme/04c4c78e378a7c8f.md:76:1]
  75 │ 
  76 │ We hope you enjoy using Feedwell!
     · ────────────────┬────────────────
-    ·                 ╰── Dms tell: dms.machine
+    ·                 ╰── machine-favored phrasing peaks at 'enjoy using Feedwell!'
     ╰────

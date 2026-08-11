@@ -6,39 +6,8 @@ pass 1: 3 operation(s) fired
   sub.apply                3652..3663  -> "To"
   sub.apply                4719..4730  -> "To"
   sub.apply                4921..4932  -> "To"
-  17 held:
-    vguard.require         430..438  KEPT (frame vguard.require: measured 1065.2/M machine vs 967.4/M human; report-only)
-    adjg.modern            899..905  KEPT (frame adjg.modern: measured 93.9/M machine vs 89.1/M human; report-only)
-    vguard.require         985..993  KEPT (frame vguard.require: measured 1065.2/M machine vs 967.4/M human; report-only)
-    vguard.configure       997..1006  KEPT (frame vguard.configure: measured 510.6/M machine vs 442.2/M human; report-only)
-    vguard.require         1233..1241  KEPT (frame vguard.require: measured 1065.2/M machine vs 967.4/M human; report-only)
-    vguard.require         1390..1397  KEPT (frame vguard.require: measured 1065.2/M machine vs 967.4/M human; report-only)
-    phg.at-least           1398..1406  KEPT (frame phg.at-least: measured 249.4/M machine vs 145.9/M human; report-only)
-    vguard.configure       1980..1989  KEPT (frame vguard.configure: measured 510.6/M machine vs 442.2/M human; report-only)
-    vguard.configure       2331..2340  KEPT (frame vguard.configure: measured 510.6/M machine vs 442.2/M human; report-only)
-    vguard.configure       2442..2451  KEPT (frame vguard.configure: measured 510.6/M machine vs 442.2/M human; report-only)
-    adjg.basic             3397..3402  KEPT (frame adjg.basic: measured 434.3/M machine vs 231.9/M human; report-only)
-    pilot.in-order         3652..3660  KEPT (frame pilot.in-order: report-only (see the frame-pack compile report))
-    vguard.establish       4488..4499  KEPT (frame vguard.establish: measured 76.3/M machine vs 36.9/M human; report-only)
-    pilot.in-order         4719..4727  KEPT (frame pilot.in-order: report-only (see the frame-pack compile report))
-    pilot.in-order         4921..4929  KEPT (frame pilot.in-order: report-only (see the frame-pack compile report))
-    adjg.basic             5026..5031  KEPT (frame adjg.basic: measured 434.3/M machine vs 231.9/M human; report-only)
-    vguard.configure       6314..6324  KEPT (frame vguard.configure: measured 510.6/M machine vs 442.2/M human; report-only)
+  17 report-only observation(s) (--verbose to list)
 pass 2: 0 operation(s) fired — converged
-  14 held:
-    vguard.require         404..464  KEPT (frame vguard.require: measured 1065.2/M machine vs 967.4/M human; report-only)
-    adjg.modern            818..956  KEPT (frame adjg.modern: measured 93.9/M machine vs 89.1/M human; report-only)
-    vguard.require         958..1024  KEPT (frame vguard.require: measured 1065.2/M machine vs 967.4/M human; report-only)
-    vguard.configure       958..1024  KEPT (frame vguard.configure: measured 510.6/M machine vs 442.2/M human; report-only)
-    vguard.require         1164..1242  KEPT (frame vguard.require: measured 1065.2/M machine vs 967.4/M human; report-only)
-    vguard.require         1313..1441  KEPT (frame vguard.require: measured 1065.2/M machine vs 967.4/M human; report-only)
-    phg.at-least           1313..1441  KEPT (frame phg.at-least: measured 249.4/M machine vs 145.9/M human; report-only)
-    vguard.configure       1976..2027  KEPT (frame vguard.configure: measured 510.6/M machine vs 442.2/M human; report-only)
-    vguard.configure       2290..2341  KEPT (frame vguard.configure: measured 510.6/M machine vs 442.2/M human; report-only)
-    vguard.configure       2438..2586  KEPT (frame vguard.configure: measured 510.6/M machine vs 442.2/M human; report-only)
-    adjg.basic             3382..3607  KEPT (frame adjg.basic: measured 434.3/M machine vs 231.9/M human; report-only)
-    vguard.establish       4412..4491  KEPT (frame vguard.establish: measured 76.3/M machine vs 36.9/M human; report-only)
-    adjg.basic             4999..5004  KEPT (frame adjg.basic: measured 434.3/M machine vs 231.9/M human; report-only)
-    vguard.configure       6278..6348  KEPT (frame vguard.configure: measured 510.6/M machine vs 442.2/M human; report-only)
+  14 report-only observation(s) (--verbose to list)
 pass 3: 0 operation(s) fired — converged
 pass 4: 0 operation(s) fired — converged

@@ -9,147 +9,168 @@ expression: stdout
       "value": 4.518518518518518,
       "lo": 3.4918032786885247,
       "hi": 22.612244897959183,
-      "in_envelope": true
+      "in_envelope": true,
+      "weak_signal": false
     },
     {
       "name": "sentence_length_stddev",
       "value": 4.489661955189864,
       "lo": 3.4227587963188086,
       "hi": 13.411800359716398,
-      "in_envelope": true
+      "in_envelope": true,
+      "weak_signal": false
     },
     {
       "name": "sentence_length_cv",
       "value": 0.9936137113944782,
       "lo": 0.49754649007902846,
       "hi": 1.3591689344136941,
-      "in_envelope": true
+      "in_envelope": true,
+      "weak_signal": false
     },
     {
       "name": "discourse_marker_density",
       "value": 2.0242914979757085,
       "lo": 0.0,
       "hi": 4.237288135593221,
-      "in_envelope": true
+      "in_envelope": true,
+      "weak_signal": false
     },
     {
       "name": "triad_rate",
       "value": 0.009259259259259259,
       "lo": 0.0,
       "hi": 0.08695652173913043,
-      "in_envelope": true
+      "in_envelope": true,
+      "weak_signal": false
     },
     {
       "name": "contraction_ratio",
       "value": 0.5714285714285714,
       "lo": 0.0,
       "hi": 1.0,
-      "in_envelope": true
+      "in_envelope": true,
+      "weak_signal": false
     },
     {
       "name": "bullet_parallelism",
       "value": 0.8333333333333334,
       "lo": 0.0,
       "hi": 1.0,
-      "in_envelope": true
+      "in_envelope": true,
+      "weak_signal": true
     },
     {
       "name": "paragraph_shape_mean",
       "value": 1.148936170212766,
       "lo": 1.0357142857142858,
       "hi": 3.5384615384615383,
-      "in_envelope": true
+      "in_envelope": true,
+      "weak_signal": false
     },
     {
       "name": "paragraph_shape_cv",
       "value": 0.3581311038113648,
       "lo": 0.179177669748504,
       "hi": 0.7953949089757174,
-      "in_envelope": true
+      "in_envelope": true,
+      "weak_signal": false
     },
     {
       "name": "em_dash_density",
       "value": 0.0,
       "lo": 0.0,
       "hi": 4.244482173174872,
-      "in_envelope": true
+      "in_envelope": true,
+      "weak_signal": true
     },
     {
       "name": "semicolon_density",
       "value": 0.0,
       "lo": 0.0,
       "hi": 3.9682539682539684,
-      "in_envelope": true
+      "in_envelope": true,
+      "weak_signal": false
     },
     {
       "name": "participial_closer_rate",
       "value": 0.009259259259259259,
       "lo": 0.0,
       "hi": 0.03125,
-      "in_envelope": true
+      "in_envelope": true,
+      "weak_signal": false
     },
     {
       "name": "not_just_but_rate",
       "value": 0.0,
       "lo": 0.0,
       "hi": 0.009259259259259259,
-      "in_envelope": true
+      "in_envelope": true,
+      "weak_signal": true
     },
     {
       "name": "ritual_marker_rate",
       "value": 0.0,
       "lo": 0.0,
       "hi": 0.0,
-      "in_envelope": true
+      "in_envelope": true,
+      "weak_signal": false
     },
     {
       "name": "llm_favored_phrase_rate",
       "value": 12.145748987854251,
       "lo": 0.0,
       "hi": 21.634615384615383,
-      "in_envelope": true
+      "in_envelope": true,
+      "weak_signal": false
     },
     {
       "name": "human_favored_phrase_rate",
       "value": 24.291497975708502,
       "lo": 8.59106529209622,
       "hi": 48.821548821548824,
-      "in_envelope": true
+      "in_envelope": true,
+      "weak_signal": false
     },
     {
       "name": "heading_density",
       "value": 28.34008097165992,
       "lo": 0.0,
       "hi": 43.04635761589404,
-      "in_envelope": true
+      "in_envelope": true,
+      "weak_signal": false
     },
     {
       "name": "list_item_density",
       "value": 38.46153846153846,
       "lo": 0.0,
       "hi": 98.26589595375722,
-      "in_envelope": true
+      "in_envelope": true,
+      "weak_signal": false
     },
     {
       "name": "bold_span_density",
       "value": 0.0,
       "lo": 0.0,
       "hi": 14.705882352941176,
-      "in_envelope": true
+      "in_envelope": true,
+      "weak_signal": false
     },
     {
       "name": "sentence_opener_repeat_rate",
       "value": 0.037383177570093455,
       "lo": 0.0,
       "hi": 0.13793103448275862,
-      "in_envelope": true
+      "in_envelope": true,
+      "weak_signal": false
     },
     {
       "name": "top_opener_concentration",
       "value": 0.11458333333333333,
       "lo": 0.04424778761061947,
       "hi": 0.2153846153846154,
-      "in_envelope": true
+      "in_envelope": true,
+      "weak_signal": false
     }
   ],
   "spans": [],

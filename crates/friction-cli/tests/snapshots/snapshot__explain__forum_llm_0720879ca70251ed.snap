@@ -5,46 +5,14 @@ expression: stdout
 pass 1: 2 operation(s) fired
   lex.explore-doc-subject::exploration-examine 2242..2253  -> "cover the"
   lex.explore-doc-subject::exploration-examine 3659..3670  -> "cover the"
-  19 held:
-    vguard.optimize        76..84  KEPT (frame vguard.optimize: measured 237.7/M machine vs 93.7/M human; report-only)
-    intg.actually          421..429  KEPT (frame intg.actually: measured 548.7/M machine vs 211.9/M human; report-only)
-    intg.significantly     636..649  KEPT (frame intg.significantly: measured 270.0/M machine vs 39.9/M human; report-only)
-    intg.directly          965..973  KEPT (frame intg.directly: measured 358.0/M machine vs 373.1/M human; report-only)
-    adjg.efficient         1945..1954  KEPT (frame adjg.efficient: measured 270.0/M machine vs 79.8/M human; report-only)
-    vguard.require         1978..1986  KEPT (frame vguard.require: measured 1065.2/M machine vs 967.4/M human; report-only)
-    pilot.within           2119..2125  KEPT (frame pilot.within: report-only (see the frame-pack compile report))
-    vguard.indicate        2846..2855  KEPT (frame vguard.indicate: measured 176.1/M machine vs 165.8/M human; report-only)
-    adjg.simple            2858..2864  KEPT (frame adjg.simple: measured 748.3/M machine vs 317.9/M human; report-only)
-    vguard.indicate        2928..2937  KEPT (frame vguard.indicate: measured 176.1/M machine vs 165.8/M human; report-only)
-    adjg.basic             2940..2945  KEPT (frame adjg.basic: measured 434.3/M machine vs 231.9/M human; report-only)
+  1 held:
     lex.explore-doc-subject::exploration-examine 3141..3151  KEPT (frame lex.explore-doc-subject::exploration-examine held: left seam not attested)
-    adjg.simple            4253..4259  KEPT (frame adjg.simple: measured 748.3/M machine vs 317.9/M human; report-only)
-    intg.specifically      4460..4472  KEPT (frame intg.specifically: measured 199.5/M machine vs 86.0/M human; report-only)
-    intg.actually          4593..4601  KEPT (frame intg.actually: measured 548.7/M machine vs 211.9/M human; report-only)
-    vguard.indicate        4811..4820  KEPT (frame vguard.indicate: measured 176.1/M machine vs 165.8/M human; report-only)
-    intg.directly          4836..4844  KEPT (frame intg.directly: measured 358.0/M machine vs 373.1/M human; report-only)
-    vguard.require         5006..5014  KEPT (frame vguard.require: measured 1065.2/M machine vs 967.4/M human; report-only)
-    adjg.complex           5237..5244  KEPT (frame adjg.complex: measured 372.7/M machine vs 182.7/M human; report-only)
+  18 report-only observation(s) (--verbose to list)
 pass 2: 0 operation(s) fired — converged
-  19 held:
-    vguard.optimize        0..156  KEPT (frame vguard.optimize: measured 237.7/M machine vs 93.7/M human; report-only)
-    intg.actually          382..435  KEPT (frame intg.actually: measured 548.7/M machine vs 211.9/M human; report-only)
-    intg.significantly     543..675  KEPT (frame intg.significantly: measured 270.0/M machine vs 39.9/M human; report-only)
-    intg.directly          913..989  KEPT (frame intg.directly: measured 358.0/M machine vs 373.1/M human; report-only)
-    adjg.efficient         1860..2038  KEPT (frame adjg.efficient: measured 270.0/M machine vs 79.8/M human; report-only)
-    vguard.require         1860..2038  KEPT (frame vguard.require: measured 1065.2/M machine vs 967.4/M human; report-only)
-    pilot.within           2086..2189  KEPT (frame pilot.within: report-only (see the frame-pack compile report))
-    vguard.indicate        2837..2894  KEPT (frame vguard.indicate: measured 176.1/M machine vs 165.8/M human; report-only)
-    adjg.simple            2837..2894  KEPT (frame adjg.simple: measured 748.3/M machine vs 317.9/M human; report-only)
-    vguard.indicate        2924..2966  KEPT (frame vguard.indicate: measured 176.1/M machine vs 165.8/M human; report-only)
-    adjg.basic             2924..2966  KEPT (frame adjg.basic: measured 434.3/M machine vs 231.9/M human; report-only)
+  1 held:
     lex.explore-doc-subject::exploration-examine 3099..3173  KEPT (frame lex.explore-doc-subject::exploration-examine held: left seam not attested)
-    adjg.simple            4239..4262  KEPT (frame adjg.simple: measured 748.3/M machine vs 317.9/M human; report-only)
-    intg.specifically      4416..4471  KEPT (frame intg.specifically: measured 199.5/M machine vs 86.0/M human; report-only)
-    intg.actually          4522..4625  KEPT (frame intg.actually: measured 548.7/M machine vs 211.9/M human; report-only)
-    vguard.indicate        4776..4917  KEPT (frame vguard.indicate: measured 176.1/M machine vs 165.8/M human; report-only)
-    intg.directly          4776..4917  KEPT (frame intg.directly: measured 358.0/M machine vs 373.1/M human; report-only)
-    vguard.require         4985..5061  KEPT (frame vguard.require: measured 1065.2/M machine vs 967.4/M human; report-only)
-    adjg.complex           5070..5251  KEPT (frame adjg.complex: measured 372.7/M machine vs 182.7/M human; report-only)
+  18 report-only observation(s) (--verbose to list)
 pass 3: 0 operation(s) fired — converged
+  1 held:
+    restructure.participial_closer 4874..4884  KEPT (restructure held: first resulting sentence's skeleton is not attested)
 pass 4: 0 operation(s) fired — converged

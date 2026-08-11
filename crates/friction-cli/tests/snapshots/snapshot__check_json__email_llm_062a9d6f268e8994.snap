@@ -9,147 +9,168 @@ expression: stdout
       "value": 14.23913043478261,
       "lo": 3.4918032786885247,
       "hi": 22.612244897959183,
-      "in_envelope": true
+      "in_envelope": true,
+      "weak_signal": false
     },
     {
       "name": "sentence_length_stddev",
       "value": 7.813546716270058,
       "lo": 3.4227587963188086,
       "hi": 13.411800359716398,
-      "in_envelope": true
+      "in_envelope": true,
+      "weak_signal": false
     },
     {
       "name": "sentence_length_cv",
       "value": 0.5487376319823246,
       "lo": 0.49754649007902846,
       "hi": 1.3591689344136941,
-      "in_envelope": true
+      "in_envelope": true,
+      "weak_signal": false
     },
     {
       "name": "discourse_marker_density",
       "value": 0.0,
       "lo": 0.0,
       "hi": 4.237288135593221,
-      "in_envelope": true
+      "in_envelope": true,
+      "weak_signal": false
     },
     {
       "name": "triad_rate",
       "value": 0.10869565217391304,
       "lo": 0.0,
       "hi": 0.08695652173913043,
-      "in_envelope": false
+      "in_envelope": false,
+      "weak_signal": false
     },
     {
       "name": "contraction_ratio",
       "value": 0.0,
       "lo": 0.0,
       "hi": 1.0,
-      "in_envelope": true
+      "in_envelope": true,
+      "weak_signal": false
     },
     {
       "name": "bullet_parallelism",
       "value": 1.0,
       "lo": 0.0,
       "hi": 1.0,
-      "in_envelope": true
+      "in_envelope": true,
+      "weak_signal": true
     },
     {
       "name": "paragraph_shape_mean",
       "value": 1.84,
       "lo": 1.0357142857142858,
       "hi": 3.5384615384615383,
-      "in_envelope": true
+      "in_envelope": true,
+      "weak_signal": false
     },
     {
       "name": "paragraph_shape_cv",
       "value": 0.5253498249388945,
       "lo": 0.179177669748504,
       "hi": 0.7953949089757174,
-      "in_envelope": true
+      "in_envelope": true,
+      "weak_signal": false
     },
     {
       "name": "em_dash_density",
       "value": 1.5267175572519085,
       "lo": 0.0,
       "hi": 4.244482173174872,
-      "in_envelope": true
+      "in_envelope": true,
+      "weak_signal": true
     },
     {
       "name": "semicolon_density",
       "value": 0.0,
       "lo": 0.0,
       "hi": 3.9682539682539684,
-      "in_envelope": true
+      "in_envelope": true,
+      "weak_signal": false
     },
     {
       "name": "participial_closer_rate",
       "value": 0.08695652173913043,
       "lo": 0.0,
       "hi": 0.03125,
-      "in_envelope": false
+      "in_envelope": false,
+      "weak_signal": false
     },
     {
       "name": "not_just_but_rate",
       "value": 0.021739130434782608,
       "lo": 0.0,
       "hi": 0.009259259259259259,
-      "in_envelope": false
+      "in_envelope": false,
+      "weak_signal": true
     },
     {
       "name": "ritual_marker_rate",
       "value": 0.0,
       "lo": 0.0,
       "hi": 0.0,
-      "in_envelope": true
+      "in_envelope": true,
+      "weak_signal": false
     },
     {
       "name": "llm_favored_phrase_rate",
       "value": 33.6906584992343,
       "lo": 0.0,
       "hi": 21.634615384615383,
-      "in_envelope": false
+      "in_envelope": false,
+      "weak_signal": false
     },
     {
       "name": "human_favored_phrase_rate",
       "value": 6.1255742725880555,
       "lo": 8.59106529209622,
       "hi": 48.821548821548824,
-      "in_envelope": false
+      "in_envelope": false,
+      "weak_signal": false
     },
     {
       "name": "heading_density",
       "value": 0.0,
       "lo": 0.0,
       "hi": 43.04635761589404,
-      "in_envelope": true
+      "in_envelope": true,
+      "weak_signal": false
     },
     {
       "name": "list_item_density",
       "value": 4.594180704441041,
       "lo": 0.0,
       "hi": 98.26589595375722,
-      "in_envelope": true
+      "in_envelope": true,
+      "weak_signal": false
     },
     {
       "name": "bold_span_density",
       "value": 12.251148545176111,
       "lo": 0.0,
       "hi": 14.705882352941176,
-      "in_envelope": true
+      "in_envelope": true,
+      "weak_signal": false
     },
     {
       "name": "sentence_opener_repeat_rate",
       "value": 0.0,
       "lo": 0.0,
       "hi": 0.13793103448275862,
-      "in_envelope": true
+      "in_envelope": true,
+      "weak_signal": false
     },
     {
       "name": "top_opener_concentration",
       "value": 0.08695652173913043,
       "lo": 0.04424778761061947,
       "hi": 0.2153846153846154,
-      "in_envelope": true
+      "in_envelope": true,
+      "weak_signal": false
     }
   ],
   "spans": [
@@ -160,7 +181,8 @@ expression: stdout
       "end": 78,
       "line": 1,
       "column": 1,
-      "score": 44
+      "score": 44,
+      "message": "machine-favored phrasing peaks at 'and Celestial Events Awaits'"
     },
     {
       "channel": "dms",
@@ -169,7 +191,8 @@ expression: stdout
       "end": 501,
       "line": 5,
       "column": 1,
-      "score": 2720
+      "score": 2720,
+      "message": "machine-favored phrasing peaks at 'await us all.'"
     },
     {
       "channel": "dms",
@@ -178,7 +201,8 @@ expression: stdout
       "end": 892,
       "line": 9,
       "column": 1,
-      "score": 1746
+      "score": 1746,
+      "message": "machine-favored phrasing peaks at 'Jupiter and Mars.'"
     },
     {
       "channel": "dms",
@@ -187,7 +211,8 @@ expression: stdout
       "end": 1341,
       "line": 11,
       "column": 1,
-      "score": 3600
+      "score": 3600,
+      "message": "machine-favored phrasing peaks at 'such celestial beauty.'"
     },
     {
       "channel": "dms",
@@ -196,7 +221,8 @@ expression: stdout
       "end": 1376,
       "line": 13,
       "column": 3,
-      "score": 8
+      "score": 8,
+      "message": "machine-favored phrasing peaks at 'Report on Orion Nebula'"
     },
     {
       "channel": "dms",
@@ -205,7 +231,8 @@ expression: stdout
       "end": 1849,
       "line": 15,
       "column": 1,
-      "score": 2980
+      "score": 2980,
+      "message": "machine-favored phrasing peaks at 'experienced photographers alike.'"
     },
     {
       "channel": "dms",
@@ -214,7 +241,8 @@ expression: stdout
       "end": 2245,
       "line": 17,
       "column": 1,
-      "score": 2054
+      "score": 2054,
+      "message": "machine-favored phrasing peaks at 'dedication and skill.'"
     },
     {
       "channel": "dms",
@@ -223,7 +251,8 @@ expression: stdout
       "end": 2299,
       "line": 19,
       "column": 3,
-      "score": 19
+      "score": 19,
+      "message": "machine-favored phrasing peaks at 'Lecture on Exoplanet Detection'"
     },
     {
       "channel": "dms",
@@ -232,7 +261,8 @@ expression: stdout
       "end": 2657,
       "line": 21,
       "column": 1,
-      "score": 2163
+      "score": 2163,
+      "message": "machine-favored phrasing peaks at 'and interested guests.'"
     },
     {
       "channel": "dms",
@@ -241,7 +271,8 @@ expression: stdout
       "end": 3061,
       "line": 23,
       "column": 1,
-      "score": 1991
+      "score": 1991,
+      "message": "machine-favored phrasing peaks at 'own cosmic neighborhood.'"
     },
     {
       "channel": "dms",
@@ -250,7 +281,8 @@ expression: stdout
       "end": 3097,
       "line": 25,
       "column": 3,
-      "score": 6
+      "score": 6,
+      "message": "machine-favored phrasing peaks at 'Upcoming Viewing Nights Schedule'"
     },
     {
       "channel": "dms",
@@ -259,7 +291,8 @@ expression: stdout
       "end": 3171,
       "line": 27,
       "column": 1,
-      "score": 76
+      "score": 76,
+      "message": "machine-favored phrasing peaks at 'planned for March:'"
     },
     {
       "channel": "dms",
@@ -268,7 +301,8 @@ expression: stdout
       "end": 3349,
       "line": 30,
       "column": 3,
-      "score": 284
+      "score": 284,
+      "message": "machine-favored phrasing peaks at ', and galaxies.'"
     },
     {
       "channel": "dms",
@@ -277,7 +311,8 @@ expression: stdout
       "end": 3391,
       "line": 32,
       "column": 5,
-      "score": 7
+      "score": 7,
+      "message": "machine-favored phrasing peaks at 'th - Solar System Showcase'"
     },
     {
       "channel": "dms",
@@ -286,7 +321,8 @@ expression: stdout
       "end": 3531,
       "line": 33,
       "column": 3,
-      "score": 315
+      "score": 315,
+      "message": "machine-favored phrasing peaks at 'you have any!'"
     },
     {
       "channel": "dms",
@@ -295,7 +331,8 @@ expression: stdout
       "end": 3569,
       "line": 35,
       "column": 5,
-      "score": 11
+      "score": 11,
+      "message": "machine-favored phrasing peaks at 'st - Comet Hunters Night'"
     },
     {
       "channel": "dms",
@@ -304,7 +341,8 @@ expression: stdout
       "end": 3730,
       "line": 36,
       "column": 3,
-      "score": 381
+      "score": 381,
+      "message": "machine-favored phrasing peaks at 'for more details.'"
     },
     {
       "channel": "dms",
@@ -313,7 +351,8 @@ expression: stdout
       "end": 3918,
       "line": 38,
       "column": 1,
-      "score": 389
+      "score": 389,
+      "message": "machine-favored phrasing peaks at 'exciting in store!'"
     },
     {
       "channel": "dms",
@@ -322,7 +361,8 @@ expression: stdout
       "end": 4189,
       "line": 42,
       "column": 1,
-      "score": 1041
+      "score": 1041,
+      "message": "machine-favored phrasing peaks at 'our cosmic adventures.'"
     },
     {
       "channel": "dms",
@@ -331,7 +371,8 @@ expression: stdout
       "end": 4255,
       "line": 46,
       "column": 2,
-      "score": 18
+      "score": 18,
+      "message": "machine-favored phrasing peaks at 'Manager\nLocal Astronomy Club'"
     }
   ],
   "tell_counts": {

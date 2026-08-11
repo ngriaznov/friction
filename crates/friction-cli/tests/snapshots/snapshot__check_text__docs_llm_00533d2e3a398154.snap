@@ -9,13 +9,13 @@ sentence_length_cv            0.5705  [0.4975, 1.3592]   in
 discourse_marker_density      1.1919  [0.0000, 4.2373]   in    
 triad_rate                    0.0182  [0.0000, 0.0870]   in    
 contraction_ratio             0.0000  [0.0000, 1.0000]   in    
-bullet_parallelism            0.8333  [0.0000, 1.0000]   in    
+bullet_parallelism            0.8333  [0.0000, 1.0000]   weak  
 paragraph_shape_mean          1.6176  [1.0357, 3.5385]   in    
 paragraph_shape_cv            0.5613  [0.1792, 0.7954]   in    
-em_dash_density               0.0000  [0.0000, 4.2445]   in    
+em_dash_density               0.0000  [0.0000, 4.2445]   weak  
 semicolon_density             1.2019  [0.0000, 3.9683]   in    
 participial_closer_rate       0.0364  [0.0000, 0.0312]   OUT   
-not_just_but_rate             0.0000  [0.0000, 0.0093]   in    
+not_just_but_rate             0.0000  [0.0000, 0.0093]   weak  
 ritual_marker_rate            0.0000  [0.0000, 0.0000]   in    
 llm_favored_phrase_rate      17.8784  [0.0000, 21.6346]  in    
 human_favored_phrase_rate     3.5757  [8.5911, 48.8215]  OUT   
@@ -33,111 +33,111 @@ tell counts (31 span(s) total):
   sub: 1
 dms.machine
 
-  ⚠ Dms tell: dms.machine
+  ⚠ machine-favored phrasing peaks at 'process-level scopes.'
    ╭─[corpus/llm/docs/00533d2e3a398154.md:3:1]
  2 │ 
  3 │ Ledgerline, our hypothetical Python ORM library, is built with performance as a core design principle.  A significant component of achieving this is its robust caching layer, designed to dramatically reduce database load and improve response times for common queries. This overview will detail how the caching mechanism operates within Ledgerline, focusing on query result caching, cache invalidation strategies, and the distinctions between request-level and process-level scopes.
    · ────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────┬────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
-   ·                                                                                                                                                                                                                                                 ╰── Dms tell: dms.machine
+   ·                                                                                                                                                                                                                                                 ╰── machine-favored phrasing peaks at 'process-level scopes.'
  4 │ 
    ╰────
 
 dms.machine
 
-  ⚠ Dms tell: dms.machine
+  ⚠ machine-favored phrasing peaks at 'Philosophy: Layered Caching'
    ╭─[corpus/llm/docs/00533d2e3a398154.md:5:3]
  4 │ 
  5 │ **Core Philosophy: Layered Caching**
    ·   ────────────────┬───────────────
-   ·                   ╰── Dms tell: dms.machine
+   ·                   ╰── machine-favored phrasing peaks at 'Philosophy: Layered Caching'
  6 │ 
    ╰────
 
 dms.machine
 
-  ⚠ Dms tell: dms.machine
+  ⚠ machine-favored phrasing peaks at 'primary layers are:'
    ╭─[corpus/llm/docs/00533d2e3a398154.md:7:1]
  6 │ 
  7 │ Ledgerline employs a layered approach to caching, recognizing that different types of data benefit from distinct caching strategies. The primary layers are:
    · ──────────────────────────────────────────────────────────────────────────────┬─────────────────────────────────────────────────────────────────────────────
-   ·                                                                               ╰── Dms tell: dms.machine
+   ·                                                                               ╰── machine-favored phrasing peaks at 'primary layers are:'
  8 │ 
    ╰────
 
 dms.machine
 
-  ⚠ Dms tell: dms.machine
+  ⚠ machine-favored phrasing peaks at 'executed SQL queries.'
     ╭─[corpus/llm/docs/00533d2e3a398154.md:9:6]
   8 │ 
   9 │ 1. **Query Result Cache:** This is Ledgerline’s most prominent caching mechanism, focused on storing the results of frequently executed SQL queries.
     ·      ───────────────────────────────────────────────────────────────────────┬───────────────────────────────────────────────────────────────────────
-    ·                                                                             ╰── Dms tell: dms.machine
+    ·                                                                             ╰── machine-favored phrasing peaks at 'executed SQL queries.'
  10 │ 2. **Object-Level Cache (Optional):**  For objects with complex relationships or those accessed repeatedly within a single request, an object-level cache can be enabled to store individual model instances.
     ╰────
 
 dms.machine
 
-  ⚠ Dms tell: dms.machine
+  ⚠ machine-favored phrasing peaks at 'individual model instances.'
     ╭─[corpus/llm/docs/00533d2e3a398154.md:10:6]
   9 │ 1. **Query Result Cache:** This is Ledgerline’s most prominent caching mechanism, focused on storing the results of frequently executed SQL queries.
  10 │ 2. **Object-Level Cache (Optional):**  For objects with complex relationships or those accessed repeatedly within a single request, an object-level cache can be enabled to store individual model instances.
     ·      ────────────────────────────────────────────────────────────────────────────────────────────────────┬───────────────────────────────────────────────────────────────────────────────────────────────────
-    ·                                                                                                          ╰── Dms tell: dms.machine
+    ·                                                                                                          ╰── machine-favored phrasing peaks at 'individual model instances.'
  11 │ 3. **Metadata Cache:** This smaller cache stores metadata related to cached query results – things like the last access time and the SQL query itself – for efficient invalidation.
     ╰────
 
 dms.machine
 
-  ⚠ Dms tell: dms.machine
+  ⚠ machine-favored phrasing peaks at 'for efficient invalidation.'
     ╭─[corpus/llm/docs/00533d2e3a398154.md:11:6]
  10 │ 2. **Object-Level Cache (Optional):**  For objects with complex relationships or those accessed repeatedly within a single request, an object-level cache can be enabled to store individual model instances.
  11 │ 3. **Metadata Cache:** This smaller cache stores metadata related to cached query results – things like the last access time and the SQL query itself – for efficient invalidation.
     ·      ───────────────────────────────────────────────────────────────────────────────────────┬──────────────────────────────────────────────────────────────────────────────────────
-    ·                                                                                             ╰── Dms tell: dms.machine
+    ·                                                                                             ╰── machine-favored phrasing peaks at 'for efficient invalidation.'
  12 │ 
     ╰────
 
 dms.machine
 
-  ⚠ Dms tell: dms.machine
+  ⚠ machine-favored phrasing peaks at 'Result Caching - The Foundation'
     ╭─[corpus/llm/docs/00533d2e3a398154.md:14:3]
  13 │ 
  14 │ **Query Result Caching - The Foundation**
     ·   ──────────────────┬──────────────────
-    ·                     ╰── Dms tell: dms.machine
+    ·                     ╰── machine-favored phrasing peaks at 'Result Caching - The Foundation'
  15 │ 
     ╰────
 
 dms.machine
 
-  ⚠ Dms tell: dms.machine
+  ⚠ machine-favored phrasing peaks at 'statements. When a'
     ╭─[corpus/llm/docs/00533d2e3a398154.md:16:1]
  15 │ 
  16 │ The core of Ledgerline’s caching is built around storing the *results* of database queries, not just the raw SQL statements. When a `Ledgerline.query()` call executes a query that matches an entry in the Query Result Cache, Ledgerline immediately returns the cached result instead of hitting the database. 
     · ─────────────────────────────────────────────────────────────────┬─────────────────────────────────────────────────────────────────
-    ·                                                                  ╰── Dms tell: dms.machine
+    ·                                                                  ╰── machine-favored phrasing peaks at 'statements. When a'
  17 │ 
     ╰────
 
 dms.machine
 
-  ⚠ Dms tell: dms.machine
+  ⚠ machine-favored phrasing peaks at 'hitting the database.'
     ╭─[corpus/llm/docs/00533d2e3a398154.md:16:156]
  15 │ 
  16 │ The core of Ledgerline’s caching is built around storing the *results* of database queries, not just the raw SQL statements. When a `Ledgerline.query()` call executes a query that matches an entry in the Query Result Cache, Ledgerline immediately returns the cached result instead of hitting the database. 
     ·                                                                                                                                                          ────────────────────────────────────────────────────────────────────────────┬───────────────────────────────────────────────────────────────────────────
-    ·                                                                                                                                                                                                                                      ╰── Dms tell: dms.machine
+    ·                                                                                                                                                                                                                                      ╰── machine-favored phrasing peaks at 'hitting the database.'
  17 │ 
     ╰────
 
 dms.machine
 
-  ⚠ Dms tell: dms.machine
+  ⚠ machine-favored phrasing peaks at 'in the cache.'
     ╭─[corpus/llm/docs/00533d2e3a398154.md:20:5]
  19 │ 
  20 │ * **Cache Key Generation:**  A unique key is generated for each query based on its SQL statement, the parameters passed to the query (if any), and potentially a timestamp. This ensures that different queries with identical parameters are treated as distinct entries in the cache.
     ·     ─────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────┬─────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
-    ·                                                                                                                                              ╰── Dms tell: dms.machine
+    ·                                                                                                                                              ╰── machine-favored phrasing peaks at 'in the cache.'
  21 │ * **Cache Storage:** The Query Result Cache utilizes an in-memory data structure – likely a dictionary or hashmap – for fast lookups.  The key is the generated query key, and the value is the result set returned by the database.
     ╰────
 
@@ -154,12 +154,12 @@ span.this_ensures
 
 dms.machine
 
-  ⚠ Dms tell: dms.machine
+  ⚠ machine-favored phrasing peaks at 'by the database.'
     ╭─[corpus/llm/docs/00533d2e3a398154.md:21:5]
  20 │ * **Cache Key Generation:**  A unique key is generated for each query based on its SQL statement, the parameters passed to the query (if any), and potentially a timestamp. This ensures that different queries with identical parameters are treated as distinct entries in the cache.
  21 │ * **Cache Storage:** The Query Result Cache utilizes an in-memory data structure – likely a dictionary or hashmap – for fast lookups.  The key is the generated query key, and the value is the result set returned by the database.
     ·     ────────────────────────────────────────────────────────────────────────────────────────────────────────────────┬───────────────────────────────────────────────────────────────────────────────────────────────────────────────
-    ·                                                                                                                     ╰── Dms tell: dms.machine
+    ·                                                                                                                     ╰── machine-favored phrasing peaks at 'by the database.'
  22 │ * **Hit/Miss Logic:** When `query()` is called, Ledgerline first checks if the corresponding key exists in the Query Result Cache. If it does (a "cache hit"), the cached result is immediately returned.  If not (a “cache miss”), the query executes against the database, the results are stored in the cache using the generated key, and then finally returned to the user.
     ╰────
 
@@ -176,197 +176,197 @@ sub.utilize_3sg
 
 dms.machine
 
-  ⚠ Dms tell: dms.machine
+  ⚠ machine-favored phrasing peaks at 'Miss Logic:** When'
     ╭─[corpus/llm/docs/00533d2e3a398154.md:22:5]
  21 │ * **Cache Storage:** The Query Result Cache utilizes an in-memory data structure – likely a dictionary or hashmap – for fast lookups.  The key is the generated query key, and the value is the result set returned by the database.
  22 │ * **Hit/Miss Logic:** When `query()` is called, Ledgerline first checks if the corresponding key exists in the Query Result Cache. If it does (a "cache hit"), the cached result is immediately returned.  If not (a “cache miss”), the query executes against the database, the results are stored in the cache using the generated key, and then finally returned to the user.
     ·     ───────────┬──────────
-    ·                ╰── Dms tell: dms.machine
+    ·                ╰── machine-favored phrasing peaks at 'Miss Logic:** When'
  23 │ * **TTL (Time-To-Live):** Each cached entry has a TTL associated with it – a configurable time period after which the entry is automatically removed from the cache. This prevents stale data from being served. The default TTL can be adjusted per model or globally.
     ╰────
 
 dms.machine
 
-  ⚠ Dms tell: dms.machine
+  ⚠ machine-favored phrasing peaks at 'to the user.'
     ╭─[corpus/llm/docs/00533d2e3a398154.md:22:38]
  21 │ * **Cache Storage:** The Query Result Cache utilizes an in-memory data structure – likely a dictionary or hashmap – for fast lookups.  The key is the generated query key, and the value is the result set returned by the database.
  22 │ * **Hit/Miss Logic:** When `query()` is called, Ledgerline first checks if the corresponding key exists in the Query Result Cache. If it does (a "cache hit"), the cached result is immediately returned.  If not (a “cache miss”), the query executes against the database, the results are stored in the cache using the generated key, and then finally returned to the user.
     ·                                      ─────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────┬─────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
-    ·                                                                                                                                                                                                           ╰── Dms tell: dms.machine
+    ·                                                                                                                                                                                                           ╰── machine-favored phrasing peaks at 'to the user.'
  23 │ * **TTL (Time-To-Live):** Each cached entry has a TTL associated with it – a configurable time period after which the entry is automatically removed from the cache. This prevents stale data from being served. The default TTL can be adjusted per model or globally.
     ╰────
 
 dms.machine
 
-  ⚠ Dms tell: dms.machine
+  ⚠ machine-favored phrasing peaks at 'model or globally.'
     ╭─[corpus/llm/docs/00533d2e3a398154.md:23:5]
  22 │ * **Hit/Miss Logic:** When `query()` is called, Ledgerline first checks if the corresponding key exists in the Query Result Cache. If it does (a "cache hit"), the cached result is immediately returned.  If not (a “cache miss”), the query executes against the database, the results are stored in the cache using the generated key, and then finally returned to the user.
  23 │ * **TTL (Time-To-Live):** Each cached entry has a TTL associated with it – a configurable time period after which the entry is automatically removed from the cache. This prevents stale data from being served. The default TTL can be adjusted per model or globally.
     ·     ─────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────┬─────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
-    ·                                                                                                                                      ╰── Dms tell: dms.machine
+    ·                                                                                                                                      ╰── machine-favored phrasing peaks at 'model or globally.'
  24 │ 
     ╰────
 
 dms.machine
 
-  ⚠ Dms tell: dms.machine
+  ⚠ machine-favored phrasing peaks at 'Invalidation - Keeping Data Fresh'
     ╭─[corpus/llm/docs/00533d2e3a398154.md:25:3]
  24 │ 
  25 │ **Cache Invalidation - Keeping Data Fresh**
     ·   ───────────────────┬───────────────────
-    ·                      ╰── Dms tell: dms.machine
+    ·                      ╰── machine-favored phrasing peaks at 'Invalidation - Keeping Data Fresh'
  26 │ 
     ╰────
 
 dms.machine
 
-  ⚠ Dms tell: dms.machine
+  ⚠ machine-favored phrasing peaks at 'for cache invalidation:'
     ╭─[corpus/llm/docs/00533d2e3a398154.md:27:1]
  26 │ 
  27 │ The Query Result Cache isn’t static; it needs to be updated when underlying data changes. Ledgerline employs two primary strategies for cache invalidation:
     · ─────────────────────────────────────────────────────────────────────────────┬─────────────────────────────────────────────────────────────────────────────
-    ·                                                                              ╰── Dms tell: dms.machine
+    ·                                                                              ╰── machine-favored phrasing peaks at 'for cache invalidation:'
  28 │ 
     ╰────
 
 dms.machine
 
-  ⚠ Dms tell: dms.machine
+  ⚠ machine-favored phrasing peaks at '.g.,'
     ╭─[corpus/llm/docs/00533d2e3a398154.md:29:5]
  28 │ 
  29 │ * **Write-Based Invalidation:**  When a record is created, updated, or deleted through Ledgerline's model methods (e.g., `model.save()`, `model.delete()`), the corresponding query result entries in the Query Result Cache are invalidated. This is typically achieved by removing the cached entry based on its key.
     ·     ──────────────────────────────────────────────────────────┬─────────────────────────────────────────────────────────
-    ·                                                               ╰── Dms tell: dms.machine
+    ·                                                               ╰── machine-favored phrasing peaks at '.g.,'
  30 │ * **Manual Invalidation:**  Ledgerline provides a `Ledgerline.cache.invalidate_query(key)` function that allows developers to explicitly invalidate specific cached query results. This is useful for scenarios where changes aren't automatically triggered (e.g., after a system restart).
     ╰────
 
 dms.machine
 
-  ⚠ Dms tell: dms.machine
+  ⚠ machine-favored phrasing peaks at 'on its key.'
     ╭─[corpus/llm/docs/00533d2e3a398154.md:29:155]
  28 │ 
  29 │ * **Write-Based Invalidation:**  When a record is created, updated, or deleted through Ledgerline's model methods (e.g., `model.save()`, `model.delete()`), the corresponding query result entries in the Query Result Cache are invalidated. This is typically achieved by removing the cached entry based on its key.
     ·                                                                                                                                                           ──────────────────────────────────────────────────────────────────────────────┬──────────────────────────────────────────────────────────────────────────────
-    ·                                                                                                                                                                                                                                         ╰── Dms tell: dms.machine
+    ·                                                                                                                                                                                                                                         ╰── machine-favored phrasing peaks at 'on its key.'
  30 │ * **Manual Invalidation:**  Ledgerline provides a `Ledgerline.cache.invalidate_query(key)` function that allows developers to explicitly invalidate specific cached query results. This is useful for scenarios where changes aren't automatically triggered (e.g., after a system restart).
     ╰────
 
 dms.machine
 
-  ⚠ Dms tell: dms.machine
+  ⚠ machine-favored phrasing peaks at ':**  Ledgerline provides a'
     ╭─[corpus/llm/docs/00533d2e3a398154.md:30:5]
  29 │ * **Write-Based Invalidation:**  When a record is created, updated, or deleted through Ledgerline's model methods (e.g., `model.save()`, `model.delete()`), the corresponding query result entries in the Query Result Cache are invalidated. This is typically achieved by removing the cached entry based on its key.
  30 │ * **Manual Invalidation:**  Ledgerline provides a `Ledgerline.cache.invalidate_query(key)` function that allows developers to explicitly invalidate specific cached query results. This is useful for scenarios where changes aren't automatically triggered (e.g., after a system restart).
     ·     ──────────────────────┬──────────────────────
-    ·                           ╰── Dms tell: dms.machine
+    ·                           ╰── machine-favored phrasing peaks at ':**  Ledgerline provides a'
  31 │ 
     ╰────
 
 dms.machine
 
-  ⚠ Dms tell: dms.machine
+  ⚠ machine-favored phrasing peaks at 'a system restart).'
     ╭─[corpus/llm/docs/00533d2e3a398154.md:30:92]
  29 │ * **Write-Based Invalidation:**  When a record is created, updated, or deleted through Ledgerline's model methods (e.g., `model.save()`, `model.delete()`), the corresponding query result entries in the Query Result Cache are invalidated. This is typically achieved by removing the cached entry based on its key.
  30 │ * **Manual Invalidation:**  Ledgerline provides a `Ledgerline.cache.invalidate_query(key)` function that allows developers to explicitly invalidate specific cached query results. This is useful for scenarios where changes aren't automatically triggered (e.g., after a system restart).
     ·                                                                                            ────────────────────────────────────────────────────────────────────────────────────────────────┬────────────────────────────────────────────────────────────────────────────────────────────────
-    ·                                                                                                                                                                                            ╰── Dms tell: dms.machine
+    ·                                                                                                                                                                                            ╰── machine-favored phrasing peaks at 'a system restart).'
  31 │ 
     ╰────
 
 dms.machine
 
-  ⚠ Dms tell: dms.machine
+  ⚠ machine-favored phrasing peaks at 'vs. Process Level'
     ╭─[corpus/llm/docs/00533d2e3a398154.md:33:3]
  32 │ 
  33 │ **Scope of the Cache: Request vs. Process Level**
     ·   ──────────────────────┬──────────────────────
-    ·                         ╰── Dms tell: dms.machine
+    ·                         ╰── machine-favored phrasing peaks at 'vs. Process Level'
  34 │ 
     ╰────
 
 dms.machine
 
-  ⚠ Dms tell: dms.machine
+  ⚠ machine-favored phrasing peaks at 'model or globally:'
     ╭─[corpus/llm/docs/00533d2e3a398154.md:35:1]
  34 │ 
  35 │ Ledgerline offers two distinct scopes for its caching mechanisms, configurable per model or globally:
     · ──────────────────────────────────────────────────┬──────────────────────────────────────────────────
-    ·                                                   ╰── Dms tell: dms.machine
+    ·                                                   ╰── machine-favored phrasing peaks at 'model or globally:'
  36 │ 
     ╰────
 
 dms.machine
 
-  ⚠ Dms tell: dms.machine
+  ⚠ machine-favored phrasing peaks at 'same data simultaneously.'
     ╭─[corpus/llm/docs/00533d2e3a398154.md:37:5]
  36 │ 
  37 │ * **Request-Level Caching:**  This scope is enabled by default and operates on a *per-request* basis. Each time a user makes a request to Ledgerline, a new instance of the Query Result Cache is created. This means that cached results are only accessible within the context of that specific HTTP request. This approach minimizes potential conflicts between different users or processes accessing the same data simultaneously.
     ·     ──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────┬─────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
-    ·                                                                                                                                                                                                                       ╰── Dms tell: dms.machine
+    ·                                                                                                                                                                                                                       ╰── machine-favored phrasing peaks at 'same data simultaneously.'
  38 │ * **Process-Level Caching:**  This scope operates on a *per-process* basis. A single process (e.g., a web server) maintains its own independent Query Result Cache. This can be beneficial in scenarios where multiple requests from the same process are frequently hitting the same queries, as it avoids the overhead of creating and destroying caches for each request. However, it introduces potential concurrency issues if multiple processes attempt to access the same cached data simultaneously.
     ╰────
 
 dms.machine
 
-  ⚠ Dms tell: dms.machine
+  ⚠ machine-favored phrasing peaks at 'cached data simultaneously.'
     ╭─[corpus/llm/docs/00533d2e3a398154.md:38:5]
  37 │ * **Request-Level Caching:**  This scope is enabled by default and operates on a *per-request* basis. Each time a user makes a request to Ledgerline, a new instance of the Query Result Cache is created. This means that cached results are only accessible within the context of that specific HTTP request. This approach minimizes potential conflicts between different users or processes accessing the same data simultaneously.
  38 │ * **Process-Level Caching:**  This scope operates on a *per-process* basis. A single process (e.g., a web server) maintains its own independent Query Result Cache. This can be beneficial in scenarios where multiple requests from the same process are frequently hitting the same queries, as it avoids the overhead of creating and destroying caches for each request. However, it introduces potential concurrency issues if multiple processes attempt to access the same cached data simultaneously.
     ·     ────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────┬────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
-    ·                                                                                                                                                                                                                                                         ╰── Dms tell: dms.machine
+    ·                                                                                                                                                                                                                                                         ╰── machine-favored phrasing peaks at 'cached data simultaneously.'
  39 │ 
     ╰────
 
 dms.machine
 
-  ⚠ Dms tell: dms.machine
+  ⚠ machine-favored phrasing peaks at 'an invalidation occurs.'
     ╭─[corpus/llm/docs/00533d2e3a398154.md:42:1]
  41 │ 
  42 │ The Metadata Cache plays a crucial supporting role. It stores information *about* the cached query results – primarily the last accessed time and the SQL query itself. This allows Ledgerline to efficiently determine when a cache entry is stale (based on its TTL) and to quickly identify which queries need to be re-executed if an invalidation occurs.
     · ───────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────┬──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
-    ·                                                                                                                                                                                ╰── Dms tell: dms.machine
+    ·                                                                                                                                                                                ╰── machine-favored phrasing peaks at 'an invalidation occurs.'
  43 │ 
     ╰────
 
 dms.machine
 
-  ⚠ Dms tell: dms.machine
+  ⚠ machine-favored phrasing peaks at 'incorporating features like:'
     ╭─[corpus/llm/docs/00533d2e3a398154.md:46:1]
  45 │ 
  46 │ Ledgerline's caching layer will continue to evolve, potentially incorporating features like:
     · ──────────────────────────────────────────────┬─────────────────────────────────────────────
-    ·                                               ╰── Dms tell: dms.machine
+    ·                                               ╰── machine-favored phrasing peaks at 'incorporating features like:'
  47 │ 
     ╰────
 
 dms.machine
 
-  ⚠ Dms tell: dms.machine
+  ⚠ machine-favored phrasing peaks at 'scalability and resilience.'
     ╭─[corpus/llm/docs/00533d2e3a398154.md:48:5]
  47 │ 
  48 │ * **Cache Hierarchy:**  A tiered caching system where results are first checked in a fast, local cache before falling back to a more robust, distributed cache (e.g., Redis) for increased scalability and resilience.
     ·     ─────────────────────────────────────────────────────────────────────────────────────────────────────────┬────────────────────────────────────────────────────────────────────────────────────────────────────────
-    ·                                                                                                              ╰── Dms tell: dms.machine
+    ·                                                                                                              ╰── machine-favored phrasing peaks at 'scalability and resilience.'
  49 │ * **Query Optimization Hints:**  Leveraging information about query execution plans to optimize the cache key generation process and improve hit rates.
     ╰────
 
 dms.machine
 
-  ⚠ Dms tell: dms.machine
+  ⚠ machine-favored phrasing peaks at 'improve hit rates.'
     ╭─[corpus/llm/docs/00533d2e3a398154.md:49:5]
  48 │ * **Cache Hierarchy:**  A tiered caching system where results are first checked in a fast, local cache before falling back to a more robust, distributed cache (e.g., Redis) for increased scalability and resilience.
  49 │ * **Query Optimization Hints:**  Leveraging information about query execution plans to optimize the cache key generation process and improve hit rates.
     ·     ─────────────────────────────────────────────────────────────────────────┬─────────────────────────────────────────────────────────────────────────
-    ·                                                                              ╰── Dms tell: dms.machine
+    ·                                                                              ╰── machine-favored phrasing peaks at 'improve hit rates.'
  50 │ 
     ╰────
 
 dms.machine
 
-  ⚠ Dms tell: dms.machine
+  ⚠ machine-favored phrasing peaks at 'library's overall architecture.'
     ╭─[corpus/llm/docs/00533d2e3a398154.md:53:1]
  52 │ 
  53 │ This conceptual overview provides a foundation for understanding how Ledgerline’s caching layer is designed to deliver performance and efficiency, making it a core component of our ORM library's overall architecture.
     · ────────────────────────────────────────────────────────────────────────────────────────────────────────────┬───────────────────────────────────────────────────────────────────────────────────────────────────────────
-    ·                                                                                                             ╰── Dms tell: dms.machine
+    ·                                                                                                             ╰── machine-favored phrasing peaks at 'library's overall architecture.'
     ╰────

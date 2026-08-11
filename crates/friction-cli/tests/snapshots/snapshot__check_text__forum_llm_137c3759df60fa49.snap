@@ -9,13 +9,13 @@ sentence_length_cv            0.8455  [0.4975, 1.3592]   in
 discourse_marker_density      6.1224  [0.0000, 4.2373]   OUT   
 triad_rate                    0.0000  [0.0000, 0.0870]   in    
 contraction_ratio             0.0000  [0.0000, 1.0000]   in    
-bullet_parallelism            0.6667  [0.0000, 1.0000]   in    
+bullet_parallelism            0.6667  [0.0000, 1.0000]   weak  
 paragraph_shape_mean          1.4333  [1.0357, 3.5385]   in    
 paragraph_shape_cv            0.4657  [0.1792, 0.7954]   in    
-em_dash_density               2.0284  [0.0000, 4.2445]   in    
+em_dash_density               2.0284  [0.0000, 4.2445]   weak  
 semicolon_density             0.0000  [0.0000, 3.9683]   in    
 participial_closer_rate       0.0233  [0.0000, 0.0312]   in    
-not_just_but_rate             0.0233  [0.0000, 0.0093]   OUT   
+not_just_but_rate             0.0233  [0.0000, 0.0093]   weak  
 ritual_marker_rate            0.0333  [0.0000, 0.0000]   OUT   
 llm_favored_phrase_rate      10.2041  [0.0000, 21.6346]  in    
 human_favored_phrase_rate    30.6122  [8.5911, 48.8215]  in    
@@ -33,22 +33,22 @@ tell counts (19 span(s) total):
   sub: 1
 dms.machine
 
-  ⚠ Dms tell: dms.machine
+  ⚠ machine-favored phrasing peaks at 'Rust's Lifetime Elision Rules'
    ╭─[corpus/llm/forum/137c3759df60fa49.md:1:3]
  1 │ **Understanding Rust's Lifetime Elision Rules**
    ·   ─────────────────────┬─────────────────────
-   ·                        ╰── Dms tell: dms.machine
+   ·                        ╰── machine-favored phrasing peaks at 'Rust's Lifetime Elision Rules'
  2 │ 
    ╰────
 
 dms.machine
 
-  ⚠ Dms tell: dms.machine
+  ⚠ machine-favored phrasing peaks at 'to do so.'
    ╭─[corpus/llm/forum/137c3759df60fa49.md:3:1]
  2 │ 
  3 │ Rust’s type system is robust, especially when it comes to handling lifetimes—particularly in functions that use references. Lifetimes are crucial for ensuring memory safety by preventing dangling pointers or data races. However, the explicit annotation of lifetimes can sometimes feel like an extra layer of complexity. Rust addresses this with three lifetime elision rules that automatically infer lifetimes for you when they’re safe to do so.
    · ──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────┬─────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
-   ·                                                                                                                                                                                                                               ╰── Dms tell: dms.machine
+   ·                                                                                                                                                                                                                               ╰── machine-favored phrasing peaks at 'to do so.'
  4 │ 
    ╰────
 
@@ -65,100 +65,100 @@ sub.crucial_for
 
 dms.machine
 
-  ⚠ Dms tell: dms.machine
+  ⚠ machine-favored phrasing peaks at 'avoiding unnecessary verbosity.'
    ╭─[corpus/llm/forum/137c3759df60fa49.md:7:1]
  6 │ 
  7 │ Lifetime elisions are syntactic rules in Rust that allow the compiler to infer the lifetimes of reference parameters without explicit annotations, making code cleaner and more readable. These rules help maintain soundness while avoiding unnecessary verbosity.
    · ─────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────┬─────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
-   ·                                                                                                                                  ╰── Dms tell: dms.machine
+   ·                                                                                                                                  ╰── machine-favored phrasing peaks at 'avoiding unnecessary verbosity.'
  8 │ 
    ╰────
 
 dms.machine
 
-  ⚠ Dms tell: dms.machine
+  ⚠ machine-favored phrasing peaks at 'outermost borrowed reference.'
     ╭─[corpus/llm/forum/137c3759df60fa49.md:11:6]
  10 │ 
  11 │ 1. **Default Parameter Rule**: If a function has only one reference parameter, the lifetime is inferred as the longest-living (outermost) reference in the argument list. This rule assumes that the referenced value lives at least as long as the outermost borrowed reference.
     ·      ──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────┬─────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
-    ·                                                                                                                                            ╰── Dms tell: dms.machine
+    ·                                                                                                                                            ╰── machine-favored phrasing peaks at 'outermost borrowed reference.'
  12 │ 
     ╰────
 
 dms.machine
 
-  ⚠ Dms tell: dms.machine
+  ⚠ machine-favored phrasing peaks at 'The compiler infers that'
     ╭─[corpus/llm/forum/137c3759df60fa49.md:20:14]
  19 │    
  20 │    Here, `x` and the return type both implicitly have the same lifetime because there’s only one reference parameter. The compiler infers that `x` must live at least as long as it’s being used within the function.
     ·              ────────────────────────────────────────────────────────────────┬────────────────────────────────────────────────────────────────
-    ·                                                                              ╰── Dms tell: dms.machine
+    ·                                                                              ╰── machine-favored phrasing peaks at 'The compiler infers that'
  21 │ 
     ╰────
 
 dms.machine
 
-  ⚠ Dms tell: dms.machine
+  ⚠ machine-favored phrasing peaks at 'within the function.'
     ╭─[corpus/llm/forum/137c3759df60fa49.md:20:150]
  19 │    
  20 │    Here, `x` and the return type both implicitly have the same lifetime because there’s only one reference parameter. The compiler infers that `x` must live at least as long as it’s being used within the function.
     ·                                                                                                                                                    ─────────────────────────────────┬────────────────────────────────
-    ·                                                                                                                                                                                     ╰── Dms tell: dms.machine
+    ·                                                                                                                                                                                     ╰── machine-favored phrasing peaks at 'within the function.'
  21 │ 
     ╰────
 
 dms.machine
 
-  ⚠ Dms tell: dms.machine
+  ⚠ machine-favored phrasing peaks at 'gets the default lifetime'
     ╭─[corpus/llm/forum/137c3759df60fa49.md:22:6]
  21 │ 
  22 │ 2. **Multiple Reference Parameter Rule**: If a function has more than one reference parameter, Rust uses the following pattern to infer lifetimes: the first reference gets the default lifetime `'a`, the second gets `'b`, and so on. This rule helps disambiguate which references are related or independent of each other.
     ·      ─────────────────────────────────────────────────────────────────────────────────────────────┬─────────────────────────────────────────────────────────────────────────────────────────────
-    ·                                                                                                   ╰── Dms tell: dms.machine
+    ·                                                                                                   ╰── machine-favored phrasing peaks at 'gets the default lifetime'
  23 │ 
     ╰────
 
 dms.machine
 
-  ⚠ Dms tell: dms.machine
+  ⚠ machine-favored phrasing peaks at 'of each other.'
     ╭─[corpus/llm/forum/137c3759df60fa49.md:22:220]
  21 │ 
  22 │ 2. **Multiple Reference Parameter Rule**: If a function has more than one reference parameter, Rust uses the following pattern to infer lifetimes: the first reference gets the default lifetime `'a`, the second gets `'b`, and so on. This rule helps disambiguate which references are related or independent of each other.
     ·                                                                                                                                                                                                                            ──────────────────────────────────────────────────┬─────────────────────────────────────────────────
-    ·                                                                                                                                                                                                                                                                              ╰── Dms tell: dms.machine
+    ·                                                                                                                                                                                                                                                                              ╰── machine-favored phrasing peaks at 'of each other.'
  23 │ 
     ╰────
 
 dms.machine
 
-  ⚠ Dms tell: dms.machine
+  ⚠ machine-favored phrasing peaks at 'the compiler infers that'
     ╭─[corpus/llm/forum/137c3759df60fa49.md:32:4]
  31 │    
  32 │    Here, the compiler infers that `x` and `y` are independent references. Thus, `x` receives the default lifetime `'a`, while `y` gets a new lifetime `'b`. This ensures that if one reference goes out of scope, it doesn’t affect the other.
     ·    ───────────────┬──────────────
-    ·                   ╰── Dms tell: dms.machine
+    ·                   ╰── machine-favored phrasing peaks at 'the compiler infers that'
  33 │ 
     ╰────
 
 dms.machine
 
-  ⚠ Dms tell: dms.machine
+  ⚠ machine-favored phrasing peaks at 'references. Thus,'
     ╭─[corpus/llm/forum/137c3759df60fa49.md:32:47]
  31 │    
  32 │    Here, the compiler infers that `x` and `y` are independent references. Thus, `x` receives the default lifetime `'a`, while `y` gets a new lifetime `'b`. This ensures that if one reference goes out of scope, it doesn’t affect the other.
     ·                                               ────────────────┬────────────────
-    ·                                                               ╰── Dms tell: dms.machine
+    ·                                                               ╰── machine-favored phrasing peaks at 'references. Thus,'
  33 │ 
     ╰────
 
 dms.machine
 
-  ⚠ Dms tell: dms.machine
+  ⚠ machine-favored phrasing peaks at 'affect the other.'
     ╭─[corpus/llm/forum/137c3759df60fa49.md:32:155]
  31 │    
  32 │    Here, the compiler infers that `x` and `y` are independent references. Thus, `x` receives the default lifetime `'a`, while `y` gets a new lifetime `'b`. This ensures that if one reference goes out of scope, it doesn’t affect the other.
     ·                                                                                                                                                           ──────────────────────────────────────────┬─────────────────────────────────────────
-    ·                                                                                                                                                                                                     ╰── Dms tell: dms.machine
+    ·                                                                                                                                                                                                     ╰── machine-favored phrasing peaks at 'affect the other.'
  33 │ 
     ╰────
 
@@ -175,65 +175,65 @@ span.this_ensures
 
 dms.machine
 
-  ⚠ Dms tell: dms.machine
+  ⚠ machine-favored phrasing peaks at 'its input references.'
     ╭─[corpus/llm/forum/137c3759df60fa49.md:34:6]
  33 │ 
  34 │ 3. **Return Type Rule**: If a function’s return type contains a reference and there are no parameters (or only multiple non-reference parameters), Rust infers the lifetime of the returned reference to be the same as the longest-living argument in the call site. This rule helps when the function’s behavior is tied to its input references.
     ·      ───────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────┬──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
-    ·                                                                                                                                                                             ╰── Dms tell: dms.machine
+    ·                                                                                                                                                                             ╰── machine-favored phrasing peaks at 'its input references.'
  35 │ 
     ╰────
 
 dms.machine
 
-  ⚠ Dms tell: dms.machine
+  ⚠ machine-favored phrasing peaks at 'only one reference parameter'
     ╭─[corpus/llm/forum/137c3759df60fa49.md:43:4]
  42 │    
  43 │    Similar to the first example, because there’s only one reference parameter (`x`) that determines the output, Rust infers that the returned reference must live at least as long as `x`.
     ·    ─────────────────────────────────────┬────────────────────────────────────
-    ·                                         ╰── Dms tell: dms.machine
+    ·                                         ╰── machine-favored phrasing peaks at 'only one reference parameter'
  44 │ 
     ╰────
 
 dms.machine
 
-  ⚠ Dms tell: dms.machine
+  ⚠ machine-favored phrasing peaks at 'least as long as'
     ╭─[corpus/llm/forum/137c3759df60fa49.md:43:87]
  42 │    
  43 │    Similar to the first example, because there’s only one reference parameter (`x`) that determines the output, Rust infers that the returned reference must live at least as long as `x`.
     ·                                                                                     ────────────────────────────────────────────────┬────────────────────────────────────────────────
-    ·                                                                                                                                     ╰── Dms tell: dms.machine
+    ·                                                                                                                                     ╰── machine-favored phrasing peaks at 'least as long as'
  44 │ 
     ╰────
 
 dms.machine
 
-  ⚠ Dms tell: dms.machine
+  ⚠ machine-favored phrasing peaks at 'about memory safety.'
     ╭─[corpus/llm/forum/137c3759df60fa49.md:47:1]
  46 │ 
  47 │ These elision rules strike a balance between ease of use and safety. By automatically inferring lifetimes in common scenarios where they’re safe to do so (like having only one reference parameter), Rust reduces boilerplate code while still maintaining its strong guarantees about memory safety.
     · ───────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────┬──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
-    ·                                                                                                                                                    ╰── Dms tell: dms.machine
+    ·                                                                                                                                                    ╰── machine-favored phrasing peaks at 'about memory safety.'
  48 │ 
     ╰────
 
 dms.machine
 
-  ⚠ Dms tell: dms.machine
+  ⚠ machine-favored phrasing peaks at 'behind the scenes.'
     ╭─[corpus/llm/forum/137c3759df60fa49.md:49:1]
  48 │ 
  49 │ Understanding these rules helps you predict when explicit lifetime annotations are necessary, typically when there’s ambiguity or when multiple references interact differently. This knowledge not only streamlines your coding process but also deepens your understanding of how Rust manages data safely behind the scenes.
     · ───────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────┬───────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
-    ·                                                                                                                                                                ╰── Dms tell: dms.machine
+    ·                                                                                                                                                                ╰── machine-favored phrasing peaks at 'behind the scenes.'
  50 │ 
     ╰────
 
 dms.machine
 
-  ⚠ Dms tell: dms.machine
+  ⚠ machine-favored phrasing peaks at 'about memory management.'
     ╭─[corpus/llm/forum/137c3759df60fa49.md:51:1]
  50 │ 
  51 │ In summary, Rust's three lifetime elision rules provide a pragmatic approach to handling lifetimes in functions with reference parameters. By applying these rules, you can write cleaner code without sacrificing safety or clarity about memory management.
     · ──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────┬──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
-    ·                                                                                                                               ╰── Dms tell: dms.machine
+    ·                                                                                                                               ╰── machine-favored phrasing peaks at 'about memory management.'
     ╰────

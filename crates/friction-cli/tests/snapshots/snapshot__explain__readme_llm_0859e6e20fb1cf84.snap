@@ -10,41 +10,14 @@ pass 1: 7 operation(s) fired
   col.excellent-x::choice  5107..5126  -> "a good choice"
   vsub.showcase            5156..5170  -> "show their"
   ritual.delete            5203..5219  (deleted)
-  18 held:
-    intg.specifically      75..87  KEPT (frame intg.specifically: measured 199.5/M machine vs 86.0/M human; report-only)
-    lex.leverage-dl::leverage 119..135  KEPT (frame lex.leverage-dl::leverage: measured 143.8/M machine vs 17.7/M human; report-only)
-    vguard.integrate       195..204  KEPT (frame vguard.integrate: measured 155.5/M machine vs 101.3/M human; report-only)
-    lex.leverage-dl::utilize 506..519  KEPT (frame lex.leverage-dl::utilize: measured 143.8/M machine vs 17.7/M human; report-only)
-    intg.effectively       520..531  KEPT (frame intg.effectively: measured 152.6/M machine vs 29.2/M human; report-only)
-    pilot.within           677..683  KEPT (frame pilot.within: report-only (see the frame-pack compile report))
-    vguard.require         1076..1083  KEPT (frame vguard.require: measured 1065.2/M machine vs 967.4/M human; report-only)
-    intg.directly          1120..1128  KEPT (frame intg.directly: measured 358.0/M machine vs 373.1/M human; report-only)
-    intg.fully             1317..1322  KEPT (frame intg.fully: measured 126.2/M machine vs 113.6/M human; report-only)
-    vguard.optimize        1349..1358  KEPT (frame vguard.optimize: measured 237.7/M machine vs 93.7/M human; report-only)
-    vguard.integrate       1551..1561  KEPT (frame vguard.integrate: measured 155.5/M machine vs 101.3/M human; report-only)
-    intg.particularly      1749..1761  KEPT (frame intg.particularly: measured 176.1/M machine vs 64.5/M human; report-only)
-    vguard.optimize        2100..2109  KEPT (frame vguard.optimize: measured 237.7/M machine vs 93.7/M human; report-only)
+  1 held:
     vsub.enhance           2190..2203  KEPT (frame vsub.enhance held: left seam not attested)
-    pilot.wish             2904..2908  KEPT (frame pilot.wish: report-only (see the frame-pack compile report))
-    intg.simply            2943..2949  KEPT (frame intg.simply: measured 220.1/M machine vs 145.9/M human; report-only)
-    conng.overall          3872..3879  KEPT (frame conng.overall: measured 208.3/M machine vs 49.1/M human; report-only)
-    vguard.ensure          5049..5056  KEPT (frame vguard.ensure: measured 1376.3/M machine vs 314.8/M human; report-only)
+  17 report-only observation(s) (--verbose to list)
 pass 2: 0 operation(s) fired — converged
-  15 held:
-    intg.specifically      33..115  KEPT (frame intg.specifically: measured 199.5/M machine vs 86.0/M human; report-only)
-    vguard.integrate       190..199  KEPT (frame vguard.integrate: measured 155.5/M machine vs 101.3/M human; report-only)
-    intg.effectively       500..511  KEPT (frame intg.effectively: measured 152.6/M machine vs 29.2/M human; report-only)
-    pilot.within           574..679  KEPT (frame pilot.within: report-only (see the frame-pack compile report))
-    vguard.require         1034..1131  KEPT (frame vguard.require: measured 1065.2/M machine vs 967.4/M human; report-only)
-    intg.directly          1034..1131  KEPT (frame intg.directly: measured 358.0/M machine vs 373.1/M human; report-only)
-    intg.fully             1234..1453  KEPT (frame intg.fully: measured 126.2/M machine vs 113.6/M human; report-only)
-    vguard.optimize        1234..1453  KEPT (frame vguard.optimize: measured 237.7/M machine vs 93.7/M human; report-only)
-    vguard.integrate       1480..1557  KEPT (frame vguard.integrate: measured 155.5/M machine vs 101.3/M human; report-only)
-    intg.particularly      1722..1860  KEPT (frame intg.particularly: measured 176.1/M machine vs 64.5/M human; report-only)
-    vguard.optimize        2056..2156  KEPT (frame vguard.optimize: measured 237.7/M machine vs 93.7/M human; report-only)
+  1 held:
     vsub.enhance           2157..2219  KEPT (frame vsub.enhance held: left seam not attested)
-    pilot.wish             2884..2888  KEPT (frame pilot.wish: report-only (see the frame-pack compile report))
-    conng.overall          3793..3909  KEPT (frame conng.overall: measured 208.3/M machine vs 49.1/M human; report-only)
-    vguard.ensure          5022..5029  KEPT (frame vguard.ensure: measured 1376.3/M machine vs 314.8/M human; report-only)
-pass 3: 0 operation(s) fired — converged
+  14 report-only observation(s) (--verbose to list)
+pass 3: 2 operation(s) fired
+  restructure.participial_closer 170..178  -> ". That makes"
+  restructure.participial_closer 5068..5076  -> ". That makes"
 pass 4: 0 operation(s) fired — converged
