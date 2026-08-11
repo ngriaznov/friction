@@ -56,6 +56,9 @@ fn workspace_root() -> PathBuf {
 /// root, `RAYON_NUM_THREADS` set to `threads` for this one child process.
 fn friction(threads: &str) -> Command {
     let mut cmd = Command::cargo_bin("friction").expect("the friction binary builds");
+    // A developer's ~/.cache/friction/ pack must never arm the optional
+    // jargon.compound channel inside a byte-exact suite.
+    cmd.env("FRICTION_GENERAL_EVIDENCE", "/nonexistent-general-evidence");
     cmd.current_dir(workspace_root());
     cmd.env("RAYON_NUM_THREADS", threads);
     cmd

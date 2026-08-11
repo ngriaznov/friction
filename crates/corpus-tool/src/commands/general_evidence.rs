@@ -423,6 +423,13 @@ pub struct PackArgs {
     /// across every partial) to survive into the built filter.
     #[arg(long, default_value_t = 5)]
     pub min_count: u64,
+    /// Separate floor for the unigram (general-vocabulary) table. The
+    /// unigram filter's job is the channel's unknown-word SKIP, so a
+    /// higher floor here trims corpus typos ("successfuly" clears >=5 in
+    /// a 3B-token mine) without touching bigram attestation. Defaults to
+    /// `--min-count` when not given.
+    #[arg(long)]
+    pub unigram_min_count: Option<u64>,
     /// Path to write the built `.bin` to. Deliberately has no default —
     /// unlike this crate's other packs, this one is NOT committed (see
     /// this module's own docs); a caller who wants the runtime seam
@@ -676,7 +683,10 @@ pub fn pack(args: &PackArgs) -> anyhow::Result<()> {
 
     let unigram_paths = partial_paths(&args.work, "unigram")?;
     let bigram_paths = partial_paths(&args.work, "bigram")?;
-    let unigrams = k_way_merge(&unigram_paths, args.min_count)?;
+    let unigrams = k_way_merge(
+        &unigram_paths,
+        args.unigram_min_count.unwrap_or(args.min_count),
+    )?;
     let bigrams = k_way_merge(&bigram_paths, args.min_count)?;
 
     let built = friction_packs::general_evidence::build_pack_bytes(&unigrams, &bigrams)?;
@@ -691,6 +701,7 @@ pub fn pack(args: &PackArgs) -> anyhow::Result<()> {
 
     let meta = render_meta_toml(&MetaInput {
         min_count: args.min_count,
+        unigram_min_count: args.unigram_min_count.unwrap_or(args.min_count),
         unigram_key_count: built.unigram_key_count,
         bigram_key_count: built.bigram_key_count,
         source_label: &args.source_label,
@@ -720,6 +731,7 @@ pub fn pack(args: &PackArgs) -> anyhow::Result<()> {
 
 struct MetaInput<'a> {
     min_count: u64,
+    unigram_min_count: u64,
     unigram_key_count: u64,
     bigram_key_count: u64,
     source_label: &'a str,
@@ -746,12 +758,14 @@ fn render_meta_toml(input: &MetaInput<'_>) -> String {
          [pack]\n\
          version = \"general-evidence-v1\"\n\
          min_count = {min_count}\n\
+         unigram_min_count = {unigram_min_count}\n\
          unigram_key_count = {unigram_key_count}\n\
          bigram_key_count = {bigram_key_count}\n\
          source_label = {source_label:?}\n\
          built_at = {built_at:?}\n\
          bin_sha256 = \"{bin_sha256_hex}\"\n",
         min_count = input.min_count,
+        unigram_min_count = input.unigram_min_count,
         unigram_key_count = input.unigram_key_count,
         bigram_key_count = input.bigram_key_count,
         source_label = input.source_label,
@@ -961,6 +975,7 @@ mod tests {
     fn render_meta_toml_contains_every_field_and_parses_as_toml() {
         let text = render_meta_toml(&MetaInput {
             min_count: 5,
+            unigram_min_count: 5,
             unigram_key_count: 42,
             bigram_key_count: 7,
             source_label: "enwiki-20260701-pages-articles",
@@ -1039,6 +1054,7 @@ The fabric pattern recurs across every fabric pattern discussion.
         pack(&PackArgs {
             work,
             min_count: 3,
+            unigram_min_count: None,
             out: out.clone(),
             meta_out: meta_out.clone(),
             source_label: "fixture".to_string(),

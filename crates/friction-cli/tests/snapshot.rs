@@ -188,6 +188,9 @@ fn workspace_root() -> PathBuf {
 /// resolves, and appears verbatim in any output that embeds it.
 fn friction() -> Command {
     let mut cmd = Command::cargo_bin("friction").expect("the friction binary builds");
+    // A developer's ~/.cache/friction/ pack must never arm the optional
+    // jargon.compound channel inside a byte-exact suite.
+    cmd.env("FRICTION_GENERAL_EVIDENCE", "/nonexistent-general-evidence");
     cmd.current_dir(workspace_root());
     cmd
 }

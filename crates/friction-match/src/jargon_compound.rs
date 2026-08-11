@@ -127,6 +127,21 @@ fn compound_span_at(
         return None;
     }
 
+    // Mid-sentence uppercase means an acronym or product name the tagger
+    // failed to mark NNP ("easy JSON", "Record models" — both measured
+    // leaks in the human-corpus gauntlet): names are unattested by
+    // nature, never invented terminology, so the pair is skipped. The
+    // one licensed capital is a sentence-initial first letter.
+    let sentence_initial = idx == 0;
+    let cased_ok = |word: &str, may_lead_upper: bool| {
+        word.bytes().enumerate().all(|(i, b)| {
+            b.is_ascii_lowercase() || (may_lead_upper && i == 0 && b.is_ascii_uppercase())
+        })
+    };
+    if !cased_ok(w1, sentence_initial) || !cased_ok(w2, false) {
+        return None;
+    }
+
     // (a) both words independently attested — an unknown word is a name,
     // typo, or code identifier, so this pair is skipped, not flagged.
     if !evidence.has_word(w1) || !evidence.has_word(w2) {

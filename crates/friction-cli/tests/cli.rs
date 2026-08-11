@@ -69,7 +69,11 @@ const DMS_MACHINE_FLAGGED_DOC: &str = "Ledgerline includes a built-in caching la
     for this; see the Distributed Cache Invalidation reference page).";
 
 fn friction() -> Command {
-    Command::cargo_bin("friction").expect("the friction binary builds")
+    let mut cmd = Command::cargo_bin("friction").expect("the friction binary builds");
+    // A developer's ~/.cache/friction/ pack must never arm the optional
+    // jargon.compound channel inside an output-asserting suite.
+    cmd.env("FRICTION_GENERAL_EVIDENCE", "/nonexistent-general-evidence");
+    cmd
 }
 
 fn write_fixture(dir: &Path, name: &str, contents: &str) -> PathBuf {

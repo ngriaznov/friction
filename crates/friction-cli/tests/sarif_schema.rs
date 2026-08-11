@@ -44,6 +44,8 @@ fn sarif_output_with_spans_validates_against_the_schema() {
 
     let output = Command::cargo_bin("friction")
         .expect("the friction binary builds")
+        // Keep a developer's cached general-evidence pack out of the run.
+        .env("FRICTION_GENERAL_EVIDENCE", "/nonexistent-general-evidence")
         .arg("check")
         .arg(&path)
         .args(["--genre", "blog", "--format", "sarif"])
@@ -75,6 +77,8 @@ fn sarif_output_with_no_spans_validates_against_the_schema() {
 
     let output = Command::cargo_bin("friction")
         .expect("the friction binary builds")
+        // Keep a developer's cached general-evidence pack out of the run.
+        .env("FRICTION_GENERAL_EVIDENCE", "/nonexistent-general-evidence")
         .arg("check")
         .arg(&path)
         .args(["--genre", "docs", "--format", "sarif"])

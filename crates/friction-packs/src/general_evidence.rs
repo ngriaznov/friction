@@ -634,21 +634,24 @@ fn resolve() -> Option<GeneralEvidencePack> {
 /// real call site only ever reaches this through [`resolve`], which
 /// supplies the real `FRICTION_GENERAL_EVIDENCE`/`$HOME`-derived paths.
 ///
-/// Tries `env_path` first, then `cache_path`; a candidate that doesn't
-/// exist, or that fails [`GeneralEvidencePack::load`] (a corrupt or
-/// stale file), is skipped in favor of the next one — never an error,
-/// per this module's own "Availability seam" docs on silent skipping.
+/// A set `env_path` is AUTHORITATIVE: explicit intent beats the ambient
+/// cache, so when the variable names a path that doesn't exist or fails
+/// [`GeneralEvidencePack::load`], the answer is [`None`] — never a
+/// fall-through to `cache_path`. This is also the documented disable
+/// switch (`FRICTION_GENERAL_EVIDENCE=/nonexistent` guarantees the
+/// channel stays dark, which byte-exact test suites rely on). With no
+/// env var at all, the cache candidate is tried; a corrupt or missing
+/// cache file silently resolves to [`None`], per this module's own
+/// "Availability seam" docs.
 #[cfg(not(target_arch = "wasm32"))]
 fn resolve_from_paths(
     env_path: Option<std::path::PathBuf>,
     cache_path: Option<std::path::PathBuf>,
 ) -> Option<GeneralEvidencePack> {
-    for path in [env_path, cache_path].into_iter().flatten() {
-        if let Some(pack) = load_from_path(&path) {
-            return Some(pack);
-        }
-    }
-    None
+    env_path.map_or_else(
+        || cache_path.and_then(|path| load_from_path(&path)),
+        |path| load_from_path(&path),
+    )
 }
 
 /// Reads and leaks `path`'s bytes, then parses them — [`None`] if the
@@ -887,20 +890,24 @@ mod tests {
     }
 
     #[test]
-    fn resolve_from_paths_falls_through_a_missing_env_candidate_to_the_cache_candidate() {
+    fn resolve_from_paths_treats_a_set_env_candidate_as_authoritative() {
         let dir = tempfile_dir();
         let built = build_pack_bytes(&sample_unigrams(), &sample_bigrams()).expect("builds");
         let cache_path = dir.join("cache.bin");
         std::fs::write(&cache_path, &built.bytes).expect("write cache candidate");
 
+        // Set-but-missing env path: the cache must NOT be consulted —
+        // this is the disable switch byte-exact suites depend on.
         let missing_env = dir.join("does-not-exist.bin");
-        let pack = resolve_from_paths(Some(missing_env), Some(cache_path))
-            .expect("falls through to the cache candidate");
+        assert!(resolve_from_paths(Some(missing_env), Some(cache_path.clone())).is_none());
+
+        // No env var at all: the cache candidate is used.
+        let pack = resolve_from_paths(None, Some(cache_path)).expect("cache candidate loads");
         assert!(pack.has_word("utilize"));
     }
 
     #[test]
-    fn resolve_from_paths_skips_a_corrupt_env_candidate_in_favor_of_the_cache_candidate() {
+    fn resolve_from_paths_answers_none_for_a_corrupt_env_candidate() {
         let dir = tempfile_dir();
         let built = build_pack_bytes(&sample_unigrams(), &sample_bigrams()).expect("builds");
         let env_path = dir.join("env.bin");
@@ -908,9 +915,9 @@ mod tests {
         let cache_path = dir.join("cache.bin");
         std::fs::write(&cache_path, &built.bytes).expect("write cache candidate");
 
-        let pack = resolve_from_paths(Some(env_path), Some(cache_path))
-            .expect("skips the corrupt candidate silently");
-        assert!(pack.has_word("utilize"));
+        // The explicit env candidate is authoritative even when corrupt:
+        // silently None, never a fall-through to the ambient cache.
+        assert!(resolve_from_paths(Some(env_path), Some(cache_path)).is_none());
     }
 
     #[test]
