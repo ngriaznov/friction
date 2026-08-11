@@ -2213,6 +2213,297 @@ pub fn t11_transitive_substitution(
 }
 
 // ---------------------------------------------------------------------
+// T12: sentence-final participial-closer split.
+// ---------------------------------------------------------------------
+
+/// `true` if `prefix` (the tokens strictly before the licensing comma)
+/// is a complete clause on its own: a finite verb somewhere, or an
+/// imperative-initial bare verb.
+///
+/// The narrower of the two checks [`crate::gates::clause_ok`] runs in
+/// `friction-edit` (that one also falls back to
+/// `has_ambiguous_s_verb`, a tagger-specific compensation this crate has
+/// no access to and no need of here — a false negative just declines
+/// the candidate, never a false accept). Named separately from
+/// [`has_finite_verb_cx`] because a contraction-fused clause boundary
+/// (`"it's"`) is `t6_em_dash`'s own concern for a dash immediately
+/// following it, not this construction's: T12's comma always sits
+/// before a `VBG`, never before a fused subject+aux.
+fn t12_main_clause_is_complete(prefix: &[TaggedToken]) -> bool {
+    has_finite_verb(prefix) || is_imperative_initial(prefix)
+}
+
+/// Derives the base-form ("VB") verb `vbg_surface` (a `VBG` token's own
+/// surface text) inflects from, corroborated by round-tripping
+/// [`friction_nlp::inflect`]'s gerund generation back against
+/// `vbg_surface` — `None` if no candidate round-trips.
+///
+/// The `VBG` analogue of [`t10_derive_base_verb`], reusing its exact
+/// two-step shape (trust the tagger's own lemma once it round-trips,
+/// with [`t10_ends_in_bare_consonant_l`]'s silent-`"e"` correction
+/// preferred when it also round-trips) and its exact same disclosed
+/// scope: the shipped lemmatizer strips a silent `"e"` before both
+/// `"-ed"` and `"-ing"` the same way, so the same wider class this
+/// doesn't catch there (`"resolved"` -> `"resolv"`) doesn't get caught
+/// here either (`"resolving"` -> `"resolv"`, which then round-trips on
+/// its own merits — see [`t10_derive_base_verb`]'s own docs for why
+/// nothing short of a dictionary separates that from a genuine e-less
+/// verb). Verified against the shipped tagger: `"making"` -> `"make"`
+/// and `"handling"`/`"enabling"` -> `"handl"`/`"enabl"`, corrected to
+/// `"handle"`/`"enable"` by the bare-consonant-`"l"` step, exactly
+/// mirroring T10's own `"enabled"`/`"disabled"` fixtures.
+fn t12_derive_base_verb(vbg_lemma: &str, vbg_surface: &str) -> Option<String> {
+    let round_trips = |candidate: &str| {
+        friction_nlp::inflect(vbg_surface, candidate)
+            .is_some_and(|generated| generated.eq_ignore_ascii_case(vbg_surface))
+    };
+    if round_trips(vbg_lemma) {
+        if !vbg_lemma.ends_with('e') && t10_ends_in_bare_consonant_l(vbg_lemma) {
+            let restored = format!("{vbg_lemma}e");
+            if round_trips(&restored) {
+                return Some(restored);
+            }
+        }
+        return Some(vbg_lemma.to_string());
+    }
+    if !vbg_lemma.ends_with('e') {
+        let restored = format!("{vbg_lemma}e");
+        if round_trips(&restored) {
+            return Some(restored);
+        }
+    }
+    None
+}
+
+/// Sentence-final participial-closer split (T12).
+///
+/// A comma-attached `VBG` adjunct hanging off a complete main clause
+/// becomes its own sentence, with a literal `"That"` subject and the
+/// participle re-conjugated to agree with it: `"The tool automates the
+/// whole pipeline, making it easy to onboard new projects."` -> `"The
+/// tool automates the whole pipeline. That makes it easy to onboard new
+/// projects."`.
+///
+/// Targets `participial_closer_rate`, a structural metric this
+/// workspace's own holdout measured discriminative for machine prose
+/// (see this crate's own design notes); no other restructuring op
+/// touches it.
+///
+/// # Detection order
+/// 1. A token tagged `VBG`, immediately preceded by a literal `","`
+///    token (never a raw-text `", "` scan: token adjacency survives
+///    irregular internal spacing the same way every other candidate in
+///    this module is located).
+/// 2. That `VBG` token's own incoming edge is [`DepRelation::Advcl`] —
+///    the parser's own signal that its (understood) subject is the
+///    CLAUSE the comma closes, not a coordinated noun. This is the
+///    guard `"a bag containing apples, oranges, and pears"` needs:
+///    verified against the shipped parser, a coordinated conjunct in a
+///    list (`"...linting, testing, and deploying."`) attaches by
+///    [`DepRelation::Conj`], and a noun's own reduced-relative modifier
+///    (`"...bag containing apples..."`) attaches by
+///    [`DepRelation::Acl`] — never `Advcl` — so this one check rejects
+///    both shapes structurally rather than by guessing from the comma
+///    alone. Verified too on a harder case: `"The service processes
+///    orders, invoices, and receipts, generating a report for each."`
+///    still matches here (`"generating"` attaches `Advcl` to the root
+///    despite the internal list commas before it), correctly, since
+///    that final comma really does close the whole clause.
+/// 3. Sentence-final: this `VBG` token's own subtree (see
+///    [`subtree_span`]) must reach exactly the token before the
+///    sentence's own terminal punctuation (`"."`/`"!"`/`"?"`, the last
+///    token in the sentence). A mid-sentence participial
+///    (`"..., making X, the team shipped ..."`) has more sentence after
+///    its subtree ends, so this declines to match at all — the same
+///    silent-decline convention T10 gives a shape that was never a
+///    candidate.
+///
+/// Every shape reaching this point genuinely matched the construction.
+/// From here, a failing guard is a named [`RestructureOutcome::Declined`]:
+/// 4. **Main-clause completeness**: [`t12_main_clause_is_complete`] over
+///    the tokens strictly before the comma.
+/// 5. **Markdown**: [`contains_markdown_structural_syntax`] over the
+///    matched comma-through-`VBG` span.
+/// 6. **Morphology**: [`t12_derive_base_verb`] must produce a
+///    round-tripping base form, re-conjugated third-singular-present via
+///    [`third_sg`] to agree with the literal `"That"` subject (the same
+///    static morphology table [`t10_ensures_that_restructure`]'s own
+///    finite-subject shape uses for its own re-inflection).
+///
+/// No negation guard, unlike T10: this construction never inverts a
+/// polarity. It only re-punctuates and re-subjects an already-written
+/// clause, copying everything after the `VBG` itself (any `"not"` it
+/// already contains included) forward unchanged.
+#[must_use]
+pub fn t12_participial_closer_split(
+    source: &str,
+    tokens: &[TaggedToken],
+    parse: &SentenceParse,
+) -> Vec<RestructureOutcome> {
+    let mut out = Vec::new();
+    let Some(last_index) = tokens.len().checked_sub(1) else {
+        return out;
+    };
+    let sentence_final_punct = matches!(token_text(source, tokens, last_index), "." | "!" | "?");
+
+    for index in 0..tokens.len() {
+        if tokens[index].pos.as_str() != "VBG" {
+            continue;
+        }
+        if index == 0 || token_text(source, tokens, index - 1) != "," {
+            continue; // no comma directly precedes; never a candidate.
+        }
+        let is_advcl = parse
+            .edge(index)
+            .is_some_and(|edge| edge.relation == DepRelation::Advcl);
+        if !is_advcl {
+            continue; // a coordinated conjunct (`Conj`) or a noun modifier (`Acl`); see this function's own docs.
+        }
+        if !sentence_final_punct {
+            continue; // no terminal punctuation to anchor the sentence-final check against.
+        }
+        let (_, subtree_last) = subtree_span(parse, index);
+        if subtree_last != last_index - 1 {
+            continue; // more sentence follows this participial's own subtree; not sentence-final.
+        }
+
+        let comma_index = index - 1;
+        let range = tokens[comma_index].token.range.start..tokens[index].token.range.end;
+        let decline = |reason| RestructureOutcome::Declined {
+            range: range.clone(),
+            reason,
+        };
+
+        if !t12_main_clause_is_complete(&tokens[..comma_index]) {
+            out.push(decline(
+                "the clause preceding the comma is not a complete clause on its own",
+            ));
+            continue;
+        }
+        if contains_markdown_structural_syntax(span_text(source, tokens, comma_index, index)) {
+            out.push(decline(
+                "candidate span contains Markdown structural syntax",
+            ));
+            continue;
+        }
+
+        let vbg_lemma = tokens[index].lemma.as_ref();
+        let vbg_surface = token_text(source, tokens, index);
+        let Some(base_verb) = t12_derive_base_verb(vbg_lemma, vbg_surface) else {
+            out.push(decline(
+                "the participle's lemma did not round-trip to a base verb",
+            ));
+            continue;
+        };
+
+        let replacement = format!(". That {}", third_sg(&base_verb));
+        out.push(RestructureOutcome::Candidate {
+            range,
+            replacement: replacement.into_boxed_str(),
+        });
+    }
+
+    out
+}
+
+// ---------------------------------------------------------------------
+// T13: em-dash relative-chain split ("— which is why X").
+// ---------------------------------------------------------------------
+
+/// The exact three-token frame [`t13_em_dash_relative_chain_split`]
+/// requires immediately after its one em dash, case-folded: `"which"`,
+/// `"is"`, `"why"`, in that order.
+///
+/// One literal frame only, deliberately: the design brief calls for v1
+/// to stay narrow rather than generalize to every relative-chain shape a
+/// dash can introduce (`"— which means"`, `"— which suggests"`, ...);
+/// widening this table is a follow-up, not part of this construction's
+/// own scope.
+const T13_FRAME_WORDS: [&str; 3] = ["which", "is", "why"];
+
+/// Em-dash relative-chain split (T13): `"The service handles routing —
+/// which is why the config stays small."` -> `"The service handles
+/// routing. That is why the config stays small."`.
+///
+/// Targets the same `em_dash`-adjacent structural tell T6 reduces, for
+/// the one shape T6 itself declines: T6's own `independent_clause_candidate`
+/// (case c) already recapitalizes past a bare independent clause after a
+/// single dash, but a clause OPENED by `"which"` is a relative pronoun,
+/// not a genuine new sentence subject — capitalizing "which" to "Which"
+/// reads as broken. This module targets that one specific relative-chain
+/// frame instead, swapping the dash and its relative pronoun for a
+/// period and a demonstrative: `"— which is"` -> `". That is"`.
+///
+/// # Detection order
+/// 1. Exactly one em-dash token in the sentence (see [`em_dash_tokens`]).
+///    Zero has nothing to rewrite; two or more is the CLOSED-pair shape
+///    (`"A — which is why B — and C."`) this v1 op declines outright —
+///    too entangled with whatever the paired dashes already delimit to
+///    decompose safely (the same class of shape [`t6_em_dash`] itself
+///    declines for three-or-more dashes, one narrower).
+/// 2. The dash neither opens nor closes the sentence (something on both
+///    sides to anchor the rewrite to), and the three tokens right after
+///    it case-fold to [`T13_FRAME_WORDS`] in order.
+/// 3. The tokens before the dash carry a finite verb of their own
+///    ([`has_finite_verb_cx`]) — the OPEN case's own left-hand clause
+///    requirement (`"A"` in the design brief's own `"A — which is why
+///    B."` shape). A verbless left side is a different construction (a
+///    definition lead-in, T6's own territory), not this one.
+///
+/// No `Declined` variant for a shape that never reaches this point (a
+/// missing frame, a verbless left side, a closed pair): the same silent
+/// convention T11 uses for a lemma that was never a licensed candidate
+/// at all. From here, a failing guard IS a named
+/// [`RestructureOutcome::Declined`]:
+/// 4. **Markdown**: [`contains_markdown_structural_syntax`] over the
+///    matched `"— which is"` span.
+///
+/// No morphology to derive: `"is"` never changes form (the frame's own
+/// verb already carries the number the replacement keeps), so this
+/// candidate is realized directly once every guard above passes.
+#[must_use]
+pub fn t13_em_dash_relative_chain_split(
+    source: &str,
+    tokens: &[TaggedToken],
+) -> Vec<RestructureOutcome> {
+    let dashes = em_dash_tokens(source, tokens);
+    let [dash] = dashes.as_slice() else {
+        return Vec::new(); // zero, or a closed pair (two or more): out of scope for v1.
+    };
+    let dash = *dash;
+    if dash == 0 || dash + T13_FRAME_WORDS.len() >= tokens.len() {
+        return Vec::new(); // nothing on one side to anchor the rewrite, or no room for the frame.
+    }
+    let frame_matches = T13_FRAME_WORDS
+        .iter()
+        .enumerate()
+        .all(|(offset, &word)| folded_token_text(source, tokens, dash + 1 + offset) == word);
+    if !frame_matches {
+        return Vec::new();
+    }
+    if !has_finite_verb_cx(source, tokens, 0..dash) {
+        return Vec::new(); // the left side isn't its own clause; not this construction.
+    }
+
+    let is_index = dash + 2; // T13_FRAME_WORDS[1] == "is".
+    let range = tokens[dash - 1].token.range.end..tokens[is_index].token.range.end;
+    if spans_inline_code(&source[range.clone()]) {
+        return Vec::new();
+    }
+    if contains_markdown_structural_syntax(&source[range.clone()]) {
+        return vec![RestructureOutcome::Declined {
+            range,
+            reason: "candidate span contains Markdown structural syntax",
+        }];
+    }
+
+    vec![RestructureOutcome::Candidate {
+        range,
+        replacement: Box::from(". That is"),
+    }]
+}
+
+// ---------------------------------------------------------------------
 // Inflection. `third_sg` is used only by T10's finite-subject shape
 // (§A1) and `past` by both T9 and T10; `past_participle` ships alongside
 // them since all three were audited as one unit — they now live in
