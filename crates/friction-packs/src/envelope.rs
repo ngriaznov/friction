@@ -188,6 +188,29 @@ impl EnvelopePack {
         #[allow(clippy::cast_precision_loss)]
         Some(included_total / included_count as f64)
     }
+
+    /// `true` if AT LEAST ONE genre this pack has a band for marks
+    /// `metric` `include: true` — `false` if every genre that has a band
+    /// for `metric` marks it `include: false`, or no genre has a band for
+    /// it at all.
+    ///
+    /// The genre-free counterpart to [`Self::combined_score`]'s own
+    /// per-genre `include` check, for `friction check`'s band-union
+    /// judgment (see [`Self::band_union`]): a metric no genre's own
+    /// train-split combined score ever counts is a metric this pack's own
+    /// holdout measurement found no better than chance at separating
+    /// human from machine text (AUC ~0.5) in EVERY genre it was measured
+    /// in — not a metric this pack merely lacks data for. `check` uses
+    /// this to mark such a metric's row `weak_signal` instead of
+    /// rendering an authoritative-looking in/out verdict the holdout
+    /// itself refutes. Iteration is over a `BTreeMap`, so the result is
+    /// deterministic.
+    #[must_use]
+    pub fn included_anywhere(&self, metric: &str) -> bool {
+        self.genres
+            .values()
+            .any(|bands| bands.get(metric).is_some_and(|band| band.include))
+    }
 }
 
 /// Normalized directional exceedance of `value` beyond `envelope`.
@@ -407,5 +430,62 @@ mod tests {
             pack.combined_score("not_a_genre", &MetricVector::default()),
             None
         );
+    }
+
+    /// `included_anywhere` is `true` as soon as ONE genre includes the
+    /// metric, even when every other genre with a band for it excludes
+    /// it.
+    #[test]
+    fn included_anywhere_true_when_any_genre_includes_it() {
+        let pack = r"
+            [blog.contraction_ratio]
+            lo = 0.1
+            hi = 0.9
+            include = false
+
+            [docs.contraction_ratio]
+            lo = 0.0
+            hi = 0.5
+            include = true
+        ";
+        let pack = EnvelopePack::parse(pack).expect("pack parses");
+        assert!(pack.included_anywhere("contraction_ratio"));
+    }
+
+    /// `included_anywhere` is `false` when every genre with a band for
+    /// the metric marks it excluded — the "AUC ~0.5 everywhere" case
+    /// `check`'s weak-signal row rendering exists for.
+    #[test]
+    fn included_anywhere_false_when_every_genre_excludes_it() {
+        let pack = r"
+            [blog.bullet_parallelism]
+            lo = 0.1
+            hi = 0.9
+            include = false
+
+            [docs.bullet_parallelism]
+            lo = 0.0
+            hi = 0.5
+            include = false
+        ";
+        let pack = EnvelopePack::parse(pack).expect("pack parses");
+        assert!(!pack.included_anywhere("bullet_parallelism"));
+    }
+
+    /// A metric with no band in any genre is not "included anywhere"
+    /// either — there is no basis to call it included.
+    #[test]
+    fn included_anywhere_false_for_a_metric_with_no_band_at_all() {
+        let pack = EnvelopePack::parse(SAMPLE).expect("sample pack parses");
+        assert!(!pack.included_anywhere("not_a_metric"));
+    }
+
+    /// A band that omits `include` defaults to `true` (see
+    /// [`default_include`]), so it counts toward `included_anywhere` too.
+    #[test]
+    fn included_anywhere_true_for_a_band_with_default_include() {
+        let pack = EnvelopePack::parse(SAMPLE).expect("sample pack parses");
+        // blog.em_dash_density in SAMPLE has no explicit `include`.
+        assert!(pack.included_anywhere("em_dash_density"));
     }
 }

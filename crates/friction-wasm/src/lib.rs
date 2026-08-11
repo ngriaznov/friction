@@ -219,7 +219,8 @@ pub fn fix_text(input: &str) -> Result<String, JsError> {
 }
 
 /// One metric's value, `docs`' envelope band for it (if the embedded
-/// pack has one), and whether the value falls inside that band. Mirrors
+/// pack has one), whether the value falls inside that band, and whether
+/// any genre's own combined score counts this metric at all. Mirrors
 /// `friction-cli::check::MetricRow` field-for-field.
 #[derive(Debug, Serialize)]
 struct MetricRow {
@@ -228,6 +229,7 @@ struct MetricRow {
     lo: Option<f64>,
     hi: Option<f64>,
     in_envelope: Option<bool>,
+    weak_signal: bool,
 }
 
 /// One detected span, flattened to a stable, serializable shape. Mirrors
@@ -327,6 +329,7 @@ fn metric_rows(metrics: &MetricVector, pack: &EnvelopePack) -> Vec<MetricRow> {
                 lo: band.map(|b| b.lo),
                 hi: band.map(|b| b.hi),
                 in_envelope: band.map(|b| b.contains(value)),
+                weak_signal: !pack.included_anywhere(name),
             }
         })
         .collect()

@@ -62,7 +62,9 @@ pub struct CheckArgs {
 }
 
 /// One metric's value, its cross-genre union band (if the pack has
-/// one), and whether the value falls inside that band.
+/// one), whether the value falls inside that band, and whether this
+/// pack's own holdout measurement found the metric discriminative
+/// anywhere at all ([`weak_signal`]).
 #[derive(Debug, Serialize)]
 struct MetricRow {
     name: &'static str,
@@ -70,6 +72,18 @@ struct MetricRow {
     lo: Option<f64>,
     hi: Option<f64>,
     in_envelope: Option<bool>,
+    /// `true` when no genre in the envelope pack counts this metric
+    /// toward its own combined out-of-envelope score
+    /// ([`friction_packs::EnvelopePack::included_anywhere`]): this pack's
+    /// own train-split holdout measured the metric at AUC ~0.5 (no better
+    /// than chance at separating human from machine text) in every genre
+    /// it was checked in. `value`/`lo`/`hi`/`in_envelope` are still
+    /// reported (there may still be a band to show), but rendering an
+    /// authoritative-looking in/out verdict for a non-signal would imply
+    /// evidence the holdout itself refutes — see this row's own `STATUS`
+    /// cell in `--format text` (rendered `weak` instead of `in`/`OUT`;
+    /// see `table::render_metric_table`'s own docs).
+    weak_signal: bool,
 }
 
 /// One detected span, flattened to a stable, serializable shape (1-based
@@ -88,8 +102,9 @@ struct SpanRow {
     /// only.
     score: Option<i64>,
     /// This span's own [`MatchSpan::message`], when its channel supplies
-    /// one (`overuse.word` today) — `None` for a channel whose spans all
-    /// share a generic, frame-id-derived message instead.
+    /// one (`dms.machine` and `overuse.word` today) — `None` for a
+    /// channel whose spans all share a generic, frame-id-derived message
+    /// instead.
     #[serde(skip_serializing_if = "Option::is_none")]
     message: Option<String>,
 }
@@ -143,7 +158,7 @@ fn run_inner(args: &CheckArgs) -> Result<ExitCode, CliError> {
     let report = match_engine.scan(&document)?;
 
     let rows = metric_rows(&metrics, pack.as_pack());
-    let all_in_envelope = rows.iter().all(|row| row.in_envelope.unwrap_or(true));
+    let all_in_envelope = all_in_envelope(&rows);
     let path_label = display_path(&args.input);
 
     match args.format {
@@ -206,9 +221,25 @@ fn metric_rows(metrics: &MetricVector, pack: &friction_packs::EnvelopePack) -> V
                 lo: band.map(|b| b.lo),
                 hi: band.map(|b| b.hi),
                 in_envelope: band.map(|b| b.contains(value)),
+                weak_signal: !pack.included_anywhere(name),
             }
         })
         .collect()
+}
+
+/// Whether every row's value sits inside its band — the metric half of
+/// `check`'s exit-code decision (see `run_inner`'s own `exit_ok`).
+///
+/// A `weak_signal` row is treated as passing regardless of its own
+/// `in_envelope` value: this pack's own holdout found the metric no
+/// better than chance at separating human from machine text in every
+/// genre it was checked in, so a value outside its band is not evidence
+/// of anything a nonzero exit code should report. A row with no band at
+/// all (`in_envelope: None`) already passes via `unwrap_or(true)`,
+/// unchanged from before `weak_signal` existed.
+fn all_in_envelope(rows: &[MetricRow]) -> bool {
+    rows.iter()
+        .all(|row| row.weak_signal || row.in_envelope.unwrap_or(true))
 }
 
 fn rows_for_table(rows: &[MetricRow]) -> Vec<table::MetricTableRow<'_>> {
@@ -219,6 +250,7 @@ fn rows_for_table(rows: &[MetricRow]) -> Vec<table::MetricTableRow<'_>> {
             lo: row.lo,
             hi: row.hi,
             in_envelope: row.in_envelope,
+            weak_signal: row.weak_signal,
         })
         .collect()
 }
@@ -405,6 +437,10 @@ mod tests {
         assert_eq!(triad.lo, Some(0.0));
         assert_eq!(triad.hi, Some(0.5));
         assert_eq!(triad.in_envelope, Some(true));
+        assert!(
+            !triad.weak_signal,
+            "triad_rate has a band with the include default (true), so it is not weak"
+        );
 
         let em_dash = rows
             .iter()
@@ -412,6 +448,77 @@ mod tests {
             .expect("em_dash_density row exists");
         assert_eq!(em_dash.lo, None);
         assert_eq!(em_dash.in_envelope, None);
+        assert!(
+            em_dash.weak_signal,
+            "em_dash_density has no band anywhere in this pack, so it is weak too"
+        );
+    }
+
+    /// A metric every genre with a band marks `include: false` is
+    /// `weak_signal` even though it still has a band (still shown, just
+    /// not judged) — the AUC-~0.5-everywhere case.
+    #[test]
+    fn metric_rows_marks_a_metric_excluded_by_every_genre_as_weak_signal() {
+        let pack = friction_packs::EnvelopePack::parse(
+            "[blog.bullet_parallelism]\nlo = 0.0\nhi = 1.0\ninclude = false\n\
+             [docs.bullet_parallelism]\nlo = 0.0\nhi = 1.0\ninclude = false\n",
+        )
+        .expect("pack parses");
+        let metrics = MetricVector::default();
+        let rows = metric_rows(&metrics, &pack);
+
+        let row = rows
+            .iter()
+            .find(|r| r.name == "bullet_parallelism")
+            .expect("bullet_parallelism row exists");
+        assert!(row.weak_signal);
+        assert!(row.lo.is_some(), "the band itself is still reported");
+    }
+
+    fn row(name: &'static str, in_envelope: Option<bool>, weak_signal: bool) -> MetricRow {
+        MetricRow {
+            name,
+            value: 0.0,
+            lo: Some(0.0),
+            hi: Some(1.0),
+            in_envelope,
+            weak_signal,
+        }
+    }
+
+    /// A row that's out of its band but `weak_signal` never fails
+    /// `all_in_envelope` — the exit-code exclusion `MetricRow::weak_signal`
+    /// exists for.
+    #[test]
+    fn all_in_envelope_ignores_out_of_band_weak_signal_rows() {
+        let rows = vec![
+            row("triad_rate", Some(true), false),
+            row("bullet_parallelism", Some(false), true),
+        ];
+        assert!(
+            all_in_envelope(&rows),
+            "an out-of-band weak-signal row must not fail the check"
+        );
+    }
+
+    /// A genuinely out-of-band, non-weak row still fails
+    /// `all_in_envelope` — the exclusion is scoped to `weak_signal` rows
+    /// only, not a blanket relaxation.
+    #[test]
+    fn all_in_envelope_still_fails_on_a_real_out_of_band_row() {
+        let rows = vec![
+            row("triad_rate", Some(true), false),
+            row("em_dash_density", Some(false), false),
+        ];
+        assert!(!all_in_envelope(&rows));
+    }
+
+    /// An unbanded row (`in_envelope: None`) still passes regardless of
+    /// `weak_signal` — unchanged from before `weak_signal` existed.
+    #[test]
+    fn all_in_envelope_passes_unbanded_rows() {
+        let rows = vec![row("unbanded_metric", None, false)];
+        assert!(all_in_envelope(&rows));
     }
 
     /// `frame_prefix` collapses a dotted frame id to its first segment,

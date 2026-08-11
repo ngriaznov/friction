@@ -142,6 +142,55 @@ fn query_ids(unit: &ScopedUnit<'_>, vocab: VocabView<'_>) -> Vec<Option<u32>> {
         .collect()
 }
 
+/// The `[start, start+len)` unit-local token window — `len` in `2..=4`,
+/// bounded by the emitted span's own `[left, end)` range — with the
+/// highest `sum(d[start..start+len])`: the strongest concrete evidence
+/// [`scan_units`] quotes in a span's [`MatchSpan::message`]. Ties broken
+/// by earliest `start`, then by shortest `len`, so the result is fully
+/// deterministic regardless of how many windows tie on score.
+///
+/// Searched over the whole displayed span (`[left, end)`, including the
+/// left-extension prefix `spans_from_curve` adds ahead of the CONTINUE
+/// region it actually scores), not just the CONTINUE region: the reader
+/// sees the whole span highlighted, so the quoted evidence should be the
+/// strongest window anywhere inside it, not only inside the sub-range the
+/// score happens to sum over.
+#[allow(clippy::cast_possible_truncation)]
+fn strongest_window(d: &[i64], left: usize, end: usize) -> (usize, usize) {
+    let span_len = end - left;
+    let max_len = span_len.min(4);
+    // Seeded with the smallest possible window so the loop below always
+    // finds a strictly-comparable first candidate: `left..left+min(2,
+    // max_len)` can never be out of bounds since `span_len >= 2` always
+    // holds (spans_from_curve's own MIN_LEN guarantee).
+    let mut best_sum = i64::MIN;
+    let mut best_start = left;
+    let mut best_len = 2.min(max_len);
+    for len in 2..=max_len {
+        for start in left..=(end - len) {
+            let sum: i64 = d[start..start + len].iter().sum();
+            let better = sum > best_sum
+                || (sum == best_sum
+                    && (start < best_start || (start == best_start && len < best_len)));
+            if better {
+                best_sum = sum;
+                best_start = start;
+                best_len = len;
+            }
+        }
+    }
+    (best_start, best_start + best_len)
+}
+
+/// The message every emitted [`Channel::Dms`] span carries: the
+/// strongest evidence inside the span, quoted verbatim from the
+/// original source — matching [`crate::overuse::scan_units`]'s register
+/// of naming a concrete, quoted instance rather than leaving a bare
+/// score to interpret.
+fn dms_span_message(quoted: &str) -> String {
+    format!("machine-favored phrasing peaks at '{quoted}'")
+}
+
 /// Runs [`spans_from_curve`] (thresholds 3/2/2, per the validated run)
 /// independently over each in-scope unit against `machine`'s pooled
 /// automaton vs. `human`, translates unit-local token indices to absolute
@@ -149,6 +198,12 @@ fn query_ids(unit: &ScopedUnit<'_>, vocab: VocabView<'_>) -> Vec<Option<u32>> {
 /// `frame_id = "dms.machine"` — the same constant for every span
 /// regardless of which family's evidence a run's tokens actually came
 /// from (see [`MACHINE_FRAME_ID`]'s own docs).
+///
+/// Every span's [`MatchSpan::message`] names its own strongest evidence
+/// (see [`strongest_window`]/[`dms_span_message`]): a bare differential
+/// score is not actionable on its own, so the span additionally quotes
+/// the 2-4 token window inside it that contributed the most to that
+/// score.
 pub fn scan_units(
     units: &[ScopedUnit<'_>],
     machine: SamView<'_>,
@@ -165,16 +220,34 @@ pub fn scan_units(
         let query = query_ids(unit, vocab);
         let mm = machine.matching_stats(&query);
         let mh = human.matching_stats(&query);
+        // Recomputed from `mm`/`mh` rather than threaded out of
+        // `spans_from_curve` (which returns only the extracted runs, not
+        // the underlying curve it walked): keeps that function's
+        // hand-verified signature untouched, at the cost of one more
+        // `O(tokens)` pass per unit — negligible next to the automaton
+        // walks just above it.
+        let d: Vec<i64> = mm
+            .iter()
+            .zip(&mh)
+            .map(|(&a, &b)| i64::from(a) - i64::from(b))
+            .collect();
 
         for run in spans_from_curve(&mm, &mh, START_THRESH, CONT_THRESH, MIN_LEN) {
             let start = unit.tokens[run.left].range.start;
             let end = unit.tokens[run.end - 1].range.end;
+
+            let (window_start, window_end) = strongest_window(&d, run.left, run.end);
+            let base = unit.unit.range.start;
+            let quote_start = unit.tokens[window_start].range.start - base;
+            let quote_end = unit.tokens[window_end - 1].range.end - base;
+            let message: Box<str> = dms_span_message(&unit.text[quote_start..quote_end]).into();
+
             spans.push(MatchSpan {
                 range: start..end,
                 channel: Channel::Dms,
                 frame_id: frame_id.clone(),
                 score: MatchScore::Differential(run.score),
-                message: None,
+                message: Some(message),
             });
         }
     }
@@ -335,5 +408,98 @@ mod tests {
     fn spans_from_curve_empty_curve_produces_no_runs() {
         let runs = spans_from_curve(&[], &[], 3, 2, 2);
         assert!(runs.is_empty());
+    }
+
+    /// `strongest_window` picks the 2-token window with the highest sum
+    /// when no window reaches length 3 or 4 (the span itself is only 2
+    /// tokens long).
+    #[test]
+    fn strongest_window_clamps_to_the_spans_own_length() {
+        let d = [5i64, 9];
+        let (start, end) = strongest_window(&d, 0, 2);
+        assert_eq!((start, end), (0, 2));
+    }
+
+    /// Among windows of different lengths, the highest-sum window wins
+    /// regardless of length — here the 3-token window beats every 2-token
+    /// sub-window of it.
+    #[test]
+    fn strongest_window_picks_the_highest_summed_window() {
+        // d: 3  2  9  1  2 (span [0, 5))
+        // 2-token sums: [0,2)=5 [1,3)=11 [2,4)=10 [3,5)=3
+        // 3-token sums: [0,3)=14 [1,4)=12 [2,5)=12
+        // 4-token sums: [0,4)=15 [1,5)=14
+        // best: [0,4) sum=15
+        let d = [3i64, 2, 9, 1, 2];
+        let (start, end) = strongest_window(&d, 0, 5);
+        assert_eq!((start, end), (0, 4));
+    }
+
+    /// Two windows tie on sum; the earlier-starting one wins. The middle
+    /// value is driven deeply negative so every window spanning it (every
+    /// length-3 and length-4 candidate) sums far lower, isolating the
+    /// tie to the two length-2 windows at the ends.
+    #[test]
+    fn strongest_window_breaks_ties_by_earliest_start() {
+        // d: 4 4 -100 4 4 (span [0, 5))
+        // 2-token sums: [0,2)=8 [1,3)=-92 [2,4)=-96 [3,5)=8
+        // [0,2) and [3,5) tie at 8; every longer window is very negative.
+        // [0,2) starts earlier, so it wins.
+        let d = [4i64, 4, -100, 4, 4];
+        let (start, end) = strongest_window(&d, 0, 5);
+        assert_eq!((start, end), (0, 2));
+    }
+
+    /// Two windows sharing the same start tie on sum only when a longer
+    /// window's extra token(s) sum to exactly zero; the shorter window
+    /// wins.
+    #[test]
+    fn strongest_window_breaks_same_start_ties_by_shortest_length() {
+        // d: 5 5 0 (span [0, 3))
+        // 2-token: [0,2)=10. 3-token: [0,3)=10. Same start, tie -> len 2.
+        let d = [5i64, 5, 0];
+        let (start, end) = strongest_window(&d, 0, 3);
+        assert_eq!((start, end), (0, 2));
+    }
+
+    /// The search is bounded to the given `[left, end)` span, never
+    /// looking outside it even when the underlying `d` array is longer.
+    #[test]
+    fn strongest_window_never_looks_outside_left_end() {
+        // A huge value just outside [2, 6) must never win.
+        let d = [100i64, 1, 2, 9, 2, 1, 100];
+        let (start, end) = strongest_window(&d, 2, 6);
+        assert!(
+            start >= 2 && end <= 6,
+            "window {start}..{end} escaped [2, 6)"
+        );
+    }
+
+    /// A span longer than 4 tokens still only ever considers windows up
+    /// to length 4.
+    #[test]
+    fn strongest_window_never_exceeds_length_four() {
+        let d = [1i64, 1, 1, 1, 1, 1, 1];
+        let (start, end) = strongest_window(&d, 0, 7);
+        assert!(end - start <= 4);
+    }
+
+    /// `strongest_window` is deterministic: repeated calls on the same
+    /// input return the exact same window.
+    #[test]
+    fn strongest_window_is_deterministic() {
+        let d = [3i64, 2, 9, 1, 2, 4, 4, 0, 4, 4];
+        let first = strongest_window(&d, 0, 10);
+        let second = strongest_window(&d, 0, 10);
+        assert_eq!(first, second);
+    }
+
+    #[test]
+    fn dms_span_message_quotes_the_evidence() {
+        let message = dms_span_message("plays a crucial role");
+        assert_eq!(
+            message,
+            "machine-favored phrasing peaks at 'plays a crucial role'"
+        );
     }
 }
