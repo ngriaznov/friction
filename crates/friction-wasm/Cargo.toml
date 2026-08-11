@@ -1,6 +1,6 @@
 [package]
 name = "friction-wasm"
-version = "0.6.4"
+version = "0.6.5"
 description = "wasm-bindgen bindings exposing check/fix/explain to a web page."
 edition.workspace = true
 rust-version.workspace = true
