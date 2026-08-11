@@ -132,9 +132,8 @@ fn run_with_source(args: &Args, source: &dyn MetricSource) -> anyhow::Result<()>
             Class::Human => entry.human.push(metrics),
             Class::Llm => {
                 entry.llm_raw.push(metrics);
-                let genre_str = record.genre.to_string();
-                let fixed_text = run_friction_fix(&args.friction_bin, &path, &genre_str)
-                    .with_context(|| {
+                let fixed_text =
+                    run_friction_fix(&args.friction_bin, &path).with_context(|| {
                         format!("{}: fixing with the release binary failed", record.id)
                     })?;
                 let fixed_path = tmp.path().join(format!("{}.md", record.id));
@@ -178,12 +177,10 @@ struct GenreGroups {
 /// # Errors
 /// Returns an error if the process can't be spawned, exits non-zero, or
 /// its stdout isn't valid UTF-8.
-fn run_friction_fix(bin: &Path, path: &Path, genre: &str) -> anyhow::Result<String> {
+fn run_friction_fix(bin: &Path, path: &Path) -> anyhow::Result<String> {
     let output = Command::new(bin)
         .arg("fix")
         .arg(path)
-        .arg("--genre")
-        .arg(genre)
         .output()
         .with_context(|| format!("failed to spawn {} fix {}", bin.display(), path.display()))?;
     if !output.status.success() {
