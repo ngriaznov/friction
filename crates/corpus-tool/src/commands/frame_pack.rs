@@ -119,10 +119,11 @@ pub fn run(args: &Args) -> anyhow::Result<()> {
         packed.len(),
     );
     println!(
-        "compiled: {} | report-only: {} | rejected: {}",
+        "compiled: {} | report-only: {} | rejected: {} | fallback candidates dropped: {}",
         report.compiled.len(),
         report.demoted.len(),
-        report.rejected.len()
+        report.rejected.len(),
+        report.dropped_candidates.len()
     );
     println!("\n--- compiled ---");
     for (id, kind) in &report.compiled {
@@ -135,6 +136,13 @@ pub fn run(args: &Args) -> anyhow::Result<()> {
     println!("\n--- rejected ---");
     for (id, reject) in &report.rejected {
         println!("  {id}: {reject}");
+    }
+    println!("\n--- dropped fallback candidates ---");
+    for dropped in &report.dropped_candidates {
+        println!(
+            "  {} candidate #{}: {}",
+            dropped.rule_id, dropped.ordinal, dropped.reason
+        );
     }
     Ok(())
 }

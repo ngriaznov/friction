@@ -45,8 +45,18 @@ pub struct FrameRule {
     pub id: String,
     /// Raw source pattern in the grammar [`parse_pattern`] accepts.
     pub p: String,
-    /// Raw target template (`""` = delete, `"="` = guard).
-    pub t: String,
+    /// Raw target ladder: ordered candidate target templates, primary
+    /// (today's sole target) first (`""` = delete, `"="` = guard —
+    /// meaningful only as a one-element ladder; see `frame_compile`'s
+    /// own docs for how the compiler treats a delete/guard-kind row
+    /// that carries more than one). A bare TOML string (`t="\"use\" X"`)
+    /// parses as the one-element ladder every rule authored so far
+    /// carries; an array (`t=["\"improve\" X", "\"boost\" X"]`) parses
+    /// as an ordered ladder — at apply time the runtime tries each
+    /// candidate in order and fires the first whose realization clears
+    /// the full gate stack, holding (as today) only if none does.
+    #[serde(deserialize_with = "deserialize_target_ladder")]
+    pub t: Vec<String>,
     /// Rule kind letter: `r` rewrite, `d` delete, `g` guard.
     pub k: String,
     /// Measured machine-corpus occurrences per million tokens.
@@ -59,6 +69,31 @@ pub struct FrameRule {
     /// authoring at compile review").
     #[serde(default)]
     pub n: Option<String>,
+}
+
+/// Deserializes [`FrameRule::t`]'s bare-string-or-array shape into a
+/// non-empty ladder. Rejects an empty array explicitly: a rule with no
+/// primary target at all is a malformed row, not a zero-length ladder.
+fn deserialize_target_ladder<'de, D>(deserializer: D) -> Result<Vec<String>, D::Error>
+where
+    D: serde::Deserializer<'de>,
+{
+    #[derive(Deserialize)]
+    #[serde(untagged)]
+    enum Raw {
+        One(String),
+        Many(Vec<String>),
+    }
+    let ladder = match Raw::deserialize(deserializer)? {
+        Raw::One(target) => vec![target],
+        Raw::Many(targets) => targets,
+    };
+    if ladder.is_empty() {
+        return Err(serde::de::Error::custom(
+            "target ladder must carry at least one target",
+        ));
+    }
+    Ok(ladder)
 }
 
 /// One pilot-bucket rule: a plain literal phrase pair with pair-mined
@@ -924,8 +959,9 @@ mod tests {
         {
             parse_pattern(&rule.p)
                 .unwrap_or_else(|e| panic!("rule {} pattern {:?}: {e}", rule.id, rule.p));
-            parse_target(&rule.t)
-                .unwrap_or_else(|e| panic!("rule {} target {:?}: {e}", rule.id, rule.t));
+            for t in &rule.t {
+                parse_target(t).unwrap_or_else(|e| panic!("rule {} target {t:?}: {e}", rule.id));
+            }
         }
     }
 
@@ -1010,6 +1046,73 @@ mod tests {
             panic!("expected template");
         };
         assert_eq!(t[0], TplElem::TagCopy(Tag::Nns));
+    }
+
+    /// Wraps one `rules_ship` array literal in the rest of the bucket
+    /// scaffold, mirroring `frame_compile`'s own `tiny_set` test helper.
+    fn tiny_set(rules_ship: &str) -> FrameRuleSet {
+        let toml = format!(
+            r#"
+{rules_ship}
+rules_flip = []
+rules_surface = []
+rules_pilot = []
+rules_quarantine = []
+rules_no_evidence = []
+rules_staged_surface = []
+[classes]
+[function_words]
+words = ["a", "an", "the", "to", "of"]
+"#
+        );
+        FrameRuleSet::parse(&toml).expect("tiny set must parse")
+    }
+
+    /// A bare TOML string `t` — every rule authored so far — parses as
+    /// the one-element ladder the compiler treats identically to today.
+    #[test]
+    fn bare_string_target_parses_as_a_one_element_ladder() {
+        let set = tiny_set(
+            r#"rules_ship = [
+{ id="vsub.utilize", p="\"utilize\" X", t="\"use\" X", k="r", m_pm=100.0, h_pm=10.0, v="CONFIRMED" },
+]"#,
+        );
+        assert_eq!(set.rules_ship[0].t, vec!["\"use\" X".to_string()]);
+    }
+
+    /// An array `t` parses as an ordered ladder, primary first.
+    #[test]
+    fn array_target_parses_as_an_ordered_ladder() {
+        let set = tiny_set(
+            r#"rules_ship = [
+{ id="vsub.utilize", p="\"utilize\" X", t=["\"use\" X", "\"apply\" X"], k="r", m_pm=100.0, h_pm=10.0, v="CONFIRMED" },
+]"#,
+        );
+        assert_eq!(
+            set.rules_ship[0].t,
+            vec!["\"use\" X".to_string(), "\"apply\" X".to_string()]
+        );
+    }
+
+    /// An empty array `t` is a load error: a rule needs a primary
+    /// target, never zero.
+    #[test]
+    fn empty_array_target_is_a_load_error() {
+        let toml = r#"
+rules_ship = [
+{ id="vsub.utilize", p="\"utilize\" X", t=[], k="r", m_pm=100.0, h_pm=10.0, v="CONFIRMED" },
+]
+rules_flip = []
+rules_surface = []
+rules_pilot = []
+rules_quarantine = []
+rules_no_evidence = []
+rules_staged_surface = []
+[classes]
+[function_words]
+words = []
+"#;
+        assert!(FrameRuleSet::parse(toml).is_err());
     }
 
     /// Probe extraction picks the longest obligatory literal run and

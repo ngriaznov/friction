@@ -34,6 +34,15 @@
 //!   `code: u8`, `a: u8`, `b: u32` — in two blobs. Pattern op codes
 //!   are [`PatOp`]'s discriminants with the high bit of `code` marking
 //!   an optional element; template op codes are [`TplOp`]'s.
+//! - **Template directory**: a rule's target ladder is an ordered list
+//!   of template-op ranges, not one. Flat array of
+//!   [`TPL_DIR_ENTRY_LEN`]-byte entries — `u32` op offset (into the
+//!   template-op blob, in op-cell units) + `u16` op count, the exact
+//!   pair the rule record itself held directly before ladders existed —
+//!   one entry per candidate, primary first, a rule's entries
+//!   contiguous. A rule record now points at a *range of directory
+//!   entries* instead of an op range directly: one extra indirection,
+//!   same offset+length shape either way.
 //! - **Anchor ids**: one flat `u32` array; rules reference slices.
 //! - **Rule ids**: one UTF-8 pool; rules reference byte ranges.
 //! - **Rules**: fixed [`RULE_RECORD_LEN`]-byte records (offsets/lengths
@@ -54,7 +63,12 @@ use crate::frame_rules::{Clitic, Slot, Tag};
 const MAGIC: [u8; 8] = *b"FRFRMPCK";
 
 /// On-disk format version: bumped if the layout changes shape.
-const FORMAT_VERSION: u16 = 1;
+///
+/// 1 -> 2: a rule record's template offset/length now names a range in
+/// the new template-directory blob (one entry per ladder candidate)
+/// instead of an op range directly — see this module's own docs on
+/// candidate ladders.
+const FORMAT_VERSION: u16 = 2;
 
 /// Length of the lowercase-hex sha256 recorded in the header.
 const SHA256_HEX_LEN: usize = 64;
@@ -64,6 +78,11 @@ const HEADER_LEN: usize = 8 + 2 + SHA256_HEX_LEN;
 
 /// Bytes per serialized op cell: `code: u8` + `a: u8` + `b: u32`.
 const OP_CELL_LEN: usize = 6;
+
+/// Bytes per template-directory entry: `tpl_off: u32` + `tpl_len: u16`
+/// — the same shape a rule record held directly for its one template
+/// before ladders existed.
+const TPL_DIR_ENTRY_LEN: usize = 6;
 
 /// The high bit of an op cell's `code`, marking an optional pattern
 /// element.
@@ -243,6 +262,7 @@ pub fn pack_frame_bin(pack: &CompiledPack, source_sha256_hex: &str) -> Vec<u8> {
     for blob in [
         &sections.pat_ops,
         &sections.tpl_ops,
+        &sections.tpl_dir,
         &sections.anchor_ids,
         &sections.id_pool,
     ] {
@@ -266,6 +286,7 @@ pub fn pack_frame_bin(pack: &CompiledPack, source_sha256_hex: &str) -> Vec<u8> {
 struct RuleSections {
     pat_ops: Vec<u8>,
     tpl_ops: Vec<u8>,
+    tpl_dir: Vec<u8>,
     anchor_ids: Vec<u8>,
     id_pool: Vec<u8>,
     records: Vec<u8>,
@@ -275,6 +296,7 @@ struct RuleSections {
 fn write_rules(pack: &CompiledPack, map: impl Fn(u32) -> u32 + Copy) -> RuleSections {
     let mut pat_ops: Vec<u8> = Vec::new();
     let mut tpl_ops: Vec<u8> = Vec::new();
+    let mut tpl_dir: Vec<u8> = Vec::new();
     let mut anchor_ids: Vec<u8> = Vec::new();
     let mut id_pool: Vec<u8> = Vec::new();
     let mut records: Vec<u8> = Vec::new();
@@ -284,11 +306,21 @@ fn write_rules(pack: &CompiledPack, map: impl Fn(u32) -> u32 + Copy) -> RuleSect
         for elem in &rule.pattern {
             pat_len += write_pat_elem(&mut pat_ops, elem, map, false);
         }
-        let tpl_off = u32::try_from(tpl_ops.len() / OP_CELL_LEN).expect("template op offset");
-        for op in &rule.template {
-            write_tpl_op(&mut tpl_ops, op, map);
+        // The target ladder: one directory entry per candidate,
+        // primary first, this rule's entries contiguous — see this
+        // module's own docs on the template directory.
+        let tpl_dir_off =
+            u32::try_from(tpl_dir.len() / TPL_DIR_ENTRY_LEN).expect("template dir offset");
+        for template in &rule.templates {
+            let tpl_off = u32::try_from(tpl_ops.len() / OP_CELL_LEN).expect("template op offset");
+            for op in template {
+                write_tpl_op(&mut tpl_ops, op, map);
+            }
+            let tpl_len = u16::try_from(template.len()).expect("template length");
+            tpl_dir.extend_from_slice(&tpl_off.to_le_bytes());
+            tpl_dir.extend_from_slice(&tpl_len.to_le_bytes());
         }
-        let tpl_len = u16::try_from(rule.template.len()).expect("template length");
+        let tpl_dir_len = u16::try_from(rule.templates.len()).expect("ladder length");
         let anchor_off = u32::try_from(anchor_ids.len() / 4).expect("anchor offset");
         for id in &rule.anchor_ids {
             anchor_ids.extend_from_slice(&map(*id).to_le_bytes());
@@ -304,8 +336,8 @@ fn write_rules(pack: &CompiledPack, map: impl Fn(u32) -> u32 + Copy) -> RuleSect
         );
         records.extend_from_slice(&pat_off.to_le_bytes());
         records.extend_from_slice(&pat_len.to_le_bytes());
-        records.extend_from_slice(&tpl_off.to_le_bytes());
-        records.extend_from_slice(&tpl_len.to_le_bytes());
+        records.extend_from_slice(&tpl_dir_off.to_le_bytes());
+        records.extend_from_slice(&tpl_dir_len.to_le_bytes());
         records.extend_from_slice(&anchor_off.to_le_bytes());
         records.extend_from_slice(
             &u16::try_from(rule.anchor_ids.len())
@@ -326,6 +358,7 @@ fn write_rules(pack: &CompiledPack, map: impl Fn(u32) -> u32 + Copy) -> RuleSect
     RuleSections {
         pat_ops,
         tpl_ops,
+        tpl_dir,
         anchor_ids,
         id_pool,
         records,
@@ -442,6 +475,7 @@ pub struct FramePackView<'a> {
     class_count: u16,
     pat_ops: &'a [u8],
     tpl_ops: &'a [u8],
+    tpl_dir: &'a [u8],
     anchor_ids: &'a [u8],
     id_pool: &'a str,
     records: &'a [u8],
@@ -459,8 +493,16 @@ pub struct RuleView<'a> {
     pub surface_match: bool,
     /// Decoded pattern ops.
     pub pattern: PatOps<'a>,
-    /// Decoded template ops.
-    pub template: TplOps<'a>,
+    /// This rule's slice of the template directory (one
+    /// [`TPL_DIR_ENTRY_LEN`]-byte entry per ladder candidate, primary
+    /// first) — decoded on demand by [`Self::candidate_template`]
+    /// rather than materialized eagerly, so a lookup that only ever
+    /// reads `pattern`/`anchor` (`friction_match::frame_rewrite`'s
+    /// scan, the hottest path over this struct) pays nothing for it.
+    template_dir: &'a [u8],
+    /// The full template-op blob a directory entry's offset resolves
+    /// against.
+    tpl_ops: &'a [u8],
     /// The anchor's word-id sequence.
     pub anchor: AnchorIds<'a>,
     /// Element index range `(start, len)` of the anchor within the
@@ -472,6 +514,41 @@ pub struct RuleView<'a> {
     pub m_pm: f32,
     /// Measured human per-million rate.
     pub h_pm: f32,
+}
+
+impl<'a> RuleView<'a> {
+    /// Number of candidate templates in this rule's target ladder (see
+    /// `frame_compile`'s own "Candidate ladders" docs). Zero for
+    /// delete/guard/report kinds; always at least one for a compiled
+    /// rewrite.
+    #[must_use]
+    pub const fn template_count(&self) -> usize {
+        self.template_dir.len() / TPL_DIR_ENTRY_LEN
+    }
+
+    /// Candidate ordinal `index`'s decoded template ops (`0` = the
+    /// primary, today's sole target); `None` past the ladder's end.
+    #[must_use]
+    pub fn candidate_template(&self, index: usize) -> Option<TplOps<'a>> {
+        let at = index.checked_mul(TPL_DIR_ENTRY_LEN)?;
+        let entry = self.template_dir.get(at..at + TPL_DIR_ENTRY_LEN)?;
+        let tpl_off = u32::from_le_bytes(entry[0..4].try_into().expect("4-byte split")) as usize;
+        let tpl_len = u16::from_le_bytes(entry[4..6].try_into().expect("2-byte split")) as usize;
+        self.tpl_ops
+            .get(tpl_off * OP_CELL_LEN..(tpl_off + tpl_len) * OP_CELL_LEN)
+            .map(|cells| TplOps { cells })
+    }
+
+    /// The primary (first) candidate's decoded template ops — empty for
+    /// delete/guard/report kinds, whose ladder is always empty. Kept as
+    /// the pre-ladder accessor every existing call site used, so code
+    /// that only ever cared about "the" target needs no changes; a call
+    /// site that must try the whole ladder uses
+    /// [`Self::candidate_template`] instead.
+    #[must_use]
+    pub fn template(&self) -> TplOps<'a> {
+        self.candidate_template(0).unwrap_or(TplOps { cells: &[] })
+    }
 }
 
 /// Iterator over a rule's pattern op cells; each item is
@@ -688,6 +765,8 @@ impl<'a> FramePackView<'a> {
         let pat_ops = r.take(pat_len as usize, "pattern ops")?;
         let tpl_len = r.u32("template ops")?;
         let tpl_ops = r.take(tpl_len as usize, "template ops")?;
+        let tpl_dir_len = r.u32("template directory")?;
+        let tpl_dir = r.take(tpl_dir_len as usize, "template directory")?;
         let anchor_len = r.u32("anchor ids")?;
         let anchor_ids = r.take(anchor_len as usize, "anchor ids")?;
         let id_pool_len = r.u32("rule ids")?;
@@ -705,6 +784,7 @@ impl<'a> FramePackView<'a> {
             class_count,
             pat_ops,
             tpl_ops,
+            tpl_dir,
             anchor_ids,
             id_pool,
             records,
@@ -802,8 +882,12 @@ impl<'a> FramePackView<'a> {
         let id_len = usize::from(u16_at(4));
         let pat_off = u32_at(6) as usize;
         let pat_len = usize::from(u16_at(10));
-        let tpl_off = u32_at(12) as usize;
-        let tpl_len = usize::from(u16_at(16));
+        // Named for what these bytes hold since format version 2: a
+        // range into the template *directory*, one entry per ladder
+        // candidate, not an op range directly (see this module's own
+        // docs).
+        let tpl_dir_off = u32_at(12) as usize;
+        let tpl_dir_len = usize::from(u16_at(16));
         let anchor_off = u32_at(18) as usize;
         let anchor_len = usize::from(u16_at(22));
         let anchor_elems = (u16_at(24), u16_at(26));
@@ -826,11 +910,10 @@ impl<'a> FramePackView<'a> {
                     .pat_ops
                     .get(pat_off * OP_CELL_LEN..(pat_off + pat_len) * OP_CELL_LEN)?,
             },
-            template: TplOps {
-                cells: self
-                    .tpl_ops
-                    .get(tpl_off * OP_CELL_LEN..(tpl_off + tpl_len) * OP_CELL_LEN)?,
-            },
+            template_dir: self.tpl_dir.get(
+                tpl_dir_off * TPL_DIR_ENTRY_LEN..(tpl_dir_off + tpl_dir_len) * TPL_DIR_ENTRY_LEN,
+            )?,
+            tpl_ops: self.tpl_ops,
             anchor: AnchorIds {
                 bytes: self
                     .anchor_ids
@@ -900,17 +983,6 @@ mod tests {
             assert_eq!(v.surface_match, rule.surface_match);
             assert_eq!(v.support, rule.support);
             assert_eq!(v.anchor_elems, rule.anchor_elems);
-            // Anchor words match through the remap.
-            let anchor_words: Vec<&str> = v
-                .anchor
-                .map(|id| view.word(id).expect("anchor word"))
-                .collect();
-            let source_words: Vec<&str> = rule
-                .anchor_ids
-                .iter()
-                .map(|id| pack.interner[*id as usize].as_str())
-                .collect();
-            assert_eq!(anchor_words, source_words, "rule {}", rule.id);
             // Ops decode without error and match in count (groups add
             // delimiter cells, so pattern count is >=).
             let pat_ops = v
@@ -921,15 +993,87 @@ mod tests {
                 })
                 .count();
             assert!(pat_ops >= rule.pattern.len(), "rule {}", rule.id);
-            let tpl_ops = v
-                .template
-                .clone()
-                .inspect(|op| {
-                    op.as_ref().expect("template op decodes");
-                })
-                .count();
-            assert_eq!(tpl_ops, rule.template.len(), "rule {}", rule.id);
+            // Every ladder candidate round-trips, in order.
+            assert_eq!(v.template_count(), rule.templates.len(), "rule {}", rule.id);
+            for (ordinal, source_template) in rule.templates.iter().enumerate() {
+                let tpl_op_count = v
+                    .candidate_template(ordinal)
+                    .unwrap_or_else(|| panic!("rule {} candidate {ordinal}", rule.id))
+                    .inspect(|op| {
+                        op.as_ref().expect("template op decodes");
+                    })
+                    .count();
+                assert_eq!(
+                    tpl_op_count,
+                    source_template.len(),
+                    "rule {} candidate {ordinal}",
+                    rule.id
+                );
+            }
+            assert!(
+                v.candidate_template(rule.templates.len()).is_none(),
+                "no candidate past the ladder's own end"
+            );
+            // Anchor words match through the remap (consumes `v.anchor`
+            // by value, so this runs last).
+            let anchor_words: Vec<&str> = v
+                .anchor
+                .map(|id| view.word(id).expect("anchor word"))
+                .collect();
+            let source_words: Vec<&str> = rule
+                .anchor_ids
+                .iter()
+                .map(|id| pack.interner[*id as usize].as_str())
+                .collect();
+            assert_eq!(anchor_words, source_words, "rule {}", rule.id);
         }
+    }
+
+    /// A rule whose ladder carries more than one candidate round-trips
+    /// every candidate, in order, each distinct — and `template()` (the
+    /// pre-ladder singular accessor) still returns exactly the primary.
+    #[test]
+    fn round_trip_preserves_a_multi_candidate_ladder() {
+        let toml = r#"
+rules_ship = [
+{ id="vsub.utilize", p="\"utilize\" X", t=["\"use\" X", "\"apply\" X"], k="r", m_pm=100.0, h_pm=10.0, v="CONFIRMED" },
+]
+rules_flip = []
+rules_surface = []
+rules_pilot = []
+rules_quarantine = []
+rules_no_evidence = []
+rules_staged_surface = []
+[classes]
+[function_words]
+words = ["a", "an", "the", "to", "of"]
+"#;
+        let set = FrameRuleSet::parse(toml).expect("tiny ladder set parses");
+        let evidence = CorpusEvidence::for_tests(&["use", "apply"]);
+        let (pack, report) = compile(&set, &evidence).expect("compile");
+        assert_eq!(pack.rules.len(), 1, "report: {report:?}");
+        assert_eq!(pack.rules[0].templates.len(), 2, "both candidates compile");
+
+        let bytes = pack_frame_bin(&pack, TEST_SHA);
+        let view = FramePackView::parse(&bytes).expect("pack parses");
+        let v = view.rule(0).expect("rule");
+        assert_eq!(v.template_count(), 2);
+
+        let decode = |ops: TplOps<'_>| -> Vec<TplOp> {
+            ops.map(|op| op.expect("template op decodes")).collect()
+        };
+        let primary = decode(v.candidate_template(0).expect("primary candidate"));
+        let fallback = decode(v.candidate_template(1).expect("fallback candidate"));
+        assert_ne!(
+            primary, fallback,
+            "the two candidates carry different targets"
+        );
+        assert!(v.candidate_template(2).is_none(), "ladder has exactly two");
+        assert_eq!(
+            decode(v.template()),
+            primary,
+            "the singular accessor still returns the primary"
+        );
     }
 
     /// Word lookup is a working binary search over the sorted table.

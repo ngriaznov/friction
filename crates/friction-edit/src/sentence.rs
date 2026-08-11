@@ -1251,31 +1251,19 @@ fn apply_frame_candidate(
                 ));
                 return;
             }
-            let Some(replacement) = realize_template(view, &rule, &m, tags, working) else {
-                held.push(Finding::new(
-                    rule_id,
-                    finding_range,
-                    format!("frame {} held: template did not realize", rule.id),
-                    Tier::Suggest,
-                ));
-                return;
-            };
-            if let Some(gate) = check_rewrite_gates(
-                working,
-                &m.bytes,
-                &replacement,
-                ctx.attestation,
-                original.clause_ok,
-                ctx.tagger,
-            ) {
-                held.push(Finding::new(
-                    rule_id,
-                    finding_range,
-                    format!("frame {} held: {gate}", rule.id),
-                    Tier::Suggest,
-                ));
-                return;
-            }
+            let replacement =
+                match try_rewrite_ladder(view, &rule, &m, tags, working, ctx, original) {
+                    Ok(replacement) => replacement,
+                    Err(hold_message) => {
+                        held.push(Finding::new(
+                            rule_id,
+                            finding_range,
+                            format!("frame {} held: {hold_message}", rule.id),
+                            Tier::Suggest,
+                        ));
+                        return;
+                    }
+                };
             // A replacement that opens its line or sentence carries
             // the opener's capital itself: the splicer marks the
             // region as replacement text, which the recapitalization
@@ -1299,6 +1287,60 @@ fn apply_frame_candidate(
         }
         CompiledKind::Guard | CompiledKind::Report => {}
     }
+}
+
+/// Tries `rule`'s target ladder in order (primary first): realizes each
+/// candidate and runs it through [`check_rewrite_gates`], returning the
+/// first replacement that clears both. `Err` carries the *primary*
+/// candidate's own failure message — exactly the message a single-target
+/// rule has always held with — regardless of which (if any) later
+/// candidate was tried, so a single-element ladder's hold is
+/// byte-identical to a pre-ladder compile's.
+fn try_rewrite_ladder(
+    view: &FramePackView<'_>,
+    rule: &friction_packs::frame_bin::RuleView<'_>,
+    m: &FrameMatch,
+    tags: &[TaggedToken],
+    working: &str,
+    ctx: &EditContext<'_>,
+    original: &OriginalState,
+) -> Result<String, String> {
+    let mut primary_hold: Option<String> = None;
+    // A compiled rewrite's ladder always carries at least the primary
+    // (see `friction_packs::frame_compile`'s own "Candidate ladders"
+    // docs); `.max(1)` is only a defensive floor against a malformed
+    // pack, so the loop still runs once and holds instead of silently
+    // doing nothing.
+    for candidate in 0..rule.template_count().max(1) {
+        let Some(template) = rule.candidate_template(candidate) else {
+            if candidate == 0 {
+                primary_hold = Some("template did not realize".to_string());
+            }
+            break;
+        };
+        let Some(replacement) = realize_template(view, rule, template, m, tags, working) else {
+            if candidate == 0 {
+                primary_hold = Some("template did not realize".to_string());
+            }
+            continue;
+        };
+        match check_rewrite_gates(
+            working,
+            &m.bytes,
+            &replacement,
+            ctx.attestation,
+            original.clause_ok,
+            ctx.tagger,
+        ) {
+            None => return Ok(replacement),
+            Some(gate) => {
+                if candidate == 0 {
+                    primary_hold = Some(gate.to_string());
+                }
+            }
+        }
+    }
+    Err(primary_hold.unwrap_or_else(|| "template did not realize".to_string()))
 }
 
 /// Whether `rule` is a bare verb+slot pattern whose matched slot opens
@@ -1426,12 +1468,17 @@ fn frame_element_to_op(pattern_ops: &[(PatOp, bool)], element: u8) -> Option<usi
 ///
 /// Slot copies re-emit the captured working-text bytes verbatim;
 /// inflected realizations go through [`friction_nlp::inflect`], with
-/// the bare lemma as the fallback when no inflection applies. Returns
-/// `None` when a copy references something the match did not capture.
-/// The candidate is then held rather than spliced half-formed.
+/// the bare lemma as the fallback when no inflection applies. `template`
+/// is one candidate from `rule`'s target ladder — the caller
+/// ([`try_rewrite_ladder`]) tries each in turn — so this stays a pure
+/// function of a specific candidate rather than reaching for "the"
+/// template itself. Returns `None` when a copy references something the
+/// match did not capture. The candidate is then held rather than
+/// spliced half-formed.
 fn realize_template(
     view: &FramePackView<'_>,
     rule: &friction_packs::frame_bin::RuleView<'_>,
+    template: friction_packs::frame_bin::TplOps<'_>,
     m: &FrameMatch,
     tags: &[TaggedToken],
     working: &str,
@@ -1446,7 +1493,7 @@ fn realize_template(
         &working[range]
     };
     let mut pieces: Vec<String> = Vec::new();
-    for op in rule.template.clone() {
+    for op in template {
         let op = op.expect("embedded pack ops always decode");
         let piece = match op {
             TplOp::Lit(id) => view.word(id)?.to_string(),
@@ -1689,4 +1736,126 @@ fn first_word(text: &str) -> Option<Box<str>> {
         .into_iter()
         .find(|t| t.kind == AnalysisTokenKind::Word)
         .map(|t| t.text)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use friction_nlp::PerceptronTagger;
+    use friction_packs::frame_bin::{FramePackView, pack_frame_bin};
+    use friction_packs::frame_compile::{CorpusEvidence, compile};
+    use friction_packs::frame_rules::FrameRuleSet;
+
+    /// A tiny compiled pack over one synthetic two-candidate ladder
+    /// rule, built the same way `friction_packs::frame_compile`'s and
+    /// `friction_match::frame_rewrite`'s own tests do (a hand-written
+    /// TOML, `compile`, `pack_frame_bin`) — never the shipped rule set,
+    /// which never carries a ladder (the byte-fence forbids adding one
+    /// to `frame-rules-en-v1.toml`; curation is a separate step).
+    ///
+    /// Same pattern as the real `vsub.expedite` rule; primary candidate
+    /// is an invented word no real corpus has ever attested, fallback
+    /// is `vsub.expedite`'s own real, proven-firing target ("speed
+    /// up" — see `frame_op.rs`'s
+    /// `sentence_initial_rewrite_transfers_capitalization`).
+    fn ladder_pack_bytes() -> Vec<u8> {
+        let toml = r#"
+rules_ship = [
+{ id="vsub.expedite", p="\"expedite\" X", t=["\"zorptify\" X", "\"speed up\" X"], k="r", m_pm=100.0, h_pm=10.0, v="CONFIRMED" },
+]
+rules_flip = []
+rules_surface = []
+rules_pilot = []
+rules_quarantine = []
+rules_no_evidence = []
+rules_staged_surface = []
+[classes]
+[function_words]
+words = ["a", "an", "the", "to", "of", "up"]
+"#;
+        let set = FrameRuleSet::parse(toml).expect("tiny ladder rule set parses");
+        // Compile-time attestation is a synthetic table (never the real
+        // corpus): both candidates must clear it to reach the ladder at
+        // all, including the invented word the real RUNTIME attestation
+        // pack has of course never seen — that gap between compile-time
+        // authoring evidence and runtime seam evidence is exactly the
+        // scenario this test exercises.
+        let evidence = CorpusEvidence::for_tests(&["zorptify", "speed", "up"]);
+        let (pack, report) = compile(&set, &evidence).expect("tiny ladder set compiles");
+        assert_eq!(pack.rules.len(), 1, "report: {report:?}");
+        assert_eq!(pack.rules[0].templates.len(), 2, "both candidates compile");
+        pack_frame_bin(&pack, &"0".repeat(64))
+    }
+
+    /// A synthetic rule's ladder holds on the primary and fires on the
+    /// fallback: the primary candidate ("zorptify", attested nowhere in
+    /// any real corpus) fails `check_rewrite_gates` against the real
+    /// embedded attestation table; the fallback ("speed up") clears
+    /// every gate, and `try_rewrite_ladder` returns it — proving the
+    /// ladder rescues a candidate a single-target rule would have held
+    /// on forever.
+    #[test]
+    fn ladder_holds_on_an_unattested_primary_and_fires_on_an_attested_fallback() {
+        let bytes = ladder_pack_bytes();
+        let view = FramePackView::parse(&bytes).expect("synthetic pack parses");
+        let index = FrameIndex::build(&view);
+
+        let text = "Expedite the rollout now.";
+        let tagger = PerceptronTagger::new().expect("embedded tagger loads");
+        let tags = tagger.tag(text, 0);
+        let matches = frame_rewrite::scan_sentence(&view, &index, &tags, text);
+        let m = matches
+            .into_iter()
+            .find(|m| view.rule(m.rule_index).expect("rule").id == "vsub.expedite")
+            .expect("the synthetic rule matches its own pattern");
+        let rule = view.rule(m.rule_index).expect("rule");
+
+        let packs = friction_packs::PackSet::for_lang(friction_core::Lang::En);
+        let casing = DocumentCasing::default();
+        let ctx = EditContext {
+            inventory: &packs.inventory.pack,
+            attestation: &packs.attestation.pack,
+            tagger: &tagger,
+            casing: &casing,
+        };
+        let original = OriginalState {
+            clause_ok: clause_ok(&tags, text),
+            verb_words: BTreeSet::new(),
+            tags: tags.clone(),
+        };
+
+        // Fixture sanity: the primary candidate really does fail a real
+        // gate — otherwise this test would pass for the wrong reason.
+        let primary = realize_template(
+            &view,
+            &rule,
+            rule.candidate_template(0).expect("primary candidate"),
+            &m,
+            &tags,
+            text,
+        )
+        .expect("primary template realizes");
+        assert!(
+            check_rewrite_gates(
+                text,
+                &m.bytes,
+                &primary,
+                ctx.attestation,
+                original.clause_ok,
+                ctx.tagger,
+            )
+            .is_some(),
+            "fixture assumption: the invented primary word must fail a real gate"
+        );
+
+        let replacement = try_rewrite_ladder(&view, &rule, &m, &tags, text, &ctx, &original)
+            .expect("the fallback candidate must fire");
+        // The leading literal's inflection carries the matched
+        // "Expedite"'s own capital ("Speed"), the same agreeing-
+        // inflection mechanism `frame_compile`'s own docs describe —
+        // matching the proven-passing production text exactly, before
+        // `apply_frame_candidate`'s separate opener-capitalization step
+        // (which this direct `try_rewrite_ladder` call never reaches).
+        assert_eq!(replacement, "Speed up the");
+    }
 }

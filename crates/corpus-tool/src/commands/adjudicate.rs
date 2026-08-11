@@ -1169,10 +1169,14 @@ fn write_rule_bucket(
     for rule in rules {
         let _ = write!(
             out,
-            "{{ id=\"{}\", p=\"{}\", t=\"{}\", k=\"{}\", m_pm={}, h_pm={}, v=\"{}\"",
+            "{{ id=\"{}\", p=\"{}\", ",
             toml_escape(&rule.id),
             toml_escape(&rule.p),
-            toml_escape(&rule.t),
+        );
+        write_target_ladder(out, &rule.t);
+        let _ = write!(
+            out,
+            ", k=\"{}\", m_pm={}, h_pm={}, v=\"{}\"",
             toml_escape(&rule.k),
             format_rate(rule.m_pm),
             format_rate(rule.h_pm),
@@ -1184,6 +1188,32 @@ fn write_rule_bucket(
         out.push_str(" },\n");
     }
     out.push_str("]\n\n");
+}
+
+/// Writes a rule's target ladder in the pack's own style: this
+/// regenerator never authors a ladder itself (curation is a separate
+/// step — see `frame_compile`'s own "Candidate ladders" docs), so every
+/// row it writes is the one-element ladder every existing row already
+/// carries, in the exact bare-string form `t="..."` those rows use
+/// today; a hand-curated multi-element ladder passing through
+/// unpromoted round-trips as the array form.
+fn write_target_ladder(out: &mut String, ladder: &[String]) {
+    use std::fmt::Write as _;
+    match ladder {
+        [only] => {
+            let _ = write!(out, "t=\"{}\"", toml_escape(only));
+        }
+        many => {
+            out.push_str("t=[");
+            for (i, target) in many.iter().enumerate() {
+                if i > 0 {
+                    out.push_str(", ");
+                }
+                let _ = write!(out, "\"{}\"", toml_escape(target));
+            }
+            out.push(']');
+        }
+    }
 }
 
 /// Writes the pilot bucket (pair-support literals, no measured rates).

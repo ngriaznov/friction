@@ -62,6 +62,41 @@
 //! break tense: the runtime realizes "tell" in the matched token's form
 //! ("told") through the inflection tables, falling back to the bare
 //! lemma when no inflection applies.
+//!
+//! # Candidate ladders
+//!
+//! [`FrameRule::t`] is an ordered ladder of target candidates, not a
+//! single target: at apply time the runtime tries each in order and
+//! fires the first whose realization clears the full post-compile gate
+//! stack (`friction-edit`'s `check_rewrite_gates`), holding — as it
+//! always has — only when every candidate fails. Every gauntlet fence
+//! above that touches the target (1, 2, 4, 7, 8, 9) runs once per
+//! candidate, but the two candidate ranks mean different things when a
+//! fence fails:
+//!
+//! - The **primary** (the ladder's first candidate — the rule's only
+//!   target before ladders existed) keeps every fence's exact original
+//!   behavior: a failure rejects or demotes the *whole rule*, and the
+//!   compile report carries the same one line it always has. This is
+//!   what keeps a single-target rule's compiled output byte-identical
+//!   to pre-ladder compiles.
+//! - A **fallback** (every later candidate) is optional: a fence
+//!   failure drops just that candidate from the ladder, recorded as a
+//!   [`CompileReport::dropped_candidates`] line naming the rule,
+//!   ordinal, and fence — never a rule-level rejection or demotion. A
+//!   rule with a failed fallback still compiles (or fails to compile)
+//!   exactly as it would if that fallback had never been authored.
+//!
+//! Fences 3 (defined classes), 5 (shadowing), and 6 (anchor) read only
+//! the rule's *pattern*, which a ladder never touches, so they run once
+//! per rule regardless of ladder length — as does the demotion decision
+//! itself (flip-bucket / anchor-evidence / machine-tilted-guard), which
+//! is anchor-derived, not target-derived. [`CompiledRule::templates`]
+//! holds the surviving candidates in ladder order, primary first; the
+//! serialized pack's `RuleView::template` accessor keeps returning the
+//! primary alone, so call sites that only ever cared about "the"
+//! target (there is only ever one for delete/guard/report kinds) need
+//! no changes.
 
 use std::collections::{BTreeMap, BTreeSet};
 
@@ -175,8 +210,13 @@ pub struct CompiledRule {
     pub kind: CompiledKind,
     /// Compiled pattern.
     pub pattern: Vec<CPat>,
-    /// Compiled template (empty for delete/guard/report).
-    pub template: Vec<CTpl>,
+    /// Compiled target ladder, primary first (empty for
+    /// delete/guard/report — see the module docs' "Candidate ladders"
+    /// section). Always non-empty for a compiled rewrite: the primary
+    /// candidate that survives every fence is the one guarantee a
+    /// ladder never loses, since its own failure rejects the rule
+    /// before this field is ever built.
+    pub templates: Vec<Vec<CTpl>>,
     /// Element index range of the anchor run within `pattern`.
     pub anchor_elems: (u16, u16),
     /// The anchor's interned lemma-id sequence.
@@ -254,6 +294,22 @@ pub enum Reject {
     UnrealizableTemplate(String),
 }
 
+/// One fallback ladder candidate dropped by a per-candidate fence.
+///
+/// Never a rule-level outcome (see the module docs' "Candidate
+/// ladders"): the rule still compiles (or doesn't) exactly as if this
+/// candidate had never been authored.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct DroppedCandidate {
+    /// The owning rule's id.
+    pub rule_id: String,
+    /// The candidate's ladder position (1 = the first fallback, the
+    /// primary is always ordinal 0 and is never dropped this way).
+    pub ordinal: usize,
+    /// Which fence the candidate failed, and why.
+    pub reason: String,
+}
+
 /// The compile outcome: what shipped, what demoted, what fell.
 #[derive(Debug, Clone, Default)]
 pub struct CompileReport {
@@ -263,6 +319,11 @@ pub struct CompileReport {
     pub demoted: Vec<(String, String)>,
     /// Rules excluded entirely, with reasons.
     pub rejected: Vec<(String, Reject)>,
+    /// Fallback ladder candidates dropped by a per-candidate fence.
+    /// Never affects `compiled`/`demoted`/`rejected`: a rule with a
+    /// dropped fallback still lands in exactly the section its primary
+    /// candidate earned it.
+    pub dropped_candidates: Vec<DroppedCandidate>,
 }
 
 /// Structural failures that abort the whole compile.
@@ -679,7 +740,14 @@ pub fn compile(
     // resolved first and closure runs as a second pass.
     let mut survivors: Vec<CompiledRule> = Vec::new();
     for draft in drafts {
-        match compile_one(draft, &mut interner, &mut classes, &ship_parents, evidence) {
+        match compile_one(
+            draft,
+            &mut interner,
+            &mut classes,
+            &ship_parents,
+            evidence,
+            &mut report,
+        ) {
             Outcome::Compiled(rule, demotion) => {
                 match demotion {
                     Some(reason) => report.demoted.push((rule.id.clone(), reason)),
@@ -694,34 +762,54 @@ pub fn compile(
     // Closure fence: no rewrite/delete target may be able to emit any
     // compiling rewrite/delete rule's anchor sequence (guards produce
     // no output and report rules never edit: both exempt, see the
-    // module docs).
+    // module docs). Runs per ladder candidate: the primary keeps
+    // today's exact behavior (a violation rejects the whole rule); a
+    // fallback that violates closure is simply dropped from the ladder
+    // (see the module docs' "Candidate ladders").
     let anchors: Vec<(String, Vec<u32>)> = survivors
         .iter()
         .filter(|r| matches!(r.kind, CompiledKind::Rewrite | CompiledKind::Delete))
         .map(|r| (r.id.clone(), r.anchor_ids.clone()))
         .collect();
     let mut closed: Vec<CompiledRule> = Vec::new();
-    for rule in survivors {
+    for mut rule in survivors {
         if matches!(rule.kind, CompiledKind::Rewrite) {
-            let emitted = static_emission_runs(&rule.template);
-            let violation = anchors.iter().find(|(other_id, anchor)| {
-                !anchor.is_empty()
-                    && emitted
-                        .iter()
-                        .any(|run| run.windows(anchor.len()).any(|w| w == anchor.as_slice()))
-                    && *other_id != rule.id
-            });
-            if let Some((other_id, _)) = violation {
+            let mut kept_templates = Vec::with_capacity(rule.templates.len());
+            let mut primary_violation = None;
+            for (ordinal, template) in rule.templates.iter().enumerate() {
+                let emitted = static_emission_runs(template);
+                let violation = anchors.iter().find(|(other_id, anchor)| {
+                    !anchor.is_empty()
+                        && emitted
+                            .iter()
+                            .any(|run| run.windows(anchor.len()).any(|w| w == anchor.as_slice()))
+                        && *other_id != rule.id
+                });
+                match violation {
+                    Some((other_id, _)) if ordinal == 0 => {
+                        primary_violation = Some(other_id.clone());
+                        break;
+                    }
+                    Some((other_id, _)) => report.dropped_candidates.push(DroppedCandidate {
+                        rule_id: rule.id.clone(),
+                        ordinal,
+                        reason: format!(
+                            "candidate target can emit the anchor of rule {other_id:?}"
+                        ),
+                    }),
+                    None => kept_templates.push(template.clone()),
+                }
+            }
+            if let Some(other_id) = primary_violation {
                 report.compiled.retain(|(id, _)| id != &rule.id);
                 report.demoted.retain(|(id, _)| id != &rule.id);
                 report.rejected.push((
                     rule.id.clone(),
-                    Reject::ClosureViolation {
-                        other: other_id.clone(),
-                    },
+                    Reject::ClosureViolation { other: other_id },
                 ));
                 continue;
             }
+            rule.templates = kept_templates;
         }
         closed.push(rule);
     }
@@ -756,12 +844,21 @@ fn collect_drafts(
             id: rule.id.clone(),
             message: e.to_string(),
         })?;
+        // Only the ladder's primary (first) candidate is parsed here,
+        // hard-failing the whole compile like the pattern above: a
+        // fenced bucket's primary target was verified parseable when
+        // adjudicated, so a parse failure here is structural. Fallback
+        // candidates parse later, per-candidate, inside `compile_one` —
+        // their failures are soft (see the module docs' "Candidate
+        // ladders").
+        //
         // The unauthored-target placeholder is uppercase in the source
         // (quoted or bare) and must never reach the parser or a splice.
-        let target = if rule.t.trim_matches('"') == "REVIEW" {
+        let primary_raw = &rule.t[0];
+        let target = if primary_raw.trim_matches('"') == "REVIEW" {
             Target::Template(Vec::new())
         } else {
-            parse_target(&rule.t).map_err(|e| FrameCompileError::Unparseable {
+            parse_target(primary_raw).map_err(|e| FrameCompileError::Unparseable {
                 id: rule.id.clone(),
                 message: e.to_string(),
             })?
@@ -770,7 +867,7 @@ fn collect_drafts(
             id: rule.id.clone(),
             bucket,
             kind: RuleKind::parse(&rule.k).expect("kinds validated at load"),
-            raw_target: rule.t.clone(),
+            raw_targets: rule.t.clone(),
             pattern,
             target,
             support: support_weight(rule.m_pm),
@@ -795,8 +892,15 @@ struct Draft {
     id: String,
     bucket: Bucket,
     kind: RuleKind,
-    raw_target: String,
+    /// The raw target ladder, primary first. Only `raw_targets[0]` has
+    /// been parsed into `target` at this point; every fence that must
+    /// treat a fallback's failure as a soft drop instead of a rule-level
+    /// outcome re-parses `raw_targets[1..]` itself (see `compile_one`).
+    raw_targets: Vec<String>,
     pattern: Vec<PatElem>,
+    /// The primary candidate's parsed target — the only one the
+    /// pre-ladder fences (guard shape, demotion, realizability, the
+    /// primary's own attestation) ever consult.
     target: Target,
     support: u32,
     surface_match: bool,
@@ -867,7 +971,9 @@ fn pilot_draft(rule: &PilotRule) -> Draft {
         id: format!("pilot.{slug}"),
         bucket: Bucket::Pilot,
         kind: RuleKind::parse(&rule.k).expect("kinds validated at load"),
-        raw_target: rule.t.clone(),
+        // `PilotRule::t` is a single literal, never a ladder — pilot
+        // rules are the pair-miner's fixture, authored one target apiece.
+        raw_targets: vec![rule.t.clone()],
         pattern,
         target,
         support: rule.support * 10,
@@ -884,13 +990,20 @@ fn compile_one(
     classes: &mut ClassTable,
     ship_parents: &BTreeMap<&str, Vec<PatElem>>,
     evidence: &CorpusEvidence,
+    report: &mut CompileReport,
 ) -> Outcome {
-    // Guard shape: a fenced guard must protect, not rewrite.
+    // Guard shape: a fenced guard must protect, not rewrite. Checked
+    // against the primary candidate only — a ladder past one element
+    // never makes sense for a guard (curation never authors one; see
+    // the module docs' "Candidate ladders").
     if draft.kind == RuleKind::Guard
         && draft.bucket != Bucket::Flip
         && draft.target != Target::Guard
     {
-        return Outcome::Rejected(draft.id, Reject::GuardTargetNotEquals(draft.raw_target));
+        return Outcome::Rejected(
+            draft.id,
+            Reject::GuardTargetNotEquals(draft.raw_targets[0].clone()),
+        );
     }
 
     // Defined classes (pattern side).
@@ -933,10 +1046,14 @@ fn compile_one(
 
     // Demotions to report-only: flip-bucket guards (measured
     // machine-tilted: protecting them would shelter machine-leaning
-    // text) and unauthored targets.
+    // text) and unauthored targets. Consults the primary candidate
+    // only: an unauthored primary demotes the whole rule exactly as
+    // before ladders existed, and never falls through to a fallback —
+    // curation authors a ladder to survive a runtime gate the primary
+    // clears at compile time, not to rescue an unauthored primary.
     let demotion = if draft.bucket == Bucket::Flip {
         Some("guard measured machine-tilted; reports instead of protecting".to_string())
-    } else if draft.raw_target.trim_matches('"') == "REVIEW" {
+    } else if draft.raw_targets[0].trim_matches('"') == "REVIEW" {
         Some("target was never authored (REVIEW placeholder)".to_string())
     } else if template_has_placeholder(&draft.target) {
         Some("target realization was never authored (`?` placeholder)".to_string())
@@ -973,25 +1090,25 @@ fn compile_one(
     // `realize_template` returns `None` for every match, forever — a
     // structurally unrealizable rule is authoring error, rejected
     // outright rather than demoted (see the module docs' "Realizability"
-    // fence).
+    // fence). Primary only: exactly today's behavior.
     if kind == CompiledKind::Rewrite
         && let Some(reason) = unrealizable_template_reason(&draft.pattern, &draft.target, classes)
     {
         return Outcome::Rejected(draft.id, Reject::UnrealizableTemplate(reason));
     }
 
-    // Compile the template (report/guard/delete rules have none), then
-    // attest every static word it can emit.
-    let template = if kind == CompiledKind::Rewrite {
-        compile_template(&draft, interner, classes)
+    // Compile the target ladder (report/guard/delete rules have none):
+    // the primary, then every fallback (see `compile_rewrite_ladder`'s
+    // own docs). A primary failure here still rejects the whole rule,
+    // exactly as before ladders existed.
+    let templates = if kind == CompiledKind::Rewrite {
+        match compile_rewrite_ladder(&draft, interner, classes, evidence, report) {
+            Ok(templates) => templates,
+            Err(reject) => return Outcome::Rejected(draft.id, reject),
+        }
     } else {
         Vec::new()
     };
-    if kind == CompiledKind::Rewrite
-        && let Some(reject) = attest_template(&template, interner, classes, evidence)
-    {
-        return Outcome::Rejected(draft.id, reject);
-    }
 
     let pattern: Vec<CPat> = draft
         .pattern
@@ -1008,7 +1125,7 @@ fn compile_one(
         id: draft.id,
         kind,
         pattern,
-        template,
+        templates,
         anchor_elems: (anchor_start as u16, anchor_len as u16),
         anchor_ids,
         support: draft.support,
@@ -1017,6 +1134,85 @@ fn compile_one(
         h_pm: draft.h_pm,
     };
     Outcome::Compiled(rule, demotion)
+}
+
+/// Compiles a `kind == Rewrite` draft's whole target ladder: the primary
+/// candidate first — its own compile/attestation failure is `Err`,
+/// rejecting the whole rule exactly as before ladders existed — then
+/// every fallback candidate independently, each either kept or dropped
+/// into `report.dropped_candidates` (never a rule-level outcome; see the
+/// module docs' "Candidate ladders"). Returns the surviving candidates
+/// in ladder order, primary first.
+fn compile_rewrite_ladder(
+    draft: &Draft,
+    interner: &mut Interner,
+    classes: &ClassTable,
+    evidence: &CorpusEvidence,
+    report: &mut CompileReport,
+) -> Result<Vec<Vec<CTpl>>, Reject> {
+    let primary_template = compile_template(
+        &draft.target,
+        &draft.pattern,
+        draft.surface_match,
+        interner,
+        classes,
+    );
+    if let Some(reject) = attest_template(&primary_template, interner, classes, evidence) {
+        return Err(reject);
+    }
+    let mut templates = vec![primary_template];
+
+    for (ordinal, raw) in draft.raw_targets.iter().enumerate().skip(1) {
+        match compile_candidate_template(
+            raw,
+            &draft.pattern,
+            draft.surface_match,
+            interner,
+            classes,
+            evidence,
+        ) {
+            Ok(template) => templates.push(template),
+            Err(reason) => report.dropped_candidates.push(DroppedCandidate {
+                rule_id: draft.id.clone(),
+                ordinal,
+                reason,
+            }),
+        }
+    }
+    Ok(templates)
+}
+
+/// Attempts to fully compile one ladder candidate target string against
+/// `pattern`: authored-target check, parse, realizability, then
+/// attestation of every static word it can emit — the same fences the
+/// primary candidate runs in [`compile_one`], just returning a
+/// description of the first failure instead of rejecting or demoting
+/// the whole rule. The caller decides what a failure means for a
+/// fallback (drop just this candidate; see the module docs' "Candidate
+/// ladders").
+fn compile_candidate_template(
+    raw: &str,
+    pattern: &[PatElem],
+    surface_match: bool,
+    interner: &mut Interner,
+    classes: &ClassTable,
+    evidence: &CorpusEvidence,
+) -> Result<Vec<CTpl>, String> {
+    if raw.trim_matches('"') == "REVIEW" {
+        return Err("target was never authored (REVIEW placeholder)".to_string());
+    }
+    let target = parse_target(raw).map_err(|e| format!("target failed to parse: {e}"))?;
+    if template_has_placeholder(&target) {
+        return Err("target realization was never authored (`?` placeholder)".to_string());
+    }
+    if let Some(reason) = unrealizable_template_reason(pattern, &target, classes) {
+        return Err(format!("unrealizable template: {reason}"));
+    }
+    let template = compile_template(&target, pattern, surface_match, interner, classes);
+    if let Some(reject) = attest_template(&template, interner, classes, evidence) {
+        return Err(reject.to_string());
+    }
+    Ok(template)
 }
 
 /// Whether `surface` matches exactly the same shapes as `parent`,
@@ -1315,16 +1511,25 @@ fn unrealizable_template_reason(
     None
 }
 
-/// Compiles a rewrite draft's parsed target into template ops.
-fn compile_template(draft: &Draft, interner: &mut Interner, classes: &ClassTable) -> Vec<CTpl> {
-    let Target::Template(elems) = &draft.target else {
+/// Compiles one candidate target into template ops against `pattern` —
+/// shared by the primary candidate and every ladder fallback (see
+/// [`compile_candidate_template`]), so `target`/`pattern`/`surface_match`
+/// are the draft's own fields rather than the whole `Draft`.
+fn compile_template(
+    target: &Target,
+    pattern: &[PatElem],
+    surface_match: bool,
+    interner: &mut Interner,
+    classes: &ClassTable,
+) -> Vec<CTpl> {
+    let Target::Template(elems) = target else {
         return Vec::new();
     };
     // Sentence sentinels are positional constraints, not emissions,
     // they simply drop out of the template.
     let mut ops = Vec::new();
     let mut group_ordinal: u8 = 0;
-    let leading_lit_agreement = leading_literal_agreement(draft);
+    let leading_lit_agreement = leading_literal_agreement(target, pattern, surface_match);
     for (i, elem) in elems.iter().enumerate() {
         match elem {
             TplElem::SentStart | TplElem::SentEnd => {}
@@ -1354,12 +1559,11 @@ fn compile_template(draft: &Draft, interner: &mut Interner, classes: &ClassTable
                     // "began", never bare "begin"); else the tag's own
                     // form.
                     let lemma = interner.intern(arg);
-                    let agree = be_element(&draft.pattern).or_else(|| {
-                        draft
-                            .pattern
+                    let agree = be_element(pattern).or_else(|| {
+                        pattern
                             .iter()
                             .position(|elem| !matches!(elem, PatElem::SentStart | PatElem::SentEnd))
-                            .filter(|&i| matches!(draft.pattern[i], PatElem::Lit(_)))
+                            .filter(|&i| matches!(pattern[i], PatElem::Lit(_)))
                             .and_then(|i| u8::try_from(i).ok())
                     });
                     match agree {
@@ -1385,17 +1589,20 @@ fn compile_template(draft: &Draft, interner: &mut Interner, classes: &ClassTable
 /// sentinels) and they differ, the target's leading literal realizes as
 /// an inflection agreeing with the matched pattern token. Returns
 /// `(template index, pattern element index)`.
-fn leading_literal_agreement(draft: &Draft) -> Option<(usize, u8)> {
-    if draft.surface_match {
+fn leading_literal_agreement(
+    target: &Target,
+    pattern: &[PatElem],
+    surface_match: bool,
+) -> Option<(usize, u8)> {
+    if surface_match {
         return None;
     }
-    let Target::Template(elems) = &draft.target else {
+    let Target::Template(elems) = target else {
         return None;
     };
     let not_sentinel_pat = |elem: &&PatElem| !matches!(elem, PatElem::SentStart | PatElem::SentEnd);
     let not_sentinel_tpl = |elem: &&TplElem| !matches!(elem, TplElem::SentStart | TplElem::SentEnd);
-    let (pat_idx, pat_first) = draft
-        .pattern
+    let (pat_idx, pat_first) = pattern
         .iter()
         .enumerate()
         .find(|(_, elem)| not_sentinel_pat(elem))?;
@@ -1628,11 +1835,12 @@ words = ["a", "an", "the", "to", "of"]
         assert_eq!(report.compiled.len(), 1);
         assert_eq!(pack.rules.len(), 1);
         let rule = &pack.rules[0];
+        assert_eq!(rule.templates.len(), 1, "one-element ladder");
         assert!(matches!(
-            rule.template[0],
+            rule.templates[0][0],
             CTpl::Inflect { agree_elem: 0, .. }
         ));
-        assert!(matches!(rule.template[1], CTpl::Slot(Slot::X)));
+        assert!(matches!(rule.templates[0][1], CTpl::Slot(Slot::X)));
     }
 
     /// An unattested target word rejects the rule with the measured
@@ -1665,7 +1873,7 @@ words = ["a", "an", "the", "to", "of"]
         assert_eq!(pack.rules.len(), 1);
         assert_eq!(pack.rules[0].kind, CompiledKind::Report);
         assert_eq!(report.demoted.len(), 1);
-        assert!(pack.rules[0].template.is_empty());
+        assert!(pack.rules[0].templates.is_empty());
     }
 
     /// Undefined pattern classes reject; defined ones compile.
@@ -1820,6 +2028,101 @@ words = ["a", "an", "the", "to", "of"]
         );
     }
 
+    /// A fallback candidate that fails the attestation fence is dropped
+    /// from the ladder with a `dropped_candidates` report line; the
+    /// primary still compiles and the rule still fires on it, exactly
+    /// as a single-target rule would.
+    #[test]
+    fn fallback_candidate_dropped_on_attestation_failure_primary_still_compiles() {
+        let set = tiny_set(
+            r#"rules_ship = [
+{ id="vsub.utilize", p="\"utilize\" X", t=["\"use\" X", "\"begined\" X"], k="r", m_pm=100.0, h_pm=10.0, v="CONFIRMED" },
+]"#,
+        );
+        let (pack, report) =
+            compile(&set, &generous_rates(&["use"])).expect("compile must succeed");
+        assert_eq!(pack.rules.len(), 1);
+        assert_eq!(
+            pack.rules[0].templates.len(),
+            1,
+            "only the primary survives"
+        );
+        assert!(matches!(
+            pack.rules[0].templates[0][0],
+            CTpl::Inflect { agree_elem: 0, .. }
+        ));
+        assert_eq!(report.dropped_candidates.len(), 1);
+        assert_eq!(report.dropped_candidates[0].rule_id, "vsub.utilize");
+        assert_eq!(report.dropped_candidates[0].ordinal, 1);
+        assert!(report.dropped_candidates[0].reason.contains("begined"));
+        // The rule itself still lands in `compiled`, not `demoted` or
+        // `rejected` — a dropped fallback is never a rule-level outcome.
+        assert_eq!(
+            report.compiled,
+            vec![("vsub.utilize".to_string(), CompiledKind::Rewrite)]
+        );
+    }
+
+    /// A failing PRIMARY candidate rejects the whole rule exactly as it
+    /// would with no ladder at all, even though a later candidate would
+    /// have compiled fine — the ladder never rescues an unauthored or
+    /// unattested primary (see the module docs' "Candidate ladders").
+    #[test]
+    fn failing_primary_candidate_rejects_the_rule_ladder_never_consulted() {
+        let set = tiny_set(
+            r#"rules_ship = [
+{ id="vsub.commence", p="\"commence\" X", t=["\"begined\" X", "\"use\" X"], k="r", m_pm=100.0, h_pm=0.0, v="CONFIRMED" },
+]"#,
+        );
+        let (pack, report) = compile(&set, &generous_rates(&["use"])).expect("compile");
+        assert!(pack.rules.is_empty());
+        assert!(matches!(
+            &report.rejected[0].1,
+            Reject::AttestationFailed { word, .. } if word == "begined"
+        ));
+        assert!(
+            report.dropped_candidates.is_empty(),
+            "the fallback is never reached once the primary rejects the rule"
+        );
+    }
+
+    /// Closure runs per candidate: a fallback able to emit another
+    /// compiling rule's anchor is dropped from the ladder, but the
+    /// primary (which does not) still ships and the rule still
+    /// compiles — unlike a primary closure violation, which rejects the
+    /// whole rule (`closure_violation_rejects_the_emitting_rule`).
+    #[test]
+    fn fallback_candidate_dropped_on_closure_violation_primary_still_compiles() {
+        let set = tiny_set(
+            r#"rules_ship = [
+{ id="vsub.a", p="\"expedite\" X", t=["\"quicken\" X", "\"hasten\" X"], k="r", m_pm=100.0, h_pm=1.0, v="CONFIRMED" },
+{ id="vsub.b", p="\"hasten\" X", t="\"speed\" X", k="r", m_pm=100.0, h_pm=1.0, v="CONFIRMED" },
+]"#,
+        );
+        let (pack, report) = compile(&set, &generous_rates(&["quicken", "hasten", "speed"]))
+            .expect("compile must succeed");
+        let find = |id: &str| {
+            pack.rules
+                .iter()
+                .find(|r| r.id == id)
+                .expect("rule compiled")
+        };
+        assert_eq!(
+            find("vsub.a").templates.len(),
+            1,
+            "only \"quicken\" survives"
+        );
+        assert_eq!(find("vsub.b").templates.len(), 1);
+        assert!(
+            report.rejected.is_empty(),
+            "the primary's own closure clears; only the fallback is dropped"
+        );
+        assert_eq!(report.dropped_candidates.len(), 1);
+        assert_eq!(report.dropped_candidates[0].rule_id, "vsub.a");
+        assert_eq!(report.dropped_candidates[0].ordinal, 1);
+        assert!(report.dropped_candidates[0].reason.contains("vsub.b"));
+    }
+
     /// The real artifact compiles: fences hold, and the report accounts
     /// for every fenced rule exactly once.
     #[test]
@@ -1857,7 +2160,7 @@ words = ["a", "an", "the", "to", "of"]
             assert!(
                 !pack.interner.contains(&word.to_string())
                     || pack.rules.iter().all(|r| {
-                        r.template.iter().all(|op| !matches!(op,
+                        r.templates.iter().flatten().all(|op| !matches!(op,
                             CTpl::Lit(id) | CTpl::Inflect { lemma: id, .. } | CTpl::InflectForm { lemma: id, .. }
                                 if pack.interner[*id as usize] == word))
                     }),
