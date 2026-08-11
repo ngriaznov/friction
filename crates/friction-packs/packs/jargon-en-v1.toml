@@ -44,41 +44,49 @@ version = "jargon-v1"
 
 [[lexemes]]
 lexeme = "symphony"
+gloss = "{mod} working together"
 source = "mined"
 notes = "Mined from this corpus (train split, per-100k-word rates llm vs human, measured 2026-07-27): 0.90 vs 0.00."
 
 [[lexemes]]
 lexeme = "constellation"
+gloss = "a group of {mod}"
 source = "mined"
 notes = "Mined from this corpus (train split, per-100k-word rates llm vs human, measured 2026-07-27): 0.45 vs 0.00."
 
 [[lexemes]]
 lexeme = "cornerstone"
+gloss = "the basis of {mod}"
 source = "mined"
 notes = "Mined from this corpus (train split, per-100k-word rates llm vs human, measured 2026-07-27): 0.45 vs 0.00."
 
 [[lexemes]]
 lexeme = "fabric"
+gloss = "the structure of {mod}"
 source = "mined"
 notes = "Mined from this corpus (train split, per-100k-word rates llm vs human, measured 2026-07-27): 1.79 vs 0.00."
 
 [[lexemes]]
 lexeme = "galaxy"
+gloss = "a wide range of {mod}"
 source = "mined"
 notes = "Mined from this corpus (train split, per-100k-word rates llm vs human, measured 2026-07-27): 1.34 vs 0.00."
 
 [[lexemes]]
 lexeme = "harmony"
+gloss = "{mod} working well together"
 source = "mined"
 notes = "Mined from this corpus (train split, per-100k-word rates llm vs human, measured 2026-07-27): 0.45 vs 0.00."
 
 [[lexemes]]
 lexeme = "soup"
+gloss = "a mix of {mod}"
 source = "mined"
 notes = "Mined from this corpus (train split, per-100k-word rates llm vs human, measured 2026-07-27): 1.34 vs 0.35."
 
 [[lexemes]]
 lexeme = "rhythm"
+gloss = "a regular pattern"
 source = "mined"
 notes = "Mined from this corpus (train split, per-100k-word rates llm vs human, measured 2026-07-27): 1.79 vs 0.35."
 
@@ -91,21 +99,25 @@ notes = "Mined from this corpus (train split, per-100k-word rates llm vs human, 
 
 [[lexemes]]
 lexeme = "tapestry"
+gloss = "a mix of {mod}"
 source = "external"
 notes = "Documented LLM metaphor vocabulary (antislop/Wikipedia signs-of-AI-writing lists, docs/research/FRONTIER_MODELS.md §3.4); near-zero in both corpus classes."
 
 [[lexemes]]
 lexeme = "mosaic"
+gloss = "made up of many {mod}"
 source = "external"
 notes = "Documented LLM metaphor vocabulary (antislop/Wikipedia signs-of-AI-writing lists, docs/research/FRONTIER_MODELS.md §3.4); near-zero in both corpus classes."
 
 [[lexemes]]
 lexeme = "kaleidoscope"
+gloss = "a wide variety of {mod}"
 source = "external"
 notes = "Documented LLM metaphor vocabulary (antislop/Wikipedia signs-of-AI-writing lists, docs/research/FRONTIER_MODELS.md §3.4); near-zero in both corpus classes."
 
 [[lexemes]]
 lexeme = "odyssey"
+gloss = "a long, difficult process"
 source = "external"
 notes = "Documented LLM metaphor vocabulary (antislop/Wikipedia signs-of-AI-writing lists, docs/research/FRONTIER_MODELS.md §3.4); near-zero in both corpus classes."
 
@@ -116,11 +128,13 @@ notes = "Documented LLM metaphor vocabulary (antislop/Wikipedia signs-of-AI-writ
 
 [[lexemes]]
 lexeme = "choreography"
+gloss = "how {mod} works together"
 source = "external"
 notes = "Documented LLM metaphor vocabulary (antislop/Wikipedia signs-of-AI-writing lists, docs/research/FRONTIER_MODELS.md §3.4); near-zero in both corpus classes."
 
 [[lexemes]]
 lexeme = "cacophony"
+gloss = "a mix of conflicting {mod}"
 source = "external"
 notes = "Documented LLM metaphor vocabulary (antislop/Wikipedia signs-of-AI-writing lists, docs/research/FRONTIER_MODELS.md §3.4); near-zero in both corpus classes."
 
@@ -131,17 +145,20 @@ notes = "Documented LLM metaphor vocabulary (antislop/Wikipedia signs-of-AI-writ
 
 [[lexemes]]
 lexeme = "well"
+gloss = "a source of {mod}"
 plural = "wells"
 source = "external"
 notes = "Documented LLM metaphor vocabulary (antislop/Wikipedia signs-of-AI-writing lists, docs/research/FRONTIER_MODELS.md §3.4); near-zero in both corpus classes. Plural \"wells\" listed explicitly because the singular \"well\" is usually an adverb or discourse marker (\"works well\", \"well, actually\") — the channel's own NN/NNS tag gate handles the singular noun sense, but the plural is worth naming since it almost never has a non-noun reading."
 
 [[lexemes]]
 lexeme = "beacon"
+gloss = "an example of {mod}"
 source = "external"
 notes = "Documented LLM metaphor vocabulary (antislop/Wikipedia signs-of-AI-writing lists, docs/research/FRONTIER_MODELS.md §3.4); near-zero in both corpus classes."
 
 [[lexemes]]
 lexeme = "labyrinth"
+gloss = "a confusing, complicated {mod}"
 source = "external"
 notes = "Documented LLM metaphor vocabulary (antislop/Wikipedia signs-of-AI-writing lists, docs/research/FRONTIER_MODELS.md §3.4); near-zero in both corpus classes."
 
@@ -190,10 +207,12 @@ notes = "Literal well (an exploratory drilled shaft), not the metaphor sense. No
 
 [[lexemes]]
 lexeme = "orchestra"
+gloss = "{mod} working together"
 source = "external"
 notes = "Curated expansion (2026-08-10), music/performance metaphor class: documented LLM metaphor vocabulary (antislop-sampler / AI-signs lists, FRONTIER_MODELS.md §3.4), near-zero in this corpus either way. Admitted through the human-corpus precision gauntlet: zero jargon findings introduced on corpus/human at admission."
 [[lexemes]]
 lexeme = "chorus"
+gloss = "many {mod} at once"
 source = "external"
 notes = "Curated expansion (2026-08-10), music/performance metaphor class: documented LLM metaphor vocabulary (antislop-sampler / AI-signs lists, FRONTIER_MODELS.md §3.4), near-zero in this corpus either way. Admitted through the human-corpus precision gauntlet: zero jargon findings introduced on corpus/human at admission."
 [[lexemes]]
@@ -202,6 +221,7 @@ source = "external"
 notes = "Curated expansion (2026-08-10), music/performance metaphor class: documented LLM metaphor vocabulary (antislop-sampler / AI-signs lists, FRONTIER_MODELS.md §3.4), near-zero in this corpus either way. Admitted through the human-corpus precision gauntlet: zero jargon findings introduced on corpus/human at admission."
 [[lexemes]]
 lexeme = "crescendo"
+gloss = "a peak in {mod}"
 source = "external"
 notes = "Curated expansion (2026-08-10), music/performance metaphor class: documented LLM metaphor vocabulary (antislop-sampler / AI-signs lists, FRONTIER_MODELS.md §3.4), near-zero in this corpus either way. Admitted through the human-corpus precision gauntlet: zero jargon findings introduced on corpus/human at admission."
 [[lexemes]]
@@ -210,38 +230,47 @@ source = "external"
 notes = "Curated expansion (2026-08-10), music/performance metaphor class: documented LLM metaphor vocabulary (antislop-sampler / AI-signs lists, FRONTIER_MODELS.md §3.4), near-zero in this corpus either way. Admitted through the human-corpus precision gauntlet: zero jargon findings introduced on corpus/human at admission."
 [[lexemes]]
 lexeme = "overture"
+gloss = "a first step toward {mod}"
 source = "external"
 notes = "Curated expansion (2026-08-10), music/performance metaphor class: documented LLM metaphor vocabulary (antislop-sampler / AI-signs lists, FRONTIER_MODELS.md §3.4), near-zero in this corpus either way. Admitted through the human-corpus precision gauntlet: zero jargon findings introduced on corpus/human at admission."
 [[lexemes]]
 lexeme = "nebula"
+gloss = "an unclear {mod}"
 source = "external"
 notes = "Curated expansion (2026-08-10), cosmos metaphor class: documented LLM metaphor vocabulary (antislop-sampler / AI-signs lists, FRONTIER_MODELS.md §3.4), near-zero in this corpus either way. Admitted through the human-corpus precision gauntlet: zero jargon findings introduced on corpus/human at admission."
 [[lexemes]]
 lexeme = "cosmos"
+gloss = "everything in {mod}"
 source = "external"
 notes = "Curated expansion (2026-08-10), cosmos metaphor class: documented LLM metaphor vocabulary (antislop-sampler / AI-signs lists, FRONTIER_MODELS.md §3.4), near-zero in this corpus either way. Admitted through the human-corpus precision gauntlet: zero jargon findings introduced on corpus/human at admission."
 [[lexemes]]
 lexeme = "jungle"
+gloss = "many {mod}"
 source = "external"
 notes = "Curated expansion (2026-08-10), nature/terrain metaphor class: documented LLM metaphor vocabulary (antislop-sampler / AI-signs lists, FRONTIER_MODELS.md §3.4), near-zero in this corpus either way. Admitted through the human-corpus precision gauntlet: zero jargon findings introduced on corpus/human at admission."
 [[lexemes]]
 lexeme = "forest"
+gloss = "many {mod}"
 source = "external"
 notes = "Curated expansion (2026-08-10), nature/terrain metaphor class: documented LLM metaphor vocabulary (antislop-sampler / AI-signs lists, FRONTIER_MODELS.md §3.4), near-zero in this corpus either way. Admitted through the human-corpus precision gauntlet: zero jargon findings introduced on corpus/human at admission."
 [[lexemes]]
 lexeme = "iceberg"
+gloss = "a small visible part of a much bigger {mod}"
 source = "external"
 notes = "Curated expansion (2026-08-10), nature/terrain metaphor class: documented LLM metaphor vocabulary (antislop-sampler / AI-signs lists, FRONTIER_MODELS.md §3.4), near-zero in this corpus either way. Admitted through the human-corpus precision gauntlet: zero jargon findings introduced on corpus/human at admission."
 [[lexemes]]
 lexeme = "avalanche"
+gloss = "a sudden flood of {mod}"
 source = "external"
 notes = "Curated expansion (2026-08-10), nature/terrain metaphor class: documented LLM metaphor vocabulary (antislop-sampler / AI-signs lists, FRONTIER_MODELS.md §3.4), near-zero in this corpus either way. Admitted through the human-corpus precision gauntlet: zero jargon findings introduced on corpus/human at admission."
 [[lexemes]]
 lexeme = "wildfire"
+gloss = "grows fast"
 source = "external"
 notes = "Curated expansion (2026-08-10), nature/terrain metaphor class: documented LLM metaphor vocabulary (antislop-sampler / AI-signs lists, FRONTIER_MODELS.md §3.4), near-zero in this corpus either way. Admitted through the human-corpus precision gauntlet: zero jargon findings introduced on corpus/human at admission."
 [[lexemes]]
 lexeme = "whirlwind"
+gloss = "a fast, disorganized {mod}"
 source = "external"
 notes = "Curated expansion (2026-08-10), nature/terrain metaphor class: documented LLM metaphor vocabulary (antislop-sampler / AI-signs lists, FRONTIER_MODELS.md §3.4), near-zero in this corpus either way. Admitted through the human-corpus precision gauntlet: zero jargon findings introduced on corpus/human at admission."
 [[lexemes]]
@@ -250,89 +279,111 @@ source = "external"
 notes = "Curated expansion (2026-08-10), nature/terrain metaphor class: documented LLM metaphor vocabulary (antislop-sampler / AI-signs lists, FRONTIER_MODELS.md §3.4), near-zero in this corpus either way. Admitted through the human-corpus precision gauntlet: zero jargon findings introduced on corpus/human at admission."
 [[lexemes]]
 lexeme = "oasis"
+gloss = "a break from {mod}"
 source = "external"
 notes = "Curated expansion (2026-08-10), nature/terrain metaphor class: documented LLM metaphor vocabulary (antislop-sampler / AI-signs lists, FRONTIER_MODELS.md §3.4), near-zero in this corpus either way. Admitted through the human-corpus precision gauntlet: zero jargon findings introduced on corpus/human at admission."
 [[lexemes]]
 lexeme = "bedrock"
+gloss = "the basis of {mod}"
 source = "external"
 notes = "Curated expansion (2026-08-10), structure/architecture metaphor class: documented LLM metaphor vocabulary (antislop-sampler / AI-signs lists, FRONTIER_MODELS.md §3.4), near-zero in this corpus either way. Admitted through the human-corpus precision gauntlet: zero jargon findings introduced on corpus/human at admission."
 [[lexemes]]
 lexeme = "keystone"
+gloss = "the part {mod} depends on"
 source = "external"
 notes = "Curated expansion (2026-08-10), structure/architecture metaphor class: documented LLM metaphor vocabulary (antislop-sampler / AI-signs lists, FRONTIER_MODELS.md §3.4), near-zero in this corpus either way. Admitted through the human-corpus precision gauntlet: zero jargon findings introduced on corpus/human at admission."
 [[lexemes]]
 lexeme = "linchpin"
+gloss = "what holds {mod} together"
 source = "external"
 notes = "Curated expansion (2026-08-10), structure/architecture metaphor class: documented LLM metaphor vocabulary (antislop-sampler / AI-signs lists, FRONTIER_MODELS.md §3.4), near-zero in this corpus either way. Admitted through the human-corpus precision gauntlet: zero jargon findings introduced on corpus/human at admission."
 [[lexemes]]
 lexeme = "cathedral"
+gloss = "a large, complex {mod}"
 source = "external"
 notes = "Curated expansion (2026-08-10), structure/architecture metaphor class: documented LLM metaphor vocabulary (antislop-sampler / AI-signs lists, FRONTIER_MODELS.md §3.4), near-zero in this corpus either way. Admitted through the human-corpus precision gauntlet: zero jargon findings introduced on corpus/human at admission."
 [[lexemes]]
 lexeme = "lighthouse"
+gloss = "a guide for {mod}"
 source = "external"
 notes = "Curated expansion (2026-08-10), structure/architecture metaphor class: documented LLM metaphor vocabulary (antislop-sampler / AI-signs lists, FRONTIER_MODELS.md §3.4), near-zero in this corpus either way. Admitted through the human-corpus precision gauntlet: zero jargon findings introduced on corpus/human at admission."
 [[lexemes]]
 lexeme = "maze"
+gloss = "a confusing set of {mod}"
 source = "external"
 notes = "Curated expansion (2026-08-10), structure/architecture metaphor class: documented LLM metaphor vocabulary (antislop-sampler / AI-signs lists, FRONTIER_MODELS.md §3.4), near-zero in this corpus either way. Admitted through the human-corpus precision gauntlet: zero jargon findings introduced on corpus/human at admission."
 [[lexemes]]
 lexeme = "prism"
+gloss = "a way of looking at {mod}"
 source = "external"
 notes = "Curated expansion (2026-08-10), structure/architecture metaphor class: documented LLM metaphor vocabulary (antislop-sampler / AI-signs lists, FRONTIER_MODELS.md §3.4), near-zero in this corpus either way. Admitted through the human-corpus precision gauntlet: zero jargon findings introduced on corpus/human at admission."
 [[lexemes]]
 lexeme = "quilt"
+gloss = "a mix of {mod}"
 source = "external"
 notes = "Curated expansion (2026-08-10), textile/craft metaphor class: documented LLM metaphor vocabulary (antislop-sampler / AI-signs lists, FRONTIER_MODELS.md §3.4), near-zero in this corpus either way. Admitted through the human-corpus precision gauntlet: zero jargon findings introduced on corpus/human at admission."
 [[lexemes]]
 lexeme = "patchwork"
+gloss = "a mix of mismatched {mod}"
 source = "external"
 notes = "Curated expansion (2026-08-10), textile/craft metaphor class: documented LLM metaphor vocabulary (antislop-sampler / AI-signs lists, FRONTIER_MODELS.md §3.4), near-zero in this corpus either way. Admitted through the human-corpus precision gauntlet: zero jargon findings introduced on corpus/human at admission."
 [[lexemes]]
 lexeme = "alchemy"
+gloss = "an unclear process"
 source = "external"
 notes = "Curated expansion (2026-08-10), textile/craft metaphor class: documented LLM metaphor vocabulary (antislop-sampler / AI-signs lists, FRONTIER_MODELS.md §3.4), near-zero in this corpus either way. Admitted through the human-corpus precision gauntlet: zero jargon findings introduced on corpus/human at admission."
 [[lexemes]]
 lexeme = "compass"
+gloss = "a guide for {mod}"
 source = "external"
 notes = "Curated expansion (2026-08-10), navigation metaphor class: documented LLM metaphor vocabulary (antislop-sampler / AI-signs lists, FRONTIER_MODELS.md §3.4), near-zero in this corpus either way. Admitted through the human-corpus precision gauntlet: zero jargon findings introduced on corpus/human at admission."
 [[lexemes]]
 lexeme = "lodestar"
+gloss = "a guide for {mod}"
 source = "external"
 notes = "Curated expansion (2026-08-10), navigation metaphor class: documented LLM metaphor vocabulary (antislop-sampler / AI-signs lists, FRONTIER_MODELS.md §3.4), near-zero in this corpus either way. Admitted through the human-corpus precision gauntlet: zero jargon findings introduced on corpus/human at admission."
 [[lexemes]]
 lexeme = "voyage"
+gloss = "a long process"
 source = "external"
 notes = "Curated expansion (2026-08-10), navigation metaphor class: documented LLM metaphor vocabulary (antislop-sampler / AI-signs lists, FRONTIER_MODELS.md §3.4), near-zero in this corpus either way. Admitted through the human-corpus precision gauntlet: zero jargon findings introduced on corpus/human at admission."
 [[lexemes]]
 lexeme = "pilgrimage"
+gloss = "a long trip with a purpose"
 source = "external"
 notes = "Curated expansion (2026-08-10), navigation metaphor class: documented LLM metaphor vocabulary (antislop-sampler / AI-signs lists, FRONTIER_MODELS.md §3.4), near-zero in this corpus either way. Admitted through the human-corpus precision gauntlet: zero jargon findings introduced on corpus/human at admission."
 [[lexemes]]
 lexeme = "lifeline"
+gloss = "essential support for {mod}"
 source = "external"
 notes = "Curated expansion (2026-08-10), navigation metaphor class: documented LLM metaphor vocabulary (antislop-sampler / AI-signs lists, FRONTIER_MODELS.md §3.4), near-zero in this corpus either way. Admitted through the human-corpus precision gauntlet: zero jargon findings introduced on corpus/human at admission."
 [[lexemes]]
 lexeme = "buffet"
+gloss = "a wide selection of {mod}"
 source = "external"
 notes = "Curated expansion (2026-08-10), food metaphor class: documented LLM metaphor vocabulary (antislop-sampler / AI-signs lists, FRONTIER_MODELS.md §3.4), near-zero in this corpus either way. Admitted through the human-corpus precision gauntlet: zero jargon findings introduced on corpus/human at admission."
 [[lexemes]]
 lexeme = "feast"
+gloss = "plenty of {mod}"
 source = "external"
 notes = "Curated expansion (2026-08-10), food metaphor class: documented LLM metaphor vocabulary (antislop-sampler / AI-signs lists, FRONTIER_MODELS.md §3.4), near-zero in this corpus either way. Admitted through the human-corpus precision gauntlet: zero jargon findings introduced on corpus/human at admission."
 [[lexemes]]
 lexeme = "stew"
+gloss = "a mix of {mod}"
 source = "external"
 notes = "Curated expansion (2026-08-10), food metaphor class: documented LLM metaphor vocabulary (antislop-sampler / AI-signs lists, FRONTIER_MODELS.md §3.4), near-zero in this corpus either way. Admitted through the human-corpus precision gauntlet: zero jargon findings introduced on corpus/human at admission."
 [[lexemes]]
 lexeme = "goldmine"
+gloss = "a valuable source of {mod}"
 source = "external"
 notes = "Curated expansion (2026-08-10), treasure/hazard metaphor class: documented LLM metaphor vocabulary (antislop-sampler / AI-signs lists, FRONTIER_MODELS.md §3.4), near-zero in this corpus either way. Admitted through the human-corpus precision gauntlet: zero jargon findings introduced on corpus/human at admission."
 [[lexemes]]
 lexeme = "trove"
+gloss = "a large collection of {mod}"
 source = "external"
 notes = "Curated expansion (2026-08-10), treasure/hazard metaphor class: documented LLM metaphor vocabulary (antislop-sampler / AI-signs lists, FRONTIER_MODELS.md §3.4), near-zero in this corpus either way. Admitted through the human-corpus precision gauntlet: zero jargon findings introduced on corpus/human at admission."
 [[lexemes]]
 lexeme = "lifeblood"
+gloss = "what keeps {mod} going"
 source = "external"
 notes = "Curated expansion (2026-08-10), body metaphor class: documented LLM metaphor vocabulary (antislop-sampler / AI-signs lists, FRONTIER_MODELS.md §3.4), near-zero in this corpus either way. Admitted through the human-corpus precision gauntlet: zero jargon findings introduced on corpus/human at admission."

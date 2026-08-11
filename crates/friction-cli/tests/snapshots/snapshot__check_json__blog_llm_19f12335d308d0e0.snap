@@ -170,7 +170,8 @@ expression: stdout
       "end": 610,
       "line": 3,
       "column": 505,
-      "score": null
+      "score": null,
+      "message": "'complex maze': consider 'a confusing set of ...'"
     },
     {
       "channel": "dms",

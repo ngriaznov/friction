@@ -148,13 +148,26 @@ fn jargon_span_at(
         return None;
     }
 
+    // A pack gloss makes the finding actionable. `{mod}` renders as an
+    // ellipsis, never the matched modifier text: splicing the modifier
+    // in verbatim reads wrong for adjective modifiers ("the basis of
+    // semantic") and needs number agreement for noun ones ("many
+    // dependency"), and this channel does no synthesis — the gloss
+    // translates the metaphor HEAD, the author fills the blank. Still
+    // detection-only: the message suggests, the engine never edits a
+    // jargon span.
+    let message = pack.gloss_for(&head_text.to_lowercase()).map(|gloss| {
+        let realized = gloss.replace("{mod}", "...");
+        format!("'{normalized}': consider '{realized}'").into_boxed_str()
+    });
+
     let range = tokens[start].token.range.start..head.token.range.end;
     Some(MatchSpan {
         range,
         channel: Channel::Jargon,
         frame_id: JARGON_METAPHOR_ID.into(),
         score: MatchScore::Present,
-        message: None,
+        message,
     })
 }
 

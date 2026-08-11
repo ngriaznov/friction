@@ -69,12 +69,12 @@ pub struct MatchSpan {
     /// A channel-supplied, occurrence-specific message, when the generic
     /// `"<channel> tell: <frame_id>"` every other channel's spans render
     /// as (see `friction_cli::diagnostics::render_spans`) doesn't carry
-    /// enough information on its own. [`crate::overuse`] is the one
-    /// channel that needs this today: every `overuse.word` span shares
-    /// the same constant `frame_id` (mirroring
-    /// [`crate::jargon::JARGON_METAPHOR_ID`]'s own reasoning: see that
-    /// const's docs), so the flagged word and its measured rates have
-    /// nowhere else to live. `None` for every other channel.
+    /// enough information on its own. [`crate::overuse`] needs this for
+    /// every span (the flagged word and its measured rates have nowhere
+    /// else to live — every `overuse.word` span shares one constant
+    /// `frame_id`); [`crate::jargon`] uses it when the matched lexeme
+    /// carries a pack gloss (the plain-English suggestion). `None`
+    /// otherwise.
     pub message: Option<Box<str>>,
 }
 

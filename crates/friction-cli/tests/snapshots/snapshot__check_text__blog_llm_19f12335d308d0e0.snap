@@ -45,12 +45,12 @@ dms.machine
 
 jargon.metaphor
 
-  ⚠ Jargon tell: jargon.metaphor
+  ⚠ 'complex maze': consider 'a confusing set of ...'
    ╭─[corpus/llm/blog/19f12335d308d0e0.md:3:509]
  2 │ 
  3 │ Debugging performance issues in production can feel like chasing ghosts. You’ve got alerts, metrics, and logs, but pinpointing the *why* behind the slowdown is often a frustrating, iterative process. I recently experienced this firsthand with a seemingly innocuous memory leak plaguing one of our long-running Node.js worker processes – a process that was handling a significant chunk of our real-time data processing. The journey from initial alerts to identifying the root cause felt like navigating a complex maze, and it highlighted some crucial lessons about monitoring, debugging, and event listener management.
    ·                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                         ──────┬─────
-   ·                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                               ╰── Jargon tell: jargon.metaphor
+   ·                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                               ╰── 'complex maze': consider 'a confusing set of ...'
  4 │ 
    ╰────
 

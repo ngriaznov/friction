@@ -13,7 +13,7 @@
 //! in-memory tables. `crates/friction-packs/packs/jargon-en-v1.toml` itself
 //! is hand-curated. See that file's own header comment.
 
-use std::collections::BTreeSet;
+use std::collections::{BTreeMap, BTreeSet};
 
 use serde::Deserialize;
 
@@ -54,6 +54,17 @@ pub struct Lexeme {
     pub source: LexemeSource,
     /// Provenance: mandatory, non-empty for every entry.
     pub notes: Box<str>,
+    /// Optional plain-English alternative, surfaced in the finding's
+    /// message with `{mod}` rendered as `...` ("dependency jungle" +
+    /// gloss `"many {mod}"` -> "consider 'many ...'"). The slot is
+    /// never filled with the matched modifier text: adjective
+    /// modifiers don't fit a noun slot ("the basis of semantic") and
+    /// noun modifiers would need number agreement ("many dependency")
+    /// — synthesis this channel deliberately doesn't do. The gloss
+    /// translates the metaphor head; the author fills the blank.
+    /// Never an edit: the channel stays detection-only (SYNTHESIS.md
+    /// §4), a gloss only makes the suggestion actionable.
+    pub gloss: Option<Box<str>>,
 }
 
 impl Lexeme {
@@ -62,11 +73,19 @@ impl Lexeme {
         if raw.notes.trim().is_empty() {
             return Err(PackError::JargonMissingNotes { entry: raw.lexeme });
         }
+        if let Some(gloss) = &raw.gloss
+            && gloss.trim().is_empty()
+        {
+            // An empty gloss is a curation mistake, not "no gloss" —
+            // omitting the key is how a lexeme opts out.
+            return Err(PackError::JargonMissingNotes { entry: raw.lexeme });
+        }
         Ok(Self {
             lexeme: raw.lexeme.into_boxed_str(),
             plural: raw.plural.map(String::into_boxed_str),
             source,
             notes: raw.notes.into_boxed_str(),
+            gloss: raw.gloss.map(String::into_boxed_str),
         })
     }
 }
@@ -105,6 +124,10 @@ pub struct JargonPack {
     /// at parse time, the same "derived lookup lives on the pack"
     /// discipline [`crate::InventoryPack::lvc_lexicon`] uses.
     head_words: BTreeSet<Box<str>>,
+    /// Head surface form (singular AND plural) -> its lexeme's gloss,
+    /// for the lexemes that carry one. Precomputed at parse time, same
+    /// discipline as `head_words`.
+    glosses: BTreeMap<Box<str>, Box<str>>,
     /// Every attested-exception compound, lowercase. Precomputed at parse
     /// time for the same reason as `head_words`.
     exception_compounds: BTreeSet<Box<str>>,
@@ -132,6 +155,7 @@ impl JargonPack {
 
         let mut seen_lexemes: BTreeSet<&str> = BTreeSet::new();
         let mut head_words: BTreeSet<Box<str>> = BTreeSet::new();
+        let mut glosses: BTreeMap<Box<str>, Box<str>> = BTreeMap::new();
         for lexeme in &lexemes {
             if !seen_lexemes.insert(lexeme.lexeme.as_ref()) {
                 return Err(PackError::JargonDuplicateLexeme {
@@ -139,7 +163,13 @@ impl JargonPack {
                 });
             }
             head_words.insert(lexeme.lexeme.clone());
+            if let Some(gloss) = &lexeme.gloss {
+                glosses.insert(lexeme.lexeme.clone(), gloss.clone());
+            }
             if let Some(plural) = &lexeme.plural {
+                if let Some(gloss) = &lexeme.gloss {
+                    glosses.insert(plural.clone(), gloss.clone());
+                }
                 if !seen_lexemes.insert(plural.as_ref()) {
                     return Err(PackError::JargonDuplicateLexeme {
                         lexeme: plural.to_string(),
@@ -171,6 +201,7 @@ impl JargonPack {
             lexemes,
             attested_exceptions,
             head_words,
+            glosses,
             exception_compounds,
         })
     }
@@ -198,6 +229,14 @@ impl JargonPack {
     pub fn is_attested_exception(&self, compound: &str) -> bool {
         self.exception_compounds.contains(compound)
     }
+
+    /// The gloss template for `word` (already lowercase; singular or
+    /// listed plural), when its lexeme carries one — see
+    /// [`Lexeme::gloss`] for the `{mod}` contract.
+    #[must_use]
+    pub fn gloss_for(&self, word: &str) -> Option<&str> {
+        self.glosses.get(word).map(AsRef::as_ref)
+    }
 }
 
 #[derive(Debug, Deserialize)]
@@ -208,6 +247,8 @@ struct RawLexeme {
     plural: Option<String>,
     source: String,
     notes: String,
+    #[serde(default)]
+    gloss: Option<String>,
 }
 
 #[derive(Debug, Deserialize)]
@@ -242,6 +283,7 @@ mod tests {
         plural = "wells"
         source = "external"
         notes = "test provenance"
+        gloss = "a source of {mod}"
 
         [[lexemes]]
         lexeme = "soup"
@@ -368,6 +410,32 @@ mod tests {
         "#;
         let err = JargonPack::parse(toml).unwrap_err();
         assert!(matches!(err, PackError::JargonDuplicateException { .. }));
+    }
+
+    #[test]
+    fn gloss_resolves_for_singular_and_plural_and_is_absent_when_unlisted() {
+        let pack = JargonPack::parse(MINIMAL_PACK).expect("minimal pack parses");
+        assert_eq!(pack.gloss_for("well"), Some("a source of {mod}"));
+        assert_eq!(pack.gloss_for("wells"), Some("a source of {mod}"));
+        assert_eq!(pack.gloss_for("soup"), None, "no gloss key means no gloss");
+    }
+
+    #[test]
+    fn empty_gloss_is_a_parse_error() {
+        let toml = r#"
+            [pack]
+            version = "jargon-v1"
+
+            [[lexemes]]
+            lexeme = "well"
+            source = "external"
+            notes = "test provenance"
+            gloss = "  "
+        "#;
+        assert!(
+            JargonPack::parse(toml).is_err(),
+            "blank gloss is a curation mistake"
+        );
     }
 
     #[test]
