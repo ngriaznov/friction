@@ -472,3 +472,146 @@ fn never_surfaced_anywhere_keeps_its_existing_report_only_finding() {
         "T11 never matched an intransitive use; it should add no finding of its own"
     );
 }
+
+// ---------------------------------------------------------------------
+// T12: sentence-final participial-closer split.
+// ---------------------------------------------------------------------
+
+/// The design brief's own flagship example: a sentence-final `, VBG`
+/// adjunct off a complete main clause splits into its own sentence, with
+/// a literal `"That"` subject and the participle re-conjugated
+/// third-singular to agree with it.
+#[test]
+fn participial_closer_splits_the_flagship_example() {
+    let source = "The tool automates the whole pipeline, making it easy to onboard new projects.\n";
+    let (fixed, report) = engine().fix_document(source).expect("engine runs");
+    assert_eq!(
+        fixed,
+        "The tool automates the whole pipeline. That makes it easy to onboard new projects.\n"
+    );
+    assert!(
+        report
+            .passes
+            .iter()
+            .flat_map(|p| &p.applied_patches)
+            .any(|patch| patch.rule.as_str() == "restructure.participial_closer"),
+        "expected a restructure.participial_closer patch"
+    );
+}
+
+/// The coordinated-noun negative: `"containing"` attaches to `"bag"` by
+/// `Acl`, not `Advcl`, and isn't even comma-preceded -- verified against
+/// the shipped parser, this never reaches T12's match at all.
+#[test]
+fn coordinated_noun_vbg_never_matches() {
+    let source = "She packed a bag containing apples, oranges, and pears.\n";
+    let (fixed, report) = engine().fix_document(source).expect("engine runs");
+    assert_eq!(fixed, source);
+    assert!(
+        report
+            .passes
+            .iter()
+            .flat_map(|p| &p.held)
+            .all(|f| f.rule.as_str() != "restructure.participial_closer"),
+        "no restructure.participial_closer finding of any kind for a coordinated noun VBG"
+    );
+}
+
+/// A mid-sentence participial: `"making"` attaches `Advcl` to the root
+/// and is comma-preceded, but a further conjunct (`"and closed the
+/// ticket"`) follows it -- verified against the shipped parser, its own
+/// subtree ends well before the sentence's terminal punctuation, so the
+/// sentence-final check declines the match silently, same as T10 gives a
+/// shape that never qualified.
+#[test]
+fn mid_sentence_participial_never_matches() {
+    let source = "The team shipped the feature, making it easy to onboard new projects, and \
+                   closed the ticket.\n";
+    let (fixed, report) = engine().fix_document(source).expect("engine runs");
+    assert_eq!(fixed, source);
+    assert!(
+        report
+            .passes
+            .iter()
+            .flat_map(|p| &p.held)
+            .all(|f| f.rule.as_str() != "restructure.participial_closer"),
+        "no restructure.participial_closer finding of any kind for a mid-sentence participial"
+    );
+}
+
+/// Idempotence: fixing the already-split output changes nothing further
+/// -- neither sentence has a comma-attached sentence-final `VBG` left to
+/// re-match.
+#[test]
+fn participial_closer_output_is_idempotent() {
+    let source = "The tool automates the whole pipeline, making it easy to onboard new projects.\n";
+    let engine = engine();
+    let (once, _) = engine.fix_document(source).expect("first fix");
+    let (twice, _) = engine.fix_document(&once).expect("second fix");
+    assert_eq!(
+        once,
+        "The tool automates the whole pipeline. That makes it easy to onboard new projects.\n"
+    );
+    assert_eq!(twice, once, "second application must be a no-op");
+}
+
+// ---------------------------------------------------------------------
+// T13: em-dash relative-chain split ("— which is why X").
+// ---------------------------------------------------------------------
+
+/// The OPEN case: a single em dash introducing the literal `"which is
+/// why"` frame, continuing to the sentence's own end, splits into `".
+/// That is why ..."`.
+#[test]
+fn em_dash_relative_chain_splits_the_open_case() {
+    let source = "The service routes traffic quickly — which is why the config stays small.\n";
+    let (fixed, report) = engine().fix_document(source).expect("engine runs");
+    assert_eq!(
+        fixed,
+        "The service routes traffic quickly. That is why the config stays small.\n"
+    );
+    assert!(
+        report
+            .passes
+            .iter()
+            .flat_map(|p| &p.applied_patches)
+            .any(|patch| patch.rule.as_str() == "restructure.em_dash_relative_chain"),
+        "expected a restructure.em_dash_relative_chain patch"
+    );
+}
+
+/// The CLOSED pair case: two em dashes, the second closing the aside
+/// before `"and it scales"` continues the sentence -- v1 declines this
+/// shape outright (too entangled), so the sentence is left byte-identical
+/// and no `restructure.em_dash_relative_chain` finding of any kind is
+/// produced.
+#[test]
+fn em_dash_relative_chain_closed_pair_is_untouched() {
+    let source = "The service routes traffic quickly — which is why the config stays small — \
+                   and it scales.\n";
+    let (fixed, report) = engine().fix_document(source).expect("engine runs");
+    assert_eq!(fixed, source);
+    assert!(
+        report
+            .passes
+            .iter()
+            .flat_map(|p| &p.held)
+            .all(|f| f.rule.as_str() != "restructure.em_dash_relative_chain"),
+        "no restructure.em_dash_relative_chain finding of any kind for a closed pair"
+    );
+}
+
+/// Idempotence: the split output has no em dash left for T13 (or T6) to
+/// act on.
+#[test]
+fn em_dash_relative_chain_output_is_idempotent() {
+    let source = "The service routes traffic quickly — which is why the config stays small.\n";
+    let engine = engine();
+    let (once, _) = engine.fix_document(source).expect("first fix");
+    let (twice, _) = engine.fix_document(&once).expect("second fix");
+    assert_eq!(
+        once,
+        "The service routes traffic quickly. That is why the config stays small.\n"
+    );
+    assert_eq!(twice, once, "second application must be a no-op");
+}
