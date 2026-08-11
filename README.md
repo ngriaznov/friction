@@ -410,13 +410,13 @@ friction fix: 2 pass(es), 0 patch(es) applied
 ### `friction check` — detect and measure, change nothing
 
 ```
-friction check draft.md --genre blog
+friction check draft.md
 friction check draft.md --format sarif > report.sarif
 friction check draft.md --residual
 ```
 
 Reports detected spans with byte-exact locations, tell counts,
-distribution metrics against the genre envelope, and the document-level
+distribution metrics against the cross-genre human envelope, and the document-level
 matching-statistics differential. The SARIF output validates against the SARIF
 2.1.0 schema.
 

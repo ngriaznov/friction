@@ -138,6 +138,26 @@ impl EnvelopePack {
         self.genres.keys().map(AsRef::as_ref).collect()
     }
 
+    /// The cross-genre `[lo, hi]` band for `metric`: the union (lowest
+    /// floor, highest ceiling) of every genre's own band for it, or
+    /// [`None`] when no genre has one.
+    ///
+    /// The genre-free `friction check` judgment: a value inside ANY
+    /// human genre's observed range is not out of envelope — "no human
+    /// register writes like this" is the only claim a checker that
+    /// doesn't know the document's genre can honestly make. Iteration
+    /// is over a `BTreeMap`, so the fold is deterministic.
+    #[must_use]
+    pub fn band_union(&self, metric: &str) -> Option<Envelope> {
+        self.genres
+            .values()
+            .filter_map(|bands| bands.get(metric).map(|b| b.envelope))
+            .reduce(|a, b| Envelope {
+                lo: a.lo.min(b.lo),
+                hi: a.hi.max(b.hi),
+            })
+    }
+
     /// The mean, over `metrics`'s fields this pack marks `include: true`
     /// for `genre`, of that field's normalized directional exceedance
     /// beyond its `[lo, hi]` band (see [`exceedance`]) — the same

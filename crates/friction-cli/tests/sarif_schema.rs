@@ -46,7 +46,7 @@ fn sarif_output_with_spans_validates_against_the_schema() {
         .expect("the friction binary builds")
         .arg("check")
         .arg(&path)
-        .args(["--genre", "blog", "--format", "sarif"])
+        .args(["--format", "sarif"])
         .output()
         .expect("friction runs");
 
@@ -77,7 +77,7 @@ fn sarif_output_with_no_spans_validates_against_the_schema() {
         .expect("the friction binary builds")
         .arg("check")
         .arg(&path)
-        .args(["--genre", "docs", "--format", "sarif"])
+        .args(["--format", "sarif"])
         .output()
         .expect("friction runs");
 

@@ -3,7 +3,6 @@
 //! segmenter/tagger handle `check`/`explain` need for metric computation
 //! and detection.
 
-use std::fmt;
 use std::io::{Read as _, Write as _};
 use std::path::{Path, PathBuf};
 use std::process::ExitCode;
@@ -12,60 +11,6 @@ use clap::ValueEnum;
 use friction_core::Lang;
 use friction_nlp::{PerceptronTagError, PerceptronTagger, SrxSegmenter};
 use friction_packs::{ENVELOPE_V2, EnvelopePack, PackError};
-
-/// The genres a document may be classified as, matching
-/// `friction-packs`' envelope-pack genre keys exactly.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, ValueEnum)]
-#[value(rename_all = "lower")]
-pub enum Genre {
-    /// Prose documentation (READMEs excluded — see [`Genre::Readme`]).
-    Docs,
-    /// Blog-style prose.
-    Blog,
-    /// A project README.
-    Readme,
-    /// Email prose.
-    Email,
-    /// Forum-post prose.
-    Forum,
-}
-
-impl Genre {
-    /// The default genre used when `--genre` is omitted: `docs`.
-    pub const DEFAULT: Self = Self::Docs;
-
-    /// This genre's key in a `friction-packs` envelope pack's
-    /// `[<genre>.<metric>]` tables (e.g. `"docs"`, `"blog"`).
-    #[must_use]
-    pub const fn as_str(self) -> &'static str {
-        match self {
-            Self::Docs => "docs",
-            Self::Blog => "blog",
-            Self::Readme => "readme",
-            Self::Email => "email",
-            Self::Forum => "forum",
-        }
-    }
-}
-
-impl fmt::Display for Genre {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        f.write_str(self.as_str())
-    }
-}
-
-/// Resolves an optional `--genre` flag to a concrete [`Genre`], printing a
-/// note to stderr (once) when it had to default.
-#[must_use]
-pub fn resolve_genre(explicit: Option<Genre>) -> Genre {
-    explicit.unwrap_or_else(|| {
-        eprintln!(
-            "friction: note: no --genre given; defaulting to {:?}",
-            Genre::DEFAULT.as_str()
-        );
-        Genre::DEFAULT
-    })
-}
 
 /// `clap` `value_parser` for `--lang`: parses a BCP-47 primary tag into a
 /// [`Lang`], surfacing [`friction_core::UnknownLang`]'s own message
@@ -377,15 +322,6 @@ mod tests {
     /// check a single offset at a time.
     fn offset_to_line_col(source: &str, offset: usize) -> (usize, usize) {
         LineIndex::new(source).line_col(source, offset)
-    }
-
-    #[test]
-    fn genre_as_str_matches_pack_keys() {
-        assert_eq!(Genre::Docs.as_str(), "docs");
-        assert_eq!(Genre::Blog.as_str(), "blog");
-        assert_eq!(Genre::Readme.as_str(), "readme");
-        assert_eq!(Genre::Email.as_str(), "email");
-        assert_eq!(Genre::Forum.as_str(), "forum");
     }
 
     #[test]

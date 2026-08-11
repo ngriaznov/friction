@@ -197,14 +197,11 @@ fn friction() -> Command {
 /// code is a function of the document's own content (spans and envelope
 /// membership), not a success/failure signal for this suite.
 ///
-/// `--genre` is `check`-only (`fix`/`explain` take neither), so it's
-/// appended only when `args` names `check`.
+/// `check` is genre-free now (the union band), so every subcommand
+/// takes the same invocation shape.
 fn run_stdout(doc: &SelectedDoc, args: &[&str]) -> String {
     let mut cmd = friction();
     cmd.args(args).arg(doc.relpath);
-    if args.first() == Some(&"check") {
-        cmd.args(["--genre", doc.genre]);
-    }
     let output = cmd.output().expect("friction runs");
     String::from_utf8(output.stdout).expect("stdout is valid UTF-8")
 }

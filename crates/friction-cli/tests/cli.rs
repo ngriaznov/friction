@@ -101,7 +101,7 @@ fn check_exits_zero_for_a_clean_document() {
     friction()
         .arg("check")
         .arg(&path)
-        .args(["--genre", "docs", "--pack"])
+        .args(["--pack"])
         .arg(&pack)
         .assert()
         .success();
@@ -117,23 +117,23 @@ fn check_exits_one_and_lists_spans_for_a_messy_document() {
     friction()
         .arg("check")
         .arg(&path)
-        .args(["--genre", "blog"])
         .assert()
         .code(1)
         .stdout(predicate::str::contains("tell:"));
 }
 
-/// `check -` reads from stdin, and an omitted `--genre` defaults to
-/// `docs` with a note on stderr rather than failing.
+/// `check -` reads from stdin. Genre-free: no flag to pass, no
+/// defaulting note on stderr — every metric is judged against the
+/// cross-genre union band.
 #[test]
-fn check_reads_stdin_and_defaults_genre_with_a_note() {
+fn check_reads_stdin() {
     friction()
         .arg("check")
         .arg("-")
         .write_stdin(MESSY_BLOG)
         .assert()
         .code(1)
-        .stderr(predicate::str::contains("defaulting to"));
+        .stderr(predicate::str::contains("defaulting to").not());
 }
 
 /// `check --format json` never fails to parse as JSON, and two runs over
@@ -148,7 +148,7 @@ fn check_json_output_is_byte_identical_across_runs() {
         friction()
             .arg("check")
             .arg(&path)
-            .args(["--genre", "blog", "--format", "json"])
+            .args(["--format", "json"])
             .output()
             .expect("friction runs")
     };
@@ -158,7 +158,7 @@ fn check_json_output_is_byte_identical_across_runs() {
 
     let value: serde_json::Value =
         serde_json::from_slice(&first.stdout).expect("check --format json prints valid JSON");
-    assert_eq!(value["genre"], "blog");
+    assert!(value.get("genre").is_none(), "check's JSON is genre-free");
     assert!(!value["spans"].as_array().unwrap().is_empty());
     // `dms` is the single pooled machine-vs-human report object now, not
     // one entry per family — see `friction_match::dms`'s own module docs
@@ -180,7 +180,6 @@ fn check_text_output_is_never_colorized_when_piped() {
     let output = friction()
         .arg("check")
         .arg(&path)
-        .args(["--genre", "blog"])
         .output()
         .expect("friction runs");
     assert!(
@@ -196,7 +195,6 @@ fn check_exits_two_for_a_missing_file() {
     friction()
         .arg("check")
         .arg("/no/such/file/anywhere.md")
-        .args(["--genre", "docs"])
         .assert()
         .code(2)
         .stdout(predicate::str::is_empty())

@@ -2,28 +2,28 @@
 source: crates/friction-cli/tests/snapshot.rs
 expression: stdout
 ---
-METRIC                         VALUE  BAND                STATUS
-sentence_length_mean         13.0952  [7.2222, 22.6122]   in    
-sentence_length_stddev        7.7228  [6.7106, 12.6994]   in    
-sentence_length_cv            0.5897  [0.4975, 1.1375]    in    
-discourse_marker_density      4.7450  [0.0000, 2.8618]    OUT   
-triad_rate                    0.0159  [0.0000, 0.0870]    in    
-contraction_ratio             0.3333  [0.0000, 0.7308]    in    
-bullet_parallelism            0.8125  [0.0000, 1.0000]    in    
-paragraph_shape_mean          1.4651  [1.1641, 3.5385]    in    
-paragraph_shape_cv            0.4959  [0.3858, 0.7954]    in    
-em_dash_density               0.0000  [0.0000, 4.2445]    in    
-semicolon_density             0.0000  [0.0000, 3.4200]    in    
-participial_closer_rate       0.1111  [0.0000, 0.0231]    OUT   
-not_just_but_rate             0.0159  [0.0000, 0.0093]    OUT   
-ritual_marker_rate            0.0233  [0.0000, 0.0000]    OUT   
-llm_favored_phrase_rate      47.4496  [0.9225, 19.3120]   OUT   
-human_favored_phrase_rate    13.0486  [11.1492, 39.2610]  in    
-heading_density               8.3037  [0.6072, 10.3668]   in    
-list_item_density            18.9798  [0.0000, 16.8244]   OUT   
-bold_span_density            28.4698  [0.0000, 10.6682]   OUT   
-sentence_opener_repeat_rate   0.0645  [0.0067, 0.1343]    in    
-top_opener_concentration      0.0794  [0.0588, 0.2154]    in    
+METRIC                         VALUE  BAND               STATUS
+sentence_length_mean         13.0952  [3.4918, 22.6122]  in    
+sentence_length_stddev        7.7228  [3.4228, 13.4118]  in    
+sentence_length_cv            0.5897  [0.4975, 1.3592]   in    
+discourse_marker_density      4.7450  [0.0000, 4.2373]   OUT   
+triad_rate                    0.0159  [0.0000, 0.0870]   in    
+contraction_ratio             0.3333  [0.0000, 1.0000]   in    
+bullet_parallelism            0.8125  [0.0000, 1.0000]   in    
+paragraph_shape_mean          1.4651  [1.0357, 3.5385]   in    
+paragraph_shape_cv            0.4959  [0.1792, 0.7954]   in    
+em_dash_density               0.0000  [0.0000, 4.2445]   in    
+semicolon_density             0.0000  [0.0000, 3.9683]   in    
+participial_closer_rate       0.1111  [0.0000, 0.0312]   OUT   
+not_just_but_rate             0.0159  [0.0000, 0.0093]   OUT   
+ritual_marker_rate            0.0233  [0.0000, 0.0000]   OUT   
+llm_favored_phrase_rate      47.4496  [0.0000, 21.6346]  OUT   
+human_favored_phrase_rate    13.0486  [8.5911, 48.8215]  in    
+heading_density               8.3037  [0.0000, 43.0464]  in    
+list_item_density            18.9798  [0.0000, 98.2659]  in    
+bold_span_density            28.4698  [0.0000, 14.7059]  OUT   
+sentence_opener_repeat_rate   0.0645  [0.0000, 0.1379]   in    
+top_opener_concentration      0.0794  [0.0442, 0.2154]   in    
 
 dms: mean_machine=20.0043  mean_human=1.6283  differential=18.3759  tokens=939
 

@@ -118,8 +118,5 @@ fn fix_is_byte_identical_across_thread_counts() {
 /// DMS document-report, itself a `par_iter` over every unit).
 #[test]
 fn check_is_byte_identical_across_thread_counts() {
-    assert_identical_across_thread_counts_and_reruns(
-        "check",
-        &["check", "--format", "json", "--genre", "blog"],
-    );
+    assert_identical_across_thread_counts_and_reruns("check", &["check", "--format", "json"]);
 }

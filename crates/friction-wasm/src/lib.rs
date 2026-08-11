@@ -49,13 +49,6 @@ use wasm_bindgen::prelude::*;
 /// `en`.
 const LANG: Lang = Lang::En;
 
-/// `friction check --genre` defaults to `docs` when omitted
-/// (`friction-cli`'s own `resolve_genre`, printing a note to stderr this
-/// crate has no stderr channel to print). This export contract has no
-/// `--genre` equivalent, so every call is scoped to `docs`, matching the
-/// CLI's own default exactly.
-const DEFAULT_GENRE: &str = "docs";
-
 /// Formats any `Display`-able error as a [`JsError`], the shape every
 /// export below reports a failure as.
 fn to_js_error(err: impl std::fmt::Display) -> JsError {
@@ -267,7 +260,6 @@ struct DmsMachineRow {
 /// field-for-field.
 #[derive(Debug, Serialize)]
 struct CheckReport {
-    genre: &'static str,
     metrics: Vec<MetricRow>,
     spans: Vec<SpanRow>,
     tell_counts: BTreeMap<String, usize>,
@@ -276,7 +268,10 @@ struct CheckReport {
 
 /// Runs `friction check`'s metrics and fix-time detection, with no fixes
 /// applied, and returns the same JSON shape as `friction check --format
-/// json` (`--genre` fixed to `docs` — see [`DEFAULT_GENRE`]).
+/// json`.
+///
+/// Genre-free, like the CLI: every metric is judged against the
+/// cross-genre union band — see `EnvelopePack::band_union`.
 ///
 /// # Errors
 /// Returns a [`JsError`] if `input` fails to parse, if the detection
@@ -310,9 +305,8 @@ pub fn check_text(input: &str) -> Result<String, JsError> {
     .map_err(to_js_error)?;
     let report = match_engine.scan(&document).map_err(to_js_error)?;
 
-    let rows = metric_rows(&metrics, pack, DEFAULT_GENRE);
+    let rows = metric_rows(&metrics, pack);
     let check_report = CheckReport {
-        genre: DEFAULT_GENRE,
         metrics: rows,
         spans: span_rows(input, &report.spans),
         tell_counts: tell_counts(&report.spans),
@@ -321,12 +315,12 @@ pub fn check_text(input: &str) -> Result<String, JsError> {
     serde_json::to_string_pretty(&check_report).map_err(to_js_error)
 }
 
-fn metric_rows(metrics: &MetricVector, pack: &EnvelopePack, genre: &str) -> Vec<MetricRow> {
+fn metric_rows(metrics: &MetricVector, pack: &EnvelopePack) -> Vec<MetricRow> {
     metrics
         .named_values()
         .into_iter()
         .map(|(name, value)| {
-            let band = pack.band(genre, name);
+            let band = pack.band_union(name);
             MetricRow {
                 name,
                 value,

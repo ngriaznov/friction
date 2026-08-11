@@ -3,27 +3,26 @@ source: crates/friction-cli/tests/snapshot.rs
 expression: stdout
 ---
 {
-  "genre": "forum",
   "metrics": [
     {
       "name": "sentence_length_mean",
       "value": 8.333333333333334,
-      "lo": 7.14,
-      "hi": 21.545454545454547,
+      "lo": 3.4918032786885247,
+      "hi": 22.612244897959183,
       "in_envelope": true
     },
     {
       "name": "sentence_length_stddev",
       "value": 7.123017179354107,
-      "lo": 6.973680679685744,
+      "lo": 3.4227587963188086,
       "hi": 13.411800359716398,
       "in_envelope": true
     },
     {
       "name": "sentence_length_cv",
       "value": 0.8547620615224927,
-      "lo": 0.5491203194353567,
-      "hi": 0.9915185800501058,
+      "lo": 0.49754649007902846,
+      "hi": 1.3591689344136941,
       "in_envelope": true
     },
     {
@@ -37,15 +36,15 @@ expression: stdout
       "name": "triad_rate",
       "value": 0.015151515151515152,
       "lo": 0.0,
-      "hi": 0.0425531914893617,
+      "hi": 0.08695652173913043,
       "in_envelope": true
     },
     {
       "name": "contraction_ratio",
       "value": 1.0,
-      "lo": 0.2,
-      "hi": 0.9,
-      "in_envelope": false
+      "lo": 0.0,
+      "hi": 1.0,
+      "in_envelope": true
     },
     {
       "name": "bullet_parallelism",
@@ -57,29 +56,29 @@ expression: stdout
     {
       "name": "paragraph_shape_mean",
       "value": 1.1785714285714286,
-      "lo": 1.2258064516129032,
-      "hi": 2.4761904761904763,
-      "in_envelope": false
+      "lo": 1.0357142857142858,
+      "hi": 3.5384615384615383,
+      "in_envelope": true
     },
     {
       "name": "paragraph_shape_cv",
       "value": 0.4565611870702836,
-      "lo": 0.38987177379235843,
-      "hi": 0.7590772998235673,
+      "lo": 0.179177669748504,
+      "hi": 0.7953949089757174,
       "in_envelope": true
     },
     {
       "name": "em_dash_density",
       "value": 0.0,
       "lo": 0.0,
-      "hi": 2.4154589371980677,
+      "hi": 4.244482173174872,
       "in_envelope": true
     },
     {
       "name": "semicolon_density",
       "value": 0.0,
       "lo": 0.0,
-      "hi": 2.9994001199760048,
+      "hi": 3.9682539682539684,
       "in_envelope": true
     },
     {
@@ -93,7 +92,7 @@ expression: stdout
       "name": "not_just_but_rate",
       "value": 0.0,
       "lo": 0.0,
-      "hi": 0.0,
+      "hi": 0.009259259259259259,
       "in_envelope": true
     },
     {
@@ -107,13 +106,13 @@ expression: stdout
       "name": "llm_favored_phrase_rate",
       "value": 11.320754716981131,
       "lo": 0.0,
-      "hi": 19.656019656019655,
+      "hi": 21.634615384615383,
       "in_envelope": true
     },
     {
       "name": "human_favored_phrase_rate",
       "value": 5.660377358490566,
-      "lo": 19.41747572815534,
+      "lo": 8.59106529209622,
       "hi": 48.821548821548824,
       "in_envelope": false
     },
@@ -121,35 +120,35 @@ expression: stdout
       "name": "heading_density",
       "value": 0.0,
       "lo": 0.0,
-      "hi": 8.103727714748784,
+      "hi": 43.04635761589404,
       "in_envelope": true
     },
     {
       "name": "list_item_density",
       "value": 32.075471698113205,
       "lo": 0.0,
-      "hi": 22.22222222222222,
-      "in_envelope": false
+      "hi": 98.26589595375722,
+      "in_envelope": true
     },
     {
       "name": "bold_span_density",
       "value": 18.867924528301888,
       "lo": 0.0,
-      "hi": 10.482180293501049,
+      "hi": 14.705882352941176,
       "in_envelope": false
     },
     {
       "name": "sentence_opener_repeat_rate",
       "value": 0.015384615384615385,
       "lo": 0.0,
-      "hi": 0.1111111111111111,
+      "hi": 0.13793103448275862,
       "in_envelope": true
     },
     {
       "name": "top_opener_concentration",
       "value": 0.09836065573770492,
-      "lo": 0.06944444444444445,
-      "hi": 0.18181818181818182,
+      "lo": 0.04424778761061947,
+      "hi": 0.2153846153846154,
       "in_envelope": true
     }
   ],

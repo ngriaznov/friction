@@ -23,8 +23,7 @@ use friction_match::{Channel, DocumentReport, MatchEngine, MatchScore, MatchSpan
 use serde::Serialize;
 
 use crate::common::{
-    CliError, Engine, Format, Genre, LineIndex, Pack, display_path, parse_lang, read_input,
-    resolve_genre,
+    CliError, Engine, Format, LineIndex, Pack, display_path, parse_lang, read_input,
 };
 use crate::diagnostics::{color_enabled, render_spans};
 use crate::{sarif, table};
@@ -39,11 +38,6 @@ pub struct CheckArgs {
     /// the only supported language in v1.
     #[arg(long, default_value = "en", value_parser = parse_lang)]
     lang: Lang,
-
-    /// Genre to check against (defaults to `docs` with a printed note if
-    /// omitted).
-    #[arg(long, value_enum)]
-    genre: Option<Genre>,
 
     /// Override the embedded envelope pack with one loaded from `PATH`.
     #[arg(long, value_name = "PATH")]
@@ -67,7 +61,7 @@ pub struct CheckArgs {
     no_color: bool,
 }
 
-/// One metric's value, this genre's envelope band for it (if the pack has
+/// One metric's value, its cross-genre union band (if the pack has
 /// one), and whether the value falls inside that band.
 #[derive(Debug, Serialize)]
 struct MetricRow {
@@ -113,7 +107,6 @@ struct DmsMachineRow {
 /// The full `--format json` shape.
 #[derive(Debug, Serialize)]
 struct CheckReport {
-    genre: &'static str,
     metrics: Vec<MetricRow>,
     spans: Vec<SpanRow>,
     tell_counts: BTreeMap<String, usize>,
@@ -130,7 +123,6 @@ pub fn run(args: &CheckArgs) -> ExitCode {
 
 fn run_inner(args: &CheckArgs) -> Result<ExitCode, CliError> {
     let source = read_input(&args.input)?;
-    let genre = resolve_genre(args.genre);
     let pack = Pack::load(args.pack.as_deref())?;
     let engine = Engine::load(args.lang)?;
     let packs = friction_packs::PackSet::for_lang(args.lang);
@@ -150,7 +142,7 @@ fn run_inner(args: &CheckArgs) -> Result<ExitCode, CliError> {
     )?;
     let report = match_engine.scan(&document)?;
 
-    let rows = metric_rows(&metrics, pack.as_pack(), genre.as_str());
+    let rows = metric_rows(&metrics, pack.as_pack());
     let all_in_envelope = rows.iter().all(|row| row.in_envelope.unwrap_or(true));
     let path_label = display_path(&args.input);
 
@@ -179,7 +171,6 @@ fn run_inner(args: &CheckArgs) -> Result<ExitCode, CliError> {
         }
         Format::Json => {
             let check_report = CheckReport {
-                genre: genre.as_str(),
                 metrics: rows,
                 spans: span_rows(&source, &report.spans),
                 tell_counts: tell_counts(&report.spans),
@@ -203,16 +194,12 @@ fn run_inner(args: &CheckArgs) -> Result<ExitCode, CliError> {
     })
 }
 
-fn metric_rows(
-    metrics: &MetricVector,
-    pack: &friction_packs::EnvelopePack,
-    genre: &str,
-) -> Vec<MetricRow> {
+fn metric_rows(metrics: &MetricVector, pack: &friction_packs::EnvelopePack) -> Vec<MetricRow> {
     metrics
         .named_values()
         .into_iter()
         .map(|(name, value)| {
-            let band = pack.band(genre, name);
+            let band = pack.band_union(name);
             MetricRow {
                 name,
                 value,
@@ -409,7 +396,7 @@ mod tests {
             em_dash_density: 9.0,
             ..MetricVector::default()
         };
-        let rows = metric_rows(&metrics, &pack, "blog");
+        let rows = metric_rows(&metrics, &pack);
 
         let triad = rows
             .iter()
