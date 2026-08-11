@@ -2420,17 +2420,17 @@ pub fn t12_participial_closer_split(
         // downstream checks ("that", <verb>) against the attestation
         // tables, and a form no human writes is exactly a seam no
         // corpus attests.
-        let promoted = match t12_main_clause_tense_donor(source, &tokens[..comma_index]) {
-            Some(donor) => match friction_nlp::inflect(&donor.to_lowercase(), &base_verb) {
-                Some(form) => form,
-                None => {
-                    out.push(decline(
-                        "the main clause's tense could not be transferred to the promoted verb",
-                    ));
-                    continue;
-                }
-            },
-            None => third_sg(&base_verb),
+        let donor = t12_main_clause_tense_donor(source, &tokens[..comma_index]);
+        let promoted = if let Some(donor) = donor {
+            let Some(form) = friction_nlp::inflect(&donor.to_lowercase(), &base_verb) else {
+                out.push(decline(
+                    "the main clause's tense could not be transferred to the promoted verb",
+                ));
+                continue;
+            };
+            form
+        } else {
+            third_sg(&base_verb)
         };
         let replacement = format!(". That {promoted}");
         out.push(RestructureOutcome::Candidate {
