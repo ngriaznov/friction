@@ -137,6 +137,15 @@ struct ParaphraseRow {
     column: usize,
     score: i64,
     snippet: String,
+    /// The winning span's own [`friction_match::MatchSpan::message`],
+    /// when its channel supplies one — `dms.machine`'s own message names
+    /// the strongest evidence inside the span (see
+    /// `friction_match::dms::scan_units`'s own docs); `overuse.word`
+    /// carries the flagged word's measured rates the same way. `None`
+    /// for a winning frame/jargon span with no per-occurrence message.
+    /// Additive: every existing field keeps its prior meaning.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    message: Option<String>,
 }
 
 /// One paraphrase candidate after unioning every source's spans down to
@@ -153,6 +162,10 @@ struct ParaphraseSpan {
     /// The winning span's differential score (DMS only; `0` for the
     /// other three sources — see [`dms_score`]).
     score: i64,
+    /// The winning span's own [`MatchSpan::message`] — carried through
+    /// unchanged (see [`ParaphraseRow::message`]'s own docs for what it
+    /// holds per source channel).
+    message: Option<Box<str>>,
 }
 
 /// Runs `friction fix`.
@@ -338,6 +351,7 @@ fn paraphrase_rows(output: &str, spans: &[ParaphraseSpan]) -> Vec<ParaphraseRow>
                 column,
                 score: s.score,
                 snippet: output[s.range.clone()].to_string(),
+                message: s.message.as_deref().map(str::to_string),
             }
         })
         .collect()
@@ -569,6 +583,10 @@ const fn dms_score(span: &MatchSpan) -> i64 {
 /// overwriting), so the result never depends on scan order. Because
 /// starts only grow across the sorted input, the merged spans come out
 /// already sorted the same way. No second sort is needed.
+///
+/// `message` moves with `frame_id`/`score`: whichever span wins the label
+/// on a region also supplies that region's message, so a reader never
+/// sees one span's frame id next to a different span's evidence.
 fn union_paraphrase_spans(mut spans: Vec<MatchSpan>) -> Vec<ParaphraseSpan> {
     spans.sort_by(|a, b| {
         a.range
@@ -588,6 +606,7 @@ fn union_paraphrase_spans(mut spans: Vec<MatchSpan>) -> Vec<ParaphraseSpan> {
             if score > last.score {
                 last.score = score;
                 last.frame_id = span.frame_id;
+                last.message = span.message;
             }
             continue;
         }
@@ -595,6 +614,7 @@ fn union_paraphrase_spans(mut spans: Vec<MatchSpan>) -> Vec<ParaphraseSpan> {
             frame_id: span.frame_id,
             range: span.range,
             score,
+            message: span.message,
         });
     }
     merged
@@ -607,6 +627,13 @@ fn print_paraphrase_spans(output: &str, spans: &[ParaphraseSpan]) {
     for s in spans {
         let (line, column) = lines.line_col(output, s.range.start);
         let snippet = &output[s.range.clone()];
+        if let Some(message) = &s.message {
+            eprintln!(
+                "{line}:{column}: paraphrase candidate (score {}): {snippet:?} [{}] {message}",
+                s.score, s.frame_id
+            );
+            continue;
+        }
         eprintln!(
             "{line}:{column}: paraphrase candidate (score {}): {snippet:?} [{}]",
             s.score, s.frame_id
@@ -686,6 +713,54 @@ mod tests {
         let merged = union_paraphrase_spans(vec![a, b]);
         assert_eq!(merged[0].range, 0..5);
         assert_eq!(merged[1].range, 20..25);
+    }
+
+    fn dms_span_with_message(range: Range<usize>, score: i64, message: &str) -> MatchSpan {
+        MatchSpan {
+            range,
+            channel: Channel::Dms,
+            frame_id: "dms.machine".into(),
+            score: MatchScore::Differential(score),
+            message: Some(message.into()),
+        }
+    }
+
+    /// `message` moves with `frame_id`/`score` when a higher-scored span
+    /// wins the label on an overlapping region — a reader never sees one
+    /// span's frame id next to a different span's evidence.
+    #[test]
+    fn union_paraphrase_spans_carries_the_winning_spans_message() {
+        let a = dms_span_with_message(0..10, 5, "weaker evidence");
+        let b = dms_span_with_message(5..15, 9, "machine-favored phrasing peaks at 'x y z'");
+        let merged = union_paraphrase_spans(vec![a, b]);
+        assert_eq!(merged.len(), 1);
+        assert_eq!(
+            merged[0].message.as_deref(),
+            Some("machine-favored phrasing peaks at 'x y z'")
+        );
+    }
+
+    /// A span with no message (a bare frame/jargon `MatchScore::Present`
+    /// span with no gloss) unions to `None`, not an empty string.
+    #[test]
+    fn union_paraphrase_spans_preserves_no_message() {
+        let a = dms_span(0..5, "dms.qwen", 4);
+        let merged = union_paraphrase_spans(vec![a]);
+        assert_eq!(merged[0].message, None);
+    }
+
+    /// `paraphrase_rows` carries a winning span's message through to the
+    /// `--format json` row, additive alongside every pre-existing field.
+    #[test]
+    fn paraphrase_rows_surfaces_the_message() {
+        let a = dms_span_with_message(0..5, 4, "machine-favored phrasing peaks at 'abc'");
+        let merged = union_paraphrase_spans(vec![a]);
+        let rows = paraphrase_rows("hello", &merged);
+        assert_eq!(rows.len(), 1);
+        assert_eq!(
+            rows[0].message.as_deref(),
+            Some("machine-favored phrasing peaks at 'abc'")
+        );
     }
 
     fn pass(held: Vec<Finding>) -> PassReport {
