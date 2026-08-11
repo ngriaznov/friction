@@ -29,6 +29,7 @@ pub mod mine_paired;
 pub(crate) mod ngram_mining;
 pub mod output_bands;
 pub mod pack_check;
+pub mod pooled_attest;
 pub mod register_bands;
 pub mod remove;
 pub mod seal;

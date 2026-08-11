@@ -157,3 +157,53 @@ fn hard_wrapped_mid_sentence_rewrite_stays_lowercase() {
         .expect("engine runs");
     assert_eq!(fixed, "The script commits the result\nwith the manifest.\n");
 }
+
+/// A matched literal noun realizes with the same plural suffix its
+/// matched surface carried: `col.excellent-x::choice`'s pattern
+/// literal is singular ("choice"), the target literal is spliced
+/// verbatim in the compiled pack, but the page said "choices" — the
+/// realization must carry the "s" over rather than downgrading the
+/// sentence to a number mismatch ("are both excellent choices" must
+/// never become "are both good choice").
+#[test]
+fn literal_noun_realizes_with_the_matched_surfaces_plural_suffix() {
+    let (fixed, _) = engine()
+        .fix_document("These two vendors are both excellent choices.\n")
+        .expect("engine runs");
+    assert_eq!(fixed, "These two vendors are both good choices.\n");
+}
+
+/// `vsub.navigate*` was adjudicated on its abstract sense ("navigate
+/// uncertainty" -> "handle uncertainty"); a literal/spatial object
+/// must hold instead of producing "handling a complex maze".
+#[test]
+fn navigate_holds_over_a_curated_literal_motion_object() {
+    let source = "She felt like navigating a complex maze today.\n";
+    let (fixed, report) = engine().fix_document(source).expect("engine runs");
+    assert_eq!(fixed, source, "the literal object must block the rewrite");
+    assert!(
+        report.passes.iter().flat_map(|p| &p.held).any(|f| {
+            f.rule.as_str().starts_with("vsub.navigate")
+                && f.message.contains("navigate-literal-object guard")
+        }),
+        "the literal-motion guard must surface as a held finding"
+    );
+}
+
+/// The same rule still reaches the ladder over its adjudicated
+/// abstract sense: the object noun ("uncertainty") never appears in
+/// the curated literal-motion set, so the new guard must never even
+/// hold it under its own name — whatever else may gate the rewrite at
+/// the seams is a separate concern this test doesn't assert on.
+#[test]
+fn navigate_over_an_abstract_object_never_hits_the_literal_guard() {
+    let source = "You should navigate the uncertainty ahead of the launch.\n";
+    let (_, report) = engine().fix_document(source).expect("engine runs");
+    assert!(
+        !report.passes.iter().flat_map(|p| &p.held).any(|f| {
+            f.rule.as_str().starts_with("vsub.navigate")
+                && f.message.contains("navigate-literal-object guard")
+        }),
+        "an abstract object must never trip the literal-motion guard"
+    );
+}

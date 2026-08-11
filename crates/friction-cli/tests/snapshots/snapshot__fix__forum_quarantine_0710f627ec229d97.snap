@@ -14,7 +14,7 @@ Now, why is this bad?
    * Kiss security for your binaries goodbye (someone can just write a new `login` program that lets them in every time).
    * Kiss your files goodbye: One user misdirects `rm -r /` and it's all over. The OS was told to let them do whatever they wanted!
 2. **You've pissed off every program that checks permissions on files before starting.**
-  `sudo`, `sendmail`, and a host of others simply will not start any more.  They will examine key file permissions, see they're not what they're supposed to be, and kick back an error message.
+  `sudo`, `sendmail`, and a host of others will not start any more.  They will examine key file permissions, see they're not what they're supposed to be, and kick back an error message.
 Similarly `ssh` will break horribly (key files must have specific permissions,  otherwise they're "insecure" and by default SSH will refuse to use them.)
 3. **You've wiped out the setuid / setgid bits on the programs that had them.**
   The mode `777` is actually ***`0`***`777`.  Among the things in that leading digit are the `setuid` and `setgid` bits.

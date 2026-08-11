@@ -50,6 +50,6 @@ Lifetime elisions are syntactic rules in Rust that allow the compiler to infer t
 
 These elision rules strike a balance between ease of use and safety. By automatically inferring lifetimes in common scenarios where they’re safe to do so (like having only one reference parameter), Rust reduces boilerplate code while still maintaining its strong guarantees about memory safety.
 
-Understanding these rules helps you predict when explicit lifetime annotations are necessary, typically when there’s ambiguity or when multiple references interact differently. This knowledge not only streamlines your coding process but also deepens your understanding of how Rust manages data safely behind the scenes.
+Understanding these rules helps you predict when explicit lifetime annotations are necessary, typically when there’s ambiguity or when multiple references interact differently. This knowledge not only simplifies your coding process but also deepens your understanding of how Rust manages data safely behind the scenes.
 
 In summary, Rust's three lifetime elision rules provide a pragmatic approach to handling lifetimes in functions with reference parameters. By applying these rules, you can write cleaner code without sacrificing safety or clarity about memory management.

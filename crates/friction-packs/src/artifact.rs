@@ -307,6 +307,67 @@ pub enum PackError {
     /// of `friction-packs` knows how to read.
     #[error("human-evidence-v1: unsupported pack version {0}")]
     HumanEvidenceUnsupportedVersion(u16),
+
+    /// `xorf::BinaryFuse16::try_from` exhausted its bounded retry loop
+    /// (see [`crate::pooled_attest::build_pack_bytes`]) — same
+    /// pathological-key-set condition as
+    /// [`Self::JargonAttestConstructionFailed`], for the pooled seam
+    /// filter instead of the jargon compound filter.
+    #[error("pooled-attest-v1: BinaryFuse16 construction failed: {message}")]
+    PooledAttestConstructionFailed {
+        /// `xorf`'s own error message.
+        message: String,
+    },
+
+    /// A `pooled-attest-v1` `.bin` is shorter than its fixed header
+    /// (magic + format version + source sha256 + key count + filter
+    /// descriptor) — see [`crate::pooled_attest::PooledAttestPack::load`].
+    #[error("pooled-attest-v1: pack is {len} byte(s), shorter than the {min}-byte header")]
+    PooledAttestTruncated {
+        /// The pack's actual byte length.
+        len: usize,
+        /// The minimum required byte length.
+        min: usize,
+    },
+
+    /// A `pooled-attest-v1` `.bin` doesn't start with the expected magic
+    /// bytes.
+    #[error("pooled-attest-v1: pack does not start with the expected magic bytes")]
+    PooledAttestBadMagic,
+
+    /// A `pooled-attest-v1` `.bin`'s format version isn't one this build
+    /// of `friction-packs` knows how to read.
+    #[error("pooled-attest-v1: unsupported pack format version {0}")]
+    PooledAttestUnsupportedVersion(u16),
+
+    /// A `pooled-attest-v1` `.bin`'s fingerprint section byte length isn't
+    /// a multiple of 2 (every fingerprint is a `u16`) — a truncated or
+    /// hand-edited artifact, never expected from
+    /// [`crate::pooled_attest::build_pack_bytes`]'s own output.
+    #[error("pooled-attest-v1: fingerprint section length {0} is not a multiple of 2")]
+    PooledAttestOddFingerprintLength(usize),
+
+    /// A `pooled-attest-v1` meta sidecar's `[pack].version` isn't exactly
+    /// `"pooled-attest-v1"`.
+    #[error("pooled-attest-v1: meta [pack].version is {found:?}, expected \"pooled-attest-v1\"")]
+    PooledAttestVersionMismatch {
+        /// The sidecar's actual `version` value.
+        found: String,
+    },
+
+    /// A `pooled-attest-v1` meta sidecar's `[pack].key_count` doesn't
+    /// match the key count embedded in the `.bin`'s own header: the two
+    /// files describe different builds.
+    #[error(
+        "pooled-attest-v1: meta [pack].key_count={meta} does not match the {embedded} key(s) \
+         embedded in the .bin header"
+    )]
+    PooledAttestKeyCountMismatch {
+        /// The sidecar's recorded key count.
+        meta: u64,
+        /// The `.bin` header's own recorded key count.
+        embedded: u64,
+    },
 }
 
 impl From<toml::de::Error> for PackError {

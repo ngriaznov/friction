@@ -53,6 +53,17 @@ insta = "1"
 # output regardless of thread count (see `friction-edit`'s own
 # `rayon_determinism` test). Pinned to the `1.12` line; bump deliberately.
 rayon = "1.12"
+# Safe, alignment-correct `&[u16] -> &[u8]` view for
+# `friction-packs::pooled_attest`'s zero-copy `BinaryFuse16Ref` read path.
+# `xorf::BinaryFuse16Ref::from_dma` requires its fingerprint byte slice to
+# be 2-byte aligned (`FilterRef::FINGERPRINT_ALIGNMENT`), which a raw
+# `include_bytes!` static carries no guarantee of; `IntoBytes::as_bytes`
+# reinterprets an owned, already-`u16`-aligned buffer as bytes without
+# this workspace ever writing `unsafe` itself (`unsafe_code = "deny"`
+# below) — already present transitively (`ahash`/`ppv-lite86`), so this
+# promotes it to a direct, version-pinned dependency rather than adding a
+# new one to the build.
+zerocopy = "0.8"
 # Seedless, deterministic `FxHash` — the hasher rustc itself uses for its
 # internal maps. Used where a `HashMap` is on a hot lookup path and
 # std's default SipHash's DoS-resistance is paid for nothing (these

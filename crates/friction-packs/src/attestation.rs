@@ -53,11 +53,31 @@
 //! needs the two streams to have walked in lockstep, only that each
 //! table was built, and is queried, through its own single convention
 //! consistently.
+//!
+//! # Widened evidence: the pooled seam filter
+//!
+//! [`BigramTable::attests`] is the ONE entry point every gate in
+//! `friction-edit` calls. [`AttestationPack::with_pooled`] attaches
+//! [`crate::pooled_attest::PooledAttestPack`] — a much larger membership
+//! structure mined from external human corpora, see that module's own
+//! docs for why the TRAIN-only table alone is a measured recall
+//! bottleneck — to a `BigramTable`, after which `attests` answers `true`
+//! on either the exact TRAIN hit OR a pooled-filter hit. Every existing
+//! caller of `attests` (`friction-edit`'s deletion and rewrite gates)
+//! sees the widened evidence automatically, with no call-site change:
+//! see `attests`'s own docs for the exact precedence. Only
+//! [`crate::registry::ATTESTATION`] attaches the real embedded pooled
+//! pack; [`AttestationPack::parse`] and [`AttestationPack::from_bin`]
+//! both leave `pooled` unset (`None`), so every other caller (offline
+//! `corpus-tool` passes, this module's own tests, a hand-built pack in a
+//! unit test elsewhere) keeps exactly its historical, pooled-absent
+//! behavior.
 
 use std::collections::{BTreeMap, BTreeSet};
 
 use serde::Deserialize;
 
+use crate::pooled_attest::PooledAttestPack;
 use crate::{PackError, Sha256};
 
 /// A pack's word vocabulary (bigram side) or coarse-tag vocabulary
@@ -308,8 +328,11 @@ impl VocabView {
 }
 
 /// Seam-bigram membership table: has this exact `(left, right)` word pair
-/// been observed adjacent to each other anywhere in the TRAIN human
-/// corpus.
+/// been observed adjacent to each other anywhere in the TRAIN human corpus.
+///
+/// OR, when [`AttestationPack::with_pooled`] has attached one, in the
+/// pooled external-corpus filter (see this module's own "Widened
+/// evidence" docs above).
 ///
 /// Two representations behind one query surface: `Owned` is what
 /// [`AttestationPack::parse`] builds from the source TOML (the offline
@@ -317,9 +340,16 @@ impl VocabView {
 /// splits zero-copy out of the embedded derived artifact (the runtime
 /// path). Every query answers identically from either: the view's
 /// binary searches walk the same sorted content the owned B-trees hold.
+/// `pooled` is orthogonal to that split — either representation can carry
+/// one, attached after construction by [`AttestationPack::with_pooled`].
 #[derive(Debug, Clone)]
 pub struct BigramTable {
     repr: BigramRepr,
+    /// The widened evidence filter, if [`AttestationPack::with_pooled`]
+    /// attached one. `None` for every table built by [`AttestationPack::parse`]
+    /// or [`AttestationPack::from_bin`] directly — see this module's
+    /// "Widened evidence" docs for who actually attaches this.
+    pooled: Option<&'static PooledAttestPack>,
 }
 
 #[derive(Debug, Clone)]
@@ -350,16 +380,29 @@ impl BigramTable {
     /// `false` for a `left` or `right` outside this pack's own vocabulary
     /// (an out-of-vocabulary word can never have been attested, by
     /// definition): not an error, mirroring the mining algorithm's own
-    /// boolean membership test.
+    /// boolean membership test — but only for the EXACT table's own
+    /// answer; a pooled hit (see below) is vocabulary-independent, since
+    /// [`crate::pooled_attest::PooledAttestPack`] hashes raw token text
+    /// directly rather than through this table's own id space.
+    ///
+    /// When [`AttestationPack::with_pooled`] has attached a pooled filter,
+    /// this is `exact_hit OR pooled_hit`: the exact TRAIN-table check
+    /// above runs first (and short-circuits on a hit, so the pooled
+    /// filter's ~1/65536 false-positive rate is never even consulted for
+    /// a pair the exact table already knows), falling through to the
+    /// pooled filter only on an exact miss. No pooled filter attached
+    /// (the common case for every caller except the real embedded
+    /// registry pack — see this module's own "Widened evidence" docs)
+    /// means this is exactly the exact-table-only answer it always was.
     #[must_use]
     pub fn attests(&self, left: &str, right: &str) -> bool {
-        match &self.repr {
+        let exact_hit = match &self.repr {
             BigramRepr::Owned { vocab, edges } => {
                 let Some(left_id) = vocab.id_of(left) else {
-                    return false;
+                    return self.pooled_hit(left, right);
                 };
                 let Some(right_id) = vocab.id_of(right) else {
-                    return false;
+                    return self.pooled_hit(left, right);
                 };
                 edges
                     .get(&left_id)
@@ -367,14 +410,24 @@ impl BigramTable {
             }
             BigramRepr::View { vocab, edges, .. } => {
                 let Some(left_id) = vocab.id_of(left) else {
-                    return false;
+                    return self.pooled_hit(left, right);
                 };
                 let Some(right_id) = vocab.id_of(right) else {
-                    return false;
+                    return self.pooled_hit(left, right);
                 };
                 sorted_u64_contains(edges, pack_edge(left_id, right_id))
             }
-        }
+        };
+        exact_hit || self.pooled_hit(left, right)
+    }
+
+    /// The pooled filter's own answer for `(left, right)`, or `false` when
+    /// [`AttestationPack::with_pooled`] never attached one. Broken out so
+    /// both the out-of-vocabulary early return and the exact-miss
+    /// fallthrough in [`Self::attests`] read through the same one line.
+    fn pooled_hit(&self, left: &str, right: &str) -> bool {
+        self.pooled
+            .is_some_and(|pooled| pooled.attests(left, right))
     }
 
     /// The number of distinct left tokens with at least one attested
@@ -619,6 +672,23 @@ impl AttestationPack {
         &self.skeleton
     }
 
+    /// Attaches `pooled` to this pack's bigram table, widening
+    /// [`BigramTable::attests`] to fall back to the pooled filter on an
+    /// exact-table miss — see this module's own "Widened evidence" docs.
+    ///
+    /// Consuming builder style (`self -> Self`), not `&mut self`: an
+    /// `AttestationPack` is otherwise built once and never mutated in
+    /// place (both [`Self::parse`] and [`Self::from_bin`] hand back a
+    /// finished value), so this reads at the one real call site
+    /// ([`crate::registry::ATTESTATION`]) as "the freshly-loaded pack,
+    /// with pooled evidence attached" rather than a separate mutation
+    /// step a caller could forget or reorder.
+    #[must_use]
+    pub const fn with_pooled(mut self, pooled: &'static PooledAttestPack) -> Self {
+        self.bigram.pooled = Some(pooled);
+        self
+    }
+
     /// This pack's near-no-op pivot-rate calibration, if stage 2 has run.
     #[must_use]
     pub const fn near_noop(&self) -> Option<&NearNoOpCalibration> {
@@ -735,6 +805,7 @@ impl AttestationPack {
                         distinct_lefts,
                         edges,
                     },
+                    pooled: None,
                 },
                 skeleton: SkeletonSet {
                     repr: SkeletonRepr::View {
@@ -1021,6 +1092,7 @@ fn parse_bigram(raw: &RawBigram, vocab: TokenVocab) -> Result<BigramTable, PackE
 
     Ok(BigramTable {
         repr: BigramRepr::Owned { vocab, edges },
+        pooled: None,
     })
 }
 
@@ -1490,5 +1562,64 @@ mod tests {
         assert!(parsed.bigram().attests("a", "b"));
         assert!(parsed.bigram().attests("a", "c"));
         assert_eq!(parsed.bigram().edge_count(), 2);
+    }
+
+    /// Leaks a built [`crate::pooled_attest::PooledAttestPack`] for the
+    /// `&'static` lifetime [`AttestationPack::with_pooled`] requires —
+    /// test-only, same leak-for-`'static` convention [`leak_bin`] uses.
+    fn leak_pooled(pairs: &[(&str, &str)]) -> &'static PooledAttestPack {
+        use crate::pooled_attest::{build_pack_bytes, pair_key};
+        let keys: BTreeSet<String> = pairs.iter().map(|(l, r)| pair_key(l, r)).collect();
+        let built = build_pack_bytes(&keys).expect("small synthetic pooled pack builds");
+        let bin: &'static [u8] = Box::leak(built.bytes.into_boxed_slice());
+        let meta = format!(
+            "[pack]\nversion = \"pooled-attest-v1\"\nkey_count = {}\n",
+            built.key_count
+        );
+        Box::leak(Box::new(
+            PooledAttestPack::load(bin, &meta).expect("synthetic pooled pack loads"),
+        ))
+    }
+
+    /// The widening this whole module's "Widened evidence" docs describe:
+    /// a pair absent from the exact TRAIN table is still `false` with no
+    /// pooled filter attached, and becomes `true` once
+    /// [`AttestationPack::with_pooled`] attaches a pooled filter that
+    /// contains it — while a pair the exact table already knows is
+    /// unaffected either way.
+    #[test]
+    fn with_pooled_widens_attests_on_an_exact_miss_only() {
+        let pack = AttestationPack::parse(SAMPLE_PACK).expect("sample pack parses");
+        assert!(
+            !pack.bigram().attests("will", "upgrade"),
+            "fixture assumption: the small sample table never attested this pair"
+        );
+
+        let pooled = leak_pooled(&[("will", "upgrade")]);
+        let widened = pack.with_pooled(pooled);
+        assert!(
+            widened.bigram().attests("will", "upgrade"),
+            "the pooled filter now attests the pair the exact table missed"
+        );
+        // An exact hit is untouched by attaching a pooled filter that
+        // does NOT itself contain that pair.
+        assert!(widened.bigram().attests("<s>", "the"));
+        // A pair neither table has ever seen stays unattested.
+        assert!(!widened.bigram().attests("never", "seen"));
+    }
+
+    /// `"<s>"` queries the pooled path identically to any other left
+    /// token — no special-casing on either side (see
+    /// `crate::pooled_attest`'s own module docs).
+    #[test]
+    fn with_pooled_widens_a_sentence_start_seam() {
+        let pack = AttestationPack::parse(SAMPLE_PACK).expect("sample pack parses");
+        assert!(
+            !pack.bigram().attests("<s>", "banana"),
+            "fixture assumption: never attested in the exact table"
+        );
+        let pooled = leak_pooled(&[("<s>", "banana")]);
+        let widened = pack.with_pooled(pooled);
+        assert!(widened.bigram().attests("<s>", "banana"));
     }
 }

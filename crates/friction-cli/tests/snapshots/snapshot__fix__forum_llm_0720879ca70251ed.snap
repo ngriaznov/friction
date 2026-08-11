@@ -44,7 +44,7 @@ Without a covering index, MySQL would typically perform a full table scan (or a 
 
 **EXPLAIN Output - Before Covering Index:**
 
-Let's examine the `EXPLAIN` output of this query:
+Let's cover the `EXPLAIN` output of this query:
 
 ```
 +----+-------------+----------------------+----------+---------------+------+--------+------+-------+--+
@@ -73,7 +73,7 @@ This index contains all the columns needed for our query.
 
 **EXPLAIN Output - After Covering Index:**
 
-Now let's run the same query again and examine the `EXPLAIN` output:
+Now let's run the same query again and cover the `EXPLAIN` output:
 
 ```
 +----+-------------+----------------------+----------+---------------+------+--------+------+-------+--+

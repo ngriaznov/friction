@@ -56,6 +56,10 @@ xxhash-rust = { workspace = true }
 # Cargo.toml, which needs this same crate for the same seed-pattern
 # tables this crate's inventory pack now owns instead).
 regex = "1"
+# `pooled_attest`'s safe `&[u16] -> &[u8]` view for
+# `BinaryFuse16Ref::from_dma`'s alignment requirement — see the workspace
+# root's own comment on this dependency for why it's needed at all.
+zerocopy = { workspace = true }
 # `InventoryPack::parse` compiles its ~31 patterns in parallel (regex
 # construction is the pack's whole startup cost. See that function's
 # docs). Ordered `par_iter().collect()` only, per the workspace

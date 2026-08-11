@@ -361,17 +361,14 @@ fn reject_bridge_content_insertion() {
 }
 
 /// See `reject_bridge_connective_insertion`'s doc comment for the same
-/// negative/positive split.
+/// negative/positive split. The identity twin this fixture used to carry
+/// is gone on purpose: the `span.simply` deletion its `good_output`
+/// requires was gate-held (`SeamNotAttested`: "was"/"getting") against
+/// the train-split table alone, and the pooled seam table now attests it
+/// — the exact evidence-growth day the old `#[ignore]` note anticipated.
+/// `good_output` is the stricter assertion (exact bytes, so it still
+/// rejects any bridge insertion).
 #[test]
-fn reject_bridge_inert_insertion() {
-    assert_engine_identity("bridge_inert_insertion");
-}
-
-#[test]
-#[ignore = "corpus/tagger-dependent gate divergence — the span.simply deletion this fixture's \
-            good_output requires is gate-held (SeamNotAttested: \"was\"/\"getting\" is not an \
-            attested bigram in this workspace's own mined pack); see engine_fixtures.rs's own \
-            header comment"]
 fn reject_bridge_inert_insertion_good_output() {
     assert_engine_good_output("bridge_inert_insertion");
 }

@@ -16,7 +16,7 @@ use std::ops::Range;
 use friction_core::{Finding, Patch, RuleId, Tier};
 use friction_match::token::{AnalysisTokenKind, tokenize_str};
 use friction_nlp::Tagger;
-use friction_nlp::lvc::{CandidateOutcome, classify_candidate};
+use friction_nlp::lvc::{CandidateOutcome, LicensedConstruction, classify_candidate};
 use friction_packs::{AttestationPack, InventoryPack, RepairKind};
 use std::sync::LazyLock;
 
@@ -875,6 +875,55 @@ fn run_substitution(
     }
 }
 
+/// Whether `construction`'s complement — the token immediately after
+/// it — is a PREPOSITIONAL phrase the derived verb was never
+/// adjudicated against.
+///
+/// Mirrors [`bare_verb_slot_over_preposition`]'s same-shaped frame
+/// guard, one level up: the pivot collapses a light-verb construction
+/// to its derived verb, but that verb's own complement shape isn't the
+/// construction's — "ask" wants a direct object, so "makes a request
+/// to Ledgerline" collapsing to "asks to Ledgerline" breaks. An
+/// INFINITIVAL "to" is not that case: "made the decision to switch"
+/// collapses to "decided to switch", which every derived verb in the
+/// lexicon reads fine with (the infinitive restates the construction's
+/// own purpose clause, not a verb-specific prepositional frame). So a
+/// `TO` token holds only when what follows is not a verb — a `TO`
+/// followed by `VB` is the infinitive, and passes. `IN` always holds:
+/// true prepositions ("of", "with", "on") are exactly the per-verb
+/// complement shapes the pack carries no table for — deliberately
+/// conservative on that side; some held pivots would have read fine.
+///
+/// One tagger bias needs a second signal: an unknown capitalized word
+/// after "to" tags `VB` ("to Ledgerline" comes back `TO`+`VB`, the
+/// infinitive context overwhelming the unseen word), while the tagger
+/// itself already resolves ordinary prepositional "to" to `IN` ("to
+/// the server"). So a `TO`-headed complement passes only when what
+/// follows is a lowercase `VB` — a capitalized "verb" mid-sentence is
+/// a proper noun wearing the infinitive's tag.
+fn pivot_over_preposition(
+    text: &str,
+    tokens: &[TaggedToken],
+    construction: &LicensedConstruction,
+) -> bool {
+    let Some(next) = tokens.get(construction.end_token_index) else {
+        return false;
+    };
+    match next.pos.as_str() {
+        "IN" => true,
+        "TO" => !tokens
+            .get(construction.end_token_index + 1)
+            .is_some_and(|t| {
+                t.pos.as_str() == "VB"
+                    && text[t.token.range.clone()]
+                        .chars()
+                        .next()
+                        .is_some_and(char::is_lowercase)
+            }),
+        _ => false,
+    }
+}
+
 /// Operation 4 (derivational pivot, loop, max 2): scans left to right
 /// for a licensed light-verb construction, applying up to 2, gated by
 /// `pivot_budget`.
@@ -919,6 +968,15 @@ fn run_pivot(
                             RULE_PIVOT,
                             sentence_range.clone(),
                             "pivot held: matched inside quotation",
+                            Tier::Suggest,
+                        ));
+                        continue;
+                    }
+                    if pivot_over_preposition(&working, tokens, &construction) {
+                        held.push(Finding::new(
+                            RULE_PIVOT,
+                            sentence_range.clone(),
+                            "pivot held: construction followed by a preposition (untested complement)",
                             Tier::Suggest,
                         ));
                         continue;
@@ -1196,11 +1254,11 @@ fn apply_frame_candidate(
     let rule = view.rule(m.rule_index).expect("matched rule in range");
     let rule_id = RuleId::from(rule.id);
     let finding_range = m.bytes.start + sentence_range.start..m.bytes.end + sentence_range.start;
-    if gates::in_quoted_span(working, &m.bytes) {
+    if let Some(reason) = frame_candidate_hold(&rule, &m, tags, working) {
         held.push(Finding::new(
             rule_id,
             finding_range,
-            format!("frame {} held: matched inside quotation", rule.id),
+            format!("frame {} held: {reason}", rule.id),
             Tier::Suggest,
         ));
         return;
@@ -1235,26 +1293,6 @@ fn apply_frame_candidate(
             }
         }
         CompiledKind::Rewrite => {
-            // A bare verb+slot pattern encodes a TRANSITIVE
-            // substitution ("utilize X" -> "use X"); when the slot
-            // opens with a preposition or particle the sentence is
-            // a different construction (literal motion, a phrasal
-            // verb) whose direction the corpus never adjudicated
-            // ("Navigate to the backups directory" must not become
-            // "Handle to ..."). Held, not rejected: the evidence
-            // still flags the verb itself.
-            if bare_verb_slot_over_preposition(&rule, &m, tags) {
-                held.push(Finding::new(
-                    rule_id,
-                    finding_range,
-                    format!(
-                        "frame {} held: slot opens with a preposition (untested construction)",
-                        rule.id
-                    ),
-                    Tier::Suggest,
-                ));
-                return;
-            }
             let replacement =
                 match try_rewrite_ladder(view, &rule, &m, tags, working, ctx, original) {
                     Ok(replacement) => replacement,
@@ -1350,6 +1388,85 @@ fn try_rewrite_ladder(
 /// Whether `rule` is a bare verb+slot pattern whose matched slot opens
 /// with a preposition or particle (`IN`/`TO`/`RP`): the transitive
 /// substitution the rule encodes does not cover that construction.
+/// [`pivot_over_preposition`]'s twin for the frame-rewrite path: an
+/// `lvc.*` frame rule collapses a light-verb construction to its derived
+/// verb exactly like the pivot op does ("make a request" -> "ask"), so
+/// it inherits the same complement hazard — "makes a request to
+/// Ledgerline" must not become "asks to Ledgerline". Same decision
+/// table, read off the token right after the match: `IN` always holds;
+/// `TO` holds unless followed by a lowercase `VB` (the infinitive —
+/// "made the decision to switch" -> "decided to switch" reads fine; a
+/// capitalized "verb" after "to" is a proper noun wearing the
+/// infinitive's tag). Scoped to `lvc.`-prefixed rules: every other
+/// rewrite family substitutes in place rather than changing the
+/// matched head's own complement frame.
+/// Every named pre-gate hold for one resolved frame candidate, in one
+/// place: the quotation exclusion, then the three construction guards
+/// none of the corpus-adjudicated gates can express — a derived verb
+/// in front of a prepositional complement ("makes a request to
+/// Ledgerline" must not become "asks to Ledgerline"), a bare
+/// verb+slot whose slot opens with a preposition ("Navigate to the
+/// backups directory" must not become "Handle to ..."), and
+/// `vsub.navigate*` over a literal-motion object ("navigating a
+/// complex maze" — the rule was adjudicated on the abstract sense,
+/// and the seam gate cannot see word sense). Returns the hold
+/// message's reason clause, or [`None`] when the candidate may
+/// proceed to its kind's own gates.
+fn frame_candidate_hold(
+    rule: &friction_packs::frame_bin::RuleView<'_>,
+    m: &FrameMatch,
+    tags: &[TaggedToken],
+    working: &str,
+) -> Option<&'static str> {
+    if gates::in_quoted_span(working, &m.bytes) {
+        return Some("matched inside quotation");
+    }
+    if rule.kind != CompiledKind::Rewrite {
+        return None;
+    }
+    if lvc_rewrite_over_preposition(rule, m, tags, working) {
+        return Some("derived verb before a preposition (untested complement)");
+    }
+    if bare_verb_slot_over_preposition(rule, m, tags) {
+        return Some("slot opens with a preposition (untested construction)");
+    }
+    if navigate_literal_motion_object(rule, m, tags, working) {
+        return Some("slot head is a literal-motion object (navigate-literal-object guard)");
+    }
+    None
+}
+
+fn lvc_rewrite_over_preposition(
+    rule: &friction_packs::frame_bin::RuleView<'_>,
+    m: &FrameMatch,
+    tags: &[TaggedToken],
+    working: &str,
+) -> bool {
+    if !rule.id.starts_with("lvc.") {
+        return false;
+    }
+    let Some((next_idx, next)) = tags.iter().enumerate().find(|(_, t)| {
+        t.token.range.start >= m.bytes.end && t.token.kind == friction_core::TokenKind::Word
+    }) else {
+        return false;
+    };
+    match next.pos.as_str() {
+        "IN" => true,
+        "TO" => !tags
+            .iter()
+            .skip(next_idx + 1)
+            .find(|t| t.token.kind == friction_core::TokenKind::Word)
+            .is_some_and(|t| {
+                t.pos.as_str() == "VB"
+                    && working[t.token.range.clone()]
+                        .chars()
+                        .next()
+                        .is_some_and(char::is_lowercase)
+            }),
+        _ => false,
+    }
+}
+
 fn bare_verb_slot_over_preposition(
     rule: &friction_packs::frame_bin::RuleView<'_>,
     m: &FrameMatch,
@@ -1366,6 +1483,92 @@ fn bare_verb_slot_over_preposition(
             tags.get(slot.start)
                 .is_some_and(|t| matches!(t.pos.as_str(), "IN" | "TO" | "RP"))
         })
+}
+
+/// Curated literal/spatial-motion objects `vsub.navigate*` must not
+/// collapse to "handle": the corpus adjudicated `navigate`'s ABSTRACT
+/// sense ("navigate uncertainty" -> "handle uncertainty"), but the
+/// seam gate has no notion of word sense, so it cannot tell that
+/// attested abstract object from a literal or spatial-metaphor one
+/// ("navigating a complex maze"), where "handle" reads wrong. Hand-
+/// curated, not mined: these are terms that were observed, or
+/// plausibly could appear, as `navigate`'s literal/spatial object in
+/// prose — not an exhaustive gazetteer of physical-motion nouns, just
+/// the ones worth holding on sight. Lowercased; matched against the
+/// slot's head-noun surface, case-insensitively.
+const NAVIGATE_LITERAL_MOTION_OBJECTS: &[&str] = &[
+    "maze",
+    "mazes",
+    "labyrinth",
+    "labyrinths",
+    "path",
+    "paths",
+    "terrain",
+    "waters",
+    "landscape",
+    "landscapes",
+    "streets",
+    "road",
+    "roads",
+    "map",
+    "maps",
+    "corridor",
+    "corridors",
+    "hallway",
+    "river",
+    "city",
+];
+
+/// The noun-phrase head starting at token `start`: the first
+/// `NN`/`NNS`/`NNP`/`NNPS` token reached by skipping over a leading
+/// determiner/adjective/number run (`DT`/`JJ`/`JJR`/`JJS`/`CD`), or
+/// `None` when some other tag comes first, or none of the above
+/// appears within `WINDOW` tokens (a run-on clause must not turn this
+/// into an unbounded scan). Stops at the *first* noun rather than the
+/// last of a run: a mistagged temporal noun right after the real head
+/// ("navigating a complex maze today" tags "today" `NN` too) must not
+/// overwrite it.
+///
+/// A bare `LIT X` pattern's `X` is lazy with nothing after it to
+/// extend the match (see `frame_rewrite`'s own slot docs), so it only
+/// ever captures its own first token — the determiner, most often.
+/// The object's real head noun therefore sits just past `m.slots`'
+/// captured range, in the sentence's own untouched tail; this walks
+/// out from the slot's start to find it, the same reachability
+/// [`bare_verb_slot_over_preposition`] uses to inspect the slot's
+/// opening token, just carried one step further.
+fn noun_phrase_head<'a>(tags: &'a [TaggedToken], text: &'a str, start: usize) -> Option<&'a str> {
+    const WINDOW: usize = 6;
+    for token in tags.iter().skip(start).take(WINDOW) {
+        match token.pos.as_str() {
+            "DT" | "JJ" | "JJR" | "JJS" | "CD" => {}
+            "NN" | "NNS" | "NNP" | "NNPS" => return Some(&text[token.token.range.clone()]),
+            _ => return None,
+        }
+    }
+    None
+}
+
+/// Whether `rule` is a `vsub.navigate*` rewrite whose matched slot
+/// opens a noun phrase headed by a curated literal-motion object (see
+/// [`NAVIGATE_LITERAL_MOTION_OBJECTS`] and [`noun_phrase_head`]).
+fn navigate_literal_motion_object(
+    rule: &friction_packs::frame_bin::RuleView<'_>,
+    m: &FrameMatch,
+    tags: &[TaggedToken],
+    text: &str,
+) -> bool {
+    rule.id.starts_with("vsub.navigate")
+        && m.slots
+            .iter()
+            .flatten()
+            .next()
+            .and_then(|slot| noun_phrase_head(tags, text, slot.start))
+            .is_some_and(|head| {
+                NAVIGATE_LITERAL_MOTION_OBJECTS
+                    .iter()
+                    .any(|noun| noun.eq_ignore_ascii_case(head))
+            })
 }
 
 /// Widens a deletion to swallow one adjacent space, so removing a word
@@ -1468,6 +1671,83 @@ fn frame_element_to_op(pattern_ops: &[(PatOp, bool)], element: u8) -> Option<usi
     None
 }
 
+/// How a [`TplOp::Lit`] target literal's realized text should track the
+/// surface of the pattern literal it corresponds to, decided by
+/// [`literal_number_agreement`].
+///
+/// [`TplOp::Inflect`] already carries an explicit `agree_elem` so a
+/// *verb* literal (always the pattern's leading token in every
+/// compiling rule — the corpus's own bare-verb-slot shape) realizes in
+/// the matched surface's tense; that machinery never reaches
+/// [`TplOp::Lit`] at all. A *noun* literal elsewhere in the pattern
+/// carries no such element, so its target copy is spliced verbatim —
+/// fine when the match was the pattern's own singular form, wrong when
+/// the page pluralized it ("choice" matching "choices" but realizing
+/// as "good choice"). This type is [`literal_number_agreement`]'s
+/// verdict on the divergence, if any.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum LiteralAgreement {
+    /// No pattern literal shares this template literal's word (an
+    /// inserted word with no source, e.g. "good"/"great" in
+    /// `col.excellent-x::choice`), or the one that does matched a
+    /// surface identical to the pattern literal: splice the target
+    /// literal exactly as authored.
+    Verbatim,
+    /// The matched surface is the pattern literal plus a plain plural
+    /// suffix (`"s"`/`"es"`, ASCII case-insensitive) — the same word,
+    /// just plural on the page though singular in the pack. Append
+    /// the identical suffix to the target literal ("good choice" ->
+    /// "good choices").
+    Pluralized(&'static str),
+    /// The matched surface diverges from the pattern literal some
+    /// other way (an irregular form, a different suffix-reduction
+    /// path entirely). Realization has no story for repairing that —
+    /// see the call site's hold.
+    Diverges,
+}
+
+/// Classifies the number relationship (if any) between `literal` (a
+/// [`TplOp::Lit`] target word, already resolved from the pack) and the
+/// surface of whichever `pattern_ops` [`PatOp::Lit`] shares its word id
+/// and actually matched — the "corresponding" pattern literal, found
+/// the same way [`TplOp::Inflect`]'s `agree_elem` finds its own
+/// matched token (via `m.op_tokens`), except by same-word lookup
+/// instead of a compiled element index, since [`TplOp::Lit`] carries
+/// none.
+fn literal_number_agreement(
+    pattern_ops: &[(PatOp, bool)],
+    id: u32,
+    m: &FrameMatch,
+    tags: &[TaggedToken],
+    working: &str,
+    literal: &str,
+) -> LiteralAgreement {
+    let Some(token_index) = pattern_ops.iter().enumerate().find_map(|(i, (op, _))| {
+        matches!(op, PatOp::Lit(pattern_id) if *pattern_id == id)
+            .then(|| m.op_tokens.get(i).copied().flatten())
+            .flatten()
+    }) else {
+        return LiteralAgreement::Verbatim;
+    };
+    let Some(token) = tags.get(token_index) else {
+        return LiteralAgreement::Verbatim;
+    };
+    let surface = &working[token.token.range.clone()];
+    if surface.eq_ignore_ascii_case(literal) {
+        return LiteralAgreement::Verbatim;
+    }
+    for suffix in ["es", "s"] {
+        let expected_len = literal.len() + suffix.len();
+        if surface.len() == expected_len
+            && surface[..literal.len()].eq_ignore_ascii_case(literal)
+            && surface[literal.len()..].eq_ignore_ascii_case(suffix)
+        {
+            return LiteralAgreement::Pluralized(suffix);
+        }
+    }
+    LiteralAgreement::Diverges
+}
+
 /// Renders a matched rule's template into replacement text.
 ///
 /// Slot copies re-emit the captured working-text bytes verbatim;
@@ -1477,8 +1757,9 @@ fn frame_element_to_op(pattern_ops: &[(PatOp, bool)], element: u8) -> Option<usi
 /// ([`try_rewrite_ladder`]) tries each in turn — so this stays a pure
 /// function of a specific candidate rather than reaching for "the"
 /// template itself. Returns `None` when a copy references something the
-/// match did not capture. The candidate is then held rather than
-/// spliced half-formed.
+/// match did not capture, or when [`literal_number_agreement`] finds an
+/// unrepairable divergence on a literal target. The candidate is then
+/// held rather than spliced half-formed or number-mismatched.
 fn realize_template(
     view: &FramePackView<'_>,
     rule: &friction_packs::frame_bin::RuleView<'_>,
@@ -1500,7 +1781,23 @@ fn realize_template(
     for op in template {
         let op = op.expect("embedded pack ops always decode");
         let piece = match op {
-            TplOp::Lit(id) => view.word(id)?.to_string(),
+            TplOp::Lit(id) => {
+                let literal = view.word(id)?;
+                match literal_number_agreement(&pattern_ops, id, m, tags, working, literal) {
+                    LiteralAgreement::Verbatim => literal.to_string(),
+                    LiteralAgreement::Pluralized(suffix) => format!("{literal}{suffix}"),
+                    // The matched literal's surface diverges from the
+                    // pattern literal some way agreement can't repair
+                    // (an irregular form, a different reduction
+                    // entirely): splicing the pattern-form literal
+                    // verbatim risks a number mismatch, so this
+                    // candidate does not realize — the caller
+                    // (`try_rewrite_ladder`) falls back to "template
+                    // did not realize", the same hold a copy that
+                    // referenced an uncaptured slot already gets.
+                    LiteralAgreement::Diverges => return None,
+                }
+            }
             TplOp::Slot(slot) => {
                 let range = m.slots[usize::from(slot.code())].clone()?;
                 let start = tags[range.start].token.range.start;
@@ -1861,5 +2158,246 @@ words = ["a", "an", "the", "to", "of", "up"]
         // `apply_frame_candidate`'s separate opener-capitalization step
         // (which this direct `try_rewrite_ladder` call never reaches).
         assert_eq!(replacement, "Speed up the");
+    }
+
+    /// The exact TOML `corpus-tool attest` writes and
+    /// `friction_packs::registry::ATTESTATION` embeds a packed derivative
+    /// of — read directly here so this test builds its own, independent
+    /// (unwidened) `AttestationPack`, never the crate's own
+    /// already-`with_pooled`-attached singleton.
+    const ATTESTATION_TOML: &str =
+        include_str!("../../friction-packs/packs/attestation-en-v1.toml");
+
+    /// The real, committed pooled-attest artifact `corpus-tool
+    /// pooled-attest` mined from the staged external corpora (~43M
+    /// tokens) — the same bytes `friction_packs::registry::POOLED_ATTEST`
+    /// embeds.
+    const POOLED_BIN: &[u8] = include_bytes!("../../friction-packs/packs/pooled-attest-en-v1.bin");
+    const POOLED_META: &str =
+        include_str!("../../friction-packs/packs/pooled-attest-en-v1.meta.toml");
+
+    /// Gate-level proof (the `check_rewrite_gates` counterpart of
+    /// `friction-edit/tests/pooled_attestation_gate.rs`'s deletion-gate
+    /// version) that the REAL committed pooled-attest pack widens a
+    /// rewrite candidate's left seam: `("will", "upgrade")` is the exact
+    /// pair `friction_packs::pooled_attest`'s motivation names — never
+    /// attested by the small TRAIN-only exact table, always attested by
+    /// the ~43M-token pooled evidence.
+    #[test]
+    fn pooled_evidence_turns_a_held_rewrite_into_a_firing_one() {
+        let text = "The team will renovate.";
+        let match_range = text
+            .find("renovate")
+            .expect("fixture contains \"renovate\"");
+        let match_range = match_range..match_range + "renovate".len();
+        let replacement = "upgrade";
+
+        let tagger = PerceptronTagger::new().expect("embedded tagger loads");
+        let tags = tagger.tag(text, 0);
+        let original = clause_ok(&tags, text);
+
+        let baseline = friction_packs::AttestationPack::parse(ATTESTATION_TOML)
+            .expect("the committed attestation-en-v1.toml parses");
+        assert!(
+            !baseline.bigram().attests("will", "upgrade"),
+            "fixture assumption: the TRAIN-only exact table has never \
+             attested this ordinary pair"
+        );
+        let baseline_hold = check_rewrite_gates(
+            text,
+            &match_range,
+            replacement,
+            &baseline,
+            original,
+            &tagger,
+        );
+        assert_eq!(
+            baseline_hold,
+            Some("left seam not attested"),
+            "fixture assumption: the rewrite is held on the unwidened table"
+        );
+
+        let pooled = friction_packs::pooled_attest::PooledAttestPack::load(POOLED_BIN, POOLED_META)
+            .expect("the committed pooled-attest artifact loads");
+        assert!(
+            pooled.attests("will", "upgrade"),
+            "fixture assumption: the real mined pooled evidence attests this pair"
+        );
+        let widened = baseline.with_pooled(Box::leak(Box::new(pooled)));
+
+        let widened_hold =
+            check_rewrite_gates(text, &match_range, replacement, &widened, original, &tagger);
+        assert_eq!(
+            widened_hold, None,
+            "the pooled table's real evidence must turn a previously-held \
+             rewrite into a firing one"
+        );
+    }
+
+    /// A synthetic pack over `col.excellent-x::choice`'s own real
+    /// pattern/target shape (pattern literal "choice", target literal
+    /// "choice" copied verbatim), compiled the same way
+    /// [`ladder_pack_bytes`] is, so [`literal_number_agreement`]'s
+    /// "irregular divergence" hold can be exercised directly: no real
+    /// English plural reduces "choice" to a token spelled differently
+    /// in some *other*, non-suffix way, so this hand-crafts that
+    /// divergence on a real [`FrameMatch`] the pattern legitimately
+    /// produced, by relabeling which token its literal op consumed.
+    fn choice_rule_bytes() -> Vec<u8> {
+        let toml = r#"
+rules_ship = [
+{ id="col.excellent-x::choice", p="\"excellent\" \"choice\"", t="\"good\" \"choice\"", k="r", m_pm=30.4, h_pm=0.0, v="CONFIRMED" },
+]
+rules_flip = []
+rules_surface = []
+rules_pilot = []
+rules_quarantine = []
+rules_no_evidence = []
+rules_staged_surface = []
+[classes]
+[function_words]
+words = ["a", "an", "the"]
+"#;
+        let set = FrameRuleSet::parse(toml).expect("tiny rule set parses");
+        let evidence = CorpusEvidence::for_tests(&["good", "choice", "excellent"]);
+        let (pack, report) = compile(&set, &evidence).expect("tiny rule set compiles");
+        assert_eq!(pack.rules.len(), 1, "report: {report:?}");
+        pack_frame_bin(&pack, &"0".repeat(64))
+    }
+
+    /// The measured bad fire this guard closes: a plural surface
+    /// ("choices") matched against a singular pattern literal
+    /// ("choice") realizes its target literal with the same "s"
+    /// carried over, never spliced back singular.
+    #[test]
+    fn literal_realizes_with_the_matched_surfaces_plural_suffix() {
+        let bytes = choice_rule_bytes();
+        let view = FramePackView::parse(&bytes).expect("synthetic pack parses");
+        let index = FrameIndex::build(&view);
+        let text = "These two vendors are both excellent choices.";
+        let tagger = PerceptronTagger::new().expect("embedded tagger loads");
+        let tags = tagger.tag(text, 0);
+        let matches = frame_rewrite::scan_sentence(&view, &index, &tags, text);
+        let m = matches
+            .into_iter()
+            .find(|m| view.rule(m.rule_index).expect("rule").id == "col.excellent-x::choice")
+            .expect("the synthetic rule matches the plural surface via suffix reduction");
+        let rule = view.rule(m.rule_index).expect("rule");
+        let replacement = realize_template(
+            &view,
+            &rule,
+            rule.candidate_template(0).expect("primary candidate"),
+            &m,
+            &tags,
+            text,
+        )
+        .expect("a plural-suffix divergence must still realize");
+        assert_eq!(replacement, "good choices");
+    }
+
+    /// A matched literal token whose surface diverges from the pattern
+    /// literal some way other than a plain plural suffix must not
+    /// realize at all — synthetic, since no real English inflection
+    /// reduces "choice" to a token spelled some other way entirely:
+    /// this takes the real `FrameMatch` `"excellent choice"` produces
+    /// and relabels its "choice" op to point at a token spelled
+    /// "children" instead, standing in for an irregular-plural (or any
+    /// non-suffix) divergence realization has no repair for.
+    #[test]
+    fn literal_with_an_irregular_divergence_does_not_realize() {
+        let bytes = choice_rule_bytes();
+        let view = FramePackView::parse(&bytes).expect("synthetic pack parses");
+        let index = FrameIndex::build(&view);
+        let text = "It was an excellent choice among the children.";
+        let tagger = PerceptronTagger::new().expect("embedded tagger loads");
+        let tags = tagger.tag(text, 0);
+        let matches = frame_rewrite::scan_sentence(&view, &index, &tags, text);
+        let mut m = matches
+            .into_iter()
+            .find(|m| view.rule(m.rule_index).expect("rule").id == "col.excellent-x::choice")
+            .expect("the synthetic rule matches its own pattern");
+        let rule = view.rule(m.rule_index).expect("rule");
+        let children_index = tags
+            .iter()
+            .position(|t| &text[t.token.range.clone()] == "children")
+            .expect("fixture contains \"children\"");
+        // The pattern's second op ("choice") is the one op_tokens
+        // entry this rewires — everywhere else the match still points
+        // at its own real, legitimately matched tokens.
+        let choice_op = m
+            .op_tokens
+            .iter()
+            .position(|t| *t == Some(m.tokens.start + 1))
+            .expect("the \"choice\" op consumed the second matched token");
+        m.op_tokens[choice_op] = Some(children_index);
+        let realized = realize_template(
+            &view,
+            &rule,
+            rule.candidate_template(0).expect("primary candidate"),
+            &m,
+            &tags,
+            text,
+        );
+        assert_eq!(
+            realized, None,
+            "an irregular (non-suffix) surface divergence must hold, never splice \
+             a number-mismatched literal"
+        );
+    }
+
+    /// [`pivot_over_preposition`] holds a licensed construction
+    /// immediately followed by a preposition or infinitival "to" —
+    /// exercised directly against `classify_candidate`'s own output
+    /// (bypassing `InventoryPack`'s pack-format validation, which
+    /// requires every licensed pair to already sit in
+    /// `friction_nlp::lvc::DERIVATIONAL_LEXICON`; this guard must hold
+    /// regardless of which pair a future curation pass licenses) —
+    /// the exact measured bad fire this guard closes: "makes a request
+    /// to Ledgerline" collapsing to "asks to Ledgerline".
+    #[test]
+    fn pivot_over_preposition_holds_a_construction_followed_by_to() {
+        let text = "A user makes a request to Ledgerline.";
+        let tagger = PerceptronTagger::new().expect("embedded tagger loads");
+        let tags = tagger.tag(text, 0);
+        let lv_index = tags
+            .iter()
+            .position(|t| &text[t.token.range.clone()] == "makes")
+            .expect("fixture contains \"makes\"");
+        let lexicon = BTreeMap::from([(
+            Box::from("request") as Box<str>,
+            Box::from("ask") as Box<str>,
+        )]);
+        let CandidateOutcome::Licensed(construction) =
+            classify_candidate(&tags, text, lv_index, &lexicon)
+        else {
+            panic!("fixture assumption: \"makes a request\" is a licensed construction");
+        };
+        assert_eq!(&text[construction.range.clone()], "makes a request");
+        assert!(pivot_over_preposition(text, &tags, &construction));
+    }
+
+    /// The same guard does not fire when nothing follows the
+    /// construction but an ordinary adverb: a plain licensed
+    /// construction must still be free to pivot.
+    #[test]
+    fn pivot_over_preposition_does_not_hold_a_plain_construction() {
+        let text = "The team made a decision quickly.";
+        let tagger = PerceptronTagger::new().expect("embedded tagger loads");
+        let tags = tagger.tag(text, 0);
+        let lv_index = tags
+            .iter()
+            .position(|t| &text[t.token.range.clone()] == "made")
+            .expect("fixture contains \"made\"");
+        let lexicon = BTreeMap::from([(
+            Box::from("decision") as Box<str>,
+            Box::from("decide") as Box<str>,
+        )]);
+        let CandidateOutcome::Licensed(construction) =
+            classify_candidate(&tags, text, lv_index, &lexicon)
+        else {
+            panic!("fixture assumption: \"made a decision\" is a licensed construction");
+        };
+        assert_eq!(&text[construction.range.clone()], "made a decision");
+        assert!(!pivot_over_preposition(text, &tags, &construction));
     }
 }

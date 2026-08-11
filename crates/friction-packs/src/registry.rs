@@ -14,6 +14,7 @@ use crate::human_evidence::HumanEvidencePack;
 use crate::inventory::InventoryPack;
 use crate::jargon::JargonPack;
 use crate::jargon_attest::JargonAttestPack;
+use crate::pooled_attest::PooledAttestPack;
 use crate::register::RegisterPack;
 use crate::validate::validate;
 use crate::{PackError, Sha256};
@@ -281,6 +282,44 @@ pub static FRAME: LazyLock<LoadedPack<FramePackView<'static>>> = LazyLock::new(|
 /// the two cannot silently diverge.
 const ATTESTATION_V1_BIN: &[u8] = include_bytes!("../packs/attestation-en-v1.bin");
 
+/// The embedded derived pooled-attest artifact — the `BinaryFuse16`
+/// filter over external-corpus `(left, right)` seam pairs
+/// `corpus-tool pooled-attest` builds (see
+/// [`crate::pooled_attest`]'s own module docs). ~3-4 MB; embedded
+/// unconditionally, the same "always ships, native and wasm alike"
+/// discipline [`ATTESTATION_V1_BIN`]/[`JARGON_ATTEST_V1_BIN`] already
+/// follow (neither is gated behind `embedded-dms`, the one feature this
+/// crate uses to keep an asset out of a wasm build — only [`DMS`]'s 27 MB
+/// artifact earns that treatment; this pack's few extra megabytes are
+/// accepted, not deferred).
+const POOLED_ATTEST_V1_BIN: &[u8] = include_bytes!("../packs/pooled-attest-en-v1.bin");
+
+/// The embedded `pooled-attest-en-v1.meta.toml` sidecar — version/key-count
+/// cross-check plus human-readable provenance (source labels, token
+/// counts, mining threshold, `built_at`, both hashes) for
+/// [`POOLED_ATTEST_V1_BIN`]; see that file itself.
+const POOLED_ATTEST_V1_META_TOML: &str = include_str!("../packs/pooled-attest-en-v1.meta.toml");
+
+/// The built-in pooled-attest pack, loaded once from the embedded `.bin` +
+/// `.meta.toml` sidecar and reused for the life of the process.
+///
+/// [`ATTESTATION`] attaches this to its own `AttestationPack` via
+/// [`AttestationPack::with_pooled`] below — every existing
+/// `BigramTable::attests` caller sees the widened evidence automatically.
+/// A direct caller of this static (rather than through [`ATTESTATION`])
+/// only ever needs it for introspection/tests: [`crate::attestation`]'s
+/// "Widened evidence" docs are the one real integration point.
+///
+/// # Panics
+/// Panics if the embedded `.bin`/`.meta.toml` pair fails to load — a bug
+/// in this crate's own vendored data (covered by this crate's
+/// `pooled_attest` tests), not a condition any caller can recover from by
+/// retrying.
+pub static POOLED_ATTEST: LazyLock<PooledAttestPack> = LazyLock::new(|| {
+    PooledAttestPack::load(POOLED_ATTEST_V1_BIN, POOLED_ATTEST_V1_META_TOML)
+        .expect("embedded pooled-attest-v1 pack must load: see this crate's pooled_attest tests")
+});
+
 /// The built-in attestation pack, viewed zero-copy over the embedded
 /// derived artifact and reused for the life of the process.
 ///
@@ -293,6 +332,10 @@ const ATTESTATION_V1_BIN: &[u8] = include_bytes!("../packs/attestation-en-v1.bin
 /// preserving this registry's provenance contract — the same shape as
 /// [`DMS`] and [`FRAME`].
 ///
+/// [`POOLED_ATTEST`] is attached via [`AttestationPack::with_pooled`]
+/// before this static hands the pack out — see [`crate::attestation`]'s
+/// "Widened evidence" docs for what that does to `bigram().attests`.
+///
 /// # Panics
 /// Panics if the embedded artifact fails to parse: a bug in this
 /// crate's own vendored data (covered by this crate's attestation
@@ -300,6 +343,7 @@ const ATTESTATION_V1_BIN: &[u8] = include_bytes!("../packs/attestation-en-v1.bin
 pub static ATTESTATION: LazyLock<LoadedPack<AttestationPack>> = LazyLock::new(|| {
     let (pack, sha_hex) = AttestationPack::from_bin(ATTESTATION_V1_BIN)
         .expect("embedded attestation-en-v1.bin must parse: see this crate's attestation tests");
+    let pack = pack.with_pooled(LazyLock::force(&POOLED_ATTEST));
     LoadedPack {
         version: "attestation-v1".into(),
         sha256: Sha256::parse_hex(sha_hex)
@@ -526,6 +570,11 @@ impl PackSet {
         match lang {
             Lang::En => {
                 drop(std::thread::spawn(|| {
+                    // Forcing ATTESTATION also forces POOLED_ATTEST (its
+                    // own closure calls `LazyLock::force(&POOLED_ATTEST)`
+                    // to attach it) — both land on this one thread, not a
+                    // separate one, since `with_pooled` makes them one
+                    // logical unit of work.
                     let _ = LazyLock::force(&ATTESTATION);
                 }));
                 drop(std::thread::spawn(|| {
@@ -766,6 +815,63 @@ mod tests {
                 "attests({left:?}, {right:?}) must agree"
             );
         }
+    }
+
+    #[test]
+    fn pooled_attest_static_loads() {
+        // Structural check only: the shipped key count is real-corpus
+        // content, not something this crate's own tests pin exactly
+        // (see `crates/corpus-tool/src/commands/pooled_attest.rs` for the
+        // mining pass that produces it).
+        let _ = POOLED_ATTEST.key_count();
+        assert_eq!(POOLED_ATTEST.pairs_sha256().len(), 64, "sha256 hex digest");
+    }
+
+    /// [`ATTESTATION`] attaches [`POOLED_ATTEST`] to its own bigram table
+    /// — this is the one wiring point [`crate::attestation`]'s "Widened
+    /// evidence" docs describe, pinned here so it can't silently regress
+    /// to "the embedded pooled pack loads, but nothing attaches it".
+    #[test]
+    fn attestation_static_has_the_pooled_pack_attached() {
+        // A pair engineered to be absent from the tiny fixture below
+        // would prove nothing about the REAL embedded tables (whose
+        // content depends on what TRAIN/the staged corpora happen to
+        // contain) — so this test instead proves the plumbing itself:
+        // cloning ATTESTATION's pack and re-attaching a synthetic pooled
+        // filter that DOES contain an engineered pair must widen
+        // `attests` for it, exactly as `with_pooled`'s own unit tests in
+        // `attestation.rs` prove for a hand-built pack. Real-corpus
+        // widening on the shipped pack is covered by
+        // `friction-edit`'s own pooled-gate test.
+        let pair_keys: std::collections::BTreeSet<String> = std::iter::once(
+            crate::pooled_attest::pair_key("zzz-never-real-zzz", "qzxwv-token"),
+        )
+        .collect();
+        let built = crate::pooled_attest::build_pack_bytes(&pair_keys)
+            .expect("tiny synthetic pooled pack builds");
+        let bin: &'static [u8] = Box::leak(built.bytes.into_boxed_slice());
+        let meta = format!(
+            "[pack]\nversion = \"pooled-attest-v1\"\nkey_count = {}\n",
+            built.key_count
+        );
+        let synthetic = Box::leak(Box::new(
+            PooledAttestPack::load(bin, &meta).expect("synthetic pack loads"),
+        ));
+
+        assert!(
+            !ATTESTATION
+                .pack
+                .bigram()
+                .attests("zzz-never-real-zzz", "qzxwv-token"),
+            "fixture assumption: nonsense tokens are never attested by the real embedded pack"
+        );
+        let widened = ATTESTATION.pack.clone().with_pooled(synthetic);
+        assert!(
+            widened
+                .bigram()
+                .attests("zzz-never-real-zzz", "qzxwv-token"),
+            "with_pooled must widen attests through the real embedded exact table"
+        );
     }
 
     #[test]

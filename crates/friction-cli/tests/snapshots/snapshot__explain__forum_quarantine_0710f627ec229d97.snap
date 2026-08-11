@@ -2,11 +2,11 @@
 source: crates/friction-cli/tests/snapshot.rs
 expression: stdout
 ---
-pass 1: 0 operation(s) fired — converged
-  9 held:
+pass 1: 1 operation(s) fired
+  span.delete              932..939  (deleted)
+  8 held:
     intg.effectively       252..263  KEPT (frame intg.effectively: measured 152.6/M machine vs 29.2/M human; report-only)
     intg.simply            932..938  KEPT (frame intg.simply: measured 220.1/M machine vs 145.9/M human; report-only)
-    span.delete            909..963  KEPT (deletion span.simply held: SeamNotAttested)
     lex.explore-doc-subject::exploration-examine 975..986  KEPT (frame lex.explore-doc-subject::exploration-examine held: right seam not attested)
     phg.by-default         1195..1205  KEPT (frame phg.by-default: measured 231.8/M machine vs 565.1/M human; report-only)
     intg.actually          1336..1344  KEPT (frame intg.actually: measured 548.7/M machine vs 211.9/M human; report-only)
@@ -14,4 +14,13 @@ pass 1: 0 operation(s) fired — converged
     intg.entirely          2701..2709  KEPT (frame intg.entirely: measured 193.7/M machine vs 82.9/M human; report-only)
     phg.at-least           3624..3632  KEPT (frame phg.at-least: measured 249.4/M machine vs 145.9/M human; report-only)
 pass 2: 0 operation(s) fired — converged
+  7 held:
+    intg.effectively       152..293  KEPT (frame intg.effectively: measured 152.6/M machine vs 29.2/M human; report-only)
+    lex.explore-doc-subject::exploration-examine 958..1074  KEPT (frame lex.explore-doc-subject::exploration-examine held: right seam not attested)
+    phg.by-default         1091..1228  KEPT (frame phg.by-default: measured 231.8/M machine vs 565.1/M human; report-only)
+    intg.actually          1326..1339  KEPT (frame intg.actually: measured 548.7/M machine vs 211.9/M human; report-only)
+    adjg.clean             1782..1877  KEPT (frame adjg.clean: measured 267.0/M machine vs 109.0/M human; report-only)
+    intg.entirely          2610..2783  KEPT (frame intg.entirely: measured 193.7/M machine vs 82.9/M human; report-only)
+    phg.at-least           3595..3626  KEPT (frame phg.at-least: measured 249.4/M machine vs 145.9/M human; report-only)
 pass 3: 0 operation(s) fired — converged
+pass 4: 0 operation(s) fired — converged

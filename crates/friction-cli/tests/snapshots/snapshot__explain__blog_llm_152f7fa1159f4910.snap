@@ -2,11 +2,12 @@
 source: crates/friction-cli/tests/snapshot.rs
 expression: stdout
 ---
-pass 1: 3 operation(s) fired
+pass 1: 4 operation(s) fired
   sub.apply                287..297  -> "matters"
   sub.apply                1467..1478  -> "important for"
   pivot.lvc                5952..5969  -> "deciding"
-  45 held:
+  col.excellent-x::choice  6001..6018  -> "good choices"
+  44 held:
     intg.especially        108..118  KEPT (frame intg.especially: measured 226.0/M machine vs 141.3/M human; report-only)
     intg.significantly     176..189  KEPT (frame intg.significantly: measured 270.0/M machine vs 39.9/M human; report-only)
     vguard.require         576..584  KEPT (frame vguard.require: measured 1065.2/M machine vs 967.4/M human; report-only)
@@ -51,10 +52,9 @@ pass 1: 3 operation(s) fired
     adjg.robust            5634..5640  KEPT (frame adjg.robust: measured 349.2/M machine vs 30.7/M human; report-only)
     adjg.complex           5681..5688  KEPT (frame adjg.complex: measured 372.7/M machine vs 182.7/M human; report-only)
     intg.carefully         5898..5907  KEPT (frame intg.carefully: measured 117.4/M machine vs 18.4/M human; report-only)
-    col.excellent-x::choice 6001..6018  KEPT (frame col.excellent-x::choice held: left seam not attested)
 pass 2: 1 operation(s) fired
   adv.ultimately-opener::lit 5862..5959  -> "The key takeaway is to carefully assess your application requirements before deciding"
-  45 held:
+  44 held:
     intg.especially        108..118  KEPT (frame intg.especially: measured 226.0/M machine vs 141.3/M human; report-only)
     intg.significantly     176..189  KEPT (frame intg.significantly: measured 270.0/M machine vs 39.9/M human; report-only)
     vguard.require         573..581  KEPT (frame vguard.require: measured 1065.2/M machine vs 967.4/M human; report-only)
@@ -99,7 +99,6 @@ pass 2: 1 operation(s) fired
     adjg.robust            5633..5639  KEPT (frame adjg.robust: measured 349.2/M machine vs 30.7/M human; report-only)
     adjg.complex           5680..5687  KEPT (frame adjg.complex: measured 372.7/M machine vs 182.7/M human; report-only)
     intg.carefully         5897..5906  KEPT (frame intg.carefully: measured 117.4/M machine vs 18.4/M human; report-only)
-    col.excellent-x::choice 5961..6053  KEPT (frame col.excellent-x::choice held: left seam not attested)
 pass 3: 0 operation(s) fired — converged
 pass 4: 0 operation(s) fired — converged
   61 held:

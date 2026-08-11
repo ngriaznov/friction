@@ -50,7 +50,7 @@ The Metadata Cache plays a crucial supporting role. It stores information *about
 Ledgerline's caching layer will continue to evolve, potentially incorporating features like:
 
 * **Cache Hierarchy:**  A tiered caching system where results are first checked in a fast, local cache before falling back to a more robust, distributed cache (e.g., Redis) for increased scalability and resilience.
-* **Query Optimization Hints:**  Leveraging information about query execution plans to optimize the cache key generation process and improve hit rates.
+* **Query Optimization Hints:**  Using information about query execution plans to optimize the cache key generation process and improve hit rates.
 
 
 

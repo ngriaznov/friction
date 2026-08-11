@@ -17,3 +17,4 @@ pub mod ollama;
 pub mod paired_genconfig;
 pub mod paired_manifest;
 pub mod prompts;
+pub mod seam_bigram;

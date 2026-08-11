@@ -76,6 +76,21 @@
 //! independent tokenizations rather than one shared, positionally-paired
 //! stream.
 //!
+//! # Pooled attestation pack
+//!
+//! [`pooled_attest`] parses the pooled seam-bigram membership filter
+//! (`packs/pooled-attest-en-v1.bin` + its `.meta.toml` sidecar, embedded
+//! and exposed pre-parsed as [`POOLED_ATTEST`]) into a
+//! [`pooled_attest::PooledAttestPack`]: a `BinaryFuse16` filter over
+//! `(left, right)` seam pairs mined from external human corpora (~43M
+//! tokens), two orders of magnitude larger than the TRAIN-only table
+//! [`ATTESTATION`]'s [`BigramTable`] alone can draw on. [`ATTESTATION`]
+//! attaches it via [`AttestationPack::with_pooled`], so every existing
+//! `attests` caller sees the widened evidence for free — see that
+//! module's own doc comment for the mining/hashing/determinism
+//! discipline and [`AttestationPack`]'s module docs' "Widened evidence"
+//! section for how the two tables compose.
+//!
 //! # Register pack
 //!
 //! [`RegisterPack`] parses the two-feature human rate-band pack
@@ -138,6 +153,7 @@ pub mod human_evidence;
 mod inventory;
 mod jargon;
 pub mod jargon_attest;
+pub mod pooled_attest;
 mod register;
 mod registry;
 mod validate;
@@ -159,8 +175,8 @@ pub use jargon_attest::{BuiltPack, JargonAttestPack, build_pack_bytes, normalize
 pub use register::{RegisterBand, RegisterPack};
 pub use registry::{
     ATTESTATION, DMS, FRAME, HUMAN_EVIDENCE, INVENTORY, InstallError, JARGON, JARGON_ATTEST,
-    LoadedPack, MACHINE_EVIDENCE, PackSet, REGISTER, install_dms_index_bin, install_dms_index_toml,
-    load_dms_pack,
+    LoadedPack, MACHINE_EVIDENCE, POOLED_ATTEST, PackSet, REGISTER, install_dms_index_bin,
+    install_dms_index_toml, load_dms_pack,
 };
 pub use validate::{
     ClosureViolation, DisjointnessViolation, FrequencyHygieneReason, FrequencyHygieneViolation,

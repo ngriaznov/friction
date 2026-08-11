@@ -123,6 +123,12 @@ enum Command {
     /// dms-index-v1 human signal the frame-rewrite compile fences
     /// consult.
     HumanEvidence(commands::human_evidence::Args),
+    /// Builds `pooled-attest-v1`: a `BinaryFuse16` filter over
+    /// `(left, right)` seam-bigram pairs mined from locally-staged
+    /// external human corpora, widening
+    /// `friction_packs::AttestationPack`'s TRAIN-only bigram table (see
+    /// that pack's own "Widened evidence" docs).
+    PooledAttest(commands::pooled_attest::Args),
 }
 
 /// Parses process arguments and runs the selected subcommand.
@@ -183,5 +189,6 @@ pub fn run() -> anyhow::Result<()> {
         Command::Adjudicate(args) => commands::adjudicate::run(&args),
         Command::FramePack(args) => commands::frame_pack::run(&args),
         Command::HumanEvidence(args) => commands::human_evidence::run(&args),
+        Command::PooledAttest(args) => commands::pooled_attest::run(&args),
     }
 }

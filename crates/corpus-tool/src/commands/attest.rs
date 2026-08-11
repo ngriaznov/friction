@@ -64,11 +64,7 @@ use friction_nlp::{PerceptronTagger, Tagger, coarse_tag};
 use crate::corpus_layout::relpath;
 use crate::hashing::sha256_hex;
 use crate::manifest::{self, Class, ManifestRecord, Split};
-
-/// The reserved sentence-start token prepended to every sentence's word
-/// sequence before windowing, so a sentence's first real word always has
-/// a left neighbor to form a bigram with.
-const SENTENCE_START: &str = "<s>";
+use crate::seam_bigram::SENTENCE_START;
 
 /// The reserved sentence-start/end sentinels prepended/appended to every
 /// sentence's coarse-tag sequence before windowing.
@@ -346,13 +342,15 @@ fn build_bigram(sentences: &[SentenceData]) -> (Vec<String>, BTreeMap<u32, BTree
         if sentence.bigram_tokens.is_empty() {
             continue;
         }
-        let mut seq: Vec<&str> = Vec::with_capacity(sentence.bigram_tokens.len() + 1);
-        seq.push(SENTENCE_START);
-        seq.extend(sentence.bigram_tokens.iter().map(String::as_str));
-        for window in seq.windows(2) {
-            let left = id_of[window[0]];
-            let right = id_of[window[1]];
-            bigram.entry(left).or_default().insert(right);
+        // The exact `<s>`-prefixed windows(2) walk `corpus-tool
+        // pooled-attest` mines its own pair counts with — see
+        // `crate::seam_bigram`'s own module docs for why this is a
+        // shared helper rather than two independently-hand-rolled copies
+        // of the same windowing logic.
+        for (left, right) in crate::seam_bigram::seam_pairs(&sentence.bigram_tokens) {
+            let left_id = id_of[left];
+            let right_id = id_of[right];
+            bigram.entry(left_id).or_default().insert(right_id);
         }
     }
 

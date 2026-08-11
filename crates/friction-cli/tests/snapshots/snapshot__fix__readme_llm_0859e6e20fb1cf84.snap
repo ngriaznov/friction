@@ -117,4 +117,4 @@ lumen serve
 
 ## Conclusion
 
-Lumen simplifies the creation and maintenance of photography portfolios by automating repetitive tasks like thumbnail generation, caption extraction from EXIF data, and providing a straightforward configuration system via `_config.yml`. Its intuitive folder structure ensures consistency across galleries and pages, making it an excellent choice for photographers looking to showcase their work online with minimal effort.
+Lumen simplifies the creation and maintenance of photography portfolios by automating repetitive tasks like thumbnail generation, caption extraction from EXIF data, and providing a straightforward configuration system via `_config.yml`. Its intuitive folder structure ensures consistency across galleries and pages, making it a good choice for photographers looking to show their work online with minimal effort.

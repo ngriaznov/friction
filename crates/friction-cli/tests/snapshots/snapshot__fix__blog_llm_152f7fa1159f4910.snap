@@ -70,4 +70,4 @@ For our startup, the fact that PostgreSQL does not have any licensing fees was a
 
 After carefully weighing the pros and cons, we chose PostgreSQL for our two-person startup’s first production database. The combination of advanced features, robust data integrity, superior performance in complex query operations, and no licensing fees made it an ideal choice. However, every project is unique, and your decision should be based on your specific needs and constraints.
 
-The key takeaway is to carefully assess your application requirements before deciding. PostgreSQL and MySQL are both excellent choices, but their strengths lie in different areas. By understanding these differences, you can make an informed choice that best suits your startup’s goals.
+The key takeaway is to carefully assess your application requirements before deciding. PostgreSQL and MySQL are both good choices, but their strengths lie in different areas. By understanding these differences, you can make an informed choice that best suits your startup’s goals.

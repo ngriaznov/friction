@@ -686,6 +686,7 @@ dependencies = [
  "toml",
  "xorf",
  "xxhash-rust",
+ "zerocopy",
 ]
 
 [[package]]
