@@ -1,0 +1,22 @@
+[package]
+name = "salience-cli"
+version = "0.1.0"
+edition = "2024"
+rust-version = "1.88"
+license = "MIT OR Apache-2.0"
+repository = "https://github.com/ngriaznov/friction"
+description = "CLI producing per-line salience sidecars"
+
+[[bin]]
+name = "salience"
+path = "src/main.rs"
+
+[dependencies]
+salience-core = { path = "../salience-core" }
+salience-jvm = { path = "../salience-jvm" }
+salience-py = { path = "../salience-py" }
+clap = { workspace = true }
+serde_json = { workspace = true }
+
+[lints.rust]
+unsafe_code = "deny"

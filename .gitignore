@@ -52,3 +52,6 @@ npm/**/*.tgz
 
 # Session-local Claude Code project config (dev-server launch entries).
 /.claude/
+
+# Compiled fixtures for the salience demo
+demo/**/*.class

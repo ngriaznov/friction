@@ -1,0 +1,17 @@
+[package]
+name = "salience-py"
+version = "0.1.0"
+edition = "2024"
+rust-version = "1.88"
+license = "MIT OR Apache-2.0"
+repository = "https://github.com/ngriaznov/friction"
+description = "CPython bytecode frontend for salience-core"
+
+[dependencies]
+salience-core = { path = "../salience-core" }
+serde = { workspace = true }
+serde_json = { workspace = true }
+thiserror = { workspace = true }
+
+[lints.rust]
+unsafe_code = "deny"

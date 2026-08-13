@@ -1,0 +1,23 @@
+[package]
+name = "salience-jvm"
+version = "0.1.0"
+edition = "2024"
+rust-version = "1.88"
+license = "MIT OR Apache-2.0"
+repository = "https://github.com/ngriaznov/friction"
+description = "JVM bytecode frontend for salience-core"
+
+[dependencies]
+salience-core = { path = "../salience-core" }
+# MokaIR — the SSA IR, CFG and def-use chains this frontend lowers from — sits
+# behind mokapot's `unstable-moka-ir` feature. The name is accurate: the module
+# is `pub(crate)` without it, and the API carries no stability promise across
+# 0.x releases. Pinned exactly, and bumped deliberately.
+mokapot = { version = "=0.26.0", features = ["unstable-moka-ir"] }
+thiserror = { workspace = true }
+
+[lints.rust]
+unsafe_code = "deny"
+
+[dev-dependencies]
+serde_json = { workspace = true }
