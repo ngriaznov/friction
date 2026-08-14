@@ -199,3 +199,21 @@ fn detached_deliberately_deletes_and_bare_form_survives() {
     let (fixed, _) = engine().fix_document(source).expect("engine runs");
     assert_eq!(fixed, source, "bare modifier form must never delete");
 }
+
+/// A parenthetical adverb between a finite verb and its complement
+/// deletes with BOTH commas — keeping one would splice the verb from
+/// what it links to ("The config is, honestly, the weakest part" must
+/// not become "is, the"). At a clause boundary the single kept comma
+/// remains correct, pinned by the deliberately test above.
+#[test]
+fn parenthetical_between_verb_and_complement_drops_both_commas() {
+    let (fixed, _) = engine()
+        .fix_document("The config is, honestly, the weakest part of the design.\n")
+        .expect("engine runs");
+    assert_eq!(fixed, "The config is the weakest part of the design.\n");
+
+    let (fixed, _) = engine()
+        .fix_document("The config is, deliberately, the single source of truth.\n")
+        .expect("engine runs");
+    assert_eq!(fixed, "The config is the single source of truth.\n");
+}

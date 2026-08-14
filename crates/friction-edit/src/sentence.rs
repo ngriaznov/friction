@@ -1360,12 +1360,24 @@ fn try_rewrite_ladder(
             }
             break;
         };
-        let Some(replacement) = realize_template(view, rule, template, m, tags, working) else {
+        let Some(mut replacement) = realize_template(view, rule, template, m, tags, working) else {
             if candidate == 0 {
                 primary_hold = Some("template did not realize".to_string());
             }
             continue;
         };
+        // A parenthetical-adverb deletion ("," ADV "," -> ",") keeps one
+        // comma, which is right at a clause boundary ("from the config,
+        // honestly, so that..." -> "config, so") and a comma splice
+        // between a finite verb and its complement ("The config is,
+        // honestly, the weakest part" -> "is, the"). The gates cannot
+        // see the difference — comma-adjacent skeletons attest through
+        // legitimate appositions — so the realization itself flips:
+        // finite verb right before the match means both commas go, and
+        // THAT string faces the full gate battery instead.
+        if replacement == "," && parenthetical_after_finite_verb(working, tags, m) {
+            replacement = String::new();
+        }
         match check_rewrite_gates(
             working,
             &m.bytes,
@@ -1383,6 +1395,26 @@ fn try_rewrite_ladder(
         }
     }
     Err(primary_hold.unwrap_or_else(|| "template did not realize".to_string()))
+}
+
+/// `true` when `m` is a comma-delimited parenthetical whose preceding
+/// token is a finite verb (`VBZ`/`VBP`/`VBD` — copulas included): the
+/// context where keeping one comma splices the verb from its
+/// complement, and the deletion must take both commas instead. Only
+/// consulted when the realized replacement is exactly `","` (the
+/// parenthetical-family template), so ordinary rewrites never reach
+/// this check.
+fn parenthetical_after_finite_verb(working: &str, tags: &[TaggedToken], m: &FrameMatch) -> bool {
+    let matched = &working[m.bytes.clone()];
+    if !(matched.starts_with(',') && matched.ends_with(',')) {
+        return false;
+    }
+    tags.iter()
+        .rev()
+        .find(|t| {
+            t.token.range.end <= m.bytes.start && t.token.kind == friction_core::TokenKind::Word
+        })
+        .is_some_and(|t| matches!(t.pos.as_str(), "VBZ" | "VBP" | "VBD"))
 }
 
 /// Whether `rule` is a bare verb+slot pattern whose matched slot opens
