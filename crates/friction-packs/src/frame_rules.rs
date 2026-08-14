@@ -943,7 +943,9 @@ mod tests {
         // similarly/likewise/what-is-more/in-addition — and staged all
         // four under `conn.additive` in `rules_staged_surface`; every
         // one measures human-tilted or no-evidence, so none compile.
-        assert_eq!(total, 3398, "regeneration moves rules, never loses them");
+        // 3398 -> 3402: adv.deliberately-{parenthetical,pre-colon,trailing}
+        // + advg.deliberately (grep-measured 27x machine tilt).
+        assert_eq!(total, 3402, "regeneration moves rules, never loses them");
         assert_eq!(set.rules_pilot.len(), 21, "pilot rules never move");
         assert_eq!(set.classes.len(), 35);
         assert_eq!(set.function_words.words.len(), 37);

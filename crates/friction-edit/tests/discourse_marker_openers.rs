@@ -172,3 +172,30 @@ fn however_opener_is_untouched() {
     let (fixed, _) = engine().fix_document(input).expect("engine runs");
     assert_eq!(fixed, input);
 }
+
+/// The detached ", deliberately" flourish (27x machine-tilted, grep-
+/// measured 2026-08-12) deletes in its comma-apposed and pre-colon
+/// shapes; the bare modifier form is meaning-bearing ("deliberately
+/// simple" — deleting it flips intent to accident) and only reports.
+#[test]
+fn detached_deliberately_deletes_and_bare_form_survives() {
+    let (fixed, _) = engine()
+        .fix_document("It reads credentials from the config, deliberately, so the file is the single source.\n")
+        .expect("engine runs");
+    assert_eq!(
+        fixed,
+        "It reads credentials from the config, so the file is the single source.\n"
+    );
+
+    let (fixed, _) = engine()
+        .fix_document("The defaults are strict, deliberately: loose defaults hide bugs.\n")
+        .expect("engine runs");
+    assert_eq!(
+        fixed,
+        "The defaults are strict: loose defaults hide bugs.\n"
+    );
+
+    let source = "The scoring is deliberately simple enough to reason about.\n";
+    let (fixed, _) = engine().fix_document(source).expect("engine runs");
+    assert_eq!(fixed, source, "bare modifier form must never delete");
+}
