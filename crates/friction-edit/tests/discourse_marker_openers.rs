@@ -217,3 +217,27 @@ fn parenthetical_between_verb_and_complement_drops_both_commas() {
         .expect("engine runs");
     assert_eq!(fixed, "The config is the single source of truth.\n");
 }
+
+/// "load-bearing" is collocation-scoped: the metaphor rewrites over a
+/// curated abstract head when the seams attest, and the literal
+/// architectural sense (walls) can never match — no wall collocation is
+/// in the family. The hyphenated leading literal must never arm
+/// agreeing inflection ("load-bearing" would classify by "bearing" as a
+/// gerund and realize "importanting").
+#[test]
+fn load_bearing_rewrites_abstract_heads_and_never_walls() {
+    let (fixed, _) = engine()
+        .fix_document("The doc carries two load-bearing assumptions about ordering, and one load-bearing assumption held.\n")
+        .expect("engine runs");
+    assert!(
+        fixed.contains("important assumption held"),
+        "singular head with attested seams must rewrite: {fixed}"
+    );
+
+    let source = "We understand this wall may be load-bearing given the age of the house.\n";
+    let (fixed, _) = engine().fix_document(source).expect("engine runs");
+    assert_eq!(
+        fixed, source,
+        "the literal architectural sense must never match"
+    );
+}
