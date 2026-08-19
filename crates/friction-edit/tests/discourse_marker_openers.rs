@@ -241,3 +241,23 @@ fn load_bearing_rewrites_abstract_heads_and_never_walls() {
         "the literal architectural sense must never match"
     );
 }
+
+/// "exactly" deletes only in the "exactly what" emphasis shape (2.9x
+/// machine-tilted); "exactly <number>" is a precision claim and the
+/// bare word only reports. "exactly the same" measured HUMAN-tilted at
+/// the compile fence and has no rule.
+#[test]
+fn exactly_what_deletes_and_precision_shapes_survive() {
+    let (fixed, _) = engine()
+        .fix_document("I know exactly what you mean.\n")
+        .expect("engine runs");
+    assert_eq!(fixed, "I know what you mean.\n");
+
+    let source = "The query returns exactly one row per user.\n";
+    let (fixed, _) = engine().fix_document(source).expect("engine runs");
+    assert_eq!(fixed, source, "exactly-<number> is a precision claim");
+
+    let source = "The output is exactly the same across both runs.\n";
+    let (fixed, _) = engine().fix_document(source).expect("engine runs");
+    assert_eq!(fixed, source, "exactly-the-same is a human idiom, no rule");
+}

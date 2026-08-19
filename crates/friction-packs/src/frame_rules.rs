@@ -948,7 +948,10 @@ mod tests {
         // 3402 -> 3412: col.load-bearing-x's ten collocation-scoped
         // rewrites (metaphorical heads only; the literal architectural
         // sense can never match).
-        assert_eq!(total, 3412, "regeneration moves rules, never loses them");
+        // 3412 -> 3414: int.exactly-what + intg.exactly (exactly-the-same
+        // was tried and re-measured human-tilted by the compile fence —
+        // see the pack row's own note).
+        assert_eq!(total, 3414, "regeneration moves rules, never loses them");
         assert_eq!(set.rules_pilot.len(), 21, "pilot rules never move");
         assert_eq!(set.classes.len(), 35);
         assert_eq!(set.function_words.words.len(), 37);
