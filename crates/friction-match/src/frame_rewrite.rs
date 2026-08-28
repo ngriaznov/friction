@@ -553,7 +553,7 @@ fn verify(
 
 /// Walks op cells to find the cell index of pattern element
 /// `element` (0-based over elements, where one group = one element).
-fn element_to_op_index(ops: &[DecodedOp], element: u16) -> Option<usize> {
+const fn element_to_op_index(ops: &[DecodedOp], element: u16) -> Option<usize> {
     let mut element_index = 0u16;
     let mut i = 0;
     while i < ops.len() {
