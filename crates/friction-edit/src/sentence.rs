@@ -1685,7 +1685,7 @@ fn repair_article(
 
 /// Maps a pattern *element* index to its op-cell index (one group =
 /// one element; the compiler records agreement targets by element).
-fn frame_element_to_op(pattern_ops: &[(PatOp, bool)], element: u8) -> Option<usize> {
+const fn frame_element_to_op(pattern_ops: &[(PatOp, bool)], element: u8) -> Option<usize> {
     let mut element_index = 0u8;
     let mut i = 0;
     while i < pattern_ops.len() {
