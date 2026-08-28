@@ -261,3 +261,49 @@ fn exactly_what_deletes_and_precision_shapes_survive() {
     let (fixed, _) = engine().fix_document(source).expect("engine runs");
     assert_eq!(fixed, source, "exactly-the-same is a human idiom, no rule");
 }
+
+/// The cnt.rather-than-* family deletes the epistemic strawman tail of
+/// an antithesis ("proven rather than asserted" — the positive
+/// participle already entails the denial) at predicate boundaries, and
+/// only there. Operational contrasts ("moved rather than copied"),
+/// where both participles name real operations, share the frame but
+/// carry information; their tails are not in the list and never match.
+#[test]
+fn rather_than_strawman_tails_delete_and_operational_contrasts_survive() {
+    let (fixed, _) = engine()
+        .fix_document(
+            "The census is proven rather than asserted: checked against the live service.\n",
+        )
+        .expect("engine runs");
+    assert_eq!(
+        fixed, "The census is proven: checked against the live service.\n",
+        "pre-colon strawman tail deletes and the colon glues to the predicate"
+    );
+
+    let (fixed, _) = engine()
+        .fix_document("The behavior is verified rather than assumed, and documented.\n")
+        .expect("engine runs");
+    assert_eq!(
+        fixed, "The behavior is verified, and documented.\n",
+        "comma shape deletes"
+    );
+
+    let (fixed, _) = engine()
+        .fix_document("The design is real rather than imagined.\n")
+        .expect("engine runs");
+    assert_eq!(
+        fixed, "The design is real.\n",
+        "sentence-final shape deletes after an adjective predicate"
+    );
+
+    let source = "The file is moved rather than copied.\n";
+    let (fixed, _) = engine().fix_document(source).expect("engine runs");
+    assert_eq!(fixed, source, "operational contrasts carry information");
+
+    let source = "It uses measured values rather than assumed defaults.\n";
+    let (fixed, _) = engine().fix_document(source).expect("engine runs");
+    assert_eq!(
+        fixed, source,
+        "attributive uses sit mid-phrase, not at a boundary; never match"
+    );
+}
