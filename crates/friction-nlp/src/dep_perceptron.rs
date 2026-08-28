@@ -638,8 +638,11 @@ impl<'a> ParserView<'a> {
     /// borrowed feature straight out of a reused scratch buffer.
     fn accumulate_one(&self, feature: &[u8], scores: &mut [f32; NUM_ACTIONS]) {
         if let Some(row_offset) = self.features.get(feature) {
-            for chunk in crate::weights_bin::sparse_row(self.values, row_offset).chunks_exact(6) {
-                let (action_index, weight) = crate::weights_bin::decode_sparse_entry(chunk);
+            for chunk in crate::weights_bin::sparse_row(self.values, row_offset)
+                .as_chunks::<6>()
+                .0
+            {
+                let (action_index, weight) = crate::weights_bin::decode_sparse_entry(*chunk);
                 scores[usize::from(action_index)] += weight;
             }
         }
