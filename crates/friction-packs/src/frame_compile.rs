@@ -1611,7 +1611,15 @@ fn leading_literal_agreement(
         .enumerate()
         .find(|(_, e)| not_sentinel_tpl(e))?;
     match (pat_first, tpl_first) {
-        (PatElem::Lit(source), TplElem::Lit(target)) if source != target => {
+        // A hyphenated leading literal never agrees: it is a compound
+        // modifier, not a conjugatable verb, and the runtime form
+        // classifier would read its TAIL word's suffix as the form to
+        // transfer — "load-bearing" classifies by "bearing" as a
+        // gerund and realizes "important" as "importanting". Hyphenated
+        // literals compile as plain verbatim literals instead.
+        (PatElem::Lit(source), TplElem::Lit(target))
+            if source != target && !source.contains('-') =>
+        {
             u8::try_from(pat_idx).ok().map(|pat| (tpl_idx, pat))
         }
         _ => None,

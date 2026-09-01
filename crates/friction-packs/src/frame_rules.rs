@@ -943,7 +943,20 @@ mod tests {
         // similarly/likewise/what-is-more/in-addition — and staged all
         // four under `conn.additive` in `rules_staged_surface`; every
         // one measures human-tilted or no-evidence, so none compile.
-        assert_eq!(total, 3398, "regeneration moves rules, never loses them");
+        // 3398 -> 3402: adv.deliberately-{parenthetical,pre-colon,trailing}
+        // + advg.deliberately (grep-measured 27x machine tilt).
+        // 3402 -> 3412: col.load-bearing-x's ten collocation-scoped
+        // rewrites (metaphorical heads only; the literal architectural
+        // sense can never match).
+        // 3412 -> 3414: int.exactly-what + intg.exactly (exactly-the-same
+        // was tried and re-measured human-tilted by the compile fence —
+        // see the pack row's own note).
+        // 3414 -> 3432: cnt.rather-than-* — eighteen literal siblings
+        // (six epistemic strawman tails x three boundary punctuations);
+        // literal, not class-based, so each rule anchors on its own
+        // 4-token phrase instead of bare "rather than" (which pools to
+        // 425/M human and would demote at the ceiling).
+        assert_eq!(total, 3432, "regeneration moves rules, never loses them");
         assert_eq!(set.rules_pilot.len(), 21, "pilot rules never move");
         assert_eq!(set.classes.len(), 35);
         assert_eq!(set.function_words.words.len(), 37);

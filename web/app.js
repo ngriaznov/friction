@@ -162,11 +162,61 @@ function renderFixResult(result) {
     els.results.append(firedHeading, firedList);
   }
 
+  renderSuggestions(result.output, result.suggestions);
+
   const diffHeading = document.createElement("h3");
   diffHeading.textContent = "Diff";
   const diffView = renderDiff(result.diff);
 
   els.results.append(diffHeading, diffView);
+}
+
+// Held candidates the engine declined to apply (`friction fix
+// --suggest`'s rows): rendered whether or not any patch fired, because a
+// document the engine won't touch is exactly the one whose remaining
+// tells need a human hand. Offsets/lines are against the FIXED output.
+function renderSuggestions(output, suggestions) {
+  if (!suggestions || suggestions.length === 0) return;
+
+  const heading = document.createElement("h3");
+  heading.textContent = `Suggestions (${suggestions.length}) — no licensed rewrite, needs a human hand`;
+  const list = document.createElement("ul");
+  list.className = "findings-list";
+
+  const outputBytes = new TextEncoder().encode(output);
+  for (const suggestion of suggestions) {
+    const item = document.createElement("li");
+    item.className = "finding";
+
+    const head = document.createElement("div");
+    head.className = "finding-head";
+    const rule = document.createElement("span");
+    rule.className = "finding-rule";
+    rule.textContent = suggestion.rule;
+    head.appendChild(rule);
+    item.appendChild(head);
+
+    if (suggestion.message) {
+      const message = document.createElement("div");
+      message.className = "finding-message";
+      message.textContent = suggestion.message;
+      item.appendChild(message);
+    }
+
+    const excerpt = document.createElement("code");
+    excerpt.className = "finding-excerpt";
+    excerpt.textContent = excerptFor(outputBytes, suggestion.start, suggestion.end);
+    item.appendChild(excerpt);
+
+    const location = document.createElement("div");
+    location.className = "finding-location";
+    location.textContent = `line ${suggestion.line}, column ${suggestion.column} (in the fixed text)`;
+    item.appendChild(location);
+
+    list.appendChild(item);
+  }
+
+  els.results.append(heading, list);
 }
 
 // --- Check: findings list (rule id, message, span excerpt) ---
@@ -185,7 +235,7 @@ function renderCheckResult(source, report) {
 
   const summary = document.createElement("p");
   summary.className = "check-summary";
-  summary.textContent = `genre: ${report.genre} — ${report.spans.length} finding(s)`;
+  summary.textContent = `${report.spans.length} finding(s)`;
   els.results.appendChild(summary);
 
   if (report.spans.length === 0) {
@@ -276,7 +326,10 @@ async function runFix() {
   try {
     const result = engine.fix(original);
     renderFixResult(result);
-    setStatus(result.changed ? "fix complete" : "fix complete — no changes");
+    const changes = result.changed ? "fix complete" : "fix complete — no changes";
+    const remaining =
+      result.suggestions.length > 0 ? `, ${result.suggestions.length} suggestion(s)` : "";
+    setStatus(changes + remaining);
   } catch (err) {
     setStatus(`fix failed: ${err.message ?? err}`, true);
   } finally {

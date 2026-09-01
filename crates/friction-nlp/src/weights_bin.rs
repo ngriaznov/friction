@@ -388,7 +388,7 @@ pub fn build_sparse_row(values: &mut Vec<u8>, entries: &[(u16, f32)]) -> u32 {
 
 /// Reads one [`build_sparse_row`]-written row back: `values[offset..]`'s
 /// leading `u16` count, then a byte slice of that many `(u16, f32)`
-/// pairs — callers `chunks_exact(6)` it and decode each half with
+/// pairs — callers `as_chunks::<6>()` it and decode each half with
 /// `from_le_bytes`, matching the encoding [`build_sparse_row`] wrote.
 ///
 /// # Panics
@@ -403,11 +403,11 @@ pub fn sparse_row(values: &[u8], offset: u32) -> &[u8] {
     &values[start + 2..start + 2 + usize::from(count) * 6]
 }
 
-/// One decoded entry from a [`sparse_row`] slice's `chunks_exact(6)`.
+/// One decoded entry from a [`sparse_row`] slice's `as_chunks::<6>()`.
 #[must_use]
-pub fn decode_sparse_entry(chunk: &[u8]) -> (u16, f32) {
-    let index = u16::from_le_bytes(chunk[0..2].try_into().expect("2-byte slice"));
-    let weight = f32::from_le_bytes(chunk[2..6].try_into().expect("4-byte slice"));
+pub const fn decode_sparse_entry(chunk: [u8; 6]) -> (u16, f32) {
+    let index = u16::from_le_bytes([chunk[0], chunk[1]]);
+    let weight = f32::from_le_bytes([chunk[2], chunk[3], chunk[4], chunk[5]]);
     (index, weight)
 }
 
@@ -632,7 +632,13 @@ mod tests {
         let mut values = Vec::new();
         let offset = build_sparse_row(&mut values, &[(3u16, 1.5f32), (7, -2.25), (0, 0.0)]);
         let row = sparse_row(&values, offset);
-        let decoded: Vec<(u16, f32)> = row.chunks_exact(6).map(decode_sparse_entry).collect();
+        let decoded: Vec<(u16, f32)> = row
+            .as_chunks::<6>()
+            .0
+            .iter()
+            .copied()
+            .map(decode_sparse_entry)
+            .collect();
         assert_eq!(decoded, vec![(3, 1.5), (7, -2.25), (0, 0.0)]);
     }
 
@@ -650,11 +656,17 @@ mod tests {
         let first = build_sparse_row(&mut values, &[(1u16, 1.0f32)]);
         let second = build_sparse_row(&mut values, &[(2u16, 2.0f32), (3, 3.0)]);
         let first_row: Vec<(u16, f32)> = sparse_row(&values, first)
-            .chunks_exact(6)
+            .as_chunks::<6>()
+            .0
+            .iter()
+            .copied()
             .map(decode_sparse_entry)
             .collect();
         let second_row: Vec<(u16, f32)> = sparse_row(&values, second)
-            .chunks_exact(6)
+            .as_chunks::<6>()
+            .0
+            .iter()
+            .copied()
             .map(decode_sparse_entry)
             .collect();
         assert_eq!(first_row, vec![(1, 1.0)]);

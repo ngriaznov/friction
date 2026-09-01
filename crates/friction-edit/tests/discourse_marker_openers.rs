@@ -172,3 +172,138 @@ fn however_opener_is_untouched() {
     let (fixed, _) = engine().fix_document(input).expect("engine runs");
     assert_eq!(fixed, input);
 }
+
+/// The detached ", deliberately" flourish (27x machine-tilted, grep-
+/// measured 2026-08-12) deletes in its comma-apposed and pre-colon
+/// shapes; the bare modifier form is meaning-bearing ("deliberately
+/// simple" — deleting it flips intent to accident) and only reports.
+#[test]
+fn detached_deliberately_deletes_and_bare_form_survives() {
+    let (fixed, _) = engine()
+        .fix_document("It reads credentials from the config, deliberately, so the file is the single source.\n")
+        .expect("engine runs");
+    assert_eq!(
+        fixed,
+        "It reads credentials from the config, so the file is the single source.\n"
+    );
+
+    let (fixed, _) = engine()
+        .fix_document("The defaults are strict, deliberately: loose defaults hide bugs.\n")
+        .expect("engine runs");
+    assert_eq!(
+        fixed,
+        "The defaults are strict: loose defaults hide bugs.\n"
+    );
+
+    let source = "The scoring is deliberately simple enough to reason about.\n";
+    let (fixed, _) = engine().fix_document(source).expect("engine runs");
+    assert_eq!(fixed, source, "bare modifier form must never delete");
+}
+
+/// A parenthetical adverb between a finite verb and its complement
+/// deletes with BOTH commas — keeping one would splice the verb from
+/// what it links to ("The config is, honestly, the weakest part" must
+/// not become "is, the"). At a clause boundary the single kept comma
+/// remains correct, pinned by the deliberately test above.
+#[test]
+fn parenthetical_between_verb_and_complement_drops_both_commas() {
+    let (fixed, _) = engine()
+        .fix_document("The config is, honestly, the weakest part of the design.\n")
+        .expect("engine runs");
+    assert_eq!(fixed, "The config is the weakest part of the design.\n");
+
+    let (fixed, _) = engine()
+        .fix_document("The config is, deliberately, the single source of truth.\n")
+        .expect("engine runs");
+    assert_eq!(fixed, "The config is the single source of truth.\n");
+}
+
+/// "load-bearing" is collocation-scoped: the metaphor rewrites over a
+/// curated abstract head when the seams attest, and the literal
+/// architectural sense (walls) can never match — no wall collocation is
+/// in the family. The hyphenated leading literal must never arm
+/// agreeing inflection ("load-bearing" would classify by "bearing" as a
+/// gerund and realize "importanting").
+#[test]
+fn load_bearing_rewrites_abstract_heads_and_never_walls() {
+    let (fixed, _) = engine()
+        .fix_document("The doc carries two load-bearing assumptions about ordering, and one load-bearing assumption held.\n")
+        .expect("engine runs");
+    assert!(
+        fixed.contains("important assumption held"),
+        "singular head with attested seams must rewrite: {fixed}"
+    );
+
+    let source = "We understand this wall may be load-bearing given the age of the house.\n";
+    let (fixed, _) = engine().fix_document(source).expect("engine runs");
+    assert_eq!(
+        fixed, source,
+        "the literal architectural sense must never match"
+    );
+}
+
+/// "exactly" deletes only in the "exactly what" emphasis shape (2.9x
+/// machine-tilted); "exactly <number>" is a precision claim and the
+/// bare word only reports. "exactly the same" measured HUMAN-tilted at
+/// the compile fence and has no rule.
+#[test]
+fn exactly_what_deletes_and_precision_shapes_survive() {
+    let (fixed, _) = engine()
+        .fix_document("I know exactly what you mean.\n")
+        .expect("engine runs");
+    assert_eq!(fixed, "I know what you mean.\n");
+
+    let source = "The query returns exactly one row per user.\n";
+    let (fixed, _) = engine().fix_document(source).expect("engine runs");
+    assert_eq!(fixed, source, "exactly-<number> is a precision claim");
+
+    let source = "The output is exactly the same across both runs.\n";
+    let (fixed, _) = engine().fix_document(source).expect("engine runs");
+    assert_eq!(fixed, source, "exactly-the-same is a human idiom, no rule");
+}
+
+/// The cnt.rather-than-* family deletes the epistemic strawman tail of
+/// an antithesis ("proven rather than asserted" — the positive
+/// participle already entails the denial) at predicate boundaries, and
+/// only there. Operational contrasts ("moved rather than copied"),
+/// where both participles name real operations, share the frame but
+/// carry information; their tails are not in the list and never match.
+#[test]
+fn rather_than_strawman_tails_delete_and_operational_contrasts_survive() {
+    let (fixed, _) = engine()
+        .fix_document(
+            "The census is proven rather than asserted: checked against the live service.\n",
+        )
+        .expect("engine runs");
+    assert_eq!(
+        fixed, "The census is proven: checked against the live service.\n",
+        "pre-colon strawman tail deletes and the colon glues to the predicate"
+    );
+
+    let (fixed, _) = engine()
+        .fix_document("The behavior is verified rather than assumed, and documented.\n")
+        .expect("engine runs");
+    assert_eq!(
+        fixed, "The behavior is verified, and documented.\n",
+        "comma shape deletes"
+    );
+
+    let (fixed, _) = engine()
+        .fix_document("The design is real rather than imagined.\n")
+        .expect("engine runs");
+    assert_eq!(
+        fixed, "The design is real.\n",
+        "sentence-final shape deletes after an adjective predicate"
+    );
+
+    let source = "The file is moved rather than copied.\n";
+    let (fixed, _) = engine().fix_document(source).expect("engine runs");
+    assert_eq!(fixed, source, "operational contrasts carry information");
+
+    let source = "It uses measured values rather than assumed defaults.\n";
+    let (fixed, _) = engine().fix_document(source).expect("engine runs");
+    assert_eq!(
+        fixed, source,
+        "attributive uses sit mid-phrase, not at a boundary; never match"
+    );
+}

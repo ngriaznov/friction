@@ -70,10 +70,16 @@ const engine = await loadFriction({
 const result = engine.fix(text);
 // { input, output, changed,
 //   diff:  [{ type: "equal" | "del" | "add", line }],
-//   fired: [{ pass, rule, count }] }
+//   fired: [{ pass, rule, count }],
+//   suggestions: [{ rule, start, end, line, column, message }] }
+//
+// `suggestions` are the held candidates `friction fix --suggest` lists —
+// tells with no licensed rewrite, positioned against `output`. They are
+// present whether or not anything changed.
 
 engine.check(text);   // `friction check --format json`, parsed
 engine.explain(text); // `friction explain --format json`, parsed
+engine.suggest(text); // fixed output + suggestion rows, parsed
 ```
 
 Every loading event also fires on `window` as a CustomEvent, so a page

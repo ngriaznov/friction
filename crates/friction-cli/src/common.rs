@@ -369,6 +369,21 @@ mod tests {
         let readonly = std::fs::Permissions::from_mode(0o555);
         std::fs::set_permissions(dir.path(), readonly).expect("chmod dir read-only");
 
+        // Root (CAP_DAC_OVERRIDE) ignores directory permission bits, so
+        // the failure this test needs cannot be provoked. Probe for
+        // enforcement directly rather than checking a uid: if a sibling
+        // write still succeeds, skip — same convention as the suites
+        // that skip when no JDK or interpreter is present.
+        if std::fs::write(dir.path().join(".enforcement-probe"), "x").is_ok() {
+            std::fs::set_permissions(dir.path(), std::fs::Permissions::from_mode(0o755))
+                .expect("restore dir permissions");
+            eprintln!(
+                "skipping write_in_place_leaves_the_original_file_untouched_on_failure: \
+                 directory permissions are not enforced here (running as root?)"
+            );
+            return;
+        }
+
         let result = write_in_place(&path, "replaced content");
 
         // Restore write permission so the tempdir can clean itself up.
