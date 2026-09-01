@@ -1,6 +1,6 @@
-//! wasm-bindgen bindings: `init_engine`, `fix_text`, `check_text`,
-//! `explain_text`, `engine_version` — the fixed export contract a
-//! companion web page is written against.
+//! wasm-bindgen bindings: `init_engine`, `fix_text`, `suggest_text`,
+//! `check_text`, `explain_text`, `engine_version` — the fixed export
+//! contract a companion web page is written against.
 //!
 //! # Why this crate re-derives `check`/`explain`'s JSON shapes instead of
 //! importing them
@@ -398,6 +398,98 @@ const fn dms_row(report: &DocumentReport) -> DmsMachineRow {
         differential: machine.differential,
         token_count: machine.token_count,
     }
+}
+
+/// One held candidate still present in the fixed output. Mirrors
+/// `friction-cli::fix::SuggestionRow` field-for-field: `line`/`column`
+/// are 1-based positions in the FIXED output (not the input), because
+/// that is the text the suggestion asks a human to edit.
+#[derive(Debug, Serialize)]
+struct SuggestionRow {
+    rule: String,
+    start: usize,
+    end: usize,
+    line: usize,
+    column: usize,
+    message: String,
+}
+
+/// The `suggest_text` JSON shape.
+///
+/// The fixed output plus the `suggestions` detail array `friction fix
+/// --suggest --format json` prints in its summary
+/// (`FixSummary.suggestions`), so a page gets the fixed text and its
+/// remaining held candidates in one engine run.
+///
+/// The paraphrase detail rows (`FixSummary.paraphrase`) are deliberately
+/// not mirrored here: their four detection channels (DMS, frame, jargon,
+/// overuse) are exactly the spans [`check_text`] already reports, so a
+/// page that wants them has them — against the input — without this
+/// crate hand-mirroring `friction-cli`'s private scan-union plumbing.
+#[derive(Debug, Serialize)]
+struct SuggestReport {
+    output: String,
+    suggest_count: usize,
+    suggestions: Vec<SuggestionRow>,
+}
+
+/// The engine's current held candidates: the final bounded pass's holds,
+/// merged with every pass after it. A copy of
+/// `friction-cli::fix::final_pass_held` (private to that crate, like
+/// [`LineIndex`]) — see that function's own doc comment for why the
+/// selection keys on [`EditReport::final_bounded_pass_index`] rather
+/// than a fixed offset from `passes.len()`.
+fn final_pass_held(report: &EditReport) -> Vec<Finding> {
+    let passes = &report.passes;
+    let mut held: Vec<Finding> = passes
+        .get(report.final_bounded_pass_index)
+        .map(|pass| pass.held.clone())
+        .unwrap_or_default();
+    for pass in passes.iter().skip(report.final_bounded_pass_index + 1) {
+        held.extend(pass.held.clone());
+    }
+    held
+}
+
+/// Runs the repair engine (exactly like [`fix_text`]) and returns the
+/// fixed text plus its remaining held candidates.
+///
+/// The candidate rows are the same ones `friction fix --suggest
+/// --format json` carries in its summary's `suggestions` array,
+/// positioned against the fixed output.
+///
+/// # Errors
+/// See [`fix_text`]'s own doc comment.
+#[wasm_bindgen]
+pub fn suggest_text(input: &str) -> Result<String, JsError> {
+    let syntax = syntax_of(input);
+    let (output, report) = engine()?
+        .fix_document_with(input, syntax)
+        .map_err(to_js_error)?;
+
+    let held = final_pass_held(&report);
+    let lines = LineIndex::new(&output);
+    let suggestions: Vec<SuggestionRow> = held
+        .iter()
+        .map(|finding| {
+            let (line, column) = lines.line_col(&output, finding.range.start);
+            SuggestionRow {
+                rule: finding.rule.as_str().to_string(),
+                start: finding.range.start,
+                end: finding.range.end,
+                line,
+                column,
+                message: finding.message.clone(),
+            }
+        })
+        .collect();
+
+    let suggest_report = SuggestReport {
+        output,
+        suggest_count: suggestions.len(),
+        suggestions,
+    };
+    serde_json::to_string_pretty(&suggest_report).map_err(to_js_error)
 }
 
 /// One operation the repair engine actually fired. Mirrors

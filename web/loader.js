@@ -242,19 +242,27 @@ function aggregateFired(report) {
 function bindEngine(wasm, base, version) {
   return {
     /**
-     * Structured fix: `{ input, output, changed, diff, fired }`.
+     * Structured fix: `{ input, output, changed, diff, fired, suggestions }`.
      * `diff` is a line-level edit script in final-document coordinates
      * (see `diffLines`); `fired` is `[{ pass, rule, count }]` — which
      * rules produced the change, from the engine's own explain report.
+     * `suggestions` is `[{ rule, start, end, line, column, message }]` —
+     * every held candidate still present in the fixed output (the same
+     * rows `friction fix --suggest` lists), positioned against `output`,
+     * present whether or not anything changed.
      */
     fix(input) {
-      const output = wasm.fix_text(input);
+      const { output, suggestions } = JSON.parse(wasm.suggest_text(input));
       const changed = output !== input;
       const diff = diffLines(input, output);
       const fired = changed
         ? aggregateFired(JSON.parse(wasm.explain_text(input)))
         : [];
-      return { input, output, changed, diff, fired };
+      return { input, output, changed, diff, fired, suggestions };
+    },
+    /** `friction fix --suggest`'s fixed output + suggestion rows, parsed. */
+    suggest(input) {
+      return JSON.parse(wasm.suggest_text(input));
     },
     /** `friction check --format json`, parsed. */
     check(input) {
@@ -267,6 +275,7 @@ function bindEngine(wasm, base, version) {
     // The raw string-in/string-out exports, for callers that want the
     // engine's exact JSON text (hashing, piping) rather than objects.
     fixText: wasm.fix_text,
+    suggestText: wasm.suggest_text,
     checkText: wasm.check_text,
     explainText: wasm.explain_text,
     engineVersion: wasm.engine_version,
