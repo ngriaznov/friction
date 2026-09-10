@@ -858,6 +858,115 @@ pub fn contrast_closers(text: &str) -> Vec<Range<usize>> {
     out
 }
 
+/// The spelled-out cardinals a [`classifier_openers`] match may open
+/// with, in their capitalized sentence-initial form. "One" is excluded
+/// on purpose ("One caveat: ..." is a hedge lead-in, not a scheme
+/// announcement, and it has no count for a plural classifier to
+/// promise); the list runs to "Ten" because a spelled-out cardinal above
+/// ten is vanishingly rare sentence-initially and a digit ("12 rules:")
+/// is a different, human-attested shape this detector must stay blind
+/// to (the `CD`-tag check alone would admit it).
+const CLASSIFIER_OPENER_CARDINALS: [&str; 9] = [
+    "Two", "Three", "Four", "Five", "Six", "Seven", "Eight", "Nine", "Ten",
+];
+
+/// `true` if `word` has the `[a-z-]+` shape every corpus-measured
+/// classifier-opener component had: ASCII lowercase letters and hyphens
+/// only. Excludes proper nouns, digits, and mixed-case tokens outright
+/// — `"Two CloudWatch alarms:"` names a product, not a bare scheme.
+fn is_lowercase_word(word: &str) -> bool {
+    !word.is_empty() && word.chars().all(|c| c.is_ascii_lowercase() || c == '-')
+}
+
+/// The numbered-classifier sentence opener, announcing a scheme before
+/// delivering it.
+///
+/// The shape: a sentence-initial spelled-out cardinal
+/// ([`CLASSIFIER_OPENER_CARDINALS`], capitalized, tagged `CD`), an
+/// optional lowercase adjective, a lowercase plural-form common noun,
+/// and a colon glued directly to that noun — "Two tempos: ...", "Three
+/// classes: ...", "Two smaller notes: ...". What follows the colon is
+/// deliberately not inspected.
+///
+/// Corpus-measured (2026-09-10 sweep, regex prefilter re-verified by
+/// hand): corpus/human 0 instances in 338,962 words across every genre;
+/// corpus/llm 10 instances in 375,526 words (26.6/M — "Two positions:",
+/// "Two approaches:", "Three things:", "Three classes:", "Two important
+/// details:", "Two practical notes:", "Two other options:", "Two
+/// practical fixes:", "Two notebook-specific accommodations:", "Two
+/// common setups:"); corpus/review/machine 2 more in 66,797 words ("Two
+/// smaller notes:", "Two small things:"). Perfect one-sided separation
+/// on a thin count: the same curated-seed reading the jargon expansion
+/// used (clearly machine, corpus-thin, measurement on the record), with
+/// the human-corpus precision gauntlet as the admission bar.
+///
+/// Detect-only downstream, like [`contrast_closers`]: deleting the
+/// opener is licensed only if the sentence's delivery actually contains
+/// as many top-level conjuncts as the cardinal announces, and the
+/// shipped dependency parser cannot attest that count on real instances
+/// — measured directly: on a parenthetical-heavy corpus-shaped example
+/// it mis-tags nouns inside the parentheses as finite verbs ("reads",
+/// "spikes" -> `VBZ`), roots the sentence inside the parenthetical, and
+/// attaches the genuine top-level conjunct to a parenthesized token; on
+/// the plain "Two tempos: A, B and C." mismatch case it reads "A" as a
+/// bare determiner root, so a conjunct count would come back 2 and
+/// fail OPEN, licensing exactly the deletion the mismatch must block.
+/// A gate that fails open on its own decline fixture is not a gate, so
+/// the honest ceiling here is a held finding per instance.
+///
+/// The classifier noun must be plural in surface form (ends in "s",
+/// tagged `NN` or `NNS` — `NN` is accepted because the shipped tagger
+/// tags an out-of-vocabulary plural like "tempos" `NN`; the surface
+/// morphology carries the plural evidence either way). The colon must
+/// be byte-adjacent to the noun: a spaced colon is a different (French-
+/// style) typographic habit, not this tell.
+///
+/// Returns byte ranges covering cardinal through colon inclusive, like
+/// [`contrast_closers`] — at most one per sentence, since the match is
+/// anchored at token 0 (callers pass one sentence at a time, the same
+/// convention [`sentence_initial_demonstratives`] documents).
+#[must_use]
+pub fn classifier_openers(text: &str, tokens: &[TaggedToken]) -> Vec<Range<usize>> {
+    let Some(first) = tokens.first() else {
+        return Vec::new();
+    };
+    if first.pos.as_str() != "CD"
+        || !CLASSIFIER_OPENER_CARDINALS.contains(&surface_of(text, tokens, 0))
+    {
+        return Vec::new();
+    }
+    let noun_index = match tokens.get(1) {
+        Some(second)
+            if matches!(second.pos.as_str(), "JJ" | "JJR" | "JJS")
+                && is_lowercase_word(surface_of(text, tokens, 1)) =>
+        {
+            2
+        }
+        _ => 1,
+    };
+    let Some(noun) = tokens.get(noun_index) else {
+        return Vec::new();
+    };
+    if !matches!(noun.pos.as_str(), "NN" | "NNS") {
+        return Vec::new();
+    }
+    let noun_surface = surface_of(text, tokens, noun_index);
+    if !is_lowercase_word(noun_surface)
+        || !noun_surface.ends_with('s')
+        || noun_surface.chars().count() < 3
+    {
+        return Vec::new();
+    }
+    if text.as_bytes().get(noun.token.range.end) != Some(&b':') {
+        return Vec::new();
+    }
+    // `single_range_in_vec_init`: this is deliberately a one-element
+    // `Vec<Range<usize>>` (the matched byte span), not a range to
+    // collect — the same return shape `contrast_closers` uses.
+    let matched = first.token.range.start..noun.token.range.end + 1;
+    vec![matched]
+}
+
 /// Past-progressive softening: a `VBG` token immediately preceded by a
 /// token whose lowercase surface is "was" or "were".
 ///
@@ -950,6 +1059,146 @@ mod contrast_closer_tests {
         let ranges = contrast_closers(text);
         assert_eq!(ranges.len(), 1);
         assert_eq!(&text[ranges[0].clone()], "rather than");
+    }
+}
+
+#[cfg(test)]
+mod classifier_opener_tests {
+    use super::classifier_openers;
+    use friction_core::{Token, TokenKind};
+    use friction_nlp::{PosTag, TaggedToken};
+
+    /// Builds one [`TaggedToken`] per `(surface, tag)` pair, located in
+    /// `text` left to right — unlike `past_progressive_tests::tokens_for`
+    /// this takes explicit surfaces, so punctuation ( ":" ) can be its
+    /// own token exactly the way the shipped tokenizer emits it.
+    fn tokens_for(text: &str, spec: &[(&str, &str)]) -> Vec<TaggedToken> {
+        let mut cursor = 0;
+        let mut out = Vec::new();
+        for (surface, tag) in spec {
+            let start = cursor + text[cursor..].find(surface).expect("surface in text");
+            let end = start + surface.len();
+            cursor = end;
+            out.push(TaggedToken {
+                token: Token::new(start..end, TokenKind::Word),
+                pos: PosTag::new(*tag),
+                lemma: surface.to_lowercase().into_boxed_str(),
+            });
+        }
+        out
+    }
+
+    /// The flagship shape: cardinal + plural noun + glued colon. The
+    /// matched range covers cardinal through colon inclusive. "tempos"
+    /// carries the shipped tagger's real out-of-vocabulary tag (`NN`,
+    /// not `NNS`) — the surface plural is the evidence.
+    #[test]
+    fn classifier_openers_matches_the_bare_shape() {
+        let text = "Two tempos: CloudWatch alarms and a scheduled job.";
+        let tokens = tokens_for(
+            text,
+            &[
+                ("Two", "CD"),
+                ("tempos", "NN"),
+                (":", ":"),
+                ("CloudWatch", "NNP"),
+                ("alarms", "NNS"),
+            ],
+        );
+        let ranges = classifier_openers(text, &tokens);
+        assert_eq!(ranges.len(), 1);
+        assert_eq!(&text[ranges[0].clone()], "Two tempos:");
+    }
+
+    /// The optional-adjective shape ("Two smaller notes:"), with the
+    /// comparative tag the shipped tagger really assigns.
+    #[test]
+    fn classifier_openers_matches_with_an_adjective() {
+        let text = "Two smaller notes: the cache key omits the region.";
+        let tokens = tokens_for(
+            text,
+            &[
+                ("Two", "CD"),
+                ("smaller", "JJR"),
+                ("notes", "NNS"),
+                (":", ":"),
+                ("the", "DT"),
+            ],
+        );
+        let ranges = classifier_openers(text, &tokens);
+        assert_eq!(ranges.len(), 1);
+        assert_eq!(&text[ranges[0].clone()], "Two smaller notes:");
+    }
+
+    /// A digit cardinal ("12 rules:") never matches: only the
+    /// spelled-out, capitalized forms are the tell.
+    #[test]
+    fn classifier_openers_ignores_digit_cardinals() {
+        let text = "12 rules: keep them short.";
+        let tokens = tokens_for(text, &[("12", "CD"), ("rules", "NNS"), (":", ":")]);
+        assert!(classifier_openers(text, &tokens).is_empty());
+    }
+
+    /// A singular classifier ("One caveat:") never matches — no plural
+    /// count is being announced, and "One" is excluded by design.
+    #[test]
+    fn classifier_openers_ignores_a_singular_classifier() {
+        let text = "One caveat: the cache is cold on start.";
+        let tokens = tokens_for(text, &[("One", "CD"), ("caveat", "NN"), (":", ":")]);
+        assert!(classifier_openers(text, &tokens).is_empty());
+    }
+
+    /// No colon, no match — "Two tempos govern the pipeline." is an
+    /// ordinary sentence.
+    #[test]
+    fn classifier_openers_requires_the_glued_colon() {
+        let text = "Two tempos govern the pipeline.";
+        let tokens = tokens_for(text, &[("Two", "CD"), ("tempos", "NN"), ("govern", "VBP")]);
+        assert!(classifier_openers(text, &tokens).is_empty());
+
+        let spaced = "Two tempos : alarms and a job.";
+        let spaced_tokens = tokens_for(spaced, &[("Two", "CD"), ("tempos", "NN"), (":", ":")]);
+        assert!(
+            classifier_openers(spaced, &spaced_tokens).is_empty(),
+            "a spaced colon is a different typographic habit, not this tell"
+        );
+    }
+
+    /// A mid-sentence occurrence never matches: the cardinal must be
+    /// token 0 of its sentence (callers pass one sentence at a time).
+    #[test]
+    fn classifier_openers_is_sentence_initial_only() {
+        let text = "We saw Two tempos: alarms and a job.";
+        let tokens = tokens_for(
+            text,
+            &[
+                ("We", "PRP"),
+                ("saw", "VBD"),
+                ("Two", "CD"),
+                ("tempos", "NN"),
+                (":", ":"),
+            ],
+        );
+        assert!(classifier_openers(text, &tokens).is_empty());
+    }
+
+    /// A proper-noun classifier (`"Two Alarms:"`) or an uncapitalized
+    /// cardinal never matches: both sides of the pattern keep the exact
+    /// corpus-measured shape.
+    #[test]
+    fn classifier_openers_requires_the_measured_casing() {
+        let text = "Two Alarms: one per region.";
+        let tokens = tokens_for(text, &[("Two", "CD"), ("Alarms", "NNPS"), (":", ":")]);
+        assert!(classifier_openers(text, &tokens).is_empty());
+
+        let lower = "two tempos: alarms and a job.";
+        let lower_tokens = tokens_for(lower, &[("two", "CD"), ("tempos", "NN"), (":", ":")]);
+        assert!(classifier_openers(lower, &lower_tokens).is_empty());
+    }
+
+    #[test]
+    fn classifier_openers_is_empty_for_no_tokens() {
+        assert!(classifier_openers("", &[]).is_empty());
     }
 }
 
