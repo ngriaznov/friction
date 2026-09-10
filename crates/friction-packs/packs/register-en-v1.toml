@@ -105,6 +105,45 @@ low = 0.0
 high = 1.8382
 median = 0.0
 
+# `classifier_opener` was measured with the same `corpus-tool
+# register-bands` run over the same 58-document population, through
+# `friction-edit::register::measure_classifier_opener_rate`. The feature
+# counts the numbered-classifier sentence opener -- a sentence-initial
+# spelled-out cardinal (Two..Ten, capitalized), an optional lowercase
+# adjective, a lowercase plural-form classifier noun, and a glued colon
+# ("Two tempos:", "Three classes:") -- announcing a scheme before
+# delivering it. The population is fully degenerate, one step beyond
+# em_dash's: 58 of 58 documents measure exactly zero (max observed:
+# 0.0), and a corpus-wide sweep found zero instances in all 338,962
+# human words across every genre, against 10 instances in 375,526
+# corpus/llm words (26.6/M) and 2 more in corpus/review/machine's
+# 66,797 -- perfect one-sided separation on a thin count, the same
+# curated-seed admission shape the jargon expansion used, with the
+# measurement carried here on the record and the human-corpus precision
+# gauntlet (zero findings introduced on corpus/human at admission) as
+# the bar. Every bound below is exactly 0.0, so a single instance arms
+# -- the em-dash reading.
+#
+# Detect-only: a gated deletion of the opener span was designed and
+# DECLINED. The only safe license is that the sentence's delivery
+# actually carry as many top-level conjuncts as the cardinal announces,
+# and the shipped parser cannot attest that count on real instances.
+# Measured directly against the shipped tagger and parser: on a
+# parenthetical-heavy corpus-shaped instance it mis-tags plural nouns
+# inside the parentheses as finite verbs ("reads", "spikes" -> VBZ),
+# roots the sentence inside the parenthetical, and attaches the genuine
+# second conjunct to a parenthesized token; on the plain mismatch case
+# "Two tempos: A, B and C." it reads "A" as a bare determiner root, so
+# a naive conjunct count returns 2 and fails OPEN -- licensing exactly
+# the deletion the mismatch must block. A gate that fails open on its
+# own decline fixture is not a gate. An above-band document gets one
+# held finding per instance, advising the reader to delete the opener
+# themselves if the sentence stands without it.
+[features.classifier_opener]
+low = 0.0
+high = 0.0
+median = 0.0
+
 # `past_progressive` was measured the same way, and the population is
 # near-degenerate the same way em_dash's is: 57 of the 58 human docs
 # contain zero adjacent was/were+VBG pairs at all; the one that doesn't

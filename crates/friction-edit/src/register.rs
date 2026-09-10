@@ -48,7 +48,8 @@ use friction_match::token::{AnalysisTokenKind, prose_scope, tokenize_str};
 use friction_nlp::{DepParser, FINITE_VERB_TAGS, Segmenter, SentenceParse, TaggedToken, Tagger};
 use friction_packs::{RegisterBand, RegisterPack};
 use friction_register::features::{
-    CoreCounts, contrast_closers, em_dashes, nominalizations, past_progressives, semicolons,
+    CoreCounts, classifier_openers, contrast_closers, em_dashes, nominalizations,
+    past_progressives, semicolons,
 };
 use friction_register::transduce::{
     self, CandidateKind, PERMITTED_FUNCTION_WORDS, past, past_participle, third_sg,
@@ -68,6 +69,16 @@ const RULE_PAST_PROGRESSIVE: RuleId = RuleId::new("register.past_progressive");
 /// (see the held-finding block at the end of [`run_register`]) -- so this
 /// rule id is never returned by [`rule_for`], only used directly there.
 const RULE_CONTRAST: RuleId = RuleId::new("register.contrast_closer");
+/// `classifier_opener` is detect-only exactly like `contrast_closer`:
+/// no transducer, no [`CandidateKind`] (see the held-finding block at
+/// the end of [`run_register`]). Deleting the opener would need the
+/// announced count attested by the sentence's own top-level conjunct
+/// structure, and the shipped parser cannot certify that on real
+/// instances (see `friction_register::features::classifier_openers`'s
+/// own docs for the measured failure, including a mismatch case where a
+/// naive conjunct count fails OPEN), so every instance is a held
+/// finding, never an edit.
+const RULE_CLASSIFIER_OPENER: RuleId = RuleId::new("register.classifier_opener");
 
 const fn rule_for(kind: CandidateKind) -> RuleId {
     match kind {
@@ -280,6 +291,58 @@ fn push_remainder_findings(
     }
 }
 
+/// Emits one Suggest finding per surviving `classifier_opener`
+/// instance once the document's rate clears the band -- the
+/// numbered-classifier opener's counterpart to
+/// [`push_contrast_closer_findings`], and detect-only for the same
+/// structural reason: no licensed rewrite exists (see
+/// [`RULE_CLASSIFIER_OPENER`]'s own docs). Arms on the same
+/// [`confidently_above`] bar; with the measured zero-high band a single
+/// instance arms, the em-dash reading -- the human population for this
+/// shape is exactly zero (see `register-en-v1.toml`'s
+/// `[features.classifier_opener]` notes).
+fn push_classifier_opener_findings(
+    held: &mut Vec<Finding>,
+    sentences: &[SentenceCtx],
+    source: &str,
+    accepted: &[PositionedCandidate],
+    count: i64,
+    total_words: i64,
+    band: RegisterBand,
+) {
+    if !confidently_above(count, total_words, &band) {
+        return;
+    }
+    let feature_rate = rate(count, total_words);
+    for ctx in sentences {
+        let text = &source[ctx.range.clone()];
+        for local in classifier_openers(text, &ctx.tokens) {
+            let range = ctx.range.start + local.start..ctx.range.start + local.end;
+            if accepted
+                .iter()
+                .any(|c| ranges_overlap(&c.doc_range, &range))
+            {
+                continue;
+            }
+            let opener = &source[range.clone()];
+            held.push(Finding {
+                rule: RULE_CLASSIFIER_OPENER,
+                range,
+                message: format!(
+                    "classifier_opener: a numbered classifier opener (\"{opener}\") announces \
+                     a scheme before delivering it, and the document is above the human band \
+                     ({feature_rate:.2} > {:.2} per 1000 words) -- no licensed rewrite: the \
+                     parse cannot attest that the delivery matches the announced count, so \
+                     delete the opener yourself if the sentence stands without it; needs a \
+                     human hand",
+                    band.high
+                ),
+                tier: Tier::Suggest,
+            });
+        }
+    }
+}
+
 /// Emits one Suggest finding per surviving `contrast_closer` instance
 /// once the document's rate clears the band -- the see-saw tell's own
 /// counterpart to [`push_remainder_findings`], called separately because
@@ -343,10 +406,11 @@ fn push_contrast_closer_findings(
 /// from five elements to eight across three features landing in one
 /// change, and a positional `(i64, i64, i64, i64, i64, i64, i64, i64)`
 /// at that width is a transposition bug waiting to happen at every call
-/// site. `contrast_closer` gets a field like every other feature even
-/// though it is detect-only downstream (see [`run_register`]'s final
-/// held-finding block) -- the count itself is computed the same way
-/// regardless of whether a transducer ever consumes it.
+/// site. `contrast_closer` and `classifier_opener` get fields like
+/// every other feature even though both are detect-only downstream (see
+/// [`run_register`]'s final held-finding blocks) -- the count itself is
+/// computed the same way regardless of whether a transducer ever
+/// consumes it.
 #[derive(Debug, Clone, Copy, Default)]
 struct FeatureCounts {
     total_words: i64,
@@ -355,6 +419,7 @@ struct FeatureCounts {
     em_dash: i64,
     semicolon: i64,
     contrast_closer: i64,
+    classifier_opener: i64,
     past_progressive: i64,
 }
 
@@ -370,6 +435,8 @@ fn count_features(sentences: &[SentenceCtx], source: &str) -> FeatureCounts {
         counts.em_dash += i64::try_from(register_counts.em_dashes).unwrap_or(i64::MAX);
         counts.semicolon += i64::try_from(register_counts.semicolons).unwrap_or(i64::MAX);
         counts.contrast_closer += i64::try_from(contrast_closers(text).len()).unwrap_or(i64::MAX);
+        counts.classifier_opener +=
+            i64::try_from(classifier_openers(text, &ctx.tokens).len()).unwrap_or(i64::MAX);
         counts.past_progressive +=
             i64::try_from(past_progressives(text, &ctx.tokens).len()).unwrap_or(i64::MAX);
         counts.total_words += word_count(text);
@@ -437,6 +504,25 @@ pub fn measure_contrast_closer_rate(
     let sentences = build_sentence_contexts(source, &units, tagger, parser);
     let counts = count_features(&sentences, source);
     Ok(rate(counts.contrast_closer, counts.total_words))
+}
+
+/// The document-wide classifier-opener rate (per 1000 prose words),
+/// computed through the same path [`measure_em_dash_rate`] does, for the
+/// same band-measurement contract.
+///
+/// # Errors
+/// Returns [`EditError`] if `source` fails to parse or segment.
+pub fn measure_classifier_opener_rate(
+    source: &str,
+    tagger: &dyn Tagger,
+    parser: &dyn DepParser,
+    segmenter: &dyn Segmenter,
+) -> Result<f64, EditError> {
+    let document = friction_parse::parse(source)?;
+    let units = prose_scope(&document, segmenter);
+    let sentences = build_sentence_contexts(source, &units, tagger, parser);
+    let counts = count_features(&sentences, source);
+    Ok(rate(counts.classifier_opener, counts.total_words))
 }
 
 /// The document-wide past-progressive rate (per 1000 prose words),
@@ -538,21 +624,15 @@ pub fn run_register(
         }
     }
 
-    // `contrast_closer` is DETECT-ONLY: no transducer, no `CandidateKind`
-    // exists for it, so nothing here was ever a candidate for
-    // `select_and_apply` -- see `push_contrast_closer_findings`'s own
-    // docs for why and how it arms.
-    if let Some(band) = register_pack.band("contrast_closer") {
-        push_contrast_closer_findings(
-            &mut held,
-            &sentences,
-            source,
-            &accepted,
-            counts.contrast_closer,
-            total_words,
-            band,
-        );
-    }
+    push_detect_only_findings(
+        &mut held,
+        &sentences,
+        source,
+        &accepted,
+        counts,
+        total_words,
+        register_pack,
+    );
 
     let patches: Vec<Patch> = accepted
         .iter()
@@ -596,6 +676,50 @@ fn empty_pass() -> crate::document::PassReport {
     crate::document::PassReport::default()
 }
 
+/// Runs both DETECT-ONLY features' held-finding emitters -- split out
+/// of [`run_register`] only to keep that function's own line count
+/// down. Neither feature has a transducer or a [`CandidateKind`], so
+/// nothing here was ever a candidate for [`select_and_apply`]:
+/// `contrast_closer` (see [`push_contrast_closer_findings`]'s own docs
+/// for why and how it arms) and `classifier_opener` (see
+/// [`push_classifier_opener_findings`]'s). Each block is gated on its
+/// band existing in `register-en-v1.toml`, so either feature could be
+/// staged back to inert by removing its band alone -- the
+/// staged-activation discipline `docs/EXTENDING.md` describes.
+#[allow(clippy::too_many_arguments)] // private emission helper for one call site
+fn push_detect_only_findings(
+    held: &mut Vec<Finding>,
+    sentences: &[SentenceCtx],
+    source: &str,
+    accepted: &[PositionedCandidate],
+    counts: FeatureCounts,
+    total_words: i64,
+    register_pack: &RegisterPack,
+) {
+    if let Some(band) = register_pack.band("contrast_closer") {
+        push_contrast_closer_findings(
+            held,
+            sentences,
+            source,
+            accepted,
+            counts.contrast_closer,
+            total_words,
+            band,
+        );
+    }
+    if let Some(band) = register_pack.band("classifier_opener") {
+        push_classifier_opener_findings(
+            held,
+            sentences,
+            source,
+            accepted,
+            counts.classifier_opener,
+            total_words,
+            band,
+        );
+    }
+}
+
 /// One row per register feature, in application order: name, the band
 /// when (and only when) the document's rate sits outside it, the
 /// direction the rate must move, the starting count, and the candidate
@@ -606,10 +730,10 @@ fn empty_pass() -> crate::document::PassReport {
 /// `bool` alongside the `Option` would leave two values that must
 /// agree, and reading the band back out would mean asserting they do.
 ///
-/// `contrast_closer` has no row here despite being a [`FeatureCounts`]
-/// field: it has no `CandidateKind`, so it never enters
-/// [`select_and_apply`]'s pool -- see the held-finding block at the end
-/// of [`run_register`] instead.
+/// `contrast_closer` and `classifier_opener` have no rows here despite
+/// being [`FeatureCounts`] fields: neither has a `CandidateKind`, so
+/// neither ever enters [`select_and_apply`]'s pool -- see the
+/// held-finding blocks at the end of [`run_register`] instead.
 fn feature_plan(
     register_pack: &RegisterPack,
     counts: FeatureCounts,
@@ -628,6 +752,7 @@ fn feature_plan(
         semicolon,
         past_progressive,
         contrast_closer: _,
+        classifier_opener: _,
     } = counts;
     [
         // Arming compares a Wilson confidence bound against the band, not
@@ -1226,10 +1351,11 @@ mod tests {
                      caching rather than a cache-aside pattern for the lookup; the report is \
                      clear, not vague, about what changed — even so.";
 
-        let measures: [(&str, Measure); 4] = [
+        let measures: [(&str, Measure); 5] = [
             ("em_dash", measure_em_dash_rate),
             ("semicolon", measure_semicolon_rate),
             ("contrast_closer", measure_contrast_closer_rate),
+            ("classifier_opener", measure_classifier_opener_rate),
             ("past_progressive", measure_past_progressive_rate),
         ];
         for (name, measure) in measures {

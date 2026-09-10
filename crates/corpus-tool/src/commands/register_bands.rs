@@ -1,14 +1,16 @@
 //! `corpus-tool register-bands` — measures the per-document em-dash,
-//! semicolon, contrast-closer, and past-progressive rates over the
-//! train-split human docs-genre population.
+//! semicolon, contrast-closer, classifier-opener, and past-progressive
+//! rates over the train-split human docs-genre population.
 //!
 //! For hand-transcribing into
 //! `crates/friction-packs/packs/register-en-v1.toml`'s
 //! `[features.em_dash]`, `[features.semicolon]`, `[features.contrast_closer]`,
-//! and `[features.past_progressive]`. Runs through
+//! `[features.classifier_opener]`, and `[features.past_progressive]`.
+//! Runs through
 //! [`friction_edit::register::measure_em_dash_rate`]/
 //! [`friction_edit::register::measure_semicolon_rate`]/
 //! [`friction_edit::register::measure_contrast_closer_rate`]/
+//! [`friction_edit::register::measure_classifier_opener_rate`]/
 //! [`friction_edit::register::measure_past_progressive_rate`] — the same
 //! sentence-context build, tagging, parsing, and counting path
 //! `friction-edit`'s register pass itself uses at runtime — so a
@@ -46,6 +48,7 @@ struct DocRates {
     em_dash: f64,
     semicolon: f64,
     contrast_closer: f64,
+    classifier_opener: f64,
     past_progressive: f64,
 }
 
@@ -55,8 +58,8 @@ struct DocRates {
 /// each record's path via [`relpath`] — some live under
 /// `corpus/quarantine/docs/` rather than `corpus/human/docs/`), measures
 /// each document's per-1000-prose-word em-dash, semicolon,
-/// contrast-closer, and past-progressive rates, and prints each
-/// document's four rates plus every population's 10th/50th/90th
+/// contrast-closer, classifier-opener, and past-progressive rates, and
+/// prints each document's five rates plus every population's 10th/50th/90th
 /// percentile (nearest-rank, the same method `register-en-v1.toml`'s
 /// existing bands were measured with).
 ///
@@ -97,19 +100,24 @@ pub fn run(args: &Args) -> anyhow::Result<()> {
             &text, &tagger, &parser, &segmenter,
         )
         .map_err(|e| anyhow::anyhow!("register-bands: {}: {e}", record.id))?;
+        let classifier_opener = friction_edit::register::measure_classifier_opener_rate(
+            &text, &tagger, &parser, &segmenter,
+        )
+        .map_err(|e| anyhow::anyhow!("register-bands: {}: {e}", record.id))?;
         let past_progressive = friction_edit::register::measure_past_progressive_rate(
             &text, &tagger, &parser, &segmenter,
         )
         .map_err(|e| anyhow::anyhow!("register-bands: {}: {e}", record.id))?;
         println!(
             "{em_dash:>10.4}  {semicolon:>10.4}  {contrast_closer:>10.4}  \
-             {past_progressive:>10.4}  {}",
+             {classifier_opener:>10.4}  {past_progressive:>10.4}  {}",
             record.id
         );
         measured.push(DocRates {
             em_dash,
             semicolon,
             contrast_closer,
+            classifier_opener,
             past_progressive,
         });
     }
@@ -133,6 +141,13 @@ pub fn run(args: &Args) -> anyhow::Result<()> {
         measured
             .iter()
             .map(|d| d.contrast_closer)
+            .collect::<Vec<_>>(),
+    );
+    report_feature(
+        "classifier_opener",
+        measured
+            .iter()
+            .map(|d| d.classifier_opener)
             .collect::<Vec<_>>(),
     );
     report_feature(
