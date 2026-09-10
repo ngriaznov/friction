@@ -682,9 +682,10 @@ fn empty_pass() -> crate::document::PassReport {
 /// nothing here was ever a candidate for [`select_and_apply`]:
 /// `contrast_closer` (see [`push_contrast_closer_findings`]'s own docs
 /// for why and how it arms) and `classifier_opener` (see
-/// [`push_classifier_opener_findings`]'s; until a measured band lands
-/// in `register-en-v1.toml` its block is inert -- `band` returns `None`
-/// -- the staged-activation discipline `docs/EXTENDING.md` describes).
+/// [`push_classifier_opener_findings`]'s). Each block is gated on its
+/// band existing in `register-en-v1.toml`, so either feature could be
+/// staged back to inert by removing its band alone -- the
+/// staged-activation discipline `docs/EXTENDING.md` describes.
 #[allow(clippy::too_many_arguments)] // private emission helper for one call site
 fn push_detect_only_findings(
     held: &mut Vec<Finding>,
