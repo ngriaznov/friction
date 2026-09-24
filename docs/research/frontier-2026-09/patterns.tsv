@@ -1,0 +1,55 @@
+# Tab-separated: label<TAB>Python regex (case-insensitive, multiline). Used by measure.py.
+not only...but	\bnot only\b[^.?!\n]{0,120}?\bbut\b
+not only (any)	\bnot only\b
+not just (any)	\bnot just\b
+not merely/simply	\bnot (?:merely|simply)\b
+isn't/not just X. It	\b(?:isn't|is not|aren't|are not|doesn't|does not|don't|do not)\s+just\b[^.?!\n]{0,100}[.;—–-]\s+(?:it|they|this|that)\b
+X isn't A; it's B	\b(?:isn't|is not|wasn't)\b[^.?!\n]{0,80}?(?:[;—]|\.)\s*(?:it's|it is|it was|they're)\b
+not A, but B	\bnot\s+(?:a|an|the)?\s*\w+(?:\s\w+)?,\s+but\s+
+It's not about	\b(?:it's|it is)\s+not\s+about\b
+no X, no Y, just Z	\bno\s+\w+(?:\s\w+)?,\s+no\s+\w+(?:\s\w+)?,\s+(?:just|only)\b
+rhetorical Q: The X?	(?:^|[.!]\s+)(?:The|So|And)\s+\w+\?\s+[A-Z]
+Why? Because	\?\s+Because\b
+Here's the thing	\bhere'?s the (?:thing|catch|kicker|deal|twist|trick|problem|rub)\b
+here's why/what/how	\bhere'?s (?:why|what|how)\b
+That's it.	(?:^|[.!]\s+)That'?s it[.!]
+the key insight	\bthe key (?:insight|takeaway|idea|point|thing)\b
+worth noting	\bworth (?:noting|mentioning|calling out|flagging)\b
+Notably,	(?:^|[.!]\s+)Notably,
+In short,	(?:^|[.!]\s+)In short,
+Simply put	\b(?:simply put|put simply)\b
+Great question	\bgreat question\b
+absolutely right	\byou'?re (?:absolutely|completely|totally) right\b
+this is where	\bthis is where\b
+the real X	\bthe real (?:problem|issue|win|question|story|value|cost|reason|risk|trick|work)\b
+X matters because	\bmatters because\b
+Think of it as	\bthink of (?:it|this) as\b
+Under the hood	\bunder the hood\b
+no more, no less	\bno more,? no less\b
+The short answer	\bthe short (?:answer|version)\b
+In other words	\bin other words\b
+colon-reveal	(?:^|[.!]\s+)(?:The (?:fix|catch|result|upshot|twist|trick|answer|lesson|takeaway|point|difference|problem|culprit))\s*:
+and that's	\band that'?s (?:the|it|fine|okay|ok)\b
+honest/candidly	\b(?:to be honest|honestly|candidly|frankly)\b
+genuinely	\bgenuinely\b
+load-bearing	\bload-bearing\b
+surface (verb)	\bsurfaces?\b
+the whole point	\bthe whole point\b
+quietly	\bquietly\b
+em dash	—
+semicolon	;
+isn't X — it's Y (any subj)	\b(?:isn't|is not|wasn't|was not|aren't|are not)\b[^.?!\n]{0,80}?(?:[;—]\s*|\.\s+)(?:it's|it is|it was|they're|they are)\b
+doesn't just X	\b(?:doesn't|does not|don't|do not|didn't|won't)\s+just\b
+not just X — it's also	\bnot just\b[^.?!\n]{0,80}?(?:—|;|,)\s*(?:it'?s|it is|they'?re)\b
+that's the whole	\bthat'?s the (?:whole|entire|real|actual)\b
+actually (any)	\bactually\b
+real/actual work	\bthe (?:actual|real) \w+ (?:is|was)\b
+X, which is (commentary)	,\s+which is (?:why|what|the|exactly|fine|good|great|a)\b
+bare 'which is to say'	\bwhich is to say\b
+nothing (dramatic)	\bnothing (?:more|fancy|magic|clever|exotic)\b
+a couple of	\ba couple of\b
+the thing is/about	\bthe thing (?:is|about)\b
+the part that	\bthe (?:part|bit) that\b
+plain English	\bin plain (?:English|terms|language)\b
+colon-reveal any	(?:^|[.!]\s+)(?:The|That|This|Here'?s)\s+(?:\w+\s+){0,3}(?:is|was)?\s*(?:this|simple|why)?:\s
+—which / — and	— (?:which|and that|and it)\b

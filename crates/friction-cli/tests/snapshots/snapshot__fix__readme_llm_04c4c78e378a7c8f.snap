@@ -4,7 +4,7 @@ expression: stdout
 ---
 ## Feedwell: A Lightweight Self-Hosted RSS & Atom Reader
 
-**Feedwell** is a self-hosted RSS and Atom feed reader built with performance and simplicity in mind. It boasts a clean, lightweight web UI allowing you to manage your favorite feeds, keep track of unread articles, and easily search through your archive. 
+**Feedwell** is a self-hosted RSS and Atom feed reader built with performance and simplicity in mind. It has a clean, lightweight web UI allowing you to manage your favorite feeds, keep track of unread articles, and easily search through your archive. 
 
 **Why Choose Feedwell?**
 

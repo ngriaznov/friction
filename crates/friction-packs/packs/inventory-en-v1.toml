@@ -146,6 +146,10 @@ pattern = '(?i)\bsimply\s+'
 anchor = "mid_sentence"
 repair = "delete"
 source = "seed"
+# "simply put" is an idiom, not the intensifier: deleting "simply" out
+# of "Simply put, X" or "X, simply put, Y" strands "put" ("Put, the
+# cache is..."), a sentence-initial seam the gates auto-pass.
+unless_followed_by = ["put"]
 
 [[deletion_spans]]
 id = "span.to_suit_your_needs_trailing"

@@ -241,6 +241,89 @@ Findings, in order of confidence:
   small-model slop vocabulary at all. An em-dash register band remains
   the most promising new fix-side operation (§4).
 
+## 7. The September 2026 release round (2026-09-24)
+
+A fresh measurement-only sample from two current-generation Claude
+releases (an Opus-tier and a Fable-tier model), 24 documents each, on
+prompts 37-42 of the docs/readme/blog/forum batteries (prompts no prior
+corpus doc used), default register, generated through Claude Code
+subagents the same way §6's corpus was. The documents live in
+[`frontier-2026-09/`](frontier-2026-09/) as `a/` and `b/`; they are NOT in
+the manifest and feed no pack. `frontier-2026-09/measure.py` reproduces
+every rate below from train+dev only (the sealed holdout is never read).
+
+Per million words (15k words per new sample, so single-digit counts are
+noise; the claude column is §6's opus-5/sonnet-5 corpus):
+
+| construction | small | claude | human | new A | new B |
+|---|---:|---:|---:|---:|---:|
+| em dash | 388 | 9545 | 454 | **0** | **0** |
+| semicolon | 436 | 2025 | 1774 | 257 | 3245 |
+| `actually` | 152 | 1208 | 187 | 579 | 827 |
+| `here's why/what/how` | 138 | 93 | 55 | 450 | 255 |
+| `honestly/frankly/candidly` | 69 | 176 | 4 | 129 | 191 |
+| `quietly` | 0 | 181 | 0 | 193 | 64 |
+| negated-copula correction | 42 | 148 | 34 | 64 | 191 |
+| `not only ... but` | 249 | 0 | 42 | 0 | 0 |
+
+Findings:
+
+- **The em-dash tell is gone.** Neither new model used a single em
+  dash in 48 documents, down from ~9.5 per thousand words one release
+  earlier. `register.em_dash` stays correct (it homes every document to
+  the human zero band) but it no longer finds anything on the newest
+  output. A detector tuned to one release's punctuation habit decays
+  within a release cycle.
+- **What remains is sincerity and signposting.** `actually`,
+  `honestly`/`frankly`, cataphoric `Here's what I learned.` sentences,
+  and the corrective contrast. `actually` is already measured
+  machine-tilted (`intg.actually`) but sits above the 100/M human
+  ceiling, so it stays report-only by design. `quietly` carries real
+  meaning in this register ("had been failing quietly for eleven days"),
+  and its only plausible replacement, `silently`, is unattested in the
+  human corpus, so no rewrite can pass the attestation fence.
+- **The engine barely edits them.** `friction fix` applied 14 edits
+  across the 24 A documents and 17 across the 24 B documents, mostly
+  `register.past_progressive` and `register.semicolon`. That is the
+  expected outcome for a closed-operation fixer on text with almost no
+  lexical slop left: the residue is constructional, and the honest
+  ceiling for most of it is detection.
+- **`not only X but also Y` is a small-model tell.** 249/M in the
+  small-model families, 42/M human, zero in any Claude sample. It
+  now rewrites (`con.not-only-but-also`); see below.
+
+Shipped from this round:
+
+1. `con.not-only-but-also`: `not only/merely X (,) but also Y` →
+   `X and Y`, train+dev 80.4/M machine vs 14.7/M human (5.5x). The
+   additive correlative is truth-conditionally a conjunction, unlike the
+   corrective `not just X — it's Y`.
+2. Frame-pass fixes that made it (and older rules) able to fire: a
+   one-word guard no longer vetoes a construction rule that names the
+   guarded word as a literal (the `also` guard had silently disabled
+   `con.not-just-dash-also::lit` since it shipped), and candidates are
+   gated before conflict resolution, so a held long candidate no longer
+   suppresses the smaller edits inside it.
+3. `frame.contrast.correction` widened to any subject's negated copula
+   restated by a pronoun copula, single-sentence (`;`/em dash) and
+   two-sentence (first sentence ≤ 10 words) forms. Detect-only, like the
+   rest of the template.
+4. `span.simply` no longer deletes the `simply` of `simply put`
+   (`Simply put, X` had been rewritten to `Put, X`), via a new
+   `unless_followed_by` veto on deletion spans.
+
+Next, in priority order:
+
+1. Ingest a full-size battery (prompts 1-36, all five genres) for the
+   newest releases into the manifest as train/dev, and rebuild the DMS
+   index: §6 showed attribution needs ~90 train docs per family.
+2. Re-adjudicate `here's why/what/how` as a whole-sentence ritual
+   deletion once that corpus exists. The period-final standalone form
+   (`Here's what I learned.`) measures 7 machine vs 0 human today, too
+   thin to ship.
+3. Measure GPT- and Gemini-family output the same way. Nothing here
+   says anything about them.
+
 ## Sources
 
 - Kobak et al., *Science Advances* 2025 — https://arxiv.org/abs/2406.07016 /

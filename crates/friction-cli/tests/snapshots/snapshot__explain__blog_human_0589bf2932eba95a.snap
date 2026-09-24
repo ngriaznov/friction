@@ -2,10 +2,15 @@
 source: crates/friction-cli/tests/snapshot.rs
 expression: stdout
 ---
-pass 1: 0 operation(s) fired — converged
+pass 1: 1 operation(s) fired
+  con.not-only-but-also    432..473  -> "in space exploration and in"
   1 held:
     pilot.individuals      306..317  KEPT (frame pilot.individuals held: right seam not attested)
   3 report-only observation(s) (--verbose to list)
 pass 2: 0 operation(s) fired — converged
-pass 3: 1 operation(s) fired
-  register.em_dash         1523..1568  -> ", with FREE Standard Shipping worldwide, "
+  1 held:
+    pilot.individuals      231..353  KEPT (frame pilot.individuals held: right seam not attested)
+  3 report-only observation(s) (--verbose to list)
+pass 3: 0 operation(s) fired — converged
+pass 4: 1 operation(s) fired
+  register.em_dash         1509..1554  -> ", with FREE Standard Shipping worldwide, "

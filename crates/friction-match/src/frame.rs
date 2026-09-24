@@ -162,6 +162,62 @@ static BARE_CORRECTION_SECOND: LazyLock<Regex> = LazyLock::new(|| {
     Regex::new(r"(?i)^\s*(?:it'?s|it\s+is)\b").expect("BARE_CORRECTION_SECOND pattern is valid")
 });
 
+/// Template 2c, single-sentence form: any subject's negated copula, then
+/// an em dash or semicolon, then a pronoun-copula second limb: "The
+/// problem isn't the parser; it's the tokenizer", "Your starter isn't
+/// dead — it's hungry". The marker-free generalization of 2b's
+/// `It's not X — it's Y` that frontier models favor (train+dev: 12
+/// instances in 182k claude-family words and 6 in 144k small-model
+/// words, vs 2 in 235k human words, both in one essay). The second limb
+/// stays pinned to a
+/// pronoun copula: a bare `not X; Y` joins two independent claims far
+/// too often to flag.
+static NEGATED_COPULA_SINGLE: LazyLock<Regex> = LazyLock::new(|| {
+    Regex::new(
+        r"(?i)\b(?:isn't|is\s+not|wasn't|was\s+not|aren't|are\s+not|weren't|were\s+not)\b[^.?!;—]{1,80}?[;—]\s*(?:it'?s|it\s+(?:is|was)|they'?re|they\s+(?:are|were))\b",
+    )
+    .expect("NEGATED_COPULA_SINGLE pattern is valid")
+});
+
+/// Template 2c, two-sentence form's first sentence: a short (see
+/// [`NEGATED_COPULA_MAX_WORDS`]) sentence whose negated copula has a
+/// complement after it ("The first sign was not a crash."). The
+/// complement requirement drops elliptical closers ("most
+/// implementations are not.") that set up nothing.
+static NEGATED_COPULA_FIRST: LazyLock<Regex> = LazyLock::new(|| {
+    Regex::new(
+        r"(?i)\b(?:isn't|is\s+not|wasn't|was\s+not|aren't|are\s+not|weren't|were\s+not)\s+\w",
+    )
+    .expect("NEGATED_COPULA_FIRST pattern is valid")
+});
+
+/// Template 2c, two-sentence form's second sentence: `It's Y.` /
+/// `They're Y.`
+static NEGATED_COPULA_SECOND: LazyLock<Regex> = LazyLock::new(|| {
+    Regex::new(r"(?i)^\s*(?:it'?s|it\s+(?:is|was)|they'?re|they\s+(?:are|were))\b")
+        .expect("NEGATED_COPULA_SECOND pattern is valid")
+});
+
+/// Word ceiling for 2c's two-sentence first sentence. The staged
+/// correction is short and punchy ("What bothered me wasn't the
+/// mistake."); longer sentences followed by an `It is ...` opener are
+/// mostly unrelated extraposition ("It is strongly recommended to...").
+/// At 10 words train+dev measures 10 claude-family instances vs 2 human,
+/// both genuine corrective contrasts.
+const NEGATED_COPULA_MAX_WORDS: usize = 10;
+
+/// `true` if `text` is 2c's two-sentence first sentence: short, ends in
+/// a period, carries no em dash or semicolon (those are the
+/// single-sentence form's), and holds a negated copula with a
+/// complement.
+fn is_negated_copula_setup(text: &str) -> bool {
+    let trimmed = text.trim_end();
+    trimmed.ends_with('.')
+        && !trimmed.contains(['—', ';'])
+        && trimmed.split_whitespace().count() <= NEGATED_COPULA_MAX_WORDS
+        && NEGATED_COPULA_FIRST.is_match(trimmed)
+}
+
 /// Local (relative-to-`unit.text`) byte range of `unit.sentences[index]`.
 const fn local_sentence_range(unit: &ScopedUnit<'_>, range: &Range<usize>) -> Range<usize> {
     let base = unit.unit.range.start;
@@ -190,6 +246,11 @@ fn scan_correction_spans(unit: &ScopedUnit<'_>) -> Vec<MatchSpan> {
             i += 1;
             continue;
         }
+        if let Some(m) = NEGATED_COPULA_SINGLE.find(text) {
+            spans.push(correction_span((range.start + m.start())..range.end));
+            i += 1;
+            continue;
+        }
         if BARE_CORRECTION_FIRST.is_match(text)
             && text.trim_end().ends_with('.')
             && let Some(next_range) = sentences.get(i + 1)
@@ -197,6 +258,16 @@ fn scan_correction_spans(unit: &ScopedUnit<'_>) -> Vec<MatchSpan> {
             let next_local = local_sentence_range(unit, next_range);
             let next_text = &unit.text[next_local];
             if BARE_CORRECTION_SECOND.is_match(next_text) {
+                spans.push(correction_span(range.start..next_range.end));
+                i += 2;
+                continue;
+            }
+        }
+        if is_negated_copula_setup(text)
+            && let Some(next_range) = sentences.get(i + 1)
+        {
+            let next_local = local_sentence_range(unit, next_range);
+            if NEGATED_COPULA_SECOND.is_match(&unit.text[next_local]) {
                 spans.push(correction_span(range.start..next_range.end));
                 i += 2;
                 continue;
@@ -437,6 +508,47 @@ mod tests {
         let source = "It's not a wrapper but a rewrite of the parser.";
         let spans = frame_spans(source);
         assert!(spans.is_empty(), "expected no span: {spans:?}");
+    }
+
+    #[test]
+    fn contrast_correction_negated_copula_any_subject_semicolon() {
+        let source = "The problem isn't the parser; it's the tokenizer.";
+        let spans = frame_spans(source);
+        assert_eq!(spans.len(), 1);
+        assert_eq!(&*spans[0].frame_id, CONTRAST_CORRECTION_ID);
+    }
+
+    #[test]
+    fn contrast_correction_negated_copula_any_subject_em_dash() {
+        let source = "Your starter isn't dead — it's hungry.";
+        assert_eq!(frame_spans(source).len(), 1);
+    }
+
+    #[test]
+    fn contrast_correction_negated_copula_two_sentences() {
+        let source = "The first sign was not a crash. It was a graph.";
+        let spans = frame_spans(source);
+        assert_eq!(spans.len(), 1);
+        assert_eq!(&source[spans[0].range.clone()], source);
+    }
+
+    #[test]
+    fn contrast_correction_negated_copula_declines_long_setup_and_ellipsis() {
+        // A long first sentence followed by extraposition is not a
+        // staged correction, and an elliptical "are not." sets up
+        // nothing.
+        let long = "Where necessary, use a placeholder value for properties where the \
+                    desired value is not yet available. It is possible to add one later.";
+        assert!(frame_spans(long).is_empty());
+        let elliptical = "NFS could be compliant, but most are not. It is recommended to \
+                          use a local disk.";
+        assert!(frame_spans(elliptical).is_empty());
+    }
+
+    #[test]
+    fn contrast_correction_negated_copula_needs_a_pronoun_second_limb() {
+        let source = "The cache is not shared; each worker builds its own.";
+        assert!(frame_spans(source).is_empty());
     }
 
     #[test]

@@ -40,7 +40,14 @@ the short form of this file.
    finding, and `--suggest` shows it with its measured rates. Rewrites
    realize through the inflection tables, so tense and agreement survive
    the swap, and every candidate still passes the same seam, clause, and
-   skeleton gates as a deletion.
+   skeleton gates as a deletion. Two-slot constructions rewrite whole:
+   *"This not only saves time but also ensures accuracy"* → *"This saves
+   time and ensures accuracy"*. Candidates are gated before conflicts
+   are resolved, so a long candidate a gate holds never blocks the
+   smaller edits inside it. A one-word guard (*"also"*, *"however"*)
+   keeps a human-normal word from being edited on lexical grounds, but
+   it does not veto a construction rule that names that word as a
+   literal: the construction's evidence was measured on its own.
 7. **Clause restructuring**: parse-level, per-instance rewrites of
    constructions the flat frame grammar structurally cannot express. Two
    ship today. The `ensure that` collapse takes an embedded bare-BE
@@ -122,7 +129,9 @@ single index, which also powers the document-level report in
 `friction check`), a deterministic contrast-frame
 template scan: `frame.contrast.question` (the dismissive-foil interrogative
 above) and `frame.contrast.correction` (declarative epanorthosis, *"not just
-X — it's Y"*), both detect-only in `check` and, for `fix`, reported in the
+X — it's Y"*, and any subject's negated copula restated by a pronoun:
+*"The problem isn't the parser; it's the tokenizer"*, *"The first sign was
+not a crash. It was a graph."*), both detect-only in `check` and, for `fix`, reported in the
 paraphrase list with DMS (differential matching statistics, friction's
 own name for its corpus-differential detection channel, built on the
 matching-statistics literature; see `docs/research/ALGORITHMS.md` §1)

@@ -60,7 +60,7 @@ use friction_packs::frame_bin::{FramePackView, PatOp, RuleView};
 use friction_packs::frame_rules::{Clitic, Slot, Tag};
 
 /// One verified frame-rule match within a single sentence.
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct FrameMatch {
     /// Index of the rule in the pack.
     pub rule_index: u32,
