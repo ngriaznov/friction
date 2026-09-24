@@ -168,7 +168,7 @@ pub use envelope::{ENVELOPE_V2, EnvelopePack, exceedance};
 pub use human_evidence::{HumanEvidencePack, build_pack_bytes as build_human_evidence_bin};
 pub use inventory::{
     Anchor, DeletionSpan, FrequencyUnit, GuardTokens, InventoryPack, LvcPair, OutputFrequencyBand,
-    PreviewFrame, RepairKind, RitualFrame, SubstitutionPair,
+    PreviewFrame, RepairKind, RitualFrame, SubstitutionPair, follower_vetoes,
 };
 pub use jargon::{AttestedException, JargonPack, Lexeme, LexemeSource};
 pub use jargon_attest::{BuiltPack, JargonAttestPack, build_pack_bytes, normalize_compound};

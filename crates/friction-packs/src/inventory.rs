@@ -103,6 +103,36 @@ pub struct DeletionSpan {
     pub repair: RepairKind,
     pub source: Box<str>,
     pub notes: Option<Box<str>>,
+    /// Lowercase words that veto the deletion when one of them is the
+    /// first word after the match: the lookahead the regex crate lacks.
+    /// `simply` is a deletable intensifier, but `simply put` is an idiom
+    /// whose deletion leaves a stranded `put`.
+    pub unless_followed_by: Box<[Box<str>]>,
+}
+
+impl DeletionSpan {
+    /// `true` if the first word of `rest` (the text right after a match)
+    /// is one of [`Self::unless_followed_by`].
+    #[must_use]
+    pub fn vetoed_by_follower(&self, rest: &str) -> bool {
+        follower_vetoes(&self.unless_followed_by, rest)
+    }
+}
+
+/// `true` if the first word of `rest` is one of `words` (lowercase),
+/// compared ASCII case-insensitively. Shared by the edit path and the
+/// literal detection automaton so both honor the same veto.
+#[must_use]
+pub fn follower_vetoes(words: &[Box<str>], rest: &str) -> bool {
+    if words.is_empty() {
+        return false;
+    }
+    let rest = rest.trim_start();
+    let end = rest
+        .find(|c: char| !(c.is_alphanumeric() || c == '\'' || c == '-'))
+        .unwrap_or(rest.len());
+    let word = &rest[..end];
+    !word.is_empty() && words.iter().any(|w| w.eq_ignore_ascii_case(word))
 }
 
 /// A substitution pair: matched span replaced with a fixed, plain-register
@@ -508,6 +538,11 @@ impl DeletionSpan {
             repair,
             source: raw.source.into_boxed_str(),
             notes: raw.notes.map(String::into_boxed_str),
+            unless_followed_by: raw
+                .unless_followed_by
+                .into_iter()
+                .map(|w| w.to_ascii_lowercase().into_boxed_str())
+                .collect(),
         })
     }
 }
@@ -669,6 +704,8 @@ struct RawDeletionSpan {
     source: String,
     #[serde(default)]
     notes: Option<String>,
+    #[serde(default)]
+    unless_followed_by: Vec<String>,
 }
 
 #[derive(Debug, Deserialize)]

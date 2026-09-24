@@ -956,9 +956,11 @@ mod tests {
         // literal, not class-based, so each rule anchors on its own
         // 4-token phrase instead of bare "rather than" (which pools to
         // 425/M human and would demote at the ceiling).
-        assert_eq!(total, 3432, "regeneration moves rules, never loses them");
+        // 3432 -> 3433: con.not-only-but-also (grep-measured 5.5x machine
+        // tilt; its only/merely position is the new `only_adv` class).
+        assert_eq!(total, 3433, "regeneration moves rules, never loses them");
         assert_eq!(set.rules_pilot.len(), 21, "pilot rules never move");
-        assert_eq!(set.classes.len(), 35);
+        assert_eq!(set.classes.len(), 36);
         assert_eq!(set.function_words.words.len(), 37);
         for (name, rules) in set.knowledge_buckets() {
             assert!(!rules.is_empty(), "bucket {name} must not be empty");

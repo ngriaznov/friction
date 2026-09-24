@@ -6,7 +6,7 @@
 use std::collections::BTreeSet;
 
 use aho_corasick::{AhoCorasick, MatchKind};
-use friction_packs::{Anchor, InventoryPack};
+use friction_packs::{Anchor, InventoryPack, follower_vetoes};
 use regex::Regex;
 
 use crate::span::{Channel, MatchScore, MatchSpan};
@@ -55,6 +55,9 @@ pub struct LiteralAutomaton {
     automaton: AhoCorasick,
     /// Parallel to the automaton's own pattern ids.
     frame_ids: Vec<Box<str>>,
+    /// Parallel to `frame_ids`: each entry's follower-word veto list
+    /// (empty for substitution pairs and unguarded spans).
+    follower_vetoes: Vec<Box<[Box<str>]>>,
     /// The inventory entry ids this automaton covers, the regex
     /// fallback's own exclusion set.
     ac_covered_ids: BTreeSet<Box<str>>,
@@ -72,6 +75,7 @@ impl LiteralAutomaton {
     pub fn build(inventory: &InventoryPack) -> Result<Self, crate::MatchError> {
         let mut patterns: Vec<String> = Vec::new();
         let mut frame_ids: Vec<Box<str>> = Vec::new();
+        let mut follower_vetoes: Vec<Box<[Box<str>]>> = Vec::new();
         let mut ac_covered_ids: BTreeSet<Box<str>> = BTreeSet::new();
 
         for span in inventory.deletion_spans() {
@@ -81,6 +85,7 @@ impl LiteralAutomaton {
             if let Some(phrase) = literal_phrase(&span.pattern_source) {
                 patterns.push(phrase.into());
                 frame_ids.push(span.id.clone());
+                follower_vetoes.push(span.unless_followed_by.clone());
                 ac_covered_ids.insert(span.id.clone());
             }
         }
@@ -88,6 +93,7 @@ impl LiteralAutomaton {
             if let Some(phrase) = literal_phrase(&pair.pattern_source) {
                 patterns.push(phrase.into());
                 frame_ids.push(pair.id.clone());
+                follower_vetoes.push(Box::default());
                 ac_covered_ids.insert(pair.id.clone());
             }
         }
@@ -100,6 +106,7 @@ impl LiteralAutomaton {
         Ok(Self {
             automaton,
             frame_ids,
+            follower_vetoes,
             ac_covered_ids,
         })
     }
@@ -127,8 +134,12 @@ impl LiteralAutomaton {
             if before_is_word || after_is_word {
                 continue;
             }
+            let pattern = mat.pattern().as_usize();
+            if follower_vetoes(&self.follower_vetoes[pattern], &unit.text[end..]) {
+                continue;
+            }
 
-            let frame_id = self.frame_ids[mat.pattern().as_usize()].clone();
+            let frame_id = self.frame_ids[pattern].clone();
             out.push(MatchSpan {
                 range: (unit.unit.range.start + start)..(unit.unit.range.start + end),
                 channel: Channel::Literal,

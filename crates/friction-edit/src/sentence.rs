@@ -1050,6 +1050,15 @@ fn run_deletion(
             ));
             continue;
         }
+        if span.vetoed_by_follower(&working[m.end()..]) {
+            held.push(Finding::new(
+                RULE_SPAN,
+                sentence_range.clone(),
+                format!("deletion {} held: follower word forms an idiom", span.id),
+                Tier::Suggest,
+            ));
+            continue;
+        }
         if gates::in_quoted_span(&working, &m.range()) {
             held.push(Finding::new(
                 RULE_SPAN,
@@ -1202,10 +1211,9 @@ fn run_frame_rewrite(
     } else {
         (&original.tags, original_frame_matches)
     };
-    let guard_spans: Vec<Range<usize>> = matches
+    let guards: Vec<&FrameMatch> = matches
         .iter()
         .filter(|m| frame_kind(view, m) == CompiledKind::Guard)
-        .map(|m| m.bytes.clone())
         .collect();
     let edits: Vec<FrameMatch> = matches
         .iter()
@@ -1213,55 +1221,108 @@ fn run_frame_rewrite(
             matches!(
                 frame_kind(view, m),
                 CompiledKind::Rewrite | CompiledKind::Delete
-            ) && !guard_spans
-                .iter()
-                .any(|g| m.bytes.start < g.end && g.start < m.bytes.end)
+            ) && !guards.iter().any(|g| {
+                m.bytes.start < g.bytes.end
+                    && g.bytes.start < m.bytes.end
+                    && !construction_names_guarded_word(view, m, g)
+            })
         })
         .cloned()
         .collect();
-    let mut resolved = frame_rewrite::resolve(view, edits);
+    // Gate every candidate before resolving conflicts, so a candidate
+    // a gate holds never shadows the smaller edits it overlaps: a held
+    // "not only X but also Y" must not keep "enhances" -> "improves"
+    // inside X from firing. Hold findings are reported exactly for the
+    // candidates the policy would have picked over the full set.
+    let mut plans: Vec<(FrameMatch, Result<FramePlan, Finding>)> = edits
+        .iter()
+        .map(|m| {
+            let plan = plan_frame_candidate(sentence_range, ctx, original, &working, tags, m);
+            (m.clone(), plan)
+        })
+        .collect();
+    for m in frame_rewrite::resolve(view, edits).iter().rev() {
+        if let Some((_, Err(finding))) = plans.iter().find(|(candidate, _)| candidate == m) {
+            held.push(finding.clone());
+        }
+    }
+    let viable: Vec<FrameMatch> = plans
+        .iter()
+        .filter(|(_, plan)| plan.is_ok())
+        .map(|(m, _)| m.clone())
+        .collect();
+    let mut resolved = frame_rewrite::resolve(view, viable);
     resolved.reverse();
     for m in resolved {
-        apply_frame_candidate(
-            splicer,
-            held,
-            sentence_range,
-            ctx,
-            original,
-            &working,
-            tags,
-            m,
-        );
+        let at = plans
+            .iter()
+            .position(|(candidate, plan)| *candidate == m && plan.is_ok())
+            .expect("every resolved candidate was planned");
+        if let (_, Ok(plan)) = plans.swap_remove(at) {
+            apply_frame_plan(splicer, plan);
+        }
     }
 }
 
-/// Gates and applies (or holds) one resolved frame candidate.
-#[expect(
-    clippy::too_many_arguments,
-    reason = "per-candidate slice of run_frame_rewrite"
-)]
-fn apply_frame_candidate(
-    splicer: &mut SentenceSplicer<'_>,
-    held: &mut Vec<Finding>,
+/// `true` if `guard` is a one-token lexical guard and the edit `m`
+/// consumed that very token with a literal pattern op.
+///
+/// A bare-word guard ("also", "however") carries the unigram's
+/// human-corpus tilt: it keeps the word from being deleted or swapped
+/// on lexical grounds. An edit rule that names the word as a literal
+/// is a construction whose own tilt was adjudicated separately
+/// ("not only X but also Y"), the same reason a guard never vetoes the
+/// derivational pivot: unigram direction must not veto
+/// construction-level evidence. A guarded word that only falls inside
+/// an edit's slot, or a multi-token guard, still vetoes as before.
+fn construction_names_guarded_word(
+    view: &FramePackView<'_>,
+    m: &FrameMatch,
+    guard: &FrameMatch,
+) -> bool {
+    if guard.tokens.len() != 1 {
+        return false;
+    }
+    let guarded = guard.tokens.start;
+    let rule = view.rule(m.rule_index).expect("matched rule in range");
+    rule.pattern.clone().zip(&m.op_tokens).any(|(cell, token)| {
+        let (op, _) = cell.expect("embedded pack ops always decode");
+        *token == Some(guarded) && matches!(op, PatOp::Lit(_))
+    })
+}
+
+/// A frame candidate that cleared every gate: the (possibly
+/// article-widened) edit, plus the un-widened fallback used when the
+/// widening crosses an earlier edit's boundary.
+struct FramePlan {
+    rule_id: RuleId,
+    range: Range<usize>,
+    replacement: String,
+    base: Range<usize>,
+    base_replacement: String,
+}
+
+/// Gates one frame candidate against the scan-time working text:
+/// `Ok` carries the edit to splice, `Err` the Suggest-tier hold
+/// finding. Every gate reads only `working` (never the splicer's
+/// current state), so a candidate's outcome does not depend on which
+/// other candidates apply.
+fn plan_frame_candidate(
     sentence_range: &Range<usize>,
     ctx: &EditContext<'_>,
     original: &OriginalState,
     working: &str,
     tags: &[TaggedToken],
-    m: FrameMatch,
-) {
+    m: &FrameMatch,
+) -> Result<FramePlan, Finding> {
     let view = &friction_packs::FRAME.pack;
     let rule = view.rule(m.rule_index).expect("matched rule in range");
     let rule_id = RuleId::from(rule.id);
     let finding_range = m.bytes.start + sentence_range.start..m.bytes.end + sentence_range.start;
-    if let Some(reason) = frame_candidate_hold(&rule, &m, tags, working) {
-        held.push(Finding::new(
-            rule_id,
-            finding_range,
-            format!("frame {} held: {reason}", rule.id),
-            Tier::Suggest,
-        ));
-        return;
+    let hold =
+        |message: String| Finding::new(rule_id, finding_range.clone(), message, Tier::Suggest);
+    if let Some(reason) = frame_candidate_hold(&rule, m, tags, working) {
+        return Err(hold(format!("frame {} held: {reason}", rule.id)));
     }
     match rule.kind {
         CompiledKind::Delete => {
@@ -1272,40 +1333,23 @@ fn apply_frame_candidate(
                 original.clause_ok,
                 ctx.tagger,
             );
-            if outcome == DeletionGateOutcome::Allowed {
-                let base = m.bytes;
-                let widened = widen_deletion(working, base.clone());
-                let (range, replacement) = repair_article(working, widened, String::new());
-                if splicer.can_apply(&range) {
-                    splicer.apply(range, &replacement, rule_id, Tier::Fix);
-                } else if splicer.can_apply(&base) {
-                    // The widening crossed into an earlier edit's
-                    // replacement; the bare deletion is still sound.
-                    splicer.apply(base, "", rule_id, Tier::Fix);
-                }
-            } else {
-                held.push(Finding::new(
-                    rule_id,
-                    finding_range,
-                    format!("frame {} held: {outcome:?}", rule.id),
-                    Tier::Suggest,
-                ));
+            if outcome != DeletionGateOutcome::Allowed {
+                return Err(hold(format!("frame {} held: {outcome:?}", rule.id)));
             }
+            let base = m.bytes.clone();
+            let widened = widen_deletion(working, base.clone());
+            let (range, replacement) = repair_article(working, widened, String::new());
+            Ok(FramePlan {
+                rule_id,
+                range,
+                replacement,
+                base,
+                base_replacement: String::new(),
+            })
         }
         CompiledKind::Rewrite => {
-            let replacement =
-                match try_rewrite_ladder(view, &rule, &m, tags, working, ctx, original) {
-                    Ok(replacement) => replacement,
-                    Err(hold_message) => {
-                        held.push(Finding::new(
-                            rule_id,
-                            finding_range,
-                            format!("frame {} held: {hold_message}", rule.id),
-                            Tier::Suggest,
-                        ));
-                        return;
-                    }
-                };
+            let replacement = try_rewrite_ladder(view, &rule, m, tags, working, ctx, original)
+                .map_err(|hold_message| hold(format!("frame {} held: {hold_message}", rule.id)))?;
             // A replacement that opens its line or sentence carries
             // the opener's capital itself: the splicer marks the
             // region as replacement text, which the recapitalization
@@ -1316,18 +1360,31 @@ fn apply_frame_candidate(
             } else {
                 replacement
             };
-            let base = m.bytes;
+            let base = m.bytes.clone();
             let (range, widened_replacement) =
                 repair_article(working, base.clone(), replacement.clone());
-            if splicer.can_apply(&range) {
-                splicer.apply(range, &widened_replacement, rule_id, Tier::Fix);
-            } else if splicer.can_apply(&base) {
-                // Article widening crossed an earlier edit's boundary;
-                // the un-widened rewrite is still sound.
-                splicer.apply(base, &replacement, rule_id, Tier::Fix);
-            }
+            Ok(FramePlan {
+                rule_id,
+                range,
+                replacement: widened_replacement,
+                base,
+                base_replacement: replacement,
+            })
         }
-        CompiledKind::Guard | CompiledKind::Report => {}
+        CompiledKind::Guard | CompiledKind::Report => {
+            unreachable!("only rewrite and delete candidates are planned")
+        }
+    }
+}
+
+/// Splices one gated frame plan. An article widening that crosses an
+/// earlier edit's boundary falls back to the un-widened edit, which is
+/// still sound on its own.
+fn apply_frame_plan(splicer: &mut SentenceSplicer<'_>, plan: FramePlan) {
+    if splicer.can_apply(&plan.range) {
+        splicer.apply(plan.range, &plan.replacement, plan.rule_id, Tier::Fix);
+    } else if splicer.can_apply(&plan.base) {
+        splicer.apply(plan.base, &plan.base_replacement, plan.rule_id, Tier::Fix);
     }
 }
 
