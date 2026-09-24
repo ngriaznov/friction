@@ -133,8 +133,8 @@ pub fn tell_span_hits(text: &str, tagger: &dyn Tagger) -> Vec<TellSpanHit> {
 
         let mut span_candidates: Vec<(Range<usize>, &'static str)> = Vec::new();
         for span in inventory.deletion_spans() {
-            for m in span.pattern.find_iter(sentence) {
-                span_candidates.push((m.range(), &span.id));
+            for range in span.deletions(sentence) {
+                span_candidates.push((range, &span.id));
             }
         }
         for (range, pattern_id) in resolve_overlaps(span_candidates) {

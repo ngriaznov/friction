@@ -88,3 +88,38 @@ fn simply_put_is_not_split() {
         "You can run the script.\n"
     );
 }
+
+/// "a handful of" is the same quantity as "a few", in a plainer word.
+#[test]
+fn a_handful_of_becomes_a_few() {
+    assert_eq!(
+        fix("We fetch data from a handful of internal services.\n"),
+        "We fetch data from a few internal services.\n"
+    );
+}
+
+/// A negated sentence's closing "at all" only stamps the negation.
+#[test]
+fn negated_at_all_is_deleted() {
+    assert_eq!(
+        fix("Yet the Scan method does not expose an error at all.\n"),
+        "Yet the Scan method does not expose an error.\n"
+    );
+    assert_eq!(
+        fix("That traffic never touches the router at all.\n"),
+        "That traffic never touches the router.\n"
+    );
+}
+
+/// Outside a negation "at all" carries meaning, "if at all" is an idiom,
+/// and a mid-sentence "at all" is left for the reader.
+#[test]
+fn at_all_outside_a_negated_close_is_untouched() {
+    for source in [
+        "That is the trick that makes the method practical at all.\n",
+        "It is not clear, if at all.\n",
+        "The cache is not used at all, and writes go straight through.\n",
+    ] {
+        assert_eq!(fix(source), source);
+    }
+}
