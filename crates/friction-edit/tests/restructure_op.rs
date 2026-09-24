@@ -329,10 +329,9 @@ fn restructure_output_is_idempotent() {
 /// ritual-deletion decline, held against the converged text) plus an
 /// R1-licensed instance must surface BOTH the ritual hold and the
 /// restructure fix's own accounting correctly -- the bounded loop's
-/// hold must not be silently dropped by `final_pass_held`-equivalent
-/// reporting once restructure sits between it and register (see
-/// `friction-cli::fix::final_pass_held`'s own regression test for the
-/// CLI-layer half of this).
+/// hold must not be silently dropped by `EditReport::remaining_held`
+/// once restructure sits between it and register (see that method's own
+/// regression test in `document.rs` for the selection half of this).
 #[test]
 fn a_bounded_loop_hold_survives_alongside_a_restructure_fix() {
     let source = "1. Ensure that the setting is enabled.\n";
@@ -344,10 +343,9 @@ fn a_bounded_loop_hold_survives_alongside_a_restructure_fix() {
     // Whether or not this particular numbered-list shape happens to
     // produce a ritual-deletion hold, the restructure fix's own held
     // findings (if any) and the register pass's must all still be
-    // present in `report.passes` -- the union `final_pass_held` reads
-    // downstream in `friction-cli`. This is the engine-level half of the
-    // regression; the CLI-level assertion on `final_pass_held` itself
-    // lives in `friction-cli/src/fix.rs`'s own test module.
+    // present in `report.passes` -- the union `remaining_held` reads.
+    // This is the end-to-end half of the regression; the selection
+    // assertion itself lives in `document.rs`'s own test module.
     assert!(report.passes.len() >= 3);
 }
 

@@ -2,6 +2,8 @@
 //! [`crate::sentence::edit_sentence`] over every prose sentence,
 //! bounded to two engine passes.
 
+use std::ops::Range;
+
 use friction_core::{Finding, Patch, find_overlaps};
 use friction_match::token::tokenize_str;
 use friction_nlp::{DepParser, Segmenter, Tagger, segment_document};
@@ -49,13 +51,75 @@ pub struct EditReport {
     /// zero-patch convergence pass, or the bounded-out final round).
     ///
     /// Threaded explicitly rather than derived from `passes.len()`:
-    /// `friction-cli`'s `final_pass_held` used to assume `passes.len() -
-    /// 2` was always this pass (true only when register was the sole
-    /// pass following the bounded loop). Inserting the restructure pass
+    /// the held-candidate selection used to assume `passes.len() - 2`
+    /// was always this pass (true only when register was the sole pass
+    /// following the bounded loop). Inserting the restructure pass
     /// between them shifted that arithmetic silently — see
-    /// `friction-cli::fix::final_pass_held`'s own docs for the fix this
-    /// field enables.
+    /// [`EditReport::remaining_held`], the selection this field enables.
     pub final_bounded_pass_index: usize,
+}
+
+impl EditReport {
+    /// The engine's current held candidates, positioned against the
+    /// fixed output.
+    ///
+    /// Selection: the last bounded pass's holds (its re-scan of every
+    /// sentence carries the gate-held diagnostics against the converged
+    /// text), merged with every pass after it (restructure, register),
+    /// each of which reports only its own holds. Keys on
+    /// [`Self::final_bounded_pass_index`] rather than `passes.len()`, so
+    /// inserting another trailing pass cannot silently select the wrong
+    /// pass's holds.
+    ///
+    /// Positioning: a pass reports its holds against the text IT
+    /// received, so each finding is shifted through that pass's own
+    /// applied patches and every later pass's. Without the shift, an
+    /// edit a trailing pass makes earlier in the document (a
+    /// participial-closer split, a register rewrite) leaves every hold
+    /// after it pointing a few bytes off.
+    #[must_use]
+    pub fn remaining_held(&self) -> Vec<Finding> {
+        let first = self.final_bounded_pass_index;
+        let mut held = Vec::new();
+        for (index, pass) in self.passes.iter().enumerate().skip(first) {
+            for finding in &pass.held {
+                let mut finding = finding.clone();
+                for later in &self.passes[index..] {
+                    finding.range = rebase_range(&finding.range, &later.applied_patches);
+                }
+                held.push(finding);
+            }
+        }
+        held
+    }
+}
+
+/// Maps `range`, a byte range in the text a pass received, into the text
+/// that pass produced by applying `patches` (non-overlapping, in that
+/// input's coordinates). A bound inside a replaced span snaps outward to
+/// the replacement's edge, so the rebased range still covers the edit.
+fn rebase_range(range: &Range<usize>, patches: &[Patch]) -> Range<usize> {
+    let rebase = |pos: usize, is_end: bool| -> usize {
+        let mut shifted = pos;
+        for patch in patches {
+            let (start, end) = (patch.range.start, patch.range.end);
+            let inserted = patch.replacement.len();
+            if end <= pos && !(is_end && start == pos && start == end) {
+                shifted = shifted + inserted - (end - start);
+            } else if start < pos && pos < end {
+                let new_start = shifted - (pos - start);
+                return if is_end {
+                    new_start + inserted
+                } else {
+                    new_start
+                };
+            }
+        }
+        shifted
+    };
+    let start = rebase(range.start, false);
+    let end = rebase(range.end, true).max(start);
+    start..end
 }
 
 /// Total prose word-token count across `source`'s prose blocks, used to
@@ -402,4 +466,100 @@ pub(crate) fn apply(source: &str, patches: &[Patch]) -> String {
         result.replace_range(patch.range.clone(), patch.replacement.as_str());
     }
     result
+}
+
+#[cfg(test)]
+mod tests {
+    use friction_core::{RuleId, Tier};
+
+    use super::*;
+
+    fn finding(rule: &'static str, range: Range<usize>) -> Finding {
+        Finding::new(RuleId::new(rule), range, "held", Tier::Suggest)
+    }
+
+    fn pass(held: Vec<Finding>, patches: Vec<Patch>) -> PassReport {
+        PassReport {
+            patches_applied: patches.len(),
+            patches_dropped: 0,
+            applied_patches: patches,
+            held,
+        }
+    }
+
+    fn patch(range: Range<usize>, replacement: &str) -> Patch {
+        Patch::new(range, replacement, RuleId::new("x"), Tier::Fix)
+    }
+
+    /// Unions exactly the last bounded pass's holds and every later
+    /// pass's, never an earlier round's: with restructure between the
+    /// bounded loop and register, a `passes.len()`-derived index would
+    /// select restructure's holds in place of the bounded loop's.
+    #[test]
+    fn remaining_held_unions_bounded_restructure_and_register_passes() {
+        let ritual = finding("ritual.delete", 1..2);
+        let restructure = finding("restructure.ensures_that", 2..3);
+        let register = finding("pivot.lvc", 3..4);
+        let report = EditReport {
+            passes: vec![
+                pass(vec![finding("span.delete", 0..1)], Vec::new()),
+                pass(vec![ritual.clone()], Vec::new()),
+                pass(vec![restructure.clone()], Vec::new()),
+                pass(vec![register.clone()], Vec::new()),
+            ],
+            reusable_scan: None,
+            final_bounded_pass_index: 1,
+        };
+        assert_eq!(report.remaining_held(), vec![ritual, restructure, register]);
+    }
+
+    #[test]
+    fn remaining_held_handles_no_passes() {
+        assert!(EditReport::default().remaining_held().is_empty());
+    }
+
+    /// A later pass that lengthens text before a hold shifts the hold by
+    /// the same amount; one that edits after it leaves it alone. The
+    /// demo-paragraph case: "loop, allowing" -> "loop. That allowed"
+    /// (+4 bytes) used to leave every later hold 4 bytes early.
+    #[test]
+    fn remaining_held_shifts_through_later_passes() {
+        let report = EditReport {
+            passes: vec![
+                pass(vec![finding("span.delete", 20..30)], Vec::new()),
+                pass(
+                    Vec::new(),
+                    vec![patch(5..10, "123456789"), patch(40..45, "")],
+                ),
+            ],
+            reusable_scan: None,
+            final_bounded_pass_index: 0,
+        };
+        assert_eq!(report.remaining_held()[0].range, 24..34);
+    }
+
+    /// A hold is shifted through its OWN pass's patches too: a pass
+    /// reports holds against the text it received.
+    #[test]
+    fn remaining_held_shifts_through_its_own_pass() {
+        let report = EditReport {
+            passes: vec![pass(
+                vec![finding("register.em_dash", 10..20)],
+                vec![patch(0..4, "")],
+            )],
+            reusable_scan: None,
+            final_bounded_pass_index: 0,
+        };
+        assert_eq!(report.remaining_held()[0].range, 6..16);
+    }
+
+    /// Bounds inside a replaced span snap outward, so the rebased hold
+    /// still covers the replacement.
+    #[test]
+    fn rebase_snaps_bounds_inside_a_patch_outward() {
+        let patches = [patch(10..20, "abc")];
+        assert_eq!(rebase_range(&(5..15), &patches), 5..13);
+        assert_eq!(rebase_range(&(15..30), &patches), 10..23);
+        assert_eq!(rebase_range(&(12..18), &patches), 10..13);
+    }
 }

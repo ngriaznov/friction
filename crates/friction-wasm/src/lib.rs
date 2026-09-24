@@ -433,24 +433,6 @@ struct SuggestReport {
     suggestions: Vec<SuggestionRow>,
 }
 
-/// The engine's current held candidates: the final bounded pass's holds,
-/// merged with every pass after it. A copy of
-/// `friction-cli::fix::final_pass_held` (private to that crate, like
-/// [`LineIndex`]) — see that function's own doc comment for why the
-/// selection keys on [`EditReport::final_bounded_pass_index`] rather
-/// than a fixed offset from `passes.len()`.
-fn final_pass_held(report: &EditReport) -> Vec<Finding> {
-    let passes = &report.passes;
-    let mut held: Vec<Finding> = passes
-        .get(report.final_bounded_pass_index)
-        .map(|pass| pass.held.clone())
-        .unwrap_or_default();
-    for pass in passes.iter().skip(report.final_bounded_pass_index + 1) {
-        held.extend(pass.held.clone());
-    }
-    held
-}
-
 /// Runs the repair engine (exactly like [`fix_text`]) and returns the
 /// fixed text plus its remaining held candidates.
 ///
@@ -467,7 +449,7 @@ pub fn suggest_text(input: &str) -> Result<String, JsError> {
         .fix_document_with(input, syntax)
         .map_err(to_js_error)?;
 
-    let held = final_pass_held(&report);
+    let held = report.remaining_held();
     let lines = LineIndex::new(&output);
     let suggestions: Vec<SuggestionRow> = held
         .iter()
