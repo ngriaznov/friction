@@ -152,6 +152,30 @@ source = "seed"
 unless_followed_by = ["put"]
 
 [[deletion_spans]]
+id = "span.negated_at_all_trailing"
+pattern = '(?i)(?:(?:^|[^,\s])\s*\b(?:not|never|no|nothing|none|nobody|without)\b|n[\x27\x{2019}]t\b)[^.!?;:]{0,80}?\b(?:\w{3,}|[^\Wi]\w|i[^\Wf]|\w)(?P<del>\s+at all)[.!]'
+anchor = "trailing"
+repair = "delete"
+source = "curated-seed"
+notes = """
+Emphatic negative-polarity "at all" closing a negated sentence: "the \
+Scan method does not expose an error at all." -> "...does not expose an \
+error." The negation already carries the claim; "at all" only stamps it. \
+Grep-measured 2026-09-24 over train+dev (negation within 80 chars, then \
+sentence-final "at all"): claude-family 19 (80/M tokens), small-model 1 \
+(5/M), human 5 (12/M); pooled machine 46/M, 3.8x. Only the `del` group is \
+deleted: the pattern needs the negation before it and the terminal \
+punctuation after it, and the regex crate has no lookaround. Scoped to \
+negated sentences on purpose: in a positive or conditional frame "at \
+all" carries meaning ("the trick that makes it practical at all", \
+"rarely, if at all"), and the word right before the span may not be \
+"if". A negation right after a comma is the contrast tail ("reported \
+and skipped, not read at all"), which register-en-v1.toml's \
+contrast_closer notes record as meaning-bearing in this register; it is \
+left alone.
+"""
+
+[[deletion_spans]]
 id = "span.to_suit_your_needs_trailing"
 pattern = '(?i)\s+to suit your needs\b'
 anchor = "trailing"

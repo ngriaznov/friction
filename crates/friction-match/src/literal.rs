@@ -168,11 +168,11 @@ pub fn regex_fallback_spans(
     units: &[ScopedUnit<'_>],
 ) -> Vec<MatchSpan> {
     let mut entries: Vec<(&str, &Regex)> = Vec::new();
-    for span in inventory.deletion_spans() {
-        if !covered.ac_covered_ids.contains(&span.id) {
-            entries.push((span.id.as_ref(), &span.pattern));
-        }
-    }
+    let fallback_spans: Vec<_> = inventory
+        .deletion_spans()
+        .iter()
+        .filter(|span| !covered.ac_covered_ids.contains(&span.id))
+        .collect();
     for pair in inventory.substitution_pairs() {
         if !covered.ac_covered_ids.contains(&pair.id) {
             entries.push((pair.id.as_ref(), &pair.pattern));
@@ -186,6 +186,19 @@ pub fn regex_fallback_spans(
             let local_end = sentence.end - unit.unit.range.start;
             let sentence_text = &unit.text[local_start..local_end];
 
+            // A deletion span reports the span it would delete (its
+            // `del` group when it has one), not its context.
+            for span in &fallback_spans {
+                for range in span.deletions(sentence_text) {
+                    out.push(MatchSpan {
+                        range: (sentence.start + range.start)..(sentence.start + range.end),
+                        channel: Channel::Literal,
+                        frame_id: span.id.clone(),
+                        score: MatchScore::Present,
+                        message: None,
+                    });
+                }
+            }
             for (id, pattern) in &entries {
                 for mat in pattern.find_iter(sentence_text) {
                     out.push(MatchSpan {

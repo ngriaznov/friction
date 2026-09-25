@@ -117,6 +117,30 @@ impl DeletionSpan {
     pub fn vetoed_by_follower(&self, rest: &str) -> bool {
         follower_vetoes(&self.unless_followed_by, rest)
     }
+
+    /// The byte range to delete for the first match in `text`: the
+    /// pattern's `del` capture group when it has one, else the whole
+    /// match. The group is the context the regex crate's missing
+    /// lookaround cannot express: `not ... (?P<del> at all)[.!]` must
+    /// see the negation and the terminal punctuation, and delete neither.
+    #[must_use]
+    pub fn find_deletion(&self, text: &str) -> Option<std::ops::Range<usize>> {
+        self.deletions(text).into_iter().next()
+    }
+
+    /// Every deletion range in `text`, left to right; see
+    /// [`Self::find_deletion`].
+    #[must_use]
+    pub fn deletions(&self, text: &str) -> Vec<std::ops::Range<usize>> {
+        if self.pattern.capture_names().any(|name| name == Some("del")) {
+            self.pattern
+                .captures_iter(text)
+                .filter_map(|caps| caps.name("del").map(|m| m.range()))
+                .collect()
+        } else {
+            self.pattern.find_iter(text).map(|m| m.range()).collect()
+        }
+    }
 }
 
 /// `true` if the first word of `rest` is one of `words` (lowercase),

@@ -1030,7 +1030,7 @@ fn run_deletion(
             splicer.working_text(),
             "hoisted working text out of sync with splicer chain"
         );
-        let Some(m) = span.pattern.find(&working) else {
+        let Some(range) = span.find_deletion(&working) else {
             continue;
         };
         // The pack's contract for a diagnostic-only entry ("recorded
@@ -1050,7 +1050,7 @@ fn run_deletion(
             ));
             continue;
         }
-        if span.vetoed_by_follower(&working[m.end()..]) {
+        if span.vetoed_by_follower(&working[range.end..]) {
             held.push(Finding::new(
                 RULE_SPAN,
                 sentence_range.clone(),
@@ -1059,7 +1059,7 @@ fn run_deletion(
             ));
             continue;
         }
-        if gates::in_quoted_span(&working, &m.range()) {
+        if gates::in_quoted_span(&working, &range) {
             held.push(Finding::new(
                 RULE_SPAN,
                 sentence_range.clone(),
@@ -1070,14 +1070,14 @@ fn run_deletion(
         }
         let outcome = gates::check_deletion_gates(
             &working,
-            m.range(),
+            range.clone(),
             ctx.attestation,
             original.clause_ok,
             ctx.tagger,
         );
         match outcome {
             DeletionGateOutcome::Allowed => {
-                splicer.apply(m.range(), "", RULE_SPAN, Tier::Fix);
+                splicer.apply(range.clone(), "", RULE_SPAN, Tier::Fix);
                 // The chain changed: the next span's pattern must match
                 // against the post-deletion text.
                 working = splicer.working_text();
