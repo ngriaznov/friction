@@ -712,7 +712,7 @@ dependencies = [
 
 [[package]]
 name = "friction-wasm"
-version = "0.6.17"
+version = "0.6.18"
 dependencies = [
  "friction-core",
  "friction-edit",
