@@ -93,6 +93,10 @@ jobs:
           major, minor, patch = map(int, re.search(r'^version = "(\d+)\.(\d+)\.(\d+)"', text, re.M).groups())
           old, new = f"{major}.{minor}.{patch}", f"{major}.{minor}.{patch + 1}"
           cargo.write_text(text.replace(f'version = "{old}"', f'version = "{new}"', 1))
+          # release.yml refuses to tag unless friction-wasm matches; left
+          # behind, it stopped the v0.6.13 and v0.6.18 releases.
+          wasm = pathlib.Path("crates/friction-wasm/Cargo.toml")
+          wasm.write_text(wasm.read_text().replace(f'version = "{old}"', f'version = "{new}"', 1))
           pkg = pathlib.Path("npm/friction-cli/package.json")
           pkg.write_text(pkg.read_text().replace(f'"{old}"', f'"{new}"'))
           readme = pathlib.Path("README.md")
