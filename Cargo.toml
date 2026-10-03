@@ -87,6 +87,10 @@ module_name_repetitions = "allow"
 must_use_candidate = "allow"
 missing_errors_doc = "allow"
 missing_panics_doc = "allow"
+# Pedantic since clippy 1.99: wants `assert!(v.is_empty())` spelled
+# `assert_eq!(v, [] as [T; 0])`. The boolean form is the tests' idiom here
+# (101 sites when the lint landed).
+assert_is_empty = "allow"
 
 # Thin LTO + single codegen unit: measured ~10% off fix's runtime for
 # slower release builds, the right trade for a shipped CLI. panic stays
