@@ -1,0 +1,27 @@
+{
+  "name": "friction",
+  "version": "0.1.0",
+  "description": "Runs friction on Claude's replies: deterministic fixes for LLM prose tells, applied before each reply is stored.",
+  "types": "./types/index.d.ts",
+  "userConfig": {
+    "mode": {
+      "type": "string",
+      "title": "Mode",
+      "description": "fix rewrites each reply with friction's fixes; check only counts what friction would change; off does nothing.",
+      "options": ["fix", "check", "off"],
+      "default": "fix"
+    },
+    "command": {
+      "type": "string",
+      "title": "friction command",
+      "description": "The command that runs friction, split on spaces. Empty: `friction` on PATH, else `npx -y friction-cli@latest`.",
+      "default": ""
+    },
+    "subagents": {
+      "type": "boolean",
+      "title": "Subagent replies",
+      "description": "Also run friction on subagents' replies, which only the main model reads.",
+      "default": false
+    }
+  }
+}
