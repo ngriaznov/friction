@@ -150,6 +150,10 @@ detect, and converge before presenting.
 The skill invokes `npx friction-cli@latest`, so it needs no local
 install and always runs the newest release.
 
+The same marketplace carries friction-replies, a mod that runs
+`friction fix` on Claude's chat replies before Claude Code stores them:
+`/plugin install friction-replies@friction-skill`.
+
 ### From source
 
 ```bash
