@@ -304,21 +304,45 @@ jobs:
 
       - uses: actions/setup-node@v4
         with:
-          node-version: 20
+          # npm >= 11.5.1 (bundled from Node 24) is what trusted publishing
+          # needs; Node 20's npm 10 cannot mint the OIDC exchange.
+          node-version: 24
           registry-url: https://registry.npmjs.org
 
-      # Publishing is opt-in: without the secret the job reports green and does
-      # nothing, so the binary release above is never held hostage to npm
-      # credentials that may not be configured yet.
+      # Publishing is opt-in, in one of two modes, and the job reports green
+      # and does nothing when neither is configured, so the binary release
+      # above is never held hostage to npm credentials:
+      #
+      # - trusted: the NPM_TRUSTED_PUBLISHING repository variable is "true"
+      #   and every package has this workflow registered as its trusted
+      #   publisher on npmjs.com (package settings -> Trusted Publisher ->
+      #   GitHub Actions: owner ngriaznov, repository friction, workflow
+      #   filename release.yml). No stored token: npm exchanges the job's
+      #   OIDC token for a short-lived credential and attaches provenance
+      #   itself. A fresh registration expires unless its first publish
+      #   succeeds within two days.
+      # - token: the NPM_TOKEN secret holds a granular access token. These
+      #   expire (the Nov 2026 refresh died on a 404 from an expired one,
+      #   a month after the same token published 0.6.18), and npm removes
+      #   direct publishing with them in January 2027 — the trusted mode
+      #   is the one to keep.
       - id: gate
         env:
           NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
+          TRUSTED: ${{ vars.NPM_TRUSTED_PUBLISHING }}
         run: |
-          if [ -z "$NPM_TOKEN" ]; then
-            echo "publish=false" >> "$GITHUB_OUTPUT"
-            echo "NPM_TOKEN is not set; skipping npm publish"
-          else
+          if [ "$TRUSTED" = "true" ]; then
+            echo "mode=trusted" >> "$GITHUB_OUTPUT"
             echo "publish=true" >> "$GITHUB_OUTPUT"
+            echo "publishing via trusted publishing (OIDC)"
+          elif [ -n "$NPM_TOKEN" ]; then
+            echo "mode=token" >> "$GITHUB_OUTPUT"
+            echo "publish=true" >> "$GITHUB_OUTPUT"
+            echo "publishing with the NPM_TOKEN secret"
+          else
+            echo "mode=skip" >> "$GITHUB_OUTPUT"
+            echo "publish=false" >> "$GITHUB_OUTPUT"
+            echo "neither NPM_TRUSTED_PUBLISHING nor NPM_TOKEN is set; skipping npm publish"
           fi
 
       - if: steps.gate.outputs.publish == 'true'
@@ -349,8 +373,17 @@ jobs:
       - name: publish
         if: steps.gate.outputs.publish == 'true'
         env:
-          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+          # Token mode authenticates with the secret. Trusted mode must not
+          # see a real token at all: setup-node's placeholder value is what
+          # lets npm fall through to the OIDC exchange, so the secret (which
+          # may be set and expired) is kept out of the environment there.
+          NODE_AUTH_TOKEN: ${{ steps.gate.outputs.mode == 'token' && secrets.NPM_TOKEN || 'XXXXX-XXXXX-XXXXX-XXXXX' }}
+          MODE: ${{ steps.gate.outputs.mode }}
         run: |
+          # Trusted publishing attaches provenance on its own; the explicit
+          # flag is the token path's.
+          provenance=""
+          [ "$MODE" = "token" ] && provenance="--provenance"
           # Platform packages are scoped, so they live one level deeper
           # than the wrapper: npm-dist/@scope/name. Unscoped sibling names
           # (friction-cli-darwin-arm64 and friends) tripped npm's spam
@@ -358,7 +391,7 @@ jobs:
           # looks like to it.
           for pkg in npm-dist/@*/*; do
             echo "publishing $(node -p "require('./$pkg/package.json').name")"
-            (cd "$pkg" && npm publish --provenance --access public)
+            (cd "$pkg" && npm publish $provenance --access public)
           done
           echo "publishing friction-cli"
-          (cd npm-dist/friction-cli && npm publish --provenance --access public)
+          (cd npm-dist/friction-cli && npm publish $provenance --access public)
