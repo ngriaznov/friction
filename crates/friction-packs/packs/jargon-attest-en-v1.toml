@@ -4,7 +4,7 @@
 
 [pack]
 version = "jargon-attest-v1"
-key_count = 2035579
+key_count = 2041295
 filter_kind = "xorf::BinaryFuse8"
 false_positive_rate_approx = "0.4%"
 hash_function = "xxh64 (xxhash-rust), fixed seed"
@@ -16,18 +16,18 @@ collision_direction = "safe: a false 'attested' only ever suppresses a jargon.me
 [pack.sources.wikipedia]
 description = "Multiword MediaWiki page titles, ns0 (articles), pre-filtered to 2-4 underscore-separated segments"
 input_file = "enwiki-titles"
-input_file_sha256 = "3b0b718db5377bc2c437e2ee9faf36e76aa01c7973f5f043832148d79b0c0d34"
-input_lines_read = 19264252
-input_lines_kept = 2038323
+input_file_sha256 = "1d95c27ded75613d32974afdb5f0f637c04809fa9a4cabd676efae6fff077a46"
+input_lines_read = 19315921
+input_lines_kept = 2044042
 source_dump = "enwiki-latest-all-titles-in-ns0.gz"
-source_dump_sha256 = "01094d764f053d32dace439e586f68d73ceb020e76832c0a1611415dcfb30735"
+source_dump_sha256 = "ae8c3ed228958117d571c28fa030cf1b8be525063b96bde3cb7e7b5362cb4fd7"
 license = "CC BY-SA 4.0 and GFDL"
 attribution = "Wikipedia contributors, https://en.wikipedia.org/ — titles only (no article text) are used, as bare compound keys in a membership filter"
 
 [pack.sources.openalex]
 description = "OpenAlex Topics display names"
 input_file = "openalex-topics.txt"
-input_file_sha256 = "601ed3b2c80b1518b823bb0e3d9bcba4f7615db3ebbab6c79712041a07719ce4"
+input_file_sha256 = "48e1cf7e5d7561c7d69d74c07624c5f1c5393c0328d4efb8606bdef241e7ff65"
 input_lines_read = 4516
 input_lines_kept = 2622
 license = "CC0"
