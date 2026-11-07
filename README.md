@@ -137,13 +137,13 @@ The macOS binaries are **unsigned**, so Gatekeeper refuses the first run. Either
 
 ### Claude Code plugin
 
-[friction-skill](https://github.com/ngriaznov/friction-skill) teaches
+[friction-skill](https://github.com/zerosize-dev/friction-skill) teaches
 Claude Code to run friction on the technical prose it writes: apply the
 deterministic fixes, then revise the constructions friction can only
 detect, and converge before presenting.
 
 ```
-/plugin marketplace add ngriaznov/friction-skill
+/plugin marketplace add zerosize-dev/friction-skill
 /plugin install friction-skill@friction-skill
 ```
 
