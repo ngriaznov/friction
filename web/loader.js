@@ -44,7 +44,7 @@ const ASSETS = [
 ];
 
 const GITHUB_RAW_TEMPLATE =
-  "https://raw.githubusercontent.com/ngriaznov/friction/v{version}/";
+  "https://raw.githubusercontent.com/zerosize-dev/friction/v{version}/";
 
 const LOCAL_PACKS_BASE = "./packs/";
 const LOCAL_PROBE_URL = "./packs/dms-index-en-v1.toml";

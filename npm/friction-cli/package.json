@@ -20,10 +20,10 @@
   "license": "MIT OR Apache-2.0",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/ngriaznov/friction.git"
+    "url": "git+https://github.com/zerosize-dev/friction.git"
   },
   "homepage": "https://friction-cli.dev",
-  "bugs": "https://github.com/ngriaznov/friction/issues",
+  "bugs": "https://github.com/zerosize-dev/friction/issues",
   "bin": {
     "friction": "bin/friction.js"
   },

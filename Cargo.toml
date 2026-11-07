@@ -6,7 +6,7 @@ members = ["crates/*"]
 edition = "2024"
 rust-version = "1.96"
 license = "MIT OR Apache-2.0"
-repository = "https://github.com/ngriaznov/friction"
+repository = "https://github.com/zerosize-dev/friction"
 
 [workspace.dependencies]
 thiserror = "2"
