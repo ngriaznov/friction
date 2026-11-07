@@ -34,7 +34,7 @@ const PLATFORMS = [
   { pkg: "@mhriaznov/friction-win32-x64", os: "win32", cpu: "x64", target: "x86_64-pc-windows-msvc", bin: "friction.exe" },
 ];
 
-const REPO = "https://github.com/ngriaznov/friction";
+const REPO = "https://github.com/zerosize-dev/friction";
 
 for (const { pkg, os, cpu, target, bin } of PLATFORMS) {
   const root = join(outDir, pkg);

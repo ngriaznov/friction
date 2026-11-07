@@ -316,7 +316,7 @@ jobs:
       # - trusted: the NPM_TRUSTED_PUBLISHING repository variable is "true"
       #   and every package has this workflow registered as its trusted
       #   publisher on npmjs.com (package settings -> Trusted Publisher ->
-      #   GitHub Actions: owner ngriaznov, repository friction, workflow
+      #   GitHub Actions: owner zerosize-dev, repository friction, workflow
       #   filename release.yml). No stored token: npm exchanges the job's
       #   OIDC token for a short-lived credential and attaches provenance
       #   itself. A fresh registration expires unless its first publish

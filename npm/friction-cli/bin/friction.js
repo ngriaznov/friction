@@ -37,7 +37,7 @@ function resolveBinary() {
     throw new Error(
       `friction has no prebuilt binary for ${key}.\n` +
         `Supported: ${supported}.\n` +
-        `Build from source instead: cargo install --git https://github.com/ngriaznov/friction friction-cli`
+        `Build from source instead: cargo install --git https://github.com/zerosize-dev/friction friction-cli`
     );
   }
 
